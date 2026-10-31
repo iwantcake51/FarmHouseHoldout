@@ -95,8 +95,11 @@ function renderSeats() {
     if (p.bot) li.classList.add('bot');
     if (teams) {
       const sd = sideOf(p.id); li.classList.add('side' + sd); li.style.setProperty('--sc', sd === 'B' ? '#e2563f' : '#5fb4e8');
-      const tag = document.createElement('span'); tag.className = 'sSide'; tag.textContent = sd === 'B' ? 'Red' : 'Blue'; li.appendChild(tag);
-      if ((me || NET.host) && !NET.inGame) { const b = document.createElement('button'); b.type = 'button'; b.className = 'coopCopy sSw'; b.textContent = 'To ' + (sd === 'B' ? 'Blue' : 'Red'); b.setAttribute('aria-label', 'Move ' + (me ? 'yourself' : p.name || 'them') + ' to ' + (sd === 'B' ? 'Blue' : 'Red')); b.onclick = () => netSwitchSide(p.id); li.appendChild(b); }
+      // (its side's badge, up in the corner; where you can move them, the badge is the switch: ⇄)
+      const can = (me || NET.host) && !NET.inGame, tag = document.createElement(can ? 'button' : 'span'), to = sd === 'B' ? 'Blue' : 'Red';
+      tag.className = 'sSide' + (can ? ' sw' : ''); tag.textContent = (sd === 'B' ? 'Red' : 'Blue') + (can ? ' ⇄' : '');
+      if (can) { tag.type = 'button'; tag.title = 'Move to ' + to; tag.setAttribute('aria-label', 'Move ' + (me ? 'yourself' : p.name || 'them') + ' to ' + to); tag.onclick = () => netSwitchSide(p.id); }
+      li.appendChild(tag);
     }
     // someone you're playing with who isn't on your friends list yet: one click to add them (net/friends.js)
     if (!me && p.fid && p.fid !== PALS.me && !frOf(p.fid)) { const b = document.createElement('button'); b.type = 'button'; b.className = 'coopCopy sAdd'; b.textContent = 'Add friend'; b.onclick = () => frAdd(p.fid, p.name); li.appendChild(b); }
@@ -117,6 +120,8 @@ export function toggleCoop(open) {
   else if (!el.hidden) { el.classList.add('closing'); document.body.classList.add('coopLeaving'); coopShut = setTimeout(() => { el.hidden = true; el.classList.remove('closing'); document.body.classList.remove('coopOn', 'coopLeaving'); invRender(); }, COOP_SHUT); }   // (the title's menu fading back in under it as it goes: styles/coop.css)
 }
 $('coopBtn').onclick = () => { audioInit(); toggleCoop(); };
+// (each way in's picture: game-icons.net, ui/game-icons.js)
+document.querySelectorAll('#coopPick [data-gi]').forEach(el => { el.innerHTML = `<svg viewBox="${GI_VB}">${GI[el.dataset.gi] || ''}</svg>`; });
 $('coopClose').onclick = () => toggleCoop(false);
 $('coopName').addEventListener('input', e => {
   NET.name = e.target.value.trim().slice(0, 16);

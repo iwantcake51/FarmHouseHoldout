@@ -34,7 +34,8 @@ import { hitFromAt } from '../ui/hud.js';
 import { burst, bloodSpurt, gibs } from '../effects/particles.js';
 import { splatLater, spray } from '../effects/blood-map.js';
 import { wallSpray } from '../effects/wall-blood.js';
-import { addBlood } from '../effects/body-blood.js';
+import { addBlood, BODY_BLOOD } from '../effects/body-blood.js';
+import { avatarHit } from '../net/avatars.js';
 import { goreAt } from '../ui/screen-blood.js';
 import { SFX } from '../audio/sfx.js';
 import { ANIM } from '../player/animation.js';
@@ -111,6 +112,9 @@ const REGEN = { wait: 3.75, full: 8.5 };
 export const pvpRegenAhead = () => PVP.on && !P.dead && PVP.mode !== 'rounds' && (PVP.calm || 0) > REGEN.wait && !(P.bleed > 0) ? Math.max(0, S.maxHp - P.hp) : 0;
 // tagging: a hit slows you (P.slow, worn off over about a second), the harder the more: base, plus per point of damage, to most
 const PVP_TAG = { base: 0.35, per: 0.006, most: 0.62 };
+// how bloody a body is at nothing left (0..1): blood on everyone as much as they're hurt, kept while their health is
+// (all of a Showdown round) and fading off as it comes back (net/avatars.js does the others)
+export const PVP_BLOOD = 0.75;
 // each side's colour (A west, B east), and its name
 const PVP_SIDE = { A: { col: '#5fb4e8', name: 'Blue' }, B: { col: '#e2563f', name: 'Red' } };
 // the classes: two guns (each with its attachment steps: game/run-state.js W8.gt) and a melee weapon, mods where a gun
@@ -131,8 +135,9 @@ const pvpAtts = (id, gt) => Object.keys(gt).map(k => { const st = TIERS[k].t[gt[
 // what a round does to a person (body, before its falloff); a melee blow's; and by where it lands (a shotgun's pellets
 // in the head count for less than a bullet's). A hit can open a bleed (PVP_BLEED: the odds by kind, and how many
 // seconds of bleeding: player/bandages.js stops it)
-// (and all of it by PVP_TTK: the whole table eased down together, a kill taking a little longer for every gun)
-export const PVP_TTK = 0.8;
+// (and all of it by PVP_TTK: the whole table scaled together; at 1, as the table has it, every gun hitting with its
+// full weight)
+export const PVP_TTK = 1;
 export const PVP_DMG = { pistol: 26, revolver: 46, deagle: 58, smg: 15, sub: 18, ar: 22, lmg: 19, scar: 40, hunting: 90, pump: 14, dbl: 12, auto12: 8 };
 const PVP_MELEE = { bat: 38, crowbar: 44, wrench: 52, katana: 58, sledge: 92, machete: 48, axe: 72 };
 export const PVP_PART = { head: 2, torso: 1, armL: 0.72, armR: 0.72, legL: 0.78, legR: 0.78 }, PVP_HEAD_SHELL = 1.45;
@@ -192,7 +197,7 @@ export function pvpBegin() {
 // the match over and done with (back to the lobby, or the game left): the farm back
 export function pvpEnd() {
   if (!PVP.on) return;
-  PVP.on = false; PVP.ph = 'idle'; pvpIn.clear(); botsEnd(); flagDown();
+  PVP.on = false; PVP.ph = 'idle'; pvpIn.clear(); botsEnd(); flagDown(); BODY_BLOOD.floor = 0;
   document.body.classList.remove('pvp', 'pvpTeams', 'pvpRounds', 'pvpPicking');
   pvpHudHide();
 }
@@ -349,6 +354,8 @@ function pvpSend(p, d, part, w, bleed) {
   const m = { d, p: part, w, x: Math.round(P.x * 100) / 100, z: Math.round(P.z * 100) / 100, b: bleed ? 1 : 0 };
   if (p.bot && isHost()) botHit(p.id, Object.assign({ f: NET.id, to: p.id }, m)); else netTo(p.id, 'ph', m);   // (a bot's in the host's game: pvp/bots.js)
   dmgNum(p, d, part === 'head');
+  // and on them: their outline flashing and their body jolted the way it went (net/avatars.js), a punchier sound
+  { const dx = p.x - P.x, dz = p.z - P.z, L = Math.hypot(dx, dz) || 1; avatarHit(p, part === 'head', dx / L, dz / L, d / 25); SFX.pvpHit(d, part === 'head'); }
   PVP.my.dmg += d; if (part === 'head') PVP.my.hs++; ledger(PVP.life.given, p.id, d);
   hitMark('hit', part === 'head'); SFX.killTick(part === 'head', 1); (part === 'head' ? SFX.headHit : SFX.tick)();   // (and the wet sound of it going in)
 }
@@ -499,6 +506,7 @@ export function pvpUpdate(dt) {
   if (pvpFrozen()) P.stun = Math.max(P.stun || 0, 0.06);
   if (isHost()) botsUpdate(dt);
   if (PVP.flag && PVP.ph === 'live') flagStep(dt);
+  if (!P.dead) BODY_BLOOD.floor = PVP_BLOOD * clamp(1 - P.hp / S.maxHp, 0, 1);   // (blood on you as you're hurt: effects/body-blood.js, and on everyone else alike, net/avatars.js)
   // down in Deathmatch: back in after a few seconds
   if (P.dead && PVP.mode !== 'rounds' && PVP.ph === 'live' && PVP.respawn > 0 && (PVP.respawn -= dt) <= 0) { pvpPickOpen(false); pvpSpawnMe(false); PVP.prot = PVP_T.prot; PVP.killer = ''; hudEls.card.classList.remove('on'); }
   // health back on its own, once you've been left alone a moment (REGEN): eased in, all of it by REGEN.full
@@ -609,11 +617,12 @@ function flagShow(rdt) {
 
 // ---- damage numbers: what your hits did, over whoever took them, adding up while you keep hitting them (DMG_NUM:
 // how long one stays, how long it takes to fade, and how soon a hit must follow to add to it, seconds)
-const DMG_NUM = { hold: 0.9, fade: 0.35, join: 0.75 }, dmgNums = new Map(), _dnV = new V3();
+const DMG_NUM = { hold: 0.9, fade: 0.35, join: 0.75, big: 40 }, dmgNums = new Map(), _dnV = new V3();
 function dmgNum(p, d, head) {
   let n = dmgNums.get(p.id);
   if (!n || n.t > DMG_NUM.join) { if (n) n.el.remove(); const el = document.createElement('div'); el.className = 'pvpDmg'; document.body.appendChild(el); n = { el, d: 0, t: 0, head: false, p }; dmgNums.set(p.id, n); }
-  n.d += d; n.t = 0; n.head = n.head || head; n.el.textContent = n.d; n.el.classList.toggle('head', n.head); replay(n.el, 'pop');
+  n.d += d; n.t = 0; n.head = n.head || head; n.el.textContent = n.d; n.el.classList.toggle('head', n.head);
+  n.el.style.fontSize = Math.round(20 + Math.min(16, n.d / 6)) + 'px'; replay(n.el, d >= DMG_NUM.big ? 'big' : 'pop');   // (bigger the more it's added up to; a heavy hit pops harder)
 }
 function dmgNumsStep(dt) {
   for (const [id, n] of dmgNums) {

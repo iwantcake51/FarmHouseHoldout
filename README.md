@@ -352,9 +352,12 @@ controls on the title are a sheet of paper taped up beside the story, like the c
 dark inked cap on it. The menus' and the settings' own text is set in Archivo, in sentence case, with the typed lines
 in Special Elite; the view picker under the story is the two views as words, the one picked underlined with the tape.
 
-**Co-op.** Up to four players. On the title screen press **Co-op**: its own screen opens over the title, with your
-name at the top, your game on the left and your friends down the right (Esc or **Back** goes back to the title).
-Press **Open a lobby** to host, or type the host's four-letter code under **Join a game** (pasted in lower case or
+**Co-op.** Up to four players on the farm, six in the arena. On the title screen press **Co-op**: its own screen
+opens over the title, with your name at the top, your game on the left and your friends down the right (Esc or
+**Back** goes back to the title). The ways in are three cards side by side, each with its picture, what it does in a
+line or two, a few tags, and its button at the foot, all three level: **Host a game** (orange), **Join a game**
+(blue) and **Arena against bots** (red). They come in one after another as the screen opens, and lift under the
+pointer, their edge in their colour. Press **Open a lobby** to host, or type the host's four-letter code under **Join a game** (pasted in lower case or
 with a space, it's tidied up for you); friends of yours who are hosting with room are listed beside them, a click from
 joining. In a lobby:
 
@@ -427,8 +430,9 @@ settings as the host has them. They're kept between visits.
 | Showdown | Rounds to win (5, 2–9), round time (60 s, 30–180), flag capture (15 s, 5–30), loadouts (Random or Classes) |
 
 **Sides.** In the team modes the lobby's seats are grouped Blue then Red, each marked with its side. Someone joining
-goes to the side with fewer on it. Anyone can move themselves to the other side (**To Red** / **To Blue** on their
-seat), and the host can move anyone, bots included, as long as that side has room (three at most). The match starts
+goes to the side with fewer on it. Anyone can move themselves to the other side (the side's badge in the corner of
+their seat, marked ⇄, is the switch), and the host can move anyone, bots included, as long as that side has room
+(three at most). The match starts
 with the sides as the lobby has them.
 
 **The lobby's chat** slides each new line up into place and glides the log down to it.
@@ -592,27 +596,27 @@ pickups, and coming back in gives you a fresh loadout.
 
 **Damage between players** is its own table rather than the zombies', so no gun kills everything in one shot. The
 table was balanced as a whole (the automatics brought closer together, the handgun and the hunting rifle up a little),
-then everything was eased down to 80% so every fight lasts a little longer. To a 100-health body, before range
-falloff:
+and every gun hits with its full weight (a pass that had eased everything down to 80% was taken back: the guns felt
+like pea-shooters). To a 100-health body, before range falloff:
 
 | Gun | Damage | Body shots to kill | Close-range time to kill |
 |---|---|---|---|
-| Handgun | 21 | 5 | 0.84 s |
-| Revolver | 37 | 3 | 0.84 s |
-| Hand cannon | 46 | 3 | 0.68 s |
-| Machine pistol | 12 | 9 | 0.60 s |
-| Submachine gun | 14 | 7 | 0.43 s |
-| Assault rifle | 18 | 6 | 0.48 s |
-| Light machine gun | 15 | 7 | 0.42 s |
-| Battle rifle | 32 | 4 | 0.66 s |
-| Hunting rifle | 72 | 2 (1 to the head) | 1.15 s |
+| Handgun | 26 | 4 | 0.63 s |
+| Revolver | 46 | 3 | 0.84 s |
+| Hand cannon | 58 | 2 | 0.34 s |
+| Machine pistol | 15 | 7 | 0.45 s |
+| Submachine gun | 18 | 6 | 0.36 s |
+| Assault rifle | 22 | 5 | 0.38 s |
+| Light machine gun | 19 | 6 | 0.35 s |
+| Battle rifle | 40 | 3 | 0.44 s |
+| Hunting rifle | 90 | 2 (1 to the head) | 1.15 s |
 
 - **Where it lands.** A head takes double (a shotgun pellet in the head 1.45×), and an arm or leg about three
   quarters.
 - **Shotguns.** Each pellet counts: the pump's eight are 13 apiece and the double's 12 (the sawn-off's more, and
-  harder up close), the auto shotgun's seven 8 apiece (all before the 80%). So a shotgun kills up close and falls
+  harder up close), the auto shotgun's seven 8 apiece. So a shotgun kills up close and falls
   away fast past a few metres, as each gun's own falloff has it.
-- **Melee** hits for 30 (bat) to 74 (sledgehammer). A blow to the head does 1.4×, and so does an axe's chop more often.
+- **Melee** hits for 38 (bat) to 92 (sledgehammer). A blow to the head does 1.4×, and so does an axe's chop more often.
 - **Who decides a hit.** Whoever fires works out the hit against where the target stands on their screen, and the
   target's game takes the damage.
 - **Spawn protection.** For 2 seconds after you come in, nothing hurts you. Firing, swinging or shoving ends it at
@@ -624,7 +628,13 @@ falloff:
 **Hit feedback.**
 
 - **Damage numbers** pop up just over the head of whoever you hit, from either view, and add up while you keep hitting
-  them. They're white, and turn gold once a hit's gone in the head.
+  them, growing as they do (20 px up to 36). They're white, and turn gold once a hit's gone in the head; a hit of 40 or
+  more pops in harder, with a twist.
+- **On them:** whoever you hit flashes a white outline for a sixth of a second (gold through the head), even someone
+  on the other side who otherwise has none, and their upper body jolts the way the round went (their head snaps with
+  it on a headshot), easing back.
+- **The sound:** a crisp, dry tick over the wet sound of it going in, with a thump through their body under it,
+  heavier the harder it hit, and a bright ping on top through the head.
 - **Tagging.** A hit slows whoever takes it for a moment, as in Counter-Strike (a 22-damage rifle hit about 48%, a
   heavy one up to 62%), wearing off over a second or two. Bots are slowed the same way.
 - Each hit makes the wet sound of it going in, a duller one to the head, and a burst head pops.
@@ -655,6 +665,9 @@ falloff:
 - A hit puts a fine red mist in the air where it went in, and blood out of their back the way the round was going:
   a spray behind them and drops splashing on the floor a metre or two back (more for a heavy round or the head).
 - A kill leaves a pool spreading under the body.
+- **Blood on them.** Everyone carries blood as much as they're hurt: a little after a hit or two, soaked near death
+  (your own survivor too). It stays while their health does, so in Showdown it's there till the round ends, and in
+  the respawn modes it fades off as their health comes back.
 - A blade to the head on the killing blow splits it in two, as it does a zombie's.
 - A headshot kill that hits hard enough (60 or more) bursts the head in a red mist with chips of skull, on every
   screen, and the head stays gone until that player is back.

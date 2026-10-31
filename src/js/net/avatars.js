@@ -45,7 +45,8 @@ import { arsenalFrame, buildArsenal, weaponPose } from './arsenal.js';
 import { teamDown } from './lobby.js';
 import { camFocus, myDrops, updateSpecDrops, updateSpecXh } from './spectate.js';
 import { coverFromCam } from '../zombies/zombie-visuals.js';
-import { PVP, pvpCol, pvpFoe, pvpMate } from '../pvp/pvp.js';
+import { PVP, PVP_BLOOD, pvpCol, pvpFoe, pvpMate } from '../pvp/pvp.js';
+import { stainZombie, updateZombieStain } from '../effects/body-blood.js';
 import { botsHear } from '../pvp/bots.js';
 import { visAt } from '../lighting/vision.js';
 import { los } from '../lighting/lightmap.js';
@@ -252,6 +253,14 @@ function foeEyed(a) {
 }
 // every frame: each teammate's survivor eased toward their last pose, their name over them
 const _tagV = new V3(), TAG_GONE = { stay: 2.5, fade: 1.5 };
+// a hit of yours landing on someone (pvp/pvp.js pvpSend): their outline flashing white (gold for the head) for a moment,
+// whoever they are, and their upper body jolted the way the round was going, their head snapped with it on a headshot
+// (HIT_FX: how long, and how far it jolts them, rad)
+const HIT_FX = { t: 0.16, jolt: 0.22, head: 0.35 };
+export function avatarHit(p, head, dx, dz, k) {
+  const a = p && p.av; if (!a) return;
+  a.hitF = HIT_FX.t; a.hitHead = !!head; a.hitDx = dx; a.hitDz = dz; a.hitK = clamp(k || 1, 0.5, 1.6);
+}
 export function updateAvatars(rdt) {
   updateSpecXh(rdt); updateSpecDrops();   // (the crosshair and the drops of whoever you're watching: net/spectate.js)
   const show = netLink() && (state === 'play' || state === 'paused' || state === 'upgrade' || state === 'leaving' || state === 'dead');
@@ -264,7 +273,15 @@ export function updateAvatars(rdt) {
     // in the arena someone on the other side has no outline and never shows through a wall, and from above they're
     // only there while you can see where they stand (the fog of war, lighting/vision.js: pvp/pvp.js)
     const foe = pvpFoe(p); if (foe) { const vis = !isoOn() || p.dead || visAt(a.g.position.x, a.g.position.z) > 0.4; a.seen = vis; a.g.visible = vis; if (a.blob) a.blob.visible = vis && !p.dead; } else a.seen = true;
-    if (a.ol) a.ol.visible = !p.dead && !foe; if (a.xr) { a.cvK = coverFromCam(a.g.position.x, a.g.position.z) ? 1 : Math.max(0, (a.cvK || 0) - rdt * 4); const xo = !p.dead && (pvpMate(p) || ((!foe || a.seen) && isoOn() && a.cvK > 0));   /* (a teammate in the arena: their shape through any wall from either view while they're up, gone the moment they're down) */   /* (someone on the other side only while you can see where they stand: hidden from the camera alone, not from you) */ a.xr.rim.visible = a.xr.fill.visible = xo; if (a.xr.sil) a.xr.sil.visible = xo; }   // (down, no outline round them or through walls; through walls only from above, as zombies are, and only with something in the way: coverFromCam)
+    a.hitF = Math.max(0, (a.hitF || 0) - rdt); const hf = a.hitF > 0 && !p.dead;
+    if (a.ol) {
+      a.ol.visible = !p.dead && (!foe || hf);
+      if (hf !== !!a.hfOn) { a.hfOn = hf; if (hf) { a.olCol = a.olCol || a.ol.color.clone(); a.ol.color.set(a.hitHead ? 0xffcf4a : 0xffffff); } else { if (a.olCol) a.ol.color.copy(a.olCol); a.ol.opacity = 0.9; } }
+      if (hf) a.ol.opacity = 0.35 + 0.65 * a.hitF / HIT_FX.t;
+    }
+    if (PVP.on && !a.stain) { a.stain = stainZombie(a); a.stain.b = 0; }
+    // (in the arena, the blood on them as much as they're hurt: pvp/pvp.js PVP_BLOOD)
+    if (a.stain) { a.stain.b = PVP.on && !p.dead ? PVP_BLOOD * clamp(1 - (p.hp ?? 100) / (p.maxHp || 100), 0, 1) : PVP.on ? a.stain.b : 0; updateZombieStain(a.stain, rdt, rdt); } if (a.xr) { a.cvK = coverFromCam(a.g.position.x, a.g.position.z) ? 1 : Math.max(0, (a.cvK || 0) - rdt * 4); const xo = !p.dead && (pvpMate(p) || ((!foe || a.seen) && isoOn() && a.cvK > 0));   /* (a teammate in the arena: their shape through any wall from either view while they're up, gone the moment they're down) */   /* (someone on the other side only while you can see where they stand: hidden from the camera alone, not from you) */ a.xr.rim.visible = a.xr.fill.visible = xo; if (a.xr.sil) a.xr.sil.visible = xo; }   // (down, no outline round them or through walls; through walls only from above, as zombies are, and only with something in the way: coverFromCam)
     const k = 1 - Math.exp(-rdt * 16), first = !a.cur;
     if (first) a.cur = t.slice();
     const c = a.cur;
@@ -282,6 +299,12 @@ export function updateAvatars(rdt) {
     else if (!p.dead && a.rag) { endSurvivorRagdoll(a.rag); a.rag = null; a.headGone = false; ['armL', 'armR', 'legL', 'legR'].forEach(k => { if (a[k]) a[k].visible = true; }); }   // (up again, whole: a limb taken off going down, pvp/pvp.js)
     if (a.rag) stepRagdoll(a.rag, rdt);
     else POSE_K.forEach((key, n) => set(a[key], n));
+    // (jolted by a hit of yours: HIT_FX, the way the round went in their body's own frame, easing back)
+    if (hf && !a.rag) {
+      const u = a.hitF / HIT_FX.t, j = HIT_FX.jolt * a.hitK * u * u, y = c[4] || 0, fw = a.hitDx * Math.sin(y) + a.hitDz * Math.cos(y), sd = a.hitDx * Math.cos(y) - a.hitDz * Math.sin(y);
+      a.upper.rotation.x += fw * j; a.upper.rotation.z -= sd * j;
+      if (a.hitHead) { a.head.rotation.x += fw * HIT_FX.head * u * u; a.head.rotation.z -= sd * HIT_FX.head * u * u; }
+    }
     arsenalFrame(p, a, rdt);   // their weapons (net/arsenal.js)
     specFp(p, a, rdt);   // (and from their own eyes, if you're down and watching through them)
     { const f = p.fc || [0, 0, 0, 0], e = (key, i) => { a[key] = (a[key] || 0) + ((f[i] || 0) - (a[key] || 0)) * k; return a[key] < 0.002 ? 0 : a[key]; };

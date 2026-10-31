@@ -208,6 +208,9 @@ export const SFX = {
   },
   // the tick on your crosshair as a kill of yours lands (zombies/damage.js): a short bright note, higher through the head,
   // stepping up a semitone with each kill in a chain (up to an octave), so a run of them climbs
+  // a round of yours into another player (pvp/pvp.js pvpSend): a crisp dry tick over the flesh sound, a thump through
+  // their body under it, heavier the harder it hit, and through the head a bright ping on top
+  pvpHit(d, head) { const k = Math.min(1.4, 0.5 + d / 50); tn(0.035, 'square', head ? 3400 : 2600, head ? 3000 : 2200, 0.035); nz(0.025, 'highpass', 5200, 4200, 0.06); tn(0.09 + 0.04 * k, 'sine', 150, 55, 0.16 * k); if (head) tn(0.12, 'sine', 2350, 2300, 0.05); },
   killTick(head, chain) { const f = (head ? 1760 : 1320) * Math.pow(2, Math.min(12, Math.max(0, chain - 1)) / 12); tn(0.07, 'sine', f, f * 0.98, 0.06); tn(0.05, 'triangle', f * 2, f * 1.9, 0.02); },
   // a wave coming (waves/waves.js): a low drone and its fifth, climbing a semitone every WAVE_STING.every waves (up to an
   // octave) so the night gets tenser as it goes, with a slow drum under it, a beat more each few waves; a hard one (a

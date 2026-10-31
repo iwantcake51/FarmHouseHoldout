@@ -31,6 +31,8 @@ function splashLevel(list, dt) {
   }
   return Math.min(1, b);
 }
+// how bloody you are at least, whatever's faded (the arena's: as much as you're hurt, pvp/pvp.js)
+export const BODY_BLOOD = { floor: 0 };
 export const youSplash = [];   // the splashes on you; a new run starts clean (clearBodyBlood)
 export function addBlood(char, wId, wAmt) {
   splashOn(youSplash, char * 1.3);
@@ -191,7 +193,7 @@ export function updateCharBlood(rdt, dt) {
   charBloodChk += rdt;
   if (charBloodChk > 0.5) { charBloodChk = 0; let n = 0; PM.g.traverse(o => { if (o.isMesh) n++; }); if (n !== charBloodN) charBloodDirty = true; }
   if (charBloodDirty) buildCharBlood();
-  const b = P.blood = splashLevel(youSplash, dt);
+  const b = P.blood = Math.max(splashLevel(youSplash, dt), BODY_BLOOD.floor);
   if (b > bloodWas + 0.001) BLOOD_U.uFresh.value = 1; else BLOOD_U.uFresh.value = Math.max(0, BLOOD_U.uFresh.value - rdt / 40);
   bloodWas = b;
   bloodShown += (b - bloodShown) * Math.min(1, rdt * (b > bloodShown ? 2.2 : BLOOD_BACK));

@@ -252,7 +252,7 @@
   <div class="coopFrame">
     <header class="coopTop">
       <h2 id="coopTitle">Co-op</h2>
-      <p>Up to four survivors on one farm, online</p>
+      <p>Play together online: four on the farm, six in the arena</p>
       <label class="coopName">Your name <input id="coopName" maxlength="16" placeholder="Survivor" autocomplete="off" spellcheck="false"></label>
       <button type="button" class="coopClose" id="coopClose">Back <kbd>Esc</kbd></button>
     </header>
@@ -260,19 +260,25 @@
       <section class="coopMain" aria-label="Your game">
         <div class="coopPick" id="coopPick">
           <div class="cpWay cpHost">
+            <span class="cpIc" data-gi="person" aria-hidden="true"></span>
             <h3>Host a game</h3>
-            <p>Your game runs the farm. Up to three friends join with your code.</p>
-            <div class="btns mlist"><button class="btn" id="coopHost" type="button">Open a lobby</button></div>
+            <p>Open a lobby and send friends its code. The farm takes four, the arena six, with bots for the empty seats.</p>
+            <span class="cpTags"><i>Survival</i><i>Arena</i><i>Up to 6</i></span>
+            <div class="cpAct btns mlist"><button class="btn" id="coopHost" type="button">Open a lobby</button></div>
           </div>
           <div class="cpWay cpJoin">
+            <span class="cpIc" data-gi="plainArrow" aria-hidden="true"></span>
             <h3>Join a game</h3>
-            <p>Type the four letters and numbers on the host's lobby.</p>
-            <div class="cpCodeRow"><input id="coopCode" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false" aria-label="The host's game code"><button class="btn ghost sm" id="coopJoin" type="button">Join</button></div>
+            <p>Type the four letters and numbers from the host's lobby, or pick a friend's game when they're hosting.</p>
+            <span class="cpTags"><i>Code</i><i>Invite link</i></span>
+            <div class="cpAct cpCodeRow"><input id="coopCode" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false" aria-label="The host's game code"><button class="btn ghost sm" id="coopJoin" type="button">Join</button></div>
           </div>
           <div class="cpWay cpSolo">
+            <span class="cpIc" data-gi="pistolGun" aria-hidden="true"></span>
             <h3>Arena against bots</h3>
-            <p>The arena on your own, against bots (or with them on your side). Nothing to connect to.</p>
-            <div class="btns mlist"><button class="btn ghost" id="coopSolo" type="button">Play solo</button></div>
+            <p>Just you and up to five bots, against you or on your side, in any of the arena's modes. Nothing to connect to.</p>
+            <span class="cpTags"><i>Offline</i><i>Bots</i></span>
+            <div class="cpAct btns mlist"><button class="btn ghost" id="coopSolo" type="button">Play solo</button></div>
           </div>
           <div class="cpWay cpOpen" id="coopOpenWrap" hidden>
             <h3>Friends hosting now</h3>

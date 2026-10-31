@@ -35,11 +35,31 @@ body.coopOn.coopLeaving #title .inner{opacity:1;visibility:visible;transition:op
 /* not in a game yet: the ways in, side by side, each on a dark board */
 .coopPick{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
 .coopPick[hidden],.coopRoom[hidden]{display:none}
-.cpWay{position:relative;display:grid;align-content:start;gap:10px;padding:18px 18px 16px;background:linear-gradient(172deg,rgba(30,26,21,.9),rgba(16,14,12,.88));box-shadow:inset 0 0 0 1px rgba(236,230,216,.06),0 12px 26px -14px rgba(0,0,0,.8)}
+.cpWay{--ac:var(--orange);position:relative;display:flex;flex-direction:column;gap:10px;min-height:236px;padding:20px 18px 18px;overflow:hidden;
+  background:linear-gradient(172deg,rgba(30,26,21,.92),rgba(16,14,12,.9));box-shadow:inset 0 0 0 1px rgba(236,230,216,.07),0 12px 26px -14px rgba(0,0,0,.8);
+  transition:translate .25s cubic-bezier(.2,.9,.3,1),box-shadow .25s ease;animation:cpIn .45s cubic-bezier(.2,.9,.3,1) both}
+.cpWay:nth-child(2){animation-delay:.05s}.cpWay:nth-child(3){animation-delay:.1s}.cpWay:nth-child(4){animation-delay:.15s}
+@keyframes cpIn{from{opacity:0;translate:0 10px}}
+/* (a strip of its own colour along the top, and a lift under the pointer) */
+.cpWay::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--ac);opacity:.8}
+.cpWay:hover{translate:0 -3px;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ac) 45%,transparent),0 18px 32px -14px rgba(0,0,0,.9)}
+.cpJoin{--ac:#5fb4e8}.cpSolo{--ac:#e2563f}.cpOpen{--ac:#6fd07a}
+.cpIc{display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--ac) 28%,transparent),transparent 72%);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ac) 45%,transparent)}
+.cpIc svg{width:24px;height:24px;fill:color-mix(in srgb,var(--ac) 70%,#f2efe6)}
 .cpWay p{margin:0;font-size:13px;line-height:1.5;color:#b3ab9b}
-.cpWay .mlist .btn{font-size:28px}
+.cpTags{display:flex;flex-wrap:wrap;gap:5px}
+.cpTags i{font:700 10px var(--f-num);font-style:normal;letter-spacing:.14em;text-transform:uppercase;color:color-mix(in srgb,var(--ac) 60%,#e2d6bd);padding:2px 7px;border:1px solid color-mix(in srgb,var(--ac) 35%,transparent);border-radius:2px}
+/* (what it does, at the foot of the card, all three on one line) */
+.cpAct{margin-top:auto;padding-top:6px}
+.cpWay .mlist .btn{font-size:26px}
+/* (Play solo and Join: a tape of their own, in the card's colour when it's pointed at, not bare words) */
+.cpWay .mlist .btn.ghost::before{transform:none;background:var(--tex-specks),rgba(236,230,216,.14);background-size:240px,auto}
+.cpWay .mlist .btn.ghost:is(:hover,:focus-visible)::before{background:var(--tex-specks),linear-gradient(180deg,rgba(255,255,255,.16) 0 18%,transparent 26% 70%,rgba(0,0,0,.14)),var(--ac);background-size:240px,auto,auto}
 .cpCodeRow{display:flex;gap:10px;align-items:center}
-#coopCode{width:6.2em;font:800 26px/1 var(--f-num);letter-spacing:.32em;text-align:center;text-transform:uppercase;padding:6px 4px 4px 12px}
+.cpCodeRow .btn{flex:none}
+#coopCode{flex:1;min-width:0;width:auto;max-width:7em;font:800 26px/1 var(--f-num);letter-spacing:.32em;text-align:center;text-transform:uppercase;padding:6px 4px 4px 12px;transition:box-shadow .2s}
+#coopCode:focus{box-shadow:0 0 0 2px color-mix(in srgb,#5fb4e8 60%,transparent)}
+@media (prefers-reduced-motion:reduce){.cpWay{animation:none;transition:none}}
 .cpOpenList{list-style:none;margin:0;padding:0;display:grid;gap:6px}
 .cpOpenList li{display:flex;align-items:center;gap:10px;padding:7px 9px;background:rgba(236,230,216,.045);border-left:3px solid #6fd07a}
 .cpOpenList li b{font-weight:600;font-size:13.5px}
@@ -377,7 +397,8 @@ body:not(.playing) #specXh{display:none}
 .coopSeats.teams .seat{box-shadow:inset 0 4px 0 var(--sc)}
 .coopSeats.teams .seat.sideB:first-of-type,.coopSeats.teams .seat.sideA+.seat.sideB{margin-left:8px}
 .seat .sSide{position:absolute;top:10px;right:10px;padding:1px 6px;font:700 10px var(--f-num);letter-spacing:.14em;text-transform:uppercase;color:#fff;background:var(--sc);border-radius:2px}
-.seat .sSw{justify-self:start;margin-top:4px;white-space:nowrap;width:max-content;padding:3px 9px;font-size:11px;color:#2b241c;border-color:rgba(43,36,28,.35);background:rgba(43,36,28,.06)}
-.seat .sSw:hover{border-color:var(--sc)}
+.seat .sSide.sw{border:0;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.35);transition:filter .15s,transform .15s}
+.seat .sSide.sw:hover{filter:brightness(1.15);transform:scale(1.08)}
+.seat .sSide.sw:focus-visible{outline:2px solid #2b241c;outline-offset:2px}
 .seat{transition:rotate .2s ease,translate .2s ease,box-shadow .25s ease}
 @media (prefers-reduced-motion:reduce){.coopArenaRow,.cfgRow{animation:none}}
