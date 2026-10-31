@@ -15,7 +15,9 @@
 import { scene } from '../core/renderer.js';
 import { clamp, HALF, rand, rr } from '../core/math.js';
 import { lit } from '../core/shaders.js';
-import { cell, ci, idx, inb, WALL } from '../world/grid.js';
+import { cell, ci, idx, inb, OBST, WALL } from '../world/grid.js';
+import { lowObst, obstTop } from '../world/props.js';
+import { ARENA } from '../world/arena.js';
 import { THIN, wallBetween } from '../world/thin-walls.js';
 import { WALL_AT } from '../world/house.js';
 import { IW_LINES } from '../world/interior.js';
@@ -99,6 +101,8 @@ function drop(list, o) { scene.remove(o); o.material.dispose(); const k = list.f
 // where blood thrown from (x, y, z) along (dx, dz) strikes a wall, if it does within r: the point, the face's outward
 // normal, and its cut-away control (world/cutaway.js). A run of steps along the way it's going, the blood dropping a
 // little as it flies; the first wall cell it enters, or inside wall it crosses
+// (the arena's outer wall: blood on it no higher than its lowest panels stand, m)
+const WB_AR_EDGE = 1.0;
 function wallHit(x, y, z, dx, dz, r) {
   let i0 = ci(x), j0 = ci(z);
   if (!inb(i0, j0) || cell[idx(i0, j0)] === WALL) return null;
@@ -115,6 +119,14 @@ function wallHit(x, y, z, dx, dz, r) {
       const w = WALL_AT.get(idx(i, j)); if (!w || !w.cut) return null;
       const hx = ex ? bx + nx * WB.off : px, hz = ex ? pz : bz + nz * WB.off;
       return { x: hx, y: Math.min(h, 2.2), z: hz, nx, nz, cut: w.cut, d };
+    }
+    // (the arena's tall cover, its block walls, containers and outer wall: a face to land on as high as it stands, the
+    // outer wall only as high as its panels, world/arena.js)
+    if (ARENA.on && cell[idx(i, j)] === OBST && !(ex && ez) && !lowObst.has(idx(i, j))) {
+      const edge = i <= ARENA.x0 || i >= ARENA.x1 || j <= ARENA.z0 || j >= ARENA.z1, top = edge ? WB_AR_EDGE : obstTop.get(idx(i, j)) || 0;
+      if (h > top - 0.05) return null;
+      const hx = ex ? bx + nx * WB.off : px, hz = ex ? pz : bz + nz * WB.off;
+      return { x: hx, y: Math.min(h, top - 0.08), z: hz, nx, nz, cut: null, d };
     }
     if (cell[idx(i, j)] !== 0 && cell[idx(i, j)] !== WALL) return null;   // (a window, a door, a prop, a fence: not a wall it lands on)
     if (THIN.n && !(ex && ez) && wallBetween(i0, j0, i, j)) {

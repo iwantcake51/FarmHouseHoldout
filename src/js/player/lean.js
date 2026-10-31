@@ -25,6 +25,8 @@ export function leanKey(dir, down) {
     LEAN_S.t = down ? dir : LEAN_S.held & 1 ? -1 : LEAN_S.held & 2 ? 1 : 0;
   } else if (down) LEAN_S.t = LEAN_S.t === dir ? 0 : dir;
 }
+// straight up again at once (a new round in the arena: pvp/pvp.js)
+export function leanReset() { LEAN_S.t = 0; LEAN_S.v = 0; LEAN_S.held = 0; }
 // each frame (player/animation.js): straightened up by a sprint, a vault or going down; as far over as there's room
 // for at the side it's going (yaw: the way you face)
 export function leanStep(dt, yaw) {

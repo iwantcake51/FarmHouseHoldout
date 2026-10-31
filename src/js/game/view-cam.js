@@ -394,9 +394,11 @@ export function fpAimPx(arms = false) {
 }
 // first person's sights coming up and going down, on a spring (ADS_T) (game/camera.js: ANIM.ads); and a shouldered gun
 // meeting your shoulder on the way up (SHOULDER_IN)
+// back up onto the sights off a wall that had the gun down (game/camera.js ANIM.wallUpT): this much quicker
+const WALL_UP_ADS = 2.2;
 export function fpAds(want, rdt) {
   if (want === null) { V.adsX = null; V.adsV = 0; return 0; }
-  const id = curId(), D = W(id), side = !D || D.slot === 'side', w0 = side ? ADS_T.side : want ? ADS_T.in : ADS_T.out, S = V.sh;
+  const id = curId(), D = W(id), side = !D || D.slot === 'side', w0 = (side ? ADS_T.side : want ? ADS_T.in : ADS_T.out) * (want && ANIM.wallUpT > 0 ? WALL_UP_ADS : 1), S = V.sh;
   if (V.adsX === null) V.adsX = ANIM.ads || 0;
   const x0 = V.adsX;
   for (let n = Math.ceil(rdt / (1 / 240)), h = rdt / Math.max(1, n), i = 0; i < n; i++) {

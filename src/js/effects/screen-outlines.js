@@ -26,7 +26,7 @@ const OL_PAD = 9;
 // from your own eyes, an outline marked to be seen through walls (its control's userData.olThrough: the last few zombies
 // of a wave, zombies/ai.js) is drawn round all of the model, wherever it stands, hidden only by what's within OL_THROUGH
 // metres of your eyes (your own arms and gun); from above, the see-through rims (effects/outlines.js: xray) do that
-const OL_THROUGH = 1.2;
+const OL_THROUGH = 0.12;   // (just what's at your eye: any wall you stand right up against still lets a teammate's line through, where 1.2 m hid it)
 // an outline turned on or off eases in and fades out rather than snapping (OL_FADE: how fast, in opacity a second): what
 // it's drawn at is u.sh on its control, chasing its opacity while it's visible and nought once it isn't
 const OL_FADE = { in: 10, out: 4 };

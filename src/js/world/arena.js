@@ -3,18 +3,18 @@
 // walled round with tall precast panels, laid out as three lanes, the west half (Blue's) mirrored for the east (Red's),
 // so neither side's better off. Designed and checked in tools/arena-plan.py (reachability, spawn sightlines, lane
 // sightlines, edge runs, timings):
-//  - each spawn, a walled yard at its end with three exits: north into the warehouse office, south onto the rail spur
-//    (each round a baffle inside it), east through a gate into the courtyard (behind a long baffle). Nothing outside a
-//    spawn sees into it, and no spawn sees the other's
-//  - NORTH, the Warehouse: close quarters (4-12 m). Three roofless rooms in a zig-zag (the office, the storage hall,
-//    the central hall), their doorways offset so nothing sees down the lane; crate racking, barriers, drums. A door
-//    into the plaza (round a baffle just inside it) is the flag's north approach
-//  - MIDDLE, the Plaza: medium range (8-20 m) and the contest. The courtyard out of each spawn's gate, between two
-//    container stacks, onto the plaza and the flag in its sandbag ring, with wall stubs at the ring's corners
-//  - SOUTH, the Rail spur: long range (15-28 m), the one place for a rifle. An open yard with low cover (the platform's
+//  - each spawn, a walled yard at its end with three exits: north into the warehouse and south onto the rail spur
+//    (each with a short wall stub just inside it, round either end), and east through a gate between two posts, a
+//    container stack in front of it. Nothing outside a spawn sees into it, and no spawn sees the other's
+//  - NORTH, the Warehouse floor: close quarters. One big roofless hall broken up by islands (container stacks, wall
+//    stubs, crates) rather than rooms and corridors. A door into the plaza is the flag's north approach
+//  - MIDDLE, the Plaza: medium range and the contest. The courtyard out of each spawn's gate, between container
+//    stacks, onto the open plaza and the flag in its sandbag ring, with wall stubs at the ring's corners
+//  - SOUTH, the Rail spur: long range, the one place for a rifle. An open yard with low cover (the platform's
 //    barriers, sandbags, drums), a container stack part way along and a signal hut in the very middle so it's never
-//    seen end to end; a gap in the container wall either side of the hut (round a baffle) is the flag's south approach
-// No line runs from the north lane into the south; the longest straight run along any wall is 18 m. Floodlights stand
+//    seen end to end; a gap at the west end of the container wall (by the courtyard) is the middle's way south
+// No line runs from the north lane into the south, nowhere is a long corridor, and the longest straight run along any
+// wall is 18 m. Floodlights stand
 // in its corners and halfway along each wall.
 //
 // While it's up, the farm's own pieces (the house, the yard, the fence, the stations: world/farm-set.js) are out of the
@@ -38,6 +38,7 @@ import { setVisKey } from '../lighting/vision.js';
 import { stillShadowsReset } from '../core/still-shadows.js';
 import { setLightsDirty } from '../barricades/planks.js';
 import { TREE_HIDE } from './tree-cull.js';
+import { FLARE_SRC, GLOW_LAYER } from '../effects/post.js';
 
 // its bounds (cells, the walls round it included), the time of day it's always fought at (mid afternoon, the sun
 // starting down and the shadows lengthening), and its plan, a row a line from north (j = z0) to south: # the outer wall, C a container,
@@ -46,61 +47,61 @@ import { TREE_HIDE } from './tree-cull.js';
 export const ARENA = { on: false, x0: 1, x1: 42, z0: 1, z1: 42, tod: 15.6 };
 const AR_PLAN = [
   '##########################################',
-  '#.......h.....h............h.....h.......#',
-  '#.o........F..h............h..F........o.#',
-  '#.............h...k....k...h.............#',
-  '#..F..........h...k....k...h..........F..#',
-  '#.......h..k..h............h..k..h.......#',
-  '#...kk..h..k..h.F........F.h..k..h..kk...#',
-  '#...kk..h..k..h.....oo.....h..k..h..kk...#',
-  '#.......h........................h.......#',
-  '#.......h.......bb......bb.......h.......#',
-  '#.....o.h.bbb................bbb.h.o.....#',
-  '#.......h.....h............h.....h.......#',
-  '#h...hhhhhhhhhhhh..hhhh..hhhhhhhhhhhh...h#',
-  '#......h..........................h......#',
-  '#hhhhh.h...CCC.FhhhhhhhhhhF.CCC...h.hhhhh#',
-  '#......h...CCC..............CCC...h......#',
-  '#.AAAA.h.h.CCC..h........h..CCC.h.h.BBBB.#',
-  '#.AAAA.h.h......h..ssss..h......h.h.BBBB.#',
-  '#.AAAA.h.h......................h.h.BBBB.#',
-  '#.AAAA...h......................h...BBBB.#',
-  '#.AAAA...h..s.b...s....s...b.s..h...BBBB.#',
-  '#.AAAA...hF.s.b...s....s...b.s.Fh...BBBB.#',
-  '#.AAAA...h......................h...BBBB.#',
-  '#.AAAA.h.h......................h.h.BBBB.#',
-  '#.AAAA.h.h......h..ssss..h......h.h.BBBB.#',
-  '#.AAAA.h.h.CCC..h........h..CCC.h.h.BBBB.#',
-  '#......h...CCC..............CCC...h......#',
-  '#hhhhh.h...CCC.FhhhhhhhhhhF.CCC...h.hhhhh#',
-  '#......h..........................h......#',
-  '#h...hhhCCCCCCCC..CCCCCC..CCCCCCCChhh...h#',
-  '#.......CCCCCCCC..CCCCCC..CCCCCCCC.......#',
+  '#........h........CCCCCC........h........#',
+  '#........h.F......CCCCCC......F.h........#',
+  '#.k......h........CCCCCC........h......k.#',
+  '#..F.....h......................h.....F..#',
+  '#.....kk.h..CC..bb......bb..CC..h.kk.....#',
   '#...........CC..............CC...........#',
-  '#..o........FC..............CF........o..#',
+  '#...........CC..F........F..CC...........#',
+  '#..............h..........h..............#',
+  '#.........k....h...o..o...h....k.........#',
+  '#o........k....h..........h....k........o#',
+  '#..............h..........h..............#',
+  '#hh...hhhhhhhhhhh..hhhh..hhhhhhhhhhh...hh#',
+  '#......h..........................h......#',
+  '#.hhhhhh.......F..........F.......hhhhhh.#',
+  '#......h.o.CCC..............CCC.o.h......#',
+  '#.AAAA.h...CCC..hh......hh..CCC...h.BBBB.#',
+  '#.AAAA.h...CCC..hh.ssss.hh..CCC...h.BBBB.#',
+  '#.AAAA.h..CC..................CC..h.BBBB.#',
+  '#.AAAA.hh.CC..................CC.hh.BBBB.#',
+  '#.AAAA....CCs.....s....s.....sCC....BBBB.#',
+  '#.AAAA...FCCs.....s....s.....sCCF...BBBB.#',
+  '#.AAAA.hh.CC..................CC.hh.BBBB.#',
+  '#.AAAA.h..CC..................CC..h.BBBB.#',
+  '#.AAAA.h...CCC..hh.ssss.hh..CCC...h.BBBB.#',
+  '#.AAAA.h...CCC..hh......hh..CCC...h.BBBB.#',
+  '#......h.o.CCC..............CCC.o.h......#',
+  '#.hhhhhh.......F..........F.......hhhhhh.#',
+  '#......h..........................h......#',
+  '#hh...hh..CCCCCCCCCCCCCCCCCCCCCC..hh...hh#',
+  '#...........CC..............CC...........#',
+  '#...........CC..k........k..CC...........#',
+  '#...........CC..............CC...........#',
   '#...........CCs............sCC...........#',
-  '#.....bbbbbbb.s....hhhh....s.bbbbbbb.....#',
-  '#...F.........s....hhhh....s.........F...#',
+  '#..........F..s....hhhh....s..F..........#',
+  '#......bbbb...s....hhhh....s...bbbb......#',
+  '#...F..............hhhh..............F...#',
   '#..................hhhh..................#',
-  '#.k................hhhh................k.#',
-  '#.k...r...CC.....F......F.....CC...r...k.#',
-  '#.........CC....o........o....CC.........#',
+  '#.....r..........F.hhhh.F..........r.....#',
+  '#.o.......CC....o........o....CC.......o.#',
   '#.........CC..................CC.........#',
   '##########################################'
 ];
 // how tall each kind stands (m): what a round fired below it from your own eyes stops on (world/props.js: obstTop), and
 // whether you see and shoot over it (low) or not
-const AR_H = { '#': 3.2, C: 2.6, h: 2.7, b: 1.1, s: 1.15, k: 1.4, o: 1.05, r: 1.1 };
+const AR_H = { '#': 3.2, C: 2.6, h: 2.1, b: 1.1, s: 1.15, k: 1.4, o: 1.05, r: 1.1 };
 const AR_LOW = new Set(['b', 's', 'o', 'r', 'k']);
-// (and what's vaulted: the sandbags and the crate stacks, chest high, a head showing over them)
-const AR_VAULT = new Set(['s', 'k']);
+// (and what's vaulted: the sandbags, the crate stacks and the jersey barriers, chest high, a head showing over them)
+const AR_VAULT = new Set(['s', 'k', 'b']);
 // the sandbag walls' cells, while the arena's up: hopped over like the farm's fence (player/vaulting.js)
 export const VAULT_LOW = new Set();
 // what's vaulted where you stand (the vault prompt: barricades/interactions.js): the nearest within reach, crates or sandbags
 export function arVaultWhat(x, z) {
   let best = 9, k = 's';
   for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) { const i = ci(x) + di, j = ci(z) + dj, c = AR_KIND(i, j); if (!AR_VAULT.has(c)) continue; const d = Math.hypot(cxw(i) - x, cxw(j) - z); if (d < best) { best = d; k = c; } }
-  return k === 'k' ? 'crates' : 'sandbags';
+  return k === 'k' ? 'crates' : k === 'b' ? 'barrier' : 'sandbags';
 }
 // spawn spots by side, worked out from the plan: [x, z, facing]
 const AR_SPAWN = { A: [], B: [], F: [] };
@@ -132,7 +133,10 @@ const AR_M = {
   pole: lam(0x4a4b4c), lamp: new THREE.MeshBasicMaterial({ color: 0xfff1c8 }),
   cont: [lam(0x8a3b2a), lam(0x355a78), lam(0x5d6643), lam(0x9b6a2c)], contDk: lam(0x2c2b29)
 };
-// the pad: concrete, its joints every 4 m, worn and stained, and each side's spawn painted on it in its colour
+// where the floor's yard markings go (plan rows and columns): the sidings' centre line and how far west each runs to (the
+// signal hut), the walkway's row, and the loading bays' west columns (at the plaza doors)
+const AR_YARD = { rail: [37, 18], walk: 11, bay: [17] };
+// the pad: concrete, its joints every 4 m, worn and stained, and each spawn's box painted on it
 function arFloorTex() {
   const W = 1024, c = document.createElement('canvas'); c.width = c.height = W; const x = c.getContext('2d');
   const cw = ARENA.x1 - ARENA.x0 + 1, ch = ARENA.z1 - ARENA.z0 + 1, px = W / cw, pz = W / ch;
@@ -147,8 +151,27 @@ function arFloorTex() {
   for (let i = 4; i < cw; i += 4) { x.beginPath(); x.moveTo(i * px, 0); x.lineTo(i * px, W); x.stroke(); }
   for (let j = 4; j < ch; j += 4) { x.beginPath(); x.moveTo(0, j * pz); x.lineTo(W, j * pz); x.stroke(); }
   for (let k = 0; k < 90; k++) { x.strokeStyle = 'rgba(52,50,46,0.35)'; x.lineWidth = 1; x.beginPath(); let a = rnd() * W, b = rnd() * W; x.moveTo(a, b); for (let s = 0; s < 6; s++) { a += (rnd() - 0.5) * 40; b += (rnd() - 0.5) * 40; x.lineTo(a, b); } x.stroke(); }   // cracks
+  // what makes it a working yard (AR_YARD): the rail spur's two sidings sunk into the concrete along the south lane,
+  // sleepers and all, each ending at a buffer stop by the signal hut; a yellow walkway painted along the warehouse
+  // floor's south wall; a hatched loading bay inside each plaza door
+  { const cx = i => (i + 0.5) * px, cz = j => (j + 0.5) * pz, Y = AR_YARD;
+    for (const [a, b] of [[1, Y.rail[1]], [41 - Y.rail[1], 40]]) {
+      const xa = cx(a) - px / 2, xb = cx(b) + px / 2, zc = cz(Y.rail[0]);
+      x.fillStyle = 'rgba(70,58,46,0.75)'; for (let xx = xa + 4; xx < xb; xx += px * 0.7) x.fillRect(xx, zc - pz * 1.1, px * 0.22, pz * 2.2);   // (the sleepers)
+      x.fillStyle = 'rgba(60,58,56,0.9)'; for (const o of [-0.72, 0.72]) x.fillRect(xa, zc + o * pz - 3, xb - xa, 6);   // (the rails)
+      x.fillStyle = 'rgba(150,152,154,0.8)'; for (const o of [-0.72, 0.72]) x.fillRect(xa, zc + o * pz - 1, xb - xa, 2);   // (their worn tops)
+      const bx = a === 1 ? xb - 6 : xa; x.fillStyle = 'rgba(201,164,58,0.9)'; x.fillRect(bx, zc - pz * 1.2, 6, pz * 2.4);   // (the buffer stop)
+    }
+    x.strokeStyle = 'rgba(214,174,52,0.7)'; x.lineWidth = 6; x.setLineDash([26, 14]); x.beginPath(); x.moveTo(cx(1), cz(Y.walk)); x.lineTo(cx(40), cz(Y.walk)); x.stroke(); x.setLineDash([]);
+    for (const i of Y.bay) for (const ii of [i, 40 - i - 1]) {
+      const bx0 = cx(ii) - px / 2, bz0 = cz(Y.walk - 1) - pz / 2, bw = px * 2, bh = pz * 2;
+      x.strokeStyle = 'rgba(214,174,52,0.75)'; x.lineWidth = 4; x.strokeRect(bx0, bz0, bw, bh);
+      x.save(); x.beginPath(); x.rect(bx0, bz0, bw, bh); x.clip(); for (let d = -bw; d < bw * 2; d += 14) { x.beginPath(); x.moveTo(bx0 + d, bz0); x.lineTo(bx0 + d + bh, bz0 + bh); x.stroke(); } x.restore();
+    }
+  }
   // each side's pad: a hatched box in its colour, worn
-  [['A', 'rgba(74,140,200,0.55)'], ['B', 'rgba(205,72,58,0.55)']].forEach(([s, col]) => {
+  // (in plain white, the same at both ends: in Showdown the sides swap ends as the loadouts change)
+  [['A', 'rgba(226,220,204,0.42)'], ['B', 'rgba(226,220,204,0.42)']].forEach(([s, col]) => {
     const cs = [...AR_PLAN].flatMap((r, j) => [...r].map((q, i) => q === s ? [i, j] : null)).filter(Boolean);
     const i0 = Math.min(...cs.map(c => c[0])) - 0.4, i1 = Math.max(...cs.map(c => c[0])) + 1.4, j0 = Math.min(...cs.map(c => c[1])) - 0.4, j1 = Math.max(...cs.map(c => c[1])) + 1.4;
     x.strokeStyle = col; x.lineWidth = 7; x.strokeRect(i0 * px, j0 * pz, (i1 - i0) * px, (j1 - j0) * pz);
@@ -199,10 +222,12 @@ const box2 = (w, h, d, mat, x, y, z) => box(arP, w, h, d, mat, x, y, z);
 // other panel and grime washed down its foot
 // (on the two sides toward the camera from above, east and south, the panels stand only waist high with chain-link
 // over them to the same height, so nothing near them is lost behind them: AR_LOW_WALL, and arFence)
-const AR_LOW_WALL = 1.05;
+// (and on the other two, north and west, only 2 m, chain-link over them too: AR_MID_WALL, so the yard never feels walled in
+// and you see out to the terminal and the sky over the top)
+const AR_LOW_WALL = 1.05, AR_MID_WALL = 2;
 const arLowSide = (i, j) => i === ARENA.x1 || j === ARENA.z1;
 function arWall(parts, i, j, x, z) {
-  const edgeX = i === ARENA.x0 || i === ARENA.x1, edgeZ = j === ARENA.z0 || j === ARENA.z1, H = arLowSide(i, j) ? AR_LOW_WALL : AR_H['#'];
+  const edgeX = i === ARENA.x0 || i === ARENA.x1, edgeZ = j === ARENA.z0 || j === ARENA.z1, H = arLowSide(i, j) ? AR_LOW_WALL : AR_MID_WALL;
   arPush(parts, box2(1, H, 1, rand() < 0.15 ? AR_M.wallDk : AR_M.wall, x, H / 2, z));
   arPush(parts, box2(edgeX && edgeZ ? 1.08 : edgeX ? 1.08 : 1, 0.12, edgeZ && !edgeX ? 1.08 : edgeX && edgeZ ? 1.08 : 1, AR_M.cap, x, H + 0.06, z));
   if ((edgeX ? j : i) % 2 === 0 && !(edgeX && edgeZ)) {   // (a seam between panels, on the yard side)
@@ -213,7 +238,7 @@ function arWall(parts, i, j, x, z) {
 }
 // the hut's walls: grey block, its top broken off ragged and rebar sticking out of it, never quite the same height
 function arHut(parts, i, j, x, z) {
-  const H = AR_H.h - rr(0, 0.45);
+  const H = AR_H.h - rr(0, 0.15);
   arPush(parts, box2(1, H, 1, AR_M.hut, x, H / 2, z));
   for (let y = 0.4; y < H - 0.1; y += 0.4) arPush(parts, box2(1.006, 0.02, 1.006, AR_M.hutDk, x, y, z));   // (the courses)
   if (rand() < 0.6) arPush(parts, box2(rr(0.3, 0.6), rr(0.12, 0.3), rr(0.3, 0.6), AR_M.hut, x + rr(-0.2, 0.2), H + 0.08, z + rr(-0.2, 0.2)));
@@ -281,18 +306,19 @@ function arContainer(parts, i, j, did) {
   for (const o of [-0.3, 0.3]) for (const p of [-0.55, 0.55]) arPush(parts, box2(alongX ? 0.04 : 0.04, H - 0.3, alongX ? 0.04 : 0.04, AR_M.contDk, alongX ? ex : cx + p + o * 0.3, H / 2, alongX ? cz + p + o * 0.3 : ez));
 }
 let arContN = 1;   // (each container its own colour, in turn)
-// the chain-link over the low walls: galvanised posts every two metres with a rail along their tops, and the mesh
+// the chain-link over the outer walls, on all four sides: galvanised posts every two metres with a rail along their tops, and the mesh
 // between them (a diamond weave, seen through)
 function arFence(parts, g) {
   const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
   x.strokeStyle = 'rgba(150,156,160,1)'; x.lineWidth = 5; x.beginPath(); x.moveTo(0, 0); x.lineTo(64, 64); x.moveTo(64, 0); x.lineTo(0, 64); x.moveTo(-32, 0); x.lineTo(32, 64); x.moveTo(32, 0); x.lineTo(96, 64); x.moveTo(96, 0); x.lineTo(32, 64); x.moveTo(32, 0); x.lineTo(-32, 64); x.stroke();
   const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  const top = AR_H['#'] - 0.5, h = top - AR_LOW_WALL, xE = cxw(ARENA.x1), zS = cxw(ARENA.z1), x0 = cxw(ARENA.x0), z0 = cxw(ARENA.z0);
-  [[x0, zS, xE, zS], [xE, z0, xE, zS]].forEach(([ax, az, bx, bz]) => {
+  const top = AR_H['#'] - 0.5, xE = cxw(ARENA.x1), zS = cxw(ARENA.z1), x0 = cxw(ARENA.x0), z0 = cxw(ARENA.z0);
+  [[x0, zS, xE, zS, AR_LOW_WALL], [xE, z0, xE, zS, AR_LOW_WALL], [x0, z0, xE, z0, AR_MID_WALL], [x0, z0, x0, zS, AR_MID_WALL]].forEach(([ax, az, bx, bz, wallH]) => {
+    const h = top - wallH;
     const L = Math.hypot(bx - ax, bz - az), m = lam(0xffffff, { map: t.clone(), transparent: true, alphaTest: 0.45, side: THREE.DoubleSide });
     m.map.repeat.set(L * 3, h * 3); m.map.needsUpdate = true;
-    const p = new THREE.Mesh(new THREE.PlaneGeometry(L, h), m); p.position.set((ax + bx) / 2, AR_LOW_WALL + h / 2, (az + bz) / 2); p.rotation.y = az === bz ? 0 : Math.PI / 2; p.castShadow = true; g.add(p);
-    for (let s = 0; s <= L + 0.01; s += 2) { const px = ax + (bx - ax) * s / L, pz = az + (bz - az) * s / L; const q = arPush(parts, new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, h + 0.1, 8), AR_M.pole)); q.position.set(px, AR_LOW_WALL + h / 2, pz); q.castShadow = true; }
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(L, h), m); p.position.set((ax + bx) / 2, wallH + h / 2, (az + bz) / 2); p.rotation.y = az === bz ? 0 : Math.PI / 2; p.castShadow = true; g.add(p);
+    for (let s = 0; s <= L + 0.01; s += 2) { const px = ax + (bx - ax) * s / L, pz = az + (bz - az) * s / L; const q = arPush(parts, new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, h + 0.1, 8), AR_M.pole)); q.position.set(px, wallH + h / 2, pz); q.castShadow = true; }
     arPush(parts, box2(az === bz ? L : 0.05, 0.05, az === bz ? 0.05 : L, AR_M.pole, (ax + bx) / 2, top, (az + bz) / 2));
   });
 }
@@ -308,12 +334,12 @@ function arSigns(g) {
     m.position.set(x, y, z); m.rotation.y = ry; m.receiveShadow = true; g.add(m);
   };
   const xW = cxw(ARENA.x0) + 0.505, zN = cxw(ARENA.z0) + 0.505, mid = (cxw(ARENA.x0) + cxw(ARENA.x1)) / 2;
-  sign('YARD 4', 3.4, 1.1, 'rgba(222,212,186,0.85)', '700 150px "Saira Extra Condensed", sans-serif', mid, 2.2, zN, 0);
-  sign('NO SMOKING · NO ENTRY', 3.2, 0.5, 'rgba(196,58,40,0.9)', '700 64px "Saira Extra Condensed", sans-serif', mid - 6, 1.3, zN, 0);
+  sign('YARD 4', 3.4, 1.1, 'rgba(222,212,186,0.85)', '700 150px "Saira Extra Condensed", sans-serif', mid, 1.3, zN, 0);
+  sign('NO SMOKING · NO ENTRY', 3.2, 0.5, 'rgba(196,58,40,0.9)', '700 64px "Saira Extra Condensed", sans-serif', mid - 6, 1.0, zN, 0);
   sign('◄ WEST GATE', 2.4, 0.5, 'rgba(95,180,232,0.85)', '700 70px "Saira Extra Condensed", sans-serif', xW, 1.5, mid - 3, Math.PI / 2);
   sign('ROT', 1.6, 0.9, 'rgba(160,210,90,0.8)', 'italic 900 170px "Archivo", sans-serif', xW, 1.1, mid + 4.5, Math.PI / 2);
   sign('KESSLER 77', 2.8, 0.7, 'rgba(240,240,236,0.7)', 'italic 900 120px "Archivo", sans-serif', mid + 5.5, 1.4, zN, 0);
-  sign('HIGH LOAD — KEEP CLEAR', 3, 0.45, 'rgba(20,20,18,0.85)', '700 60px "Saira Extra Condensed", sans-serif', mid - 5.5, 2.6, zN, 0, 'rgba(201,164,58,0.9)');
+  sign('HIGH LOAD — KEEP CLEAR', 3, 0.45, 'rgba(20,20,18,0.85)', '700 60px "Saira Extra Condensed", sans-serif', mid - 5.5, 1.6, zN, 0, 'rgba(201,164,58,0.9)');
 }
 // ---- outside the walls: the rest of the terminal. On the two sides away from the camera from above (north and west)
 // the tall things, a warehouse with its roller doors, containers stacked three high under a gantry crane and two high
@@ -364,14 +390,21 @@ function arOutside(parts, g) {
 const AR_OUT = 35, AR_SHIFT = 13;
 // where the floodlights stand: each corner and halfway along each wall (cells, just inside the wall)
 const AR_LAMPS = () => { const mi = Math.round((ARENA.x0 + ARENA.x1) / 2), mj = Math.round((ARENA.z0 + ARENA.z1) / 2); return [[ARENA.x0 + 1, ARENA.z0 + 1], [ARENA.x1 - 1, ARENA.z0 + 1], [ARENA.x0 + 1, ARENA.z1 - 1], [ARENA.x1 - 1, ARENA.z1 - 1], [mi, ARENA.z0 + 1], [mi, ARENA.z1 - 1], [ARENA.x0 + 1, mj], [ARENA.x1 - 1, mj]]; };
-// a floodlight on its pole at each, its head tipped down into the yard
+// a floodlight on its pole at each, its head tipped down into the yard; each one's flare (AR_FLARES, put up with the
+// arena: arenaUp) and its halo's look
+const AR_FLARES = [];
+const AR_HALO = new THREE.SpriteMaterial({ map: (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,240,205,0.9)'); g.addColorStop(0.25, 'rgba(255,226,170,0.35)'); g.addColorStop(1, 'rgba(255,220,160,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.8 });
 function arFlood(parts, g) {
   const mx = (cxw(ARENA.x0) + cxw(ARENA.x1)) / 2, mz = (cxw(ARENA.z0) + cxw(ARENA.z1)) / 2;
   for (const [i, j] of AR_LAMPS()) {
     const x = cxw(i) + (i === ARENA.x0 + 1 ? -0.42 : i === ARENA.x1 - 1 ? 0.42 : 0), z = cxw(j) + (j === ARENA.z0 + 1 ? -0.42 : j === ARENA.z1 - 1 ? 0.42 : 0), H = 5.2;
     const p = arPush(parts, new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, H, 8), AR_M.pole)); p.position.set(x, H / 2, z); p.castShadow = true;
     const hd = new THREE.Group(); hd.position.set(x, H, z); hd.rotation.y = Math.atan2(mx - x, mz - z); hd.rotation.x = 0.5; g.add(hd);
-    box(hd, 0.55, 0.32, 0.18, AR_M.pole, 0, 0, 0); box(hd, 0.48, 0.26, 0.02, AR_M.lamp, 0, 0, 0.1);
+    box(hd, 0.55, 0.32, 0.18, AR_M.pole, 0, 0, 0); const face = box(hd, 0.48, 0.26, 0.02, AR_M.lamp, 0, 0, 0.1); face.layers.enable(GLOW_LAYER);   // (its face blooms: effects/post.js)
+    // (a soft halo round it, and a lens flare off it when it's in sight and shining your way: effects/post.js FLARE_SRC)
+    const halo = new THREE.Sprite(AR_HALO); halo.scale.setScalar(1.6); halo.position.set(0, 0, 0.14); halo.layers.enable(GLOW_LAYER); halo.userData.isFlash = true; hd.add(halo);
+    hd.updateMatrixWorld(true); const fw = new THREE.Vector3(0, 0, 1).transformDirection(hd.matrixWorld), fp = new THREE.Vector3(0, 0, 0.12).applyMatrix4(hd.matrixWorld);
+    AR_FLARES.push({ x: fp.x, y: fp.y, z: fp.z, dx: fw.x, dy: fw.y, dz: fw.z, col: [1, 0.88, 0.7] });
   }
 }
 // the arena's lights in the light map: the floods, warm white, strongest as the dusk comes on
@@ -396,6 +429,7 @@ export function arenaUp() {
   openings.length = 0; HOUSE_DOORS.list.length = 0; HOUSE_DOORS.key = 'arena'; wX.fill(0); wZ.fill(0); THIN.n = 0;
   cell.fill(EMPTY); openAt.fill(null); cellBox.fill(null); lowObst.clear(); obstTop.clear();
   if (!arG) arG = arBuild();   // (the containers' and barriers' footprints go in as they're built)
+  FLARE_SRC.length = 0; FLARE_SRC.push(...AR_FLARES);   // (the floodlights' lens flares: effects/post.js)
   for (let j = ARENA.z0; j <= ARENA.z1; j++) for (let i = ARENA.x0; i <= ARENA.x1; i++) {
     const k = AR_KIND(i, j), c = idx(i, j);
     if (k === '#' || k === 'h') cell[c] = WALL;
@@ -429,7 +463,7 @@ function arCellBoxes() {
 function arGrass(o) { const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); return g.boundingBox.max.y - g.boundingBox.min.y < 3; }
 export function arenaDown() {
   if (!ARENA.on) return;
-  ARENA.on = false; VAULT_LOW.clear(); TREE_HIDE.at = null;
+  ARENA.on = false; VAULT_LOW.clear(); TREE_HIDE.at = null; FLARE_SRC.length = 0;
   scene.remove(arG);
   for (const [o, k, m] of arTrees) { o.setMatrixAt(k, m); o.instanceMatrix.needsUpdate = true; } arTrees.length = 0;
   const s = arSaved; arSaved = null;

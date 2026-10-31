@@ -137,6 +137,9 @@ function renderFireMode(id) {
   el.querySelector('.fmT b').textContent = m.t; el.querySelector('.fmT kbd').hidden = !sw;
   if (sameGun) replay(el, 'sw');
 }
+// (the label by the crosshair, once it's shown, is put away: the crosshair hidden and shown again, down the sights and
+// back, would otherwise play its last one over again)
+$('xhMode').addEventListener('animationend', e => { if (e.animationName === 'xhMode') e.currentTarget.classList.remove('show'); });
 // switching fire mode (B): the selector clicks over in two steps, the new mode's name comes up beside the crosshair
 // for a moment, and the HUD's rounds roll over to it
 export function fireModeSwitched(id) {

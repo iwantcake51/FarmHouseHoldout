@@ -24,10 +24,10 @@ import { AK_ON, akTriggers } from './akimbo.js';
 import { aimRay, bodyOf, cursorTarget, fire, SETTLE, settleK } from './firing.js';
 import { HEAVY, heavySwing, LUNGS, meleeHit } from '../melee/melee.js';
 import { tickBandage } from '../player/bandages.js';
-import { RUN_REST, SHOT_HOLD, SPRINT, sprintHolds } from '../player/sprint.js';
+import { ARENA_STAM, RUN_REST, SHOT_HOLD, SPRINT, sprintHolds } from '../player/sprint.js';
 import { fpGunPitch, fpOn, VCAM } from '../game/view-cam.js';
 import { ANIM, LOOK_DOWN } from '../player/animation.js';
-import { pvpFrozen } from '../pvp/pvp.js';
+import { PVP, pvpFrozen } from '../pvp/pvp.js';
 
 const VAULT_BREATH = 1;   // seconds after a vault before stamina starts coming back
 const PITCH_MAX = 0.75;   // how far down (radians) the arms will point a gun
@@ -70,7 +70,7 @@ export function updateCombat(dt) {
   if (!(P.stamWait > 0)) {
     const lw = S.lungs ? LUNGS.wait / 0.55 : 1, lr = (P.moving ? 0.75 : 1) * (S.lungs ? LUNGS.refill : 1);
     if (P.stam + P.runDebt < sm) { if (P.stamT > 0.55 * lw) P.stam = Math.min(sm - P.runDebt, P.stam + dt * (P.exh ? 0.26 : 0.38) * lr); }
-    else if (P.runDebt > 0 && P.runT > RUN_REST.wait * lw) { const g = Math.min(P.runDebt, dt * (P.exh ? RUN_REST.exh : RUN_REST.rate) * lr); P.stam += g; P.runDebt -= g; }
+    else if (P.runDebt > 0 && P.runT > RUN_REST.wait * lw * (PVP.on ? ARENA_STAM.wait : 1)) { const g = Math.min(P.runDebt, dt * (P.exh ? RUN_REST.exh : RUN_REST.rate) * lr * (PVP.on ? ARENA_STAM.rate : 1)); P.stam += g; P.runDebt -= g; }
   }
   if (P.exh && P.stam >= 0.34 * sm) P.exh = false;
   // emptying the tank leaves you sluggish till you could sprint again (SPRINT.unlock); speed creeps back as the stamina does

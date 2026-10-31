@@ -149,6 +149,8 @@ function specJoltStep(a, rdt) {
   const J = a.sj; if (!J) return;
   for (let n = Math.ceil(rdt / (1 / 120)), h = rdt / Math.max(1, n), i = 0; i < n; i++) for (const k of ['p', 'r', 'y']) { const v = 'v' + k; J[v] += (-SPEC_JOLT.k * J[k] - SPEC_JOLT.d * J[v]) * h; J[k] += J[v] * h; }
 }
+// how far a bot's arms and gun are set from its pose to sit as yours do from your own eyes (m: right, down, back)
+const SPEC_VM = { right: 0.09, down: 0.07, back: 0.02 }, _sfpR = new V3(), _sfpU = new V3(), _sfpF = new V3(), _sfpO = new V3(), _sfpW = new V3();
 const _sfpA = new THREE.Matrix4(), _sfpB = new THREE.Matrix4(), _sfpP = new V3(), _sfpQ = new THREE.Quaternion(), _sfpS = new V3(1, 1, 1);
 function specFp(p, a, rdt) {
   const f = p.fv, on = !!f && !p.dead && specFpOn() && camFocus() === p;
@@ -172,6 +174,15 @@ function specFp(p, a, rdt) {
   // (a bot's eyes, pvp/bots.js botFv, which sends only where it looks: put where your own first-person eye sits on a
   // body, game/view-cam.js FPV, on its head as it's posed, and as wide as you see yourself)
   const bot = f.length <= 8; if (bot) { a.head.parent.updateWorldMatrix(true, false); FP_CAM.position.set(FPV.side, FPV.eye[0], FPV.eye[1]).add(a.head.position).applyMatrix4(a.head.parent.matrixWorld); }
+  // (a bot's arms and gun are its pose's, aimed for everyone else to see: from its eyes that holds the gun dead in the
+  // middle of the view, so the arms and the gun are set where yours sit from your own eyes, a little right and down:
+  // SPEC_VM, along the view's own right and up, unless it's down the sights)
+  if (bot && p.fc && p.fc[0] > 0 && p.fc[0] < 0.5) {   // (its aimed pose without a target in its sights; at a run or from the hip its gun's low already, and on a target it's down the sights)
+    _sfpR.set(1, 0, 0).applyQuaternion(FP_CAM.quaternion); _sfpU.set(0, 1, 0).applyQuaternion(FP_CAM.quaternion); _sfpF.set(0, 0, -1).applyQuaternion(FP_CAM.quaternion);
+    _sfpO.copy(_sfpR).multiplyScalar(SPEC_VM.right).addScaledVector(_sfpU, -SPEC_VM.down).addScaledVector(_sfpF, -SPEC_VM.back);
+    const e = p.wp && p.wp[0], h = a.held && e && a.held[SLOTS[e[0]]];
+    for (const o of [a.upper, h && h.g]) { if (!o || !o.parent) continue; o.parent.updateWorldMatrix(true, false); o.getWorldPosition(_sfpW).add(_sfpO); o.position.copy(o.parent.worldToLocal(_sfpW)); o.updateMatrixWorld(true); }
+  }
   // (the jolts: a bot's own view has none in it, so its kick, flinch and stride go on here; a player's has their own
   // already, so only the hits they take, which their sent view eases over)
   specJoltStep(a, rdt); const J = a.sj;
@@ -302,7 +313,7 @@ export function updateAvatars(rdt) {
     if (a.hp0 !== undefined && (p.hp ?? 100) < a.hp0 && !p.dead) specJolt(a, 'flinch', clamp((a.hp0 - p.hp) / 30, 0.4, 1.4)); a.hp0 = p.hp ?? 100;
     if (a.ejT && (a.ejT.t -= rdt) <= 0) { const e = p.wp && p.wp[0], h = a.held && e && a.held[SLOTS[e[0]]], hold = h && h.holds && h.holds.R; if (hold && h.g.visible) ejectFrom(a.ejT.id, flipOf(hold) || hold, p.vx, p.vz, p.vw ? p.vw[0] : 0); a.ejT = null; }
     if (a.ol) {
-      a.ol.visible = !p.dead && (!foe || hf);
+      a.ol.visible = !p.dead && (!foe || hf) && !a.fvc;   // (none round the one whose eyes you're watching from: it's their arms and gun in front of you)
       // (a teammate in the arena, from your own eyes: their outline's line seen through walls, as the last few zombies of
       // a wave are, effects/screen-outlines.js, not the solid see-through shape with their gun and pack in it)
       a.ol.userData.olThrough = !p.dead && pvpMate(p);
@@ -391,7 +402,7 @@ function avShot(m) {
   const D = WEAP[m.w] || {}; a.fire = { t: 0, s: SLOTS[e[0]], k: Math.min(2, (D.kick || 3) / 3) };
   const hold = h.holds.R; hold.updateWorldMatrix(true, false);
   if (p.bot) { _avM.set(X, GUN_Y + 0.03, (h.muz || 0.9) + 0.02); hold.localToWorld(_avM); m.x = _avM.x; m.y = _avM.y; m.z = _avM.z; }   // (a bot's said only roughly where: from its gun's muzzle)
-  const ej = EJECT[m.w]; if (ej === 'fire') ejectFrom(m.w, flipOf(hold) || hold, p.vx, p.vz, p.vw ? p.vw[0] : 0); else if (ej === 'pump' || ej === 'bolt') a.ejT = { t: ej === 'pump' ? 0.32 : 0.55, id: m.w };
+  const ej = EJECT[m.w]; if (ej === 'fire') ejectFrom(m.w, flipOf(hold) || hold, p.vx, p.vz, p.vw ? p.vw[0] : 0); else if (ej === 'pump' || ej === 'bolt') a.ejT = { t: 0.4, id: m.w };   // (as the action comes back: net/arsenal.js ARS_RACK)
   if (a.fvc) specJolt(a, 'kick', a.fire.k);
 }
 NET_ON.shot = m => {

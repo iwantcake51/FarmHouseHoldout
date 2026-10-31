@@ -196,12 +196,23 @@ export const netSideOf = id => { sidesFill(); return NET.sides[id] || 'A'; };
 export function netSwitchSide(id) {
   if (NET.inGame || NET.game !== 'arena') return;
   if (!NET.host) { if (id === NET.id) netTo(NET.hostId, 'sw', {}); return; }
-  sidesFill(); const to = NET.sides[id] === 'A' ? 'B' : 'A';
-  if (Object.values(NET.sides).filter(s => s === to).length >= SIDE_MAX) { NET.status = 'That side is full'; SFX.deny(); lobbyRender(); return; }
-  NET.sides[id] = to; const p = id === NET.id ? { name: netName() } : NET.peers.get(id);
-  chatSys((p ? p.name : 'Someone') + ' moved to ' + (to === 'A' ? 'Blue' : 'Red')); SFX.click(); rosterOut(); lobbyRender();
+  sidesFill(); const to = NET.sides[id] === 'A' ? 'B' : 'A', from = NET.sides[id], nameOf = q => q === NET.id ? netName() : (NET.peers.get(q) || {}).name || 'Someone';
+  // that side full: a swap. Someone from it comes over to take the seat left: a bot there first (the last to sit
+  // down); none, and only the host's say-so (moving someone, or themselves) swaps a person, the last to have joined;
+  // someone asking for themselves with only people over there is told to ask the host
+  let back = null;
+  if (Object.values(NET.sides).filter(s => s === to).length >= SIDE_MAX) {
+    const there = netRoster().filter(r => NET.sides[r.id] === to && r.id !== id).sort((a, b) => b.idx - a.idx);
+    back = (there.find(r => r.bot) || (!swFromPeer ? there[0] : null) || {}).id || null;
+    if (!back) { NET.status = 'That side is full: ask the host to swap you'; SFX.deny(); lobbyRender(); if (swFromPeer) netTo(id, 'swno', {}); return; }
+    NET.sides[back] = from;
+  }
+  NET.sides[id] = to;
+  chatSys(nameOf(id) + ' moved to ' + (to === 'A' ? 'Blue' : 'Red') + (back ? ', swapping with ' + nameOf(back) : '')); SFX.click(); rosterOut(); lobbyRender();
 }
-NET_ON.sw = m => { if (NET.host && NET.peers.has(m.f)) netSwitchSide(m.f); };
+let swFromPeer = false;   // (set while the host acts on a player's own ask: NET_ON.sw)
+NET_ON.sw = m => { if (!NET.host || !NET.peers.has(m.f)) return; swFromPeer = true; try { netSwitchSide(m.f); } finally { swFromPeer = false; } };   // (a player asking for themselves: swaps only with a bot)
+NET_ON.swno = () => { NET.status = 'That side is full: ask the host to swap you'; SFX.deny(); lobbyRender(); };
 // the host's arena settings (pvp/pvp.js: PVP_CFG_DEF), one at a time, told to everyone
 export function netSetCfg(k, v) {
   if (!NET.host || NET.inGame) return;

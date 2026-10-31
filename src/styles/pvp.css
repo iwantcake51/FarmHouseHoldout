@@ -172,7 +172,7 @@ body.pvp #bandBox{display:none}
 @keyframes tLnIn{0%{transform:scaleX(0);opacity:0}100%{transform:scaleX(1);opacity:1}}
 
 /* a teammate down: slid in under the score, in red */
-#pvpMate{position:fixed;left:50%;top:calc(96px + env(safe-area-inset-top,0px));translate:-50% -8px;display:flex;align-items:center;gap:8px;padding:5px 14px 5px 10px;background:linear-gradient(90deg,rgba(120,26,18,.0),rgba(120,26,18,.82) 18%,rgba(120,26,18,.82) 82%,rgba(120,26,18,0));opacity:0;z-index:6;transition:opacity .3s,translate .35s cubic-bezier(.2,.9,.3,1.2)}
+#pvpMate{position:fixed;left:50%;top:calc(148px + env(safe-area-inset-top,0px));translate:-50% -8px;display:flex;align-items:center;gap:8px;padding:5px 14px 5px 10px;background:linear-gradient(90deg,rgba(120,26,18,.0),rgba(120,26,18,.82) 18%,rgba(120,26,18,.82) 82%,rgba(120,26,18,0));opacity:0;z-index:6;transition:opacity .3s,translate .35s cubic-bezier(.2,.9,.3,1.2)}
 #pvpMate.on{opacity:1;translate:-50% 0}
 #pvpMate svg{width:16px;height:16px;fill:#ffd7cf}
 #pvpMate b{font:700 14px var(--f-ui);color:#fff}
@@ -230,18 +230,29 @@ body.pvpPicking #pvpDmgCard{opacity:0;translate:-50% 12px}
 :is(#pvpBoard,#pvpRes) tr.side td em{float:right;font-style:normal;font-size:16px;letter-spacing:0;color:var(--ink)}
 #pvpRes{position:fixed;inset:0;display:grid;place-items:center;opacity:0;visibility:hidden;background:radial-gradient(ellipse at center,rgba(6,7,8,.55),rgba(6,7,8,.85));z-index:9;transition:opacity .5s,visibility .5s}
 #pvpRes.on{opacity:1;visibility:visible;pointer-events:auto}
-#pvpRes .prBox{--c:#f0c24a;display:grid;gap:14px;width:min(760px,94vw);padding:22px 26px 20px;background:linear-gradient(180deg,color-mix(in srgb,var(--c) 12%,rgba(20,20,20,.97)),rgba(14,15,16,.97) 40%);border:1px solid rgba(236,230,216,.14);border-top:3px solid var(--c);box-shadow:0 30px 60px -20px rgba(0,0,0,.9)}
-#pvpRes.on .prBox{animation:prIn .6s cubic-bezier(.2,.9,.3,1) both}
-@keyframes prIn{0%{opacity:0;translate:0 18px;scale:.98}100%{opacity:1;translate:0;scale:1}}
+#pvpRes .prBox{--c:#f0c24a;display:grid;gap:16px;width:min(780px,94vw);max-height:94vh;overflow:auto;padding:20px 24px 18px;background:#141516;border:1px solid rgba(236,230,216,.1);box-shadow:0 24px 50px -24px rgba(0,0,0,.9)}
+#pvpRes.on .prBox{animation:prIn .45s cubic-bezier(.2,.9,.3,1) both}
+@keyframes prIn{0%{opacity:0;transform:translateY(10px)}100%{opacity:1;transform:none}}
 #pvpRes .prBox.win{--c:#8fd49a}#pvpRes .prBox.lose{--c:#e2563f}#pvpRes .prBox.draw{--c:#b8c0c8}
-#pvpRes .prHead{display:grid;justify-items:center;gap:4px}
-#pvpRes .prHead small{font:700 11px var(--f-num);letter-spacing:.3em;text-transform:uppercase;color:var(--dim)}
-#pvpRes .prHead b{font:800 64px var(--f-num);line-height:.92;letter-spacing:.07em;text-transform:uppercase;color:var(--c);text-shadow:0 0 30px color-mix(in srgb,var(--c) 35%,transparent)}
-#pvpRes .prHead em{font-style:normal;font-size:14px;color:var(--ink)}
-#pvpRes .prMvp{display:flex;align-items:baseline;justify-content:center;gap:10px;padding:8px 12px;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--c) 16%,transparent),transparent)}
-#pvpRes .prMvp small{font:700 10px var(--f-num);letter-spacing:.26em;text-transform:uppercase;color:var(--dim)}
-#pvpRes .prMvp b{font:800 20px var(--f-num);color:var(--c)}
-#pvpRes .prMvp span{font-size:12px;color:var(--ink)}
+#pvpRes .prHead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding-bottom:14px;border-bottom:1px solid rgba(236,230,216,.08)}
+#pvpRes .prHead small{display:block;font:700 11px var(--f-num);letter-spacing:.22em;text-transform:uppercase;color:var(--dim)}
+#pvpRes .prHead b{display:block;font:800 52px var(--f-num);line-height:.95;letter-spacing:.03em;text-transform:uppercase;color:var(--c);margin-top:4px}
+#pvpRes .prHead em{display:block;font-style:normal;font-size:13px;color:var(--ink);margin-top:6px}
+#pvpRes .prScore{display:flex;align-items:center;gap:10px;font:800 44px var(--f-num);line-height:1;font-variant-numeric:tabular-nums}
+#pvpRes .prScore span{color:var(--ink);padding:0 4px;border-bottom:3px solid var(--c)}
+#pvpRes .prScore i{width:10px;height:2px;background:var(--dim)}
+#pvpRes .prMvp{display:grid;grid-template-columns:auto auto 1fr;align-items:center;gap:16px;padding:12px 14px;background:#1b1c1e;border-left:3px solid var(--c)}
+#pvpRes .prMvp img,#pvpRes .prMvp .prPic{width:58px;height:58px;object-fit:cover;background:#26272a;border:1px solid rgba(236,230,216,.12)}
+#pvpRes .prWho{display:grid;gap:2px;min-width:120px}
+#pvpRes .prWho small{justify-self:start;font:800 10px var(--f-num);letter-spacing:.2em;padding:2px 6px;background:#f0c24a;color:#141210}
+#pvpRes .prWho b{font:800 22px var(--f-num);color:#fff;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#pvpRes .prWho span{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--c)}
+#pvpRes .prMvp dl{display:flex;justify-content:flex-end;gap:22px;margin:0}
+#pvpRes .prMvp dl div{display:grid;justify-items:end}
+#pvpRes .prMvp dd{margin:0;font:800 24px var(--f-num);color:var(--ink);font-variant-numeric:tabular-nums}
+#pvpRes .prMvp dt{font:700 9px var(--f-num);letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+#pvpRes .prTag{text-decoration:none;margin-left:8px;font:800 9px var(--f-num);letter-spacing:.16em;padding:1px 5px;background:#f0c24a;color:#141210;vertical-align:2px}
+@media (max-width:640px){#pvpRes .prMvp{grid-template-columns:auto 1fr}#pvpRes .prMvp dl{grid-column:1/-1;justify-content:space-between}#pvpRes .prHead b{font-size:40px}}
 #pvpRes .prActs{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 #pvpRes .prActs .btn{pointer-events:auto}
 #pvpRes .prHost{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}

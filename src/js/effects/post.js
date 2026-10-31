@@ -211,30 +211,51 @@ const FLARE = [{ t: -0.28, r: 0.028, w: 0.11, tint: [1.0, 0.85, 0.6] }, { t: -0.
   { t: 0.42, r: 0.018, w: 0.09, tint: [1.0, 0.7, 0.85] }, { t: -1.35, r: 0.15, w: 0.026, tint: [0.8, 0.9, 1.0] }];
 const FLARE_K = { glare: 0.11, wide: 0.045, star: 0.05, moon: 0.3, edge: [0.95, 1.25], low: [-0.01, 0.07], fog: 0.85 };
 const flareMat = psMat(`
-uniform sampler2D tDepth; uniform vec2 uPos, uAsp; uniform vec3 uCol; uniform float uK;
+uniform sampler2D tDepth; uniform vec2 uPos, uAsp; uniform vec3 uCol; uniform float uK, uZ;
 varying vec2 vUv;
 float ghost(vec2 p, vec2 c, float r, float ring) { float d = length((p - c) * uAsp); return ring > 0.5 ? exp(-pow((d - r) / (r * 0.08), 2.0)) * 0.6 + (1.0 - smoothstep(r * 0.2, r, d)) * 0.25 : 1.0 - smoothstep(r * 0.35, r, d); }
 void main() {
   // how much of it's in sight: the sky's (nothing drawn nearer) over a small patch round it
   float vis = 0.0;
-  for (int i = 0; i < 9; i++) { vec2 o = vec2(float(i - (i / 3) * 3) - 1.0, float(i / 3) - 1.0) * 0.006 / uAsp; vis += step(0.99999, texture2D(tDepth, clamp(uPos + o, 0.001, 0.999)).r); }
+  for (int i = 0; i < 9; i++) { vec2 o = vec2(float(i - (i / 3) * 3) - 1.0, float(i / 3) - 1.0) * 0.006 / uAsp; vis += step(uZ, texture2D(tDepth, clamp(uPos + o, 0.001, 0.999)).r); }
   float k = uK * vis / 9.0; if (k < 0.002) discard;
   vec2 q = (vUv - uPos) * uAsp, L = uPos - 0.5; float d = length(q), a = atan(q.y, q.x);
   vec3 col = uCol * (${FLARE_K.glare.toFixed(3)} * exp(-d * 10.0) + ${FLARE_K.wide.toFixed(3)} * exp(-d * 3.2) + ${FLARE_K.star.toFixed(3)} * pow(abs(cos(a * 3.0)), 80.0) * exp(-d * 5.0));
 ${FLARE.map(g => `  col += uCol * vec3(${g.tint.map(v => v.toFixed(2)).join(', ')}) * ${g.w.toFixed(3)} * ghost(vUv, 0.5 + L * ${g.t.toFixed(2)}, ${g.r.toFixed(3)}, ${(g.ring || 0).toFixed(1)});`).join('\n')}
   gl_FragColor = vec4(col * k, 1.0);
-}`, { tDepth: { value: null }, uPos: { value: new THREE.Vector2() }, uAsp: { value: new THREE.Vector2(1, 1) }, uCol: { value: new THREE.Color() }, uK: { value: 0 } });
+}`, { tDepth: { value: null }, uPos: { value: new THREE.Vector2() }, uAsp: { value: new THREE.Vector2(1, 1) }, uCol: { value: new THREE.Color() }, uK: { value: 0 }, uZ: { value: 0.99999 } });
 Object.assign(flareMat, { transparent: true, blending: THREE.AdditiveBlending });
 const _flP = new THREE.Vector3();
+// and off a lamp (FLARE_SRC: where it is, which way it shines, its colour; the arena's floodlights, world/arena.js): the
+// same flare, shown while nothing nearer stands in front of the lamp itself (its own depth, not the sky's), stronger as
+// it gets dark and the more it shines at you, fading with distance; only the brightest FLARE_LAMP.n in view each frame
+export const FLARE_SRC = [];
+const FLARE_LAMP = { k: 0.75, n: 2, far: 45, face: [0.2, 0.9], day: 0.25 }, _flD = new THREE.Vector3(), _flC = new THREE.Color();
+function lampFlares(target, W, H) {
+  const ss = (a, b, x) => smooth(clamp((x - a) / (b - a), 0, 1)), dk = FLARE_LAMP.day + (1 - FLARE_LAMP.day) * clamp(curDark * 1.3, 0, 1), list = [];
+  for (const L of FLARE_SRC) {
+    _flD.set(cam.position.x - L.x, cam.position.y - L.y, cam.position.z - L.z); const dist = _flD.length(); if (dist > FLARE_LAMP.far) continue;
+    const face = ss(FLARE_LAMP.face[0], FLARE_LAMP.face[1], (_flD.x * L.dx + _flD.y * L.dy + _flD.z * L.dz) / dist);
+    _flP.set(L.x, L.y, L.z).project(cam); if (_flP.z > 1 || _flP.z < -1) continue;
+    const e = Math.max(Math.abs(_flP.x), Math.abs(_flP.y)), k = FLARE_LAMP.k * dk * face * (1 - ss(FLARE_K.edge[0], FLARE_K.edge[1], e)) * (1 - dist / FLARE_LAMP.far) * (1 - FLARE_K.fog * MIST.k);
+    if (k > 0.004) list.push([k, _flP.x, _flP.y, _flP.z, L]);
+  }
+  list.sort((a, b) => b[0] - a[0]);
+  for (const [k, x, y, z, L] of list.slice(0, FLARE_LAMP.n)) {
+    const U = flareMat.uniforms; U.tDepth.value = PS_RT.sc.depthTexture; U.uPos.value.set(x * 0.5 + 0.5, y * 0.5 + 0.5); U.uAsp.value.set(W / H, 1); U.uCol.value.copy(_flC.setRGB(L.col[0], L.col[1], L.col[2])); U.uK.value = k; U.uZ.value = z * 0.5 + 0.5 - 0.002;
+    psPass(flareMat, target);
+  }
+}
 function lensFlare(target, W, H) {
   if (!cam.isPerspectiveCamera || POST.noFlare) return;
+  if (FLARE_SRC.length) lampFlares(target, W, H);
   const d = _flP.copy(sun.position).normalize(), up = d.y;
   _flP.multiplyScalar(100).add(cam.position).project(cam); if (_flP.z > 1) return;
   const e = Math.max(Math.abs(_flP.x), Math.abs(_flP.y)), lum = sun.color.r * 0.3 + sun.color.g * 0.59 + sun.color.b * 0.11;
   const ss = (a, b, x) => smooth(clamp((x - a) / (b - a), 0, 1));
   const k = clamp(lum * 1.2, 0, 1) * (1 - clamp(curDark, 0, 1) * (1 - FLARE_K.moon)) * (1 - ss(FLARE_K.edge[0], FLARE_K.edge[1], e)) * ss(FLARE_K.low[0], FLARE_K.low[1], up) * (1 - FLARE_K.fog * MIST.k);
   if (k < 0.002) return;
-  const U = flareMat.uniforms; U.tDepth.value = PS_RT.sc.depthTexture; U.uPos.value.set(_flP.x * 0.5 + 0.5, _flP.y * 0.5 + 0.5); U.uAsp.value.set(W / H, 1); U.uCol.value.copy(sun.color); U.uK.value = k;
+  const U = flareMat.uniforms; U.tDepth.value = PS_RT.sc.depthTexture; U.uPos.value.set(_flP.x * 0.5 + 0.5, _flP.y * 0.5 + 0.5); U.uAsp.value.set(W / H, 1); U.uCol.value.copy(sun.color); U.uK.value = k; U.uZ.value = 0.99999;
   psPass(flareMat, target);
 }
 // all of it on the screen: the scene, darkened by its occlusion (brought up from half size smoothly, read between

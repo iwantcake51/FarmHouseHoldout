@@ -16,6 +16,7 @@ import { SLOTS } from '../weapons/slots.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { modLv } from '../weapons/mod-levels.js';
 import { setTierCtx, W, W8 } from '../game/run-state.js';
+import { BOLT_TURN } from '../player/hold-kick.js';
 import { AKX, BELT, BRK, CRANE, flipOf, GM, gunMeshes, HOLDS, MAGG, SLIDES, X } from '../weapons/gun-materials.js';
 import { SHELL_MAT } from '../weapons/gun-models.js';
 import { GUNS } from '../melee/melee-models.js';
@@ -204,8 +205,9 @@ export function buildArsenal(a, lo, lk) {
   // the speed loader and the shells in their hand
   if (!a.slm) { a.slm = SLM.clone(true); a.slm.visible = false; a.upper.add(a.slm); a.hsh = HSH.clone(true); a.hsh.visible = false; a.upper.add(a.hsh); }
 }
-// a shot's kick on their gun (m: back along it, up)
-const ARS_KICK = { back: 0.045, up: 0.012 };
+// a shot's kick on their gun (m: back along it, up), and a pump's or bolt's working after it: when it starts (s after the
+// shot), how long it takes, and when the whole of a shot's moving is done
+const ARS_KICK = { back: 0.045, up: 0.012 }, ARS_RACK = { at: 0.22, len: 0.42, end: 0.7 };
 // every frame: their weapons out where they hold them (eased), the moving parts as they last said, what's stowed
 const _aQ = new THREE.Quaternion();
 export function arsenalFrame(p, a, rdt) {
@@ -221,11 +223,14 @@ export function arsenalFrame(p, a, rdt) {
     if (h.parts) h.moving.forEach((o, i) => { const b = i * 8, v = h.parts; o.position.set(v[b], v[b + 1], v[b + 2]); o.rotation.set(v[b + 3], v[b + 4], v[b + 5]); o.scale.z = v[b + 6] || 1; o.visible = !!v[b + 7]; });
     // their shot (net/avatars.js avShot, a.fire): the gun kicked back into them and its muzzle up, easing home, and a
     // slide or bolt that cycles on its own slammed back and run home, as yours does (player/hold.js)
-    const F = a.fire; if (F && F.s === s && F.t < 0.3) {
+    // (and a pump's forend or a bolt worked after the shot, racked back and run home, a bolt's handle turned up first:
+    // ARS_RACK, as their own cycle has it, player/hold.js; the case flicks out as it comes back, net/avatars.js avShot)
+    const F = a.fire; if (F && F.s === s && F.t < ARS_RACK.end) {
       F.t += rdt; const st = F.t, kk = F.k * Math.min(1, st / 0.012) * Math.exp(-st * 16);
       g.translateZ(-ARS_KICK.back * kk); g.position.y += ARS_KICK.up * kk;
       const off = st < 0.02 ? st / 0.02 : st < 0.032 ? 1 : Math.max(0, 1 - (st - 0.032) / 0.06);
-      for (const q of h.rec.slides) if (!q.cyc && q.m.userData.clip === undefined) q.m.position.z = q.z0 - q.travel * off;
+      const R = ARS_RACK, u = (st - R.at) / R.len, rk = u <= 0 || u >= 1 ? 0 : u < 0.45 ? Math.sin(u / 0.45 * Math.PI / 2) : Math.cos((u - 0.45) / 0.55 * Math.PI / 2), lift = u <= 0 || u >= 1 ? 0 : Math.min(1, Math.min(u, 1 - u) * 6);
+      for (const q of h.rec.slides) { if (q.m.userData.clip !== undefined) continue; if (!q.cyc) q.m.position.z = q.z0 - q.travel * off; else { q.m.position.z = q.z0 - q.travel * rk; if (h.D && h.D.ammo === 'rifle' && h.D.slot === 'long') q.m.rotation.z = -BOLT_TURN * lift; } }
     }
   }
   for (const s in a.held) if (!out.has(s)) a.held[s].g.visible = false;

@@ -177,6 +177,8 @@ function shotStop(out) {
   out[0] = (_xwA.x + 1) / 2 * innerWidth; out[1] = (1 - _xwA.y) / 2 * innerHeight; return true;
 }
 const _xwS = [0, 0];
+// the gun tipped down off a wall (rad): the crosshair starts going at the first, gone by the second
+const XH_TIP = [0.12, 0.35];
 export function updateCrosshair(rdt, D) {
   const showXh = state === 'play' && hasMouse && !usingTouch && !scoped && !freeOn() && !fpSighted();   // (none flying the free camera, nor down the sights in first person, where the sights are what you aim with: game/view-cam.js)
   // (hidden, a finished reload's flash is put out: shown again, the browser would play it over again, a pop each time
@@ -194,7 +196,9 @@ export function updateCrosshair(rdt, D) {
       const x = _xhP[0] + (XHW.x - _xhP[0]) * XHW.k, y = _xhP[1] + (XHW.y - _xhP[1]) * XHW.k;
       xh.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px)` + (Math.abs(XHW.s - 1) > 0.005 ? ` scale(${XHW.s.toFixed(3)})` : ''); }
     // from your own eyes it fades out as the gun comes down for a sprint (it can't fire there), and back as it comes up
-    { const f = fpOn() ? (1 - smooth(clamp((ANIM.ready || 0) / XH_SPRINT, 0, 1))).toFixed(2) : '1'; if (cache.xhRun !== f) { cache.xhRun = f; xh.style.opacity = f; } }
+    // (from your own eyes, gone as a sprint brings the gun down, and as a wall tips it down out of the way: player/hold.js
+    // gunPush, the gun pointing at the floor and no shot going where the middle of the view is)
+    { const f = fpOn() ? ((1 - smooth(clamp((ANIM.ready || 0) / XH_SPRINT, 0, 1))) * (1 - smooth(clamp(((ANIM.gtipA || 0) - XH_TIP[0]) / (XH_TIP[1] - XH_TIP[0]), 0, 1)))).toFixed(2) : '1'; if (cache.xhRun !== f) { cache.xhRun = f; xh.style.opacity = f; } }
     xh.classList.toggle('healing', P.bandT > 0 || ANIM.bandDone > 0);   // both hands are on the bandage: no reticle, just the ring filling
     const id = curId();
     { const bx = !D.melee && !(P.bandT > 0) && blockedShot(); if (cache.xhX !== bx) { cache.xhX = bx; xhX.classList.toggle('on', bx); xh.classList.toggle('blocked', bx); } }   // (the whole reticle goes red with it)

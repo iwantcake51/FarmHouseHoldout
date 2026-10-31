@@ -98,7 +98,7 @@ function renderSeats() {
       // (its side's badge, up in the corner; where you can move them, the badge is the switch: ⇄)
       const can = (me || NET.host) && !NET.inGame, tag = document.createElement(can ? 'button' : 'span'), to = sd === 'B' ? 'Blue' : 'Red';
       tag.className = 'sSide' + (can ? ' sw' : ''); tag.textContent = (sd === 'B' ? 'Red' : 'Blue') + (can ? ' ⇄' : '');
-      if (can) { tag.type = 'button'; tag.title = 'Move to ' + to; tag.setAttribute('aria-label', 'Move ' + (me ? 'yourself' : p.name || 'them') + ' to ' + to); tag.onclick = () => netSwitchSide(p.id); }
+      if (can) { tag.type = 'button'; tag.title = 'Move to ' + to + ' (swaps with someone there if it\'s full)'; tag.setAttribute('aria-label', 'Move ' + (me ? 'yourself' : p.name || 'them') + ' to ' + to); tag.onclick = () => netSwitchSide(p.id); }
       li.appendChild(tag);
     }
     // someone you're playing with who isn't on your friends list yet: one click to add them (net/friends.js)

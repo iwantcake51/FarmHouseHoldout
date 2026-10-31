@@ -420,7 +420,9 @@ the pickups feed) is put away. The host picks one of three modes:
     gun's strongest, a mod at level I to III), but never the powder and never a tune-up. The same set lasts two rounds
     (the host can make it 1, 2 or 3: Match settings), then a whole new one is drawn. A round with a new set shows it
     on a card for 3 seconds, the round's number on it; a round that keeps last round's skips the card and goes straight
-    to the count-in, and your guns aren't drawn again for it. There's no picking, and no perks.
+    to the count-in, and your guns aren't drawn again for it. There's no picking, and no perks. **With each new
+    loadout the sides swap ends,** as at half time (the count-in says so): Blue starts from the east yard, Red the west,
+    and back again with the next.
   Between rounds everyone is back at their spawn, whole again (and with the classes, the chance to change class).
   **Blood** in Showdown stays where it fell all round, none of it soaking away, and is gone the moment the next round
   starts.
@@ -438,9 +440,10 @@ settings as the host has them. They're kept between visits.
 
 **Sides.** In the team modes the lobby's seats are grouped Blue then Red, each marked with its side. Someone joining
 goes to the side with fewer on it. Anyone can move themselves to the other side (the side's badge in the corner of
-their seat, marked ⇄, is the switch), and the host can move anyone, bots included, as long as that side has room
-(three at most). The match starts
-with the sides as the lobby has them.
+their seat, marked ⇄, is the switch), and the host can move anyone, bots included. A side that's full (three) makes it
+a swap: someone from it comes back across to the seat left, a bot there first (the last to sit down); with only people
+over there, the host's move swaps the last of them to have joined, and a player asking for themselves is told to ask
+the host. The match starts with the sides as the lobby has them.
 
 **The lobby's chat** slides each new line up into place and glides the log down to it.
 
@@ -488,7 +491,17 @@ What it does with that:
   two rather than stepping out into the open.
 - **Breaks standoffs.** Able to see you but with only the cover you're behind to shoot at, after 2 to 3.5 seconds it
   goes round to you (more often) or straight in, rather than the two of you sitting there.
-- **Plays by your rules.** No bot fires at a sprint (nobody can in the arena, Run and gun or not), and it moves at
+- **Gets out of a beating.** Taking 35 or more inside a second and a half, it breaks off at a sprint to cover out of
+  their sight and fights on from there, rather than standing in it. Hit in cover by someone it can't see from there,
+  it swings out at them straight away; and with nobody about it holds a corner 6 seconds at most before going on.
+- **Runs with its melee weapon out** to get somewhere fast (a long way to go, nobody known close, as you would: it's
+  lighter than any gun), its gun back out as it gets there, someone comes into sight or it nears where someone was.
+- **Walks like a person.** Its way's smoothed into straight runs between corners, each point a little off the middle
+  of its cell, and it's already turning toward the next as it comes up on one, rather than walking the grid's lines and
+  pivoting on the spot; it eases off as it arrives, each bot has a pace of its own (a few percent either way), it never
+  circles back round a point it's gone past, and its body swings round onto a new heading over a moment.
+- **Plays by your rules.** No bot fires at a sprint (nobody can in the arena, Run and gun or not), and none sprints with
+  the LMG in its hands (you can't either); it moves at
   your pace: slowed down the sights by its gun as you are (86% with a handgun down to 58% with the hunting rifle, a
   magnified scope less again), and by what its gun weighs, as you are. Between rounds, while everyone's picking and
   counting in, it stands still where it spawned, looking where it faces, and doesn't swap or reload.
@@ -517,7 +530,9 @@ What it does with that:
   respawn modes), so its route changes, keeping to that lane (most of where it heads is in it) rather than drifting
   into the middle with the rest. In the team modes a side's bots spread over the lanes as a team does (as likely as
   they're team players: nearly always veterans, seldom recruits), each its own lane where there are enough of them,
-  steering clear of the lanes they've gone down in.
+  steering clear of the lanes they've gone down in. Its route there is its own too: each bot each round weighs every
+  step of the yard a little differently, so two going the same way, or one round to round, don't trace the same
+  line. Some rounds (two in five) it works the yard's edges, round the outside of everyone.
 - **Looks about** standing still: the way that's most open (furthest to the first wall), never at the wall in front of
   it, a new way every 2 to 4 seconds.
 - **Leans** out round its cover to peek or hold an angle, to whichever side sees round it, and stays out a second or
@@ -531,7 +546,8 @@ What it does with that:
   stopping for cover, and goes straight at whoever's on it.
 - **Watched from its own eyes:** when you're down in first person and watching a bot teammate, the view is its eyes,
   set where your own eye sits on a body (not out in front of its face), as wide as your own view, looking where it
-  looks (up and down too), leaning as it leans. Its gun and arms tip up and down with its look, so they point where it
+  looks (up and down too), leaning as it leans. Its arms and gun sit where yours do from your own eyes (a little right
+  and down, not dead in the middle of the view), and there's no teammate outline round them. Its gun and arms tip up and down with its look, so they point where it
   does. The view moves as yours would: each of its shots kicks it up, each hit it takes makes it flinch, and its
   stride bobs it. Watching a player, their own view already has all that; a hit they take flinches it too.
 
@@ -563,7 +579,7 @@ onto them, and its shots spread more:
   close (the stronger the scope the more so), blending from one to the other between 8 and 20 m.
 
 It turns like a hand on a mouse, speeding up toward a target and easing off as it gets there, never snapping onto
-you. Off a fight what it wants to look at is eased onto too, so it never whips round and back: a sound it hears it
+you: no faster than 2.1 to 3.2 radians a second (recruit to veteran) at the most, and gently onto it. Off a fight what it wants to look at is eased onto too, so it never whips round and back: a sound it hears it
 turns to only if it hasn't just turned to another (one every 1.2 seconds; a hit at once), and where it's walking it
 looks a little way on along its path rather than wherever each step takes it. It sticks with whoever it's fighting
 rather than flicking between two. It fires in bursts at range, longer ones close in, and single aimed shots from the
@@ -598,9 +614,11 @@ Then comes the **count-in**, before every match and every Showdown round:
 - A big number counts down from 5 (from 3 in Showdown) just above the crosshair, so it never covers what you are
   aiming at. Each one pops in large and settles, then shrinks away as its second runs, with a tick.
 - The screen is grey through it until 2, then fades back to full colour over the last two seconds.
-- Through the picker and the count-in you can't walk, shoot, swap weapons, reload, lean, inspect or aim down the
-  sights (aim held as it goes live takes you down them); you can look around, and change class. The bots keep the same
-  rules. Your survivor stands straight at the spawn from the first moment (it used to ease up out of the title
+- Through the picker and the count-in you can't walk, shoot, swap weapons, reload, lean or aim down the sights (aim
+  held as it goes live takes you down them); you can look around, change class, and in the count-in (not while the
+  loadout's shown) look your gun over. The bots keep the same rules. A new round straightens you up out of any lean.
+- Once a round's been won, till the next starts, you can't shoot, but you can move, reload, lean and aim; a pump's or a
+  bolt gun's action still gets worked. Your survivor stands straight at the spawn from the first moment (it used to ease up out of the title
   screen's kneel, the view rising from about your knees).
 - At 0 it calls **Fight**.
 
@@ -618,6 +636,10 @@ The classes: always two guns and a melee weapon, with their attachments and perk
 class picked while your spawn protection's still running (you've only just come in and haven't fired) is yours at
 once; otherwise it's yours the next time you come in. While you're down the picker only comes up if you press L: the
 damage card says so, under when you'll be back.
+
+**Stamina** is fairer in the arena (the bots never tire): a sprint burns about two thirds of what it does on the farm
+(about 11 seconds of running from full), it starts coming back after a third of the usual breather and more than
+twice as fast, and running it dry never locks you out: as soon as there's any back you can sprint on it.
 
 **No bandages, no bleeding.** Your health comes back on its own:
 
@@ -668,8 +690,12 @@ like pea-shooters). To a 100-health body, before range falloff:
   stray pellets in the head from far off never nearly kill.
 - **Your head where it is.** A head leaned out round a corner is hit where it is, not over the middle of the body
   behind the cover: with your crosshair on it from your own eyes, it's a headshot.
+- **Nothing fitted hits harder here.** A burst conversion, an auto sear, a match barrel or any other mod that adds
+  damage against zombies adds none between players, for the balance (anything that lowers it still does).
+- **Fire modes.** A gun that can fire full auto or in bursts starts on the fullest it has (full auto over a burst over
+  single shots), rather than what it does out of the box.
 - **Shotguns.** Each pellet counts: the pump's eight are 13 apiece and the double's 12 (the sawn-off's more, and
-  harder up close), the auto shotgun's seven 8 apiece. Between players their damage falls off far harder than against
+  harder up close), the auto shotgun's seven 11 apiece (77 all told up close: two shots, not one). Between players their damage falls off far harder than against
   zombies: the pump and the auto shotgun from 4 m to a quarter of it by 11 to 12 m, the double barrel from 3 m to a
   fifth by 10 m (a slug keeps its own drop-off).
 - **The hand cannon** keeps its full damage out to 14 m and still 72% of it at 32 m (the zombie game's drop to a
@@ -687,7 +713,8 @@ like pea-shooters). To a 100-health body, before range falloff:
 
 - **Damage numbers** pop up just over the head of whoever you hit, from either view, and add up while you keep hitting
   them, growing as they do (20 px up to 36). They're white, and turn gold once a hit's gone in the head; a hit of 40 or
-  more pops in harder, with a twist.
+  more pops in harder, with a twist. Near where you're aiming (within about 45 px, easing back by 150) they fade to a
+  fifth of themselves, so they never sit over what you're shooting at.
 - **On them:** whoever you hit flashes a white outline for a sixth of a second (gold through the head), even someone
   on the other side who otherwise has none, and their upper body jolts the way the round went (their head snaps with
   it on a headshot), easing back.
@@ -713,7 +740,8 @@ like pea-shooters). To a 100-health body, before range falloff:
   Your own side keeps its outlines, names and health bars in its colour, and your teammates are shown through walls
   while they're alive, gone the moment they go down: from your own eyes as the thin line round them that the last
   zombies of a wave get (just their outline, not their gun or pack filled in through the wall), from above as a
-  see-through shape.
+  see-through shape. The line shows however close you're standing to the wall between you (anything within 1.2 m of
+  your eyes used to hide it, so up against cover it went).
 - **Spawns** in Deathmatch and when you come back in a team game go to the spot furthest from everyone on the other
   side, and never one any of them can see from where they stand, if there's any other choice.
 
@@ -756,8 +784,11 @@ like pea-shooters). To a 100-health body, before range falloff:
 - **Big calls** come up for the round, **Fight**, and the round won or lost with the score.
 - **The scoreboard.** Hold Tab for everyone in the lobby, by side in the team modes: kills, deaths, K/D, damage done,
   accuracy, headshots, longest kill and ping (a bot's says BOT, the host's HOST).
-- **The results** come up at the end, even if you're down: Victory, Defeat or Draw, and the same table. **Rematch**
-  (the host's) starts the same mode again with the same sides; **Lobby** goes back to the lobby.
+- **The results** come up at the end, even if you're down: a plain dark panel with Victory, Defeat or Draw, the final
+  score in each side's colour, the **MVP** (their picture, side, kills, deaths, damage, headshots and accuracy; picked
+  by kills first, then damage, headshots and accuracy, less a little for each death, and tagged in the table), and the
+  same table. **Rematch** (the host's) starts the same mode again with the same sides, back in the afternoon light;
+  **Lobby** goes back to the lobby.
 - **Going down.** Nothing crowds the screen: no black bars, no call over the middle. A moment after you fall a card
   comes up near the bottom: who got you (their picture), with what (its picture), a headshot and how far off, the
   damage they did to you and in how many hits, what you did to them, and anyone else who hurt you that life. Along its
@@ -765,7 +796,7 @@ like pea-shooters). To a 100-health body, before range falloff:
   out of its way. It fades away after 3.5 seconds.
 - **A kill** brings up a marker under the crosshair: its mark swelling in out of a flash, a line drawn out either side
   and the name; kills in quick succession are called (Double kill, Triple kill, Quad kill, Rampage).
-- **A teammate down** (the team modes) slides in under the score in red, with how many of your side are left.
+- **A teammate down** (the team modes) slides in below the score bar, clear of it, in red, with how many of your side are left.
 - **Your perks** show as a strip by your health.
 - **The end of the match** slows the game down more and more as the last kill lands, to a dead stop about three
   seconds later, the results over the frozen moment. The clock and the HUD run on real time, so they carry on.
@@ -776,44 +807,53 @@ like pea-shooters). To a 100-health body, before range falloff:
   the results and the scoreboard up. You can't inspect while the class picker is up.
 
 **The map** is an old freight yard (Yard 4) in a clearing in the woods, where the farm stands: the farm (the house,
-its walls, the road, the doorstep) is taken away for the match and put back after it. It was remade from the ground up
-as a competitive three-lane map, each lane its own kind of fight, and checked by a script (tools/arena-plan.py) for
-reachability, spawn safety, sightlines and timings:
+its walls, the road, the doorstep) is taken away for the match and put back after it. It's a competitive three-lane map,
+each lane its own kind of fight, laid out as open floors broken up by islands of cover rather than corridors, and
+checked by a script (tools/arena-plan.py) for reachability, spawn safety, sightlines, timings and one-cell-wide spots:
 
 - **The size.** 40 by 40 metres inside the walls, almost the whole of the farm's ground.
-- **Each spawn** is a walled yard at its end with three exits: north into the warehouse, south onto the rail spur
-  (each round a baffle wall just inside it), and east through a gate into the courtyard (behind a long baffle). **No
-  spot outside a spawn can see into it, and no spot in one spawn can see any spot in the other.**
-- **North, the Warehouse: close quarters** (most fights 4 to 12 m, nothing over 22 m). Three roofless rooms in a
-  zig-zag (the office by the spawn, the storage hall, the central hall both sides share), their doorways offset so
-  nothing sees down the lane; crate racking, barriers and drums inside. For shotguns and SMGs. A door into the plaza,
-  round a baffle just inside it, is the flag's north approach.
-- **Middle, the Plaza: medium range and the contest** (most sightlines 8 to 20 m). Out of each spawn's gate into a
-  courtyard between two container stacks, onto the plaza and the flag in its sandbag ring, with wall stubs at the
-  ring's corners. The quickest way to the flag (about 5 seconds at a sprint from the spawn; the outer lanes about 9).
-- **South, the Rail spur: long range** (most sightlines 15 to 26 m, at most about 29), the one place for a rifle. An open
-  yard with low cover only (the platform's barriers, sandbags, drums), a container stack part way along and a signal
-  hut in the very middle so it's never seen end to end. A gap in the container wall either side of the hut, round a
-  baffle, is the flag's south approach.
-- **The lanes stay apart.** No spot in the north lane sees any in the south, and the doors into the plaza are
-  dog-legged so neither outer lane sees down across it. Rotating between the outer lanes goes back through your spawn
-  (safe, slow) or across the plaza (quick, exposed).
+- **Each spawn** is a walled yard at its end with three wide exits: north into the warehouse and south onto the rail
+  spur (each with a short wall stub just inside it, round either end), and east through a gate between two posts, a
+  container stack out in front of it. **No spot outside a spawn can see into it, and no spot in one spawn can see any
+  spot in the other.**
+- **North, the Warehouse floor: close quarters** (most sightlines 14 m or under). One big roofless hall, no rooms:
+  container stacks, wall stubs and crates standing in it so nothing sees far, a loading bay painted inside the door
+  into the plaza (the flag's north approach).
+- **Middle, the Plaza: medium range and the contest.** Out of each spawn's gate into a courtyard between container
+  stacks, onto the open plaza and the flag in its sandbag ring, wall stubs at the ring's corners. The quickest way to
+  the flag (about 5 seconds at a sprint from the spawn; the outer lanes about 8 to 9).
+- **South, the Rail spur: long range** (most sightlines 20 to 26 m, at most about 28), the one place for a rifle: two
+  rail sidings sunk in the concrete along it, sleepers and all, each ending at a yellow buffer stop by the signal hut
+  in the very middle, the platform's edge of barriers beside them, sandbags, drums and a container stack part way
+  along. A gap at the west end of the container wall, by the courtyard, is the middle's way south.
+- **The lanes stay apart.** No spot in the north lane sees any in the south. Rotating between the outer lanes goes
+  back through your spawn (safe, slow) or across the plaza (quick, exposed).
 - **No sniper lines down the edges.** The longest straight run along any wall is 18 m (the rail's south wall).
 - **Cover everywhere.** Containers and block walls stop you, your rounds and your sight. Jersey barriers, sandbag
   walls, crate stacks, drums and spools only stop you: you see and shoot over them, and they come up to about your
-  chest.
-- **The two halves** mirror each other, so neither side is better off: west against east, each side's spawn a
-  hatched pad painted in its colour. Eighteen spots spread round all three lanes are Deathmatch's spawns.
-- **Vaulting.** The sandbag walls and the crate stacks (chest high now, 1.4 m: a crate with a flat one on top) can be
-  vaulted like the farm's fence: walk up to one (a **Vault the sandbags** or **Vault the crates** prompt shows) and
-  press the vault key, or sprint into it. Nothing else of the farm's is in your bag: no planks.
+  chest. The block walls stand 2.1 m (they used to be 2.7: over everyone's head still, but you see the sky and the
+  container tops past them).
+- **The two halves** mirror each other, so neither side is better off: west against east, each spawn a hatched box
+  painted plain white on the concrete (the sides swap ends in Showdown, so neither colour's on it). Eighteen spots
+  spread round all three lanes are Deathmatch's spawns.
+- **Vaulting.** The sandbag walls, the crate stacks (1.4 m: a crate with a flat one on top) and the jersey barriers
+  can be vaulted like the farm's fence: walk up to one (a **Vault the sandbags**, **crates** or **barrier** prompt
+  shows) and press the vault key, or sprint into it. Nothing else of the farm's is in your bag: no planks.
 - **Hitboxes fit the props.** A spool, a crate stack or a drum stops you and your rounds only where it really is, not
   across its whole metre of floor.
-- **The light.** It's always mid-afternoon there, the sun starting down and the shadows lengthening. A floodlight on
-  a pole stands in each corner and halfway along each wall.
-- **The walls.** Tall precast panels, with the yard's name, its warnings, an arrow to the west gate and a couple of
-  tags. The south and east walls (the camera's sides from above) stand only waist high with chain-link over them to
-  full height, so nobody near them is lost behind them.
+- **The light** goes with the match: mid-afternoon to start, then later and darker as a side gets ahead, through dusk
+  into the night, and on toward morning as the end nears: dawn at match point (Showdown: a side one round off winning;
+  the others: a side all but at its kill limit, or the clock nearly out). It eases round the clock, never jumps back,
+  and every game works it out from the score, so everyone's sky agrees.
+- **Floodlights** stand on poles in each corner and halfway along each wall. Their faces glow and bloom, with a soft
+  halo round them, and one in sight shining your way throws a lens flare (as the sun does: the brightest two in view,
+  stronger as it gets dark, gone when anything stands in front of the lamp).
+- **The walls** are 2 m precast panels on the north and west, waist high on the south and east (the camera's sides
+  from above), chain-link over all of them to 2.7 m, so the yard never feels walled in. On them the yard's name, its
+  warnings, an arrow to the west gate and a couple of tags.
+- **A yellow walkway** is painted along the warehouse floor's south wall.
+- **Blood** lands on the arena's walls too: on the block walls, the containers and the outer wall behind whoever's hit,
+  and a head burst spatters every wall near it.
 - **Underfoot** it's concrete, and so are the footsteps (the pack's hard tile recordings).
 - **Outside** is the rest of a freight terminal on a worn asphalt apron 70 m across, with the woods cleared back from
   it. The trees there aren't drawn at all while the arena's up, even by the forest's own per-frame culling.
@@ -829,7 +869,8 @@ it can't be switched to survival.
 **Everyone's guns, as yours.** Another player's or a bot's shot shows on the gun in their hands as yours does on
 yours: the gun kicks back into them and settles, a slide or bolt that cycles on its own slams back and runs home, the
 spent case flicks out of the port with its puff of gas and smoke (a pump's or a bolt gun's a beat later, as it's
-worked), and the flash comes from the muzzle (a bot's included, which used to flash from in front of its chest). From
+worked), and the flash comes from the muzzle (a bot's included, which used to flash from in front of its chest). A
+bot's pump forend or bolt is racked back and run home after each shot, the bolt's handle turned up, as yours is. From
 above, from behind, or watching from their eyes, it all shows.
 
 ## Controls
@@ -877,7 +918,10 @@ the HUD's off-white, by the number that picks it. Each is shaded like a drawing:
 where a face turns the light to you, the parts further back a shade darker than the nearest, the crevices and the parts
 under an overhang darker still, a little lighter at the top than the bottom, and a thin inked line where one part stands
 in front of another. Everything you've fitted to a gun (a sight, a light, a laser, a can or choke, a bigger mag, a
-bayonet or stock) is drawn in gold with a hairline gap round it, so you can see at a glance what's been upgraded. A
+bayonet or stock) is drawn in gold with a hairline gap round it, so you can see at a glance what's been upgraded: and
+so is any part a stock gun doesn't have (the picture's gun is compared with a stock one built alongside it), so what an
+upgrade or mod grows on the model itself, the M4's flared magwell, the hand cannon's ported compensator, a longer mag,
+turns gold too, where it used to stay white. A
 melee weapon's mods are too (the bat's nails and wire, the crowbar's tape, the sledge's spikes, the machete's longer
 or serrated blade, the wrench's heavy jaw, the katana's folded blade, the axe's weighted head), shaded the same way. A
 pair of guns shows as two: the second behind the first, up and to the right, half see-through. Each slot is as wide
@@ -975,11 +1019,10 @@ than all of them flying out level in one flat line. Each pellet hits the part of
 meets it (over the head or between the legs, nothing), so the blood and the mist come out where its streak ends rather
 than on a part picked anywhere on the body, which looked as if the pellet had curved into it. The holes in a wall show it: a round cluster in the ring. A lone
 round's spread is round too: it lands anywhere inside the circle, up and down as much as sideways, so a held LMG burst
-scatters all round the crosshair rather than along a flat line. Down the sights the first two shots of a string (any gun
-but a shotgun; shots more than about half a second apart each start one) go dead on where the sights are standing
-still, and the cone opens back up over the next three; on the move even those spread, but only about a third as much,
-and moving down the sights costs less than it did (30% more spread at a walk, not 50%). The LMG goes on opening the
-longer a burst runs, to half as much again by the tenth shot, so it rewards short bursts. The LMG's recoil climbs less than other guns' (about
+scatters all round the crosshair rather than along a flat line. **Down the sights there's no spread at all** (any gun
+but a shotgun's pellets, against zombies and in the arena alike): every round goes exactly where the sights are, shot
+after shot, moving or not; what throws a string off is the gun's kick moving the sights, which you pull against. From
+the hip, the first shot of a string standing still is tighter (55% of the cone), the rest opening as before. The LMG's recoil climbs less than other guns' (about
 60% of the rise, at the hip and down the sights alike) and walks side to side more instead, so a long burst swings
 across the target rather than rising off it. A gun's upgrades change which way it kicks: a hotter powder puts its
 extra kick into the climb (+18%, +38% and +60% up by tier, about a third of that sideways too, and a slightly harder
@@ -991,12 +1034,18 @@ fires a stream or a burst (full auto, an automatic's own fire, a burst mode), th
 wrists settle: on single shots (the battle rifle, the AR on semi, the handguns) a lighter trigger adds no kick. The workbench shows it on each card (KICK UP, KICK ASIDE).
 A gun you've just upgraded, fitted or been given glows a soft pale yellow for a moment, all of it, the new part
 included (the rubber of the hand cannon's ported compensator, the grips of the M4's flared magwell and the like used
-to stay dark). Down the sights with a scope up on a tall mount (the auto shotgun's), the gun comes down far enough
+to stay dark). The fire mode's name by the crosshair shows once as you switch, and no longer plays again each time you come off the
+sights. Clicking to close a revolver's open cylinder only closes it: the trigger's held off till you let go, so that
+click never fires it (the double barrel still fires as it latches, if that's what closed it). Down the sights with a
+scope up on a tall mount (the auto shotgun's), the gun comes down far enough
 that the scope's at your eye, rather than your eye rising up off your head to meet it, so from outside you're still
 looking down it.
 From above, a smoke trail lies flat along the round's path rather than standing up off it. Your
 teammates see the same streak, the same hole in the wall and the same dirt kicked up, wherever they're watching from. Up
-against a wall or furniture the gun's slid back a few centimetres along its barrel, then brought down to a low ready, its
+against a wall or furniture the gun's first slid back along its barrel (up to 22 cm a long gun, 14 a handgun), and you
+can still aim down the sights like that; only closer still is it brought down to a low ready (the sights go once it's
+tipped about 17°, the crosshair fading out with it, so it never shows in the middle with the gun pointing at the floor),
+and coming back up off the wall the sights come up more than twice as fast as usual. Down at the low ready, its
 muzzle dipping about your shoulder with the stock still in it and both hands on it, easing in and out rather than
 jumping (it used to slide back as much as 40 cm and flip its muzzle up beside your face, the elbows folded up; indoors
 that looked like a broken hold), and

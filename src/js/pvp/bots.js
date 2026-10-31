@@ -34,7 +34,7 @@ import { ARENA, arenaSpawn } from '../world/arena.js';
 import { ci, cxw, idx, inb } from '../world/grid.js';
 import { bulletBlocked, hardBlocked, moveCircle } from '../world/collision.js';
 import { los } from '../lighting/lightmap.js';
-import { PVP, PVP_BLEED, PVP_CLASSES, PVP_DMG, PVP_R, PVP_T, PVP_TTK, pvpClassOf, pvpCovered, pvpFalloff, pvpFlag, pvpPartK, pvpKilled, pvpKitOn, pvpSideOf } from './pvp.js';
+import { PVP, PVP_BLEED, PVP_CLASSES, PVP_DMG, PVP_R, PVP_T, PVP_TTK, pvpClassOf, pvpCovered, pvpFalloff, pvpHome, pvpFlag, pvpPartK, pvpKilled, pvpKitOn, pvpSideOf } from './pvp.js';
 import { BOT_CYC, BOT_GUN, BOT_GY, BOT_IDLE, BOT_LEG, BOT_UP } from './bot-poses.js';
 
 // how good they are, by the lobby's pick (NET.botSkill): how long they take to react to someone new (s), how far off
@@ -44,9 +44,9 @@ import { BOT_CYC, BOT_GUN, BOT_GY, BOT_IDLE, BOT_LEG, BOT_UP } from './bot-poses
 // much they work as a side (spread over the lanes, going where a teammate fell); sneak, how often they walk rather than
 // run with someone about (no footsteps to hear); flank, how much keener they are to go round than straight at you
 const BOT_SKILL = [
-  { react: [0.42, 0.7], err: 0.28, settle: 2.4, sig: 0.07, turn: 2.8, view: 30, fov: 1.05, head: 0.08, iq: 0.3, team: 0.1, sneak: 0, flank: 0 },
-  { react: [0.28, 0.45], err: 0.23, settle: 3, sig: 0.055, turn: 3.4, view: 36, fov: 1.2, head: 0.11, iq: 0.65, team: 0.55, sneak: 0.4, flank: 0.12 },
-  { react: [0.17, 0.3], err: 0.18, settle: 4.2, sig: 0.04, turn: 4.4, view: 42, fov: 1.35, head: 0.15, iq: 1, team: 1, sneak: 0.8, flank: 0.3 }
+  { react: [0.42, 0.7], err: 0.28, settle: 2.4, sig: 0.07, turn: 2.1, view: 30, fov: 1.05, head: 0.08, iq: 0.3, team: 0.1, sneak: 0, flank: 0 },
+  { react: [0.28, 0.45], err: 0.23, settle: 3, sig: 0.055, turn: 2.6, view: 36, fov: 1.2, head: 0.11, iq: 0.65, team: 0.55, sneak: 0.4, flank: 0.12 },
+  { react: [0.17, 0.3], err: 0.18, settle: 4.2, sig: 0.04, turn: 3.2, view: 42, fov: 1.35, head: 0.15, iq: 1, team: 1, sneak: 0.8, flank: 0.3 }
 ];
 export const BOT_SKILLS = ['Recruit', 'Regular', 'Veteran', 'Random'];   // (Random: each bot its own, drawn as it sits down: net/net.js)
 const botSk = b => BOT_SKILL[b && b.sk !== undefined ? b.sk : NET.botSkill ?? 1] || BOT_SKILL[1];   // (each bot's own, or the lobby's)
@@ -170,10 +170,10 @@ function botSpawn(b, fresh) {
   b.side = pvpSideOf(b.id) || 'A';
   const foes = botFoes(b).map(f => [f.x, f.z]);
   const list = [{ id: NET.id, idx: NET.idx }, ...[...NET.peers.values()].map(p => ({ id: p.id, idx: p.idx }))].filter(r => pvpSideOf(r.id) === b.side).sort((a, c) => a.idx - c.idx);
-  const [x, z, f] = arenaSpawn(PVP.mode === 'ffa' ? 'F' : b.side, foes, PVP.mode === 'rounds' || fresh ? list.findIndex(r => r.id === b.id) : undefined);
+  const [x, z, f] = arenaSpawn(PVP.mode === 'ffa' ? 'F' : pvpHome(b.side), foes, PVP.mode === 'rounds' || fresh ? list.findIndex(r => r.id === b.id) : undefined);
   Object.assign(b, { x, z, vx: 0, vz: 0, aim: f, av: 0, look: f, hp: 100, dead: false, bleed: 0, calm: 0, regen0: null, stun: 0, prot: PVP_T.prot, state: 'roam', path: [], tgt: '', vis: null, last: null, mv: '', react: 0, err: 0, spray: 0, hurtT: -9, seenT: -9, stopT: 0, glanceT: 0, stuck: 0, lookW: f, alarm: undefined, alarmT: 0, pitch: 0, leanT: 0, lean: 0 });
   b.mem.clear(); b.healing = false; b.noFire = false; b.shotAtT = -9;
-  b.lane = botLanePick(b);
+  b.lane = botLanePick(b); b.routeSeed = Math.floor(rand() * 1e9); b.pace = b.pace || rr(0.95, 1.04); b.edgy = rand() < BOT_EDGE.odds;   // (some rounds it works the yard's edges, round the outside of everyone)
   botArm(b);
   b.p.dead = false; b.p.hp = 100;
 }
@@ -283,6 +283,13 @@ const botAll = (b, t, age) => [...b.mem.values()].filter(m => t - m.t < Math.min
 // their side, somewhere to go looking
 const botWalk = (i, j) => i >= ARENA.x0 && i <= ARENA.x1 && j >= ARENA.z0 && j <= ARENA.z1 && inb(i, j) && !hardBlocked(i, j);
 const botLine = (x0, z0, x1, z1) => { const d = Math.hypot(x1 - x0, z1 - z0), n = Math.ceil(d / 0.25); for (let s = 1; s <= n; s++) { const x = x0 + (x1 - x0) * s / n, z = z0 + (z1 - z0) * s / n; for (const [ox, oz] of [[0.3, 0.3], [-0.3, 0.3], [0.3, -0.3], [-0.3, -0.3]]) if (!botWalk(ci(x + ox), ci(z + oz))) return false; } return true; };
+// each bot's own way round this round (BOT_ROUTE): every cell a little dearer or cheaper to it, drawn again each round,
+// so two bots heading to the same spot, or one bot round to round, don't trace the same line through the yard
+const BOT_ROUTE = 0.9;
+// how often a bot works the yard's edges a round (odds), how near the outer wall counts (cells), and how much it likes
+// somewhere there (botRoam)
+const BOT_EDGE = { odds: 0.4, cells: 3, k: 14 };
+const botRouteNoise = (b, k) => { let h = (k * 374761393 + (b.routeSeed | 0) * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296 * BOT_ROUTE; };
 function botPath(b, gx, gz, avoid) {
   let ti = ci(gx), tj = ci(gz);
   if (!botWalk(ti, tj)) { let bd = 1e9, bi = -1, bj = -1; for (let dj = -3; dj <= 3; dj++) for (let di = -3; di <= 3; di++) if (botWalk(ti + di, tj + dj) && di * di + dj * dj < bd) { bd = di * di + dj * dj; bi = ti + di; bj = tj + dj; } if (bi < 0) return []; ti = bi; tj = bj; }
@@ -298,7 +305,7 @@ function botPath(b, gx, gz, avoid) {
     for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
       if (!di && !dj) continue; const ni = i + di, nj = j + dj; if (!botWalk(ni, nj)) continue;
       if (di && dj && (!botWalk(i + di, j) || !botWalk(i, j + dj))) continue;
-      const nk = idx(ni, nj), c = g.get(k) + (di && dj ? 1.414 : 1) + (avoid && avoid.has(nk) ? 4 : 0);
+      const nk = idx(ni, nj), c = g.get(k) + (di && dj ? 1.414 : 1) + (avoid && avoid.has(nk) ? 4 : 0) + botRouteNoise(b, nk);
       if (c < (g.get(nk) ?? 1e9)) { g.set(nk, c); from.set(nk, k); push(c + h(nk), nk); }
     }
   }
@@ -308,6 +315,8 @@ function botPath(b, gx, gz, avoid) {
   // the corners cut: from each point, on to the furthest one it can botWalk to in a straight line
   const out = []; let ax = b.x, az = b.z, k = 0;
   while (k < cells.length) { let far = k; for (let m = cells.length - 1; m > k; m--) if (botLine(ax, az, cells[m][0], cells[m][1])) { far = m; break; } out.push(cells[far]); [ax, az] = cells[far]; k = far + 1; }
+  // (each point on the way a little off the middle of its cell, where there's room, so it never walks the grid's lines)
+  for (let q = 0; q < out.length - 1; q++) { const x = out[q][0] + rr(-0.3, 0.3), z = out[q][1] + rr(-0.3, 0.3); if (botWalk(ci(x), ci(z)) && botLine(q ? out[q - 1][0] : b.x, q ? out[q - 1][1] : b.z, x, z)) out[q] = [x, z]; }
   return out;
 }
 const botCells = (x, z, r) => { const out = []; for (let j = ci(z - r); j <= ci(z + r); j++) for (let i = ci(x - r); i <= ci(x + r); i++) if (botWalk(i, j)) { const cx = cxw(i), cz = cxw(j), d = Math.hypot(cx - x, cz - z); if (d <= r) out.push([cx, cz, d]); } return out; };
@@ -328,8 +337,12 @@ function botPeek(b, L, others) {
   const cs = botCells(b.x, b.z, 3.5).filter(c => los(c[0], c[1], L.x, L.z) && !botSeenBy(c[0], c[1], others)).sort((a, c) => a[2] - c[2]);
   return cs.length ? botPath(b, cs[0][0], cs[0][1]) : null;
 }
+// how long it'll hold a corner in cover with nobody in sight before it goes on (s)
+const BOT_CAMP = 6;
 // how long a standoff (only the cover they're behind to shoot at) lasts before it does something about it (s)
 const BOT_STALL = [1.8, 3.4];
+// taking this much (hp) inside window (s), it backs off and relocates (botThink: b.relocate)
+const BOT_HURT = { much: 35, window: 1.6 };
 // with the flag up, the other side alone on it (taking it, pvp/pvp.js): everyone else stops what it's doing to stop them
 const botDeny = (b, fl) => !!fl && PVP.mode !== 'ffa' && !!fl.w && fl.w !== b.side;
 // a spot a few steps off, behind low cover from T (pvp/pvp.js pvpCovered: only their head over it) and still in sight
@@ -372,7 +385,7 @@ function botRoam(b) {
     // (mostly somewhere in its own lane: it keeps to the way it's chosen rather than drifting into the middle with the rest)
     const i = ARENA.x0 + Math.floor(rand() * (ARENA.x1 - ARENA.x0 + 1)), j = PVP.mode !== 'ffa' && rand() < 0.8 ? ci(lz0 + rand() * (lz1 - lz0)) : ARENA.z0 + Math.floor(rand() * (ARENA.z1 - ARENA.z0 + 1)); if (!botWalk(i, j)) continue;
     const x = cxw(i), z = cxw(j), inLane = z >= lz0 && z <= lz1;
-    const s = Math.min(16, Math.hypot(x - b.x, z - b.z)) + (PVP.mode !== 'ffa' ? (b.side === 'A' ? x - mid : mid - x) * 0.35 + (inLane ? 20 : 0) : 0) + rr(0, 6);
+    const s = Math.min(16, Math.hypot(x - b.x, z - b.z)) + (PVP.mode !== 'ffa' ? (pvpHome(b.side) === 'A' ? x - mid : mid - x) * 0.35 + (inLane ? 20 : 0) : 0) + (b.edgy && Math.min(i - ARENA.x0, ARENA.x1 - i, j - ARENA.z0, ARENA.z1 - j) <= BOT_EDGE.cells ? BOT_EDGE.k : 0) + rr(0, 6);
     if (s > bs) { bs = s; best = [x, z]; }
   }
   return best ? botPath(b, best[0], best[1]) : [];
@@ -439,6 +452,12 @@ function botThink(b, t) {
     // (keeping its head down to heal, it holds fire unless they're on to it: only where health comes back; in Showdown,
     // where it never does, it fights whoever it can see rather than sitting there being peeked)
     b.noFire = regen && b.healing && !onTop && !(T.aim !== undefined && Math.abs(angDiff(T.aim, Math.atan2(b.x - T.x, b.z - T.z))) < 0.25);
+    // (just hurt badly: out of their sight to somewhere else, sprinting, before it fights on, unless the flag needs it)
+    if (b.relocate && t - b.relocate < 0.5 && !deny && !onTop) {
+      b.relocate = 0; b.coverT = t; const cv = botCover(b, known.length ? known : [T], true);
+      if (cv) { b.state = 'cover'; b.path = cv.path; b.sprint = true; b.peekAt = t + rr(1.4, 2.6); b.mv = ''; return; }
+      b.mv = 'back'; b.path = []; b.sprint = false; b.mvT = t + rr(0.8, 1.4);
+    }
     if (leave && b.state !== 'cover' && t - (b.coverT || 0) > 0.6) {
       b.coverT = t; const cv = botCover(b, known.length ? known : [T], b.healing);
       if (cv) { b.state = 'cover'; b.path = cv.path; b.sprint = true; b.peekAt = t + rr(1, 2.2); return; }
@@ -479,7 +498,8 @@ function botThink(b, t) {
   if (b.mag[id] < (WEAP[id].mag || 1) * 0.5 && !b.reloading) botReload(b);
   // shot at by someone it can't see, and standing where they can see it: into cover from them first (not with the
   // other side taking the flag: it goes for that whatever)
-  if (!botDeny(b, pvpFlag()) && threats.length && t - (b.shotAtT || -9) < 3 && b.state !== 'cover' && botSeenBy(b.x, b.z, threats) && t - (b.coverT || 0) > 0.6) {
+  // (in cover already and hit there: that cover's no good, somewhere else)
+  if (!botDeny(b, pvpFlag()) && threats.length && t - (b.shotAtT || -9) < 3 && (b.state !== 'cover' || t - b.hurtT < 0.6) && botSeenBy(b.x, b.z, threats) && t - (b.coverT || 0) > 0.6) {
     b.coverT = t; const cv = botCover(b, threats, b.healing);
     if (cv) { b.state = 'cover'; b.path = cv.path; b.sprint = true; b.peekAt = t + rr(0.8, 1.8); return; }
   }
@@ -514,7 +534,14 @@ function botThink(b, t) {
     return;
   }
   if (b.state === 'cover') {
-    if (b.path.length || b.reloading || t < b.peekAt) return;
+    // (hit where it sits by someone it can't see from there: it doesn't sit and take it, it swings out at them now)
+    if (t - b.hurtT < 0.6 && !b.path.length) b.peekAt = Math.min(b.peekAt, t + rr(0.15, 0.4));
+    // (and sat long enough, it goes looking rather than holding the corner: BOT_CAMP)
+    if (!b.path.length && t - (b.coverSinceT ?? (b.coverSinceT = t)) > BOT_CAMP && !b.healing && Q.plan !== 'hold') { b.coverSinceT = undefined; b.state = 'reset'; }
+    else if (b.path.length || b.reloading || t < b.peekAt) return;
+  }
+  if (b.state !== 'cover') b.coverSinceT = undefined;
+  if (b.state === 'cover') {
     // out to look again: just beside it at the one it knows of, none of the others in sight of that spot; if there's no
     // such spot, round some other way to them
     const others = known.filter(m => m !== L), pk = botPeek(b, L, others);
@@ -544,7 +571,8 @@ function botThink(b, t) {
   else { b.state = 'hunt'; b.path = botPath(b, L.x, L.z); b.sprint = dL > (fresh ? 6 : 13) && !(sneak && dL < 18); }
 }
 function botReload(b) {
-  const id = botGunOf(b), D = WEAP[id], room = (D.mag || 1) - b.mag[id];
+  const id = botGunOf(b), D = WEAP[id]; if (!D || D.melee) return;
+  const room = (D.mag || 1) - b.mag[id];
   if (b.reloading || room <= 0 || b.res[id] <= 0) return;
   b.reloading = true; b.relT = (D.reload || (D.perShell || 0.45) * Math.min(room, b.res[id]) + 0.3) * b.quick;
 }
@@ -584,8 +612,15 @@ function botMove(b, dt, t) {
   const T = b.vis, fighting = b.state === 'fight' && T;
   if (b.path.length && (!fighting || b.mv === 'push' || b.mv === 'tocover')) {
     const [px, pz] = b.path[0], ex = px - b.x, ez = pz - b.z, d = Math.hypot(ex, ez);
-    if (d < 0.35) { b.path.shift(); if (!b.path.length && b.mv === 'tocover') { b.mv = 'hold'; b.mvT = t + rr(1.2, 2.2); if (T) b.leanSide = botLeanSide(b, T); b.leanT = t + rr(1, 2); } if (b.state === 'roam' && rand() < 0.22) { b.stopT = t + rr(0.3, 0.8); b.glanceT = 0; } }
-    else if (t > b.stopT) { dx = ex / d; dz = ez / d; }
+    const sp0 = Math.hypot(b.vx, b.vz), passed = d < 1.2 && (ex * b.vx + ez * b.vz) < 0 && sp0 > 1;   // (gone past it, or close enough at the speed it's going: on to the next rather than circling back round it)
+    if (d < 0.35 + sp0 * 0.09 || passed) { b.path.shift(); if (!b.path.length && b.mv === 'tocover') { b.mv = 'hold'; b.mvT = t + rr(1.2, 2.2); if (T) b.leanSide = botLeanSide(b, T); b.leanT = t + rr(1, 2); } if (b.state === 'roam' && rand() < 0.22) { b.stopT = t + rr(0.3, 0.8); b.glanceT = 0; } }
+    else if (t > b.stopT) {
+      // (a corner taken round, not at a point: coming up on this point it's already heading on toward the next, as
+      // someone walking does; and easing off as it comes to where it's going, BOT_WALK)
+      let tx = px, tz = pz; if (b.path.length > 1 && d < BOT_WALK.corner) { const [qx, qz] = b.path[1], u = (1 - d / BOT_WALK.corner) * BOT_WALK.round; tx = px + (qx - px) * u; tz = pz + (qz - pz) * u; }
+      const tdx = tx - b.x, tdz = tz - b.z, td = Math.hypot(tdx, tdz) || 1, arrive = b.path.length === 1 && d < BOT_WALK.arrive ? BOT_WALK.slow + (1 - BOT_WALK.slow) * d / BOT_WALK.arrive : 1;
+      dx = tdx / td * arrive; dz = tdz / td * arrive;
+    }
   } else if (fighting) {
     const ex = T.x - b.x, ez = T.z - b.z, d = Math.hypot(ex, ez) || 1;
     if (b.mv === 'strafe') {
@@ -596,20 +631,38 @@ function botMove(b, dt, t) {
   // keeping off everyone else
   const near = [[P.x, P.z, P.dead], ...[...NET.peers.values()].map(q => { const o = BOTS.get(q.id); return o ? [o.x, o.z, o.dead, o === b] : [q.x, q.z, q.dead]; })];
   for (const [ox, oz, dead, self] of near) { if (dead || self || ox === undefined) continue; const ex = b.x - ox, ez = b.z - oz, d = Math.hypot(ex, ez); if (d < 0.75 && d > 1e-3) { dx += ex / d * (0.75 - d) * 2; dz += ez / d * (0.75 - d) * 2; } }
+  // getting somewhere fast, nobody in sight or known close: its melee weapon out to run with (lighter than any gun, as
+  // yours is), its gun back out once it's somewhere, someone's in sight or it's near where someone was; and never a
+  // sprint with the LMG in its hands (you can't either: player/sprint.js)
+  botRunMelee(b, t);
+  if (b.sprint && botGunOf(b) === 'lmg') b.sprint = false;
   const aimed = !b.sprint && (b.vis || b.state !== 'roam');
   if (b.sprint && !(dx || dz)) b.sprint = false;
   b.tag = Math.max(0, (b.tag || 0) - dt * 0.45);   // (slowed by a hit, as a player is: pvp/pvp.js PVP_TAG)
   // (its sprint coming up as yours does, player/sprint.js: some of it at once, the rest over a moment)
   b.runUp = b.sprint ? Math.min(1, (b.runUp || 0) + dt / SPRINT.build) : Math.max(0, (b.runUp || 0) - dt * SPRINT.fade);
   const runK = SPRINT.kick + (1 - SPRINT.kick) * (1 - (1 - b.runUp) * (1 - b.runUp));
-  const gid = botGunOf(b), sp = BOT_MOVE.base * botCarry(b, gid) * (b.sprint ? 1 + (BOT_MOVE.sprint - 1) * runK : aimed ? botAds(b, gid) : 1) * (b.reloading ? 0.85 : 1) * (1 - 0.72 * b.tag);
-  const L = Math.hypot(dx, dz), k = 1 - Math.exp(-dt * 13), tvx = L > 1e-3 ? dx / Math.max(1, L) * sp : 0, tvz = L > 1e-3 ? dz / Math.max(1, L) * sp : 0;
+  const gid = botGunOf(b), sp = BOT_MOVE.base * (b.pace || 1) * botCarry(b, gid) * (b.sprint ? 1 + (BOT_MOVE.sprint - 1) * runK : aimed ? botAds(b, gid) : 1) * (b.reloading ? 0.85 : 1) * (1 - 0.72 * b.tag);
+  const L = Math.hypot(dx, dz), k = 1 - Math.exp(-dt * 9), tvx = L > 1e-3 ? dx / Math.max(1, L) * sp : 0, tvz = L > 1e-3 ? dz / Math.max(1, L) * sp : 0;
   b.vx += (tvx - b.vx) * k; b.vz += (tvz - b.vz) * k;
   const x0 = b.x, z0 = b.z;
   moveCircle(b, b.vx * dt, b.vz * dt, 0.3, false);
   // stuck on something: a new way there
   if (L > 0.2 && Math.hypot(b.x - x0, b.z - z0) < sp * dt * 0.2) { if ((b.stuck += dt) > 0.7) { b.stuck = 0; b.path = []; b.mvT = 0; if (b.state === 'roam' || b.state === 'hunt' || b.state === 'flank') b.state = 'roam'; } } else b.stuck = 0;
 }
+function botRunMelee(b, t) {
+  if (!b.slots || !b.slots.melee || b.swapT > 0 || b.reloading) return;
+  const L = botKnown(b, t), near = L && t - L.t < 8 && Math.hypot(L.x - b.x, L.z - b.z) < BOT_MELEE_RUN.near;
+  const far = b.path.length > BOT_MELEE_RUN.path && b.sprint && !b.vis && !near;
+  if (far && b.cur !== 'melee' && t > (b.meleeT || 0)) { b.gunBack = b.cur; b.cur = 'melee'; b.swapT = BOT_MELEE_RUN.swap; b.burst = 0; b.meleeT = t + 1; }
+  else if (b.cur === 'melee' && (b.vis || near || !b.sprint || b.path.length < BOT_MELEE_RUN.done)) { b.cur = b.gunBack && b.slots[b.gunBack] ? b.gunBack : WEAP[(botCls(b).guns[0] || [])[0]] ? WEAP[botCls(b).guns[0][0]].slot : 'side'; b.swapT = BOT_MELEE_RUN.swap + 0.1; b.meleeT = t + 1.5; }
+}
+// its melee weapon out to run (botRunMelee): over this many steps of path still to go, nobody known within near (m),
+// back to its gun with under done steps left; how long each swap takes (s)
+const BOT_MELEE_RUN = { path: 9, near: 16, done: 4, swap: 0.35 };
+// walking a path as a person does (botMove): within corner (m) of a point it's already turning toward the next, by up
+// to round of the way; within arrive of the end it eases off, to slow of its pace; and each bot its own pace (b.pace)
+const BOT_WALK = { corner: 1.6, round: 0.55, arrive: 1.4, slow: 0.4 };
 // somewhere worth looking, standing about: the way that's most open (furthest to the first wall), off the way it faces
 // by up to about a right angle either side, never at the wall in front of it
 function botOpenLook(b) {
@@ -641,8 +694,8 @@ function botAimStep(b, dt, t, T) {
   // (what it wants to look at eased onto, off a target: nothing it hears or passes jerks its view across)
   if (T || b.lookW === undefined) b.lookW = want; else { b.lookW += angDiff(want, b.lookW) * (1 - Math.exp(-dt * BOT_LOOK.ease)); want = b.lookW; }
   // (turning as a hand on a mouse does: speeding up toward it and easing off as it gets there, never a snap)
-  const da = angDiff(want, b.aim), top = S.turn * (T ? 1 : BOT_LOOK.idle), wv = clamp(da * (T ? 6 : 4), -top, top);
-  b.av += (wv - b.av) * (1 - Math.exp(-dt * (T ? 7 : 5))); b.aim += b.av * dt;
+  const da = angDiff(want, b.aim), top = S.turn * (T ? 1 : BOT_LOOK.idle), wv = clamp(da * (T ? 4.5 : 3.2), -top, top);
+  b.av += (wv - b.av) * (1 - Math.exp(-dt * (T ? 5 : 3.5))); b.aim += b.av * dt;
   // and up or down: onto the part of them it's aiming at, else a little down ahead of it as it goes, eased the same way
   const wp = T ? Math.atan2(BOT_PART_Y[b.aimPart || 'torso'] - BOT_EYE, Math.max(1, Math.hypot(T.x - b.x, T.z - b.z))) : b.sprint ? -0.12 : -0.05 + Math.sin(t * 0.5 + b.seed) * 0.03;
   b.pitch = (b.pitch || 0) + (wp - (b.pitch || 0)) * (1 - Math.exp(-dt * 5));
@@ -654,7 +707,7 @@ const BOT_LOOK = { alarm: 1.2, glance: [2, 4], ease: 3.5, idle: 0.5 };
 // on them, in the gun's reach): short bursts at range, longer ones close in, single aimed shots from the rest
 function botGun(b, dt, t, foes) {
   if (b.swapT > 0) { b.swapT -= dt; return; }
-  const id = botGunOf(b), D = WEAP[id];
+  const id = botGunOf(b), D = WEAP[id]; if (!D || D.melee) return;   // (its melee out to run with: botRunMelee puts its gun back)
   if (b.reloading) { if ((b.relT -= dt) <= 0) { const n = Math.min((D.mag || 1) - b.mag[id], b.res[id]); b.mag[id] += n; b.res[id] -= n; b.reloading = false; } return; }
   b.cd -= dt;
   const T = b.vis; if (!T || t < b.react || b.noFire || b.sprint) return;
@@ -721,6 +774,9 @@ export function botHit(id, m) {
   const b = BOTS.get(id), t = botNow(); if (!b || b.dead || PVP.ph !== 'live' || b.prot > 0) return;
   b.hp -= m.d; b.tag = Math.max(b.tag || 0, Math.min(0.62, 0.35 + m.d * 0.006)); b.last = { id: m.f, w: m.w, head: m.p === 'head', d: m.d, at: t, x: m.x, z: m.z, pt: m.p };
   b.hurtT = t; b.calm = 0; b.regen0 = null; botNote(b, m.f, m.x, m.z, 1.5, t, true);
+  // (a lot of it, fast, BOT_HURT: it breaks off, backs out of it and goes somewhere else to fight from)
+  b.hurtSum = (t - (b.hurtSumT || -9) < BOT_HURT.window ? b.hurtSum || 0 : 0) + m.d; b.hurtSumT = t;
+  if (b.hurtSum >= BOT_HURT.much && b.hp > 0) { b.hurtSum = 0; b.relocate = t; }
   const dx = b.x - m.x, dz = b.z - m.z, L = Math.hypot(dx, dz) || 1, pb = { x: bR2(b.x), z: bR2(b.z), dx: bR2(dx / L), dz: bR2(dz / L), h: m.p === 'head' ? 1 : 0, sh: m.f, d: m.d };
   NET_ON.pb(Object.assign({ t: 'pb', f: b.id }, pb)); netAs(b.id, 'pb', pb);
   if (b.hp <= 0) botDie(b, t);
@@ -774,7 +830,9 @@ function botPose(b, dt, t, now_) {
   const tuck = !b.vis && (b.state === 'cover' || b.state === 'hold') && !b.path.length;
   const upK = run ? 'run' : fighting && !b.reloading && !tuck && t >= (b.hipT || 0) ? 'aim' : 'hip';
   const up = G[upK]; let w = G[upK === 'run' ? 'rw' : upK === 'aim' ? 'aw' : 'hw'];
-  const mvA = Math.atan2(b.vx, b.vz), face = run && upK === 'run' ? mvA : b.aim;
+  const mvA = Math.atan2(b.vx, b.vz), faceW = run && upK === 'run' ? mvA : b.aim;
+  // (its body turned onto where it's facing, not snapped there: a corner taken at a run swings it round over a moment)
+  b.faceS = b.faceS === undefined ? faceW : b.faceS + angDiff(faceW, b.faceS) * (1 - Math.exp(-(dt || 0) * 9)); const face = b.faceS;
   // the legs
   let legs = BOT_IDLE;
   if (sp > 0.15 && !b.dead) {

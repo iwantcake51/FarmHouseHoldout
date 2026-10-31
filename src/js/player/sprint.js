@@ -42,6 +42,7 @@ import { stamUse } from '../melee/melee.js';
 import { INTRO } from '../game/intro.js';
 import { ANIM } from './animation.js';
 import { fpOn } from '../game/view-cam.js';
+import { PVP } from '../pvp/pvp.js';
 
 export const WALK_SPEED = 3.0;
 export const SPRINT = { mul: 1.75, drain: 0.14, unlock: 0.5, vault: 0.72, skid: 0.42, skidFric: 4.2, build: 0.55, kick: 0.4, fade: 2.5, acc: 14, carve: 5.5, carveK: 7, carveIn: 14, bendCost: 0.3, bank: 0.055, autoVault: 0.5 };
@@ -49,6 +50,10 @@ export const SPRINT = { mul: 1.75, drain: 0.14, unlock: 0.5, vault: 0.72, skid: 
 // then at rate a second standing still (exh: while you're blown), and a quarter slower while you walk: about 9 s
 // standing, 12 s walking, to win back a whole tank you ran off, against the 7 s it took to run it off
 export const RUN_REST = { wait: 1.5, rate: 0.11, exh: 0.09 };
+// the arena's stamina, fairer between players and the bots (who never tire): a sprint burns drain of what it does on the
+// farm (about 11 s of running from full), and what you ran off comes back after wait of the usual breather at rate
+// times as fast
+export const ARENA_STAM = { drain: 0.65, wait: 0.5, rate: 2.2 };
 // how far into your full pace your momentum has you (eased: the first of it comes quickest), and how much of the quick
 // vault you've earned (none till you've built up half your momentum, all of it near flat out)
 // (a sprint kicks in at once with SPRINT.kick of its extra pace, the rest coming up over SPRINT.build, easing in)
@@ -101,7 +106,7 @@ const sprintDust = n => { for (let k = 0; k < n; k++) burst(P.x + rr(-0.15, 0.15
 // sights or into a shot, and a hard turn
 export function updateSprint(dt, moving, wx, wz) {
   // emptying the tank any way at all (a sprint, a swing, a shove, a vault) leaves you blown till it's back to half
-  if (P.exh) P.sprintLock = true; else if (P.stam >= SPRINT.unlock * stamMax()) P.sprintLock = false;   // (half of what you can have: a Broken stride's half, game/run-state.js)
+  if (P.exh && !PVP.on) P.sprintLock = true; else if (PVP.on || P.stam >= SPRINT.unlock * stamMax()) P.sprintLock = false;   // (in the arena no lockout once you're blown: as soon as there's any back you can run on it, ARENA_STAM)   // (half of what you can have: a Broken stride's half, game/run-state.js)
   if (P.fireQ && (P.fireQT -= dt) <= 0) P.fireQ = null;
   if (P.pivot && (P.pivot.t += dt) >= P.pivot.dur) { P.pivot = null; P.pushT = PIVOT.push; sprintDust(3); footstep('run', 1.15); }   // driving off the new way
   if (P.pushT > 0) P.pushT -= dt;
@@ -133,9 +138,9 @@ export function updateSprint(dt, moving, wx, wz) {
   P.sprint = can && !aiming && !P.pivot && curId() !== 'lmg';   // (the LMG's too heavy to run with: you walk it)
   if (P.sprint) {
     // (a heavy gun in your hands wears you out quicker: its run, weapons/gun-stats.js)
-    const hv = (W(curId()) || {}).heavy, use = Math.min(P.stam, stamUse(SPRINT.drain * (hv ? hv.run || 1 : 1)) * dt);
+    const hv = (W(curId()) || {}).heavy, use = Math.min(P.stam, stamUse(SPRINT.drain * (PVP.on ? ARENA_STAM.drain : 1) * (hv ? hv.run || 1 : 1)) * dt);
     P.stam -= use; P.runDebt = (P.runDebt || 0) + use; P.stamT = P.runT = 0;
-    if (P.stam <= 0.001) { P.exh = true; P.sprintLock = true; P.sprint = false; SFX.pant(); }   // blown
+    if (P.stam <= 0.001) { P.exh = !PVP.on; P.sprintLock = !PVP.on; P.sprint = false; SFX.pant(); }   // blown (in the arena only out of breath for now, not locked out)
   }
   // momentum builds while you're running flat out (not while you're held up against something), and dies away after
   if (P.sprint) { if (Math.hypot(P.vx, P.vz) > WALK_SPEED * 0.6) P.runUp = Math.min(1, (P.runUp || 0) + dt / SPRINT.build); }

@@ -161,7 +161,7 @@ function posePivot(g, rx, ry, rz, px, py, pz, ox, oy, oz, yaw0) {
 // on its own (GP[side], put on its hold in poseGun), so one up against a wall leaves the other out, and each fires
 // from its own muzzle (ANIM.barrelS). A shove driving the gun out at what's there (shv) isn't pushed back off it: it's
 // measured from where the gun would be without the shove, so the blow lands and eases back to the hold on its own
-const GUN_BACK = { long: 0.12, hand: 0.08 }, GUN_TIP = 1.2, GUN_TIP_AT = [X, 1.08, 0.1];
+const GUN_BACK = { long: 0.22, hand: 0.14 }, GUN_TIP = 1.2, GUN_TIP_AT = [X, 1.08, 0.1];
 // the tip's worked out about the shoulder from how far the muzzle has to come back; GUN_TIP_ARM: the shortest lever that's
 // taken for it (a gun drawn in close for a reload would otherwise turn a small push into a great dip), and it's eased
 // onto the angle (GUN_TIP_EASE: down, back up), so it never jumps however the push changes

@@ -30,7 +30,7 @@ export const camVault = { roll: 0, vr: 0, bob: 0, vb: 0, px: 0, vpx: 0, pz: 0, v
 // in a quarter second), so it comes up, a hair past and settles rather than gliding to a stop
 const ADS_ISO = { k: 120, d: 16 };
 // how far (radians) a wall has the gun tipped down before the sights go down, and how near level before they come back
-const WALL_ADS = { on: 0.12, off: 0.03 };
+const WALL_ADS = { on: 0.3, off: 0.12 };
 // firing: each shot kicks the view on its own, apart from the gun's kick in the arms (player/hold.js): it tips only a
 // little (mostly one way, like a gun climbing: CAM_ROLL, and less again on a full automatic, CAM_ROLL_AUTO, whose kicks
 // come too fast to settle) and punches in a touch (CAM_PUNCH: how hard, by the gun's power, so a 9mm barely nudges and
@@ -133,7 +133,9 @@ export function updateCamera(rdt) {
   // (nor while a wall has the gun tipped down out of the way, player/hold.js gunPush: the sights would come up to your
   // eye with the gun pointing at the floor; they go down as it tips, WALL_ADS.on radians, and come back once it's all
   // but level again, WALL_ADS.off, so it doesn't flicker at the edge)
-  { const tip = ANIM.gtipA || 0; ANIM.wallAds = tip > WALL_ADS.on || (!!ANIM.wallAds && tip > WALL_ADS.off); }
+  // (the gun only pushed back toward you off a wall, not yet tipped, still comes up to your eye: a wall closer still and
+  // it's down; coming back up off one, the sights come up quick, ANIM.wallUpT, game/view-cam.js fpAds)
+  { const tip = ANIM.gtipA || 0, was = !!ANIM.wallAds; ANIM.wallAds = tip > WALL_ADS.on || (was && tip > WALL_ADS.off); if (was && !ANIM.wallAds) ANIM.wallUpT = 0.6; ANIM.wallUpT = Math.max(0, (ANIM.wallUpT || 0) - rdt); }
   // (nor, from your own eyes, while a break-open gun's being loaded: the double's barrels dropped open, the revolver's
   // cylinder swung out, right at your eye, the muzzles coming up into your face; it's brought down off the eye for it,
   // and back up to it once it's shut, if you're still holding aim)

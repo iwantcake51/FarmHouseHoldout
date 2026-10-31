@@ -334,15 +334,18 @@ export const cylShut = D => !!D && !D.breakOpen && !D.akimbo && !!D.perShell && 
 // a pump, once its last shell's in: the support hand comes back from the loading port onto the forend and takes hold of
 // it (PUMP_GRAB seconds) before it's worked (weapons/casings.js: tickCycle; player/hold.js eases the hand on)
 const PUMP_GRAB = 0.2;
+// (the double barrel fires as it latches, if the trigger was pulled to close it; a revolver's click only closes the
+// cylinder, and the trigger's held off till it's let go, so the click that shut it never fires it)
+const noShutShot = D => { if (D.breakOpen) W8.shutQ = true; else W8.trigLock = true; };
 // a pull of the trigger during a break-action's reload or its closing: whether it's taken here (the gun doesn't fire)
 export function breakTrigger(id, D) {
   if (!D.breakOpen && !cylShut(D)) return false;
   if (W8.reloading === 'shell') {
     const rp = W8.relU;
     if ((W8.mag[id] || 0) > 0 && rp < SHELL_IN) W8.reloading = null; else W8.relStop = true;
-    W8.shutQ = true; return true;
+    noShutShot(D); return true;
   }
-  if (W8.brkOpen || W8.shutT > 0) { W8.shutQ = true; return true; }
+  if (W8.brkOpen || W8.shutT > 0) { noShutShot(D); return true; }
   return false;
 }
 // how far through closing (-1: not closing; 0 too on the frame a reload's stopped, before tickShut has started it)

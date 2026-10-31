@@ -152,12 +152,31 @@ function hairline(x, src, x0, y0) {
 // until any of that changes (gunArtKey)
 const gunArtCache = {}, GUN_ART_PPU = 120, GUN_TURN = new THREE.Matrix4().makeBasis(new V3(0, 0, 1), new V3(0, 1, 0), new V3(-1, 0, 0));
 export const gunArtKey = id => id + ':' + (W8.mods[id] || []).map(m => m + modLv(m)).join(',') + JSON.stringify([W8.gt[id], W8.att && W8.att[id], W8.tune && W8.tune[id], W8.rds && W8.rds[id], W8.rounds && W8.rounds[id], magTierIn(id), !!(W(id) || {}).akimbo]);
+// everything on the gun that a stock one doesn't have, drawn in gold too: not only what's fitted on a rail (fitted,
+// weapons/gun-materials.js) but what the model itself grows with an upgrade or mod (the M4's flared magwell, the hand
+// cannon's ported compensator, a longer mag, a conversion's parts). The stock gun's built alongside (no tiers, mods,
+// attachments or rounds) and each piece of this one that isn't among its pieces (same shape, same colour, same place
+// to a few millimetres) is marked
+const _gnB = new THREE.Box3(), _gnC = new V3();
+const gnSig = o => { _gnB.setFromObject(o).getCenter(_gnC); return [o.geometry.attributes.position ? o.geometry.attributes.position.count : 0, o.material && o.material.color ? o.material.color.getHex() : 0, Math.round(_gnC.x * 300), Math.round(_gnC.y * 300), Math.round(_gnC.z * 300)].join(); };
+function goldNew(g, id) {
+  const keys = ['gt', 'mods', 'att', 'rounds', 'rds', 'pin'], had = keys.map(k => W8[k] ? [Object.prototype.hasOwnProperty.call(W8[k], id), W8[k][id]] : null);
+  const b = new THREE.Group();
+  try { keys.forEach(k => { if (W8[k]) delete W8[k][id]; }); setTierCtx(id); buildWeapon(b, id, WEAP[id], {}, weaponRec()); }
+  catch (e) { return; }
+  finally { setTierCtx(null); keys.forEach((k, i) => { const h = had[i]; if (!h) return; if (h[0]) W8[k][id] = h[1]; else delete W8[k][id]; }); }
+  b.updateMatrixWorld(true); g.updateMatrixWorld(true);
+  const base = new Map(); b.traverse(o => { if (o.isMesh) { const k = gnSig(o); base.set(k, (base.get(k) || 0) + 1); } });
+  g.traverse(o => { if (!o.isMesh) return; const k = gnSig(o), n = base.get(k) || 0; if (n > 0) base.set(k, n - 1); else o.userData.att = true; });
+  b.traverse(o => { if (o.isMesh && o.geometry) o.geometry.dispose(); });
+}
 export function gunArt(id) {
   const D = WEAP[id]; if (!D) return null;
   if (D.melee) return meleeArt(id, W8.mods[id] || []);
   const key = gunArtKey(id); if (gunArtCache[key]) return gunArtCache[key];
   const g = new THREE.Group(), mods = {}; (W8.mods[id] || []).forEach(m => { mods[m] = modLv(m); });
   setTierCtx(id); try { buildWeapon(g, id, W(id) || D, mods, weaponRec()); } finally { setTierCtx(null); }
+  goldNew(g, id);
   g.setRotationFromMatrix(GUN_TURN);
   return (gunArtCache[key] = snapArt(g, GUN_ART_PPU, { cut: true, pair: !!(W(id) || {}).akimbo }));
 }

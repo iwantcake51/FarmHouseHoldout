@@ -92,24 +92,20 @@ const SPREAD_MAX = 0.7;
 const SG_RUN = 0.35, SG_SPRAY = 0.4, SG_MAX = 0.35;
 // your pace while a heavy gun's firing (D.heavy, weapons/gun-stats.js): it eases back once you let go (weapons/combat-update.js)
 export function heavyFireSlow() { return 1 - (W8.heavyF || 0) * (W8.heavyK || 0); }
-// down the sights the first shots of a string go where the sights are (ADS_FIRST): the first n of them dead on standing
-// still, and the cone opens back up to all it would be over the next ramp shots; on the move even the first ones
-// spread, but only move of what they would (shots more than gap seconds apart each start a string of their own). A
-// gun with adsBloom (the LMG) goes on opening the longer a burst runs, by as much again as that at most, over bloomN
-// shots. Not a shotgun: its pellets always spread
-const ADS_FIRST = { n: 2, ramp: 3, move: 0.35, gap: 0.45, bloomN: 10 };
+// down the sights a round goes exactly where the sights are, every shot of a string, standing or moving (in the arena
+// and against zombies alike): what throws it off is the gun's kick moving the sights, which you pull down against, not
+// a hidden cone. Only a shotgun's pellets spread there (their pattern). From the hip, the first shot of a string
+// standing still is tighter (HIP_FIRST of the cone), the rest open up as before
+const HIP_FIRST = { k: 0.55, gap: 0.45 };
 // (how many shots of this string have gone already)
-const burstN = () => (W8.sprayT ?? 9) < ADS_FIRST.gap ? W8.burst || 0 : 0;
+const burstN = () => (W8.sprayT ?? 9) < HIP_FIRST.gap ? W8.burst || 0 : 0;
 export function spreadOf(id) {
   // hip fire is a bit loose (aiming down the sights is far tighter), walking more than doubles it (+30% while aiming,
   // less with a sight: D.aimMove), holding the trigger opens it further
   const mv = P.mvS ?? clamp(Math.hypot(P.vx || 0, P.vz || 0) / 3, 0, 1);
   const D = W(id), pel = (D.pellets || 1) > 1; let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 * (D.aimK || 1) : 1.3 * (D.hipK || 1)) * (1 + mv * (aiming ? 0.3 * (D.aimMove ?? 1) : RUN_SPREAD * (D.mobile || 1) * (pel ? SG_RUN : 1))) * (1 + (W8.spray || 0) * 1.3 * (pel ? SG_SPRAY : 1));
-  if (aiming && !pel && D.ammo !== 'shells') {
-    const A = ADS_FIRST, b = burstN(), open = b < A.n ? 0 : Math.min(1, (b - A.n + 1) / A.ramp);
-    s *= Math.max(open, mv * A.move);
-    if (D.adsBloom) s *= 1 + D.adsBloom * clamp((b - A.n) / A.bloomN, 0, 1);
-  }
+  if (aiming && !pel) return 0;
+  if (!aiming && !pel && burstN() === 0 && mv < 0.15) s *= HIP_FIRST.k;
   // a choke squeezes the pellets together, and steadies a slug even more
   if (D.ammo === 'shells' && T('choke')) s *= (D.pellets || 1) > 1 ? (T('choke') === 2 ? 0.49 : 0.7) : (T('choke') === 2 ? 0.3 : 0.55);
   if (D.bipod && P.still > 0.3) s *= 0.12;
