@@ -779,6 +779,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
         off = rp < relT ? 1 + tug : 0; held = true; fast = rp >= relT;
       }
       else if (q.lock && rel === 'mag' && SLIDE_PISTOLS[id]) { off = 0; held = true; }   // rounds still in it: the slide stays put
+      else if (q.lock && rel === 'mag' && W8.relDry === false) { off = 0; held = true; }   // a round still in the chamber (the battle rifle, the rifles): the bolt stays home through the mag change, only locked back when it was run dry
       else if (q.lock && rel === 'mag' && CH) { off = rp < CH_SLAM ? 1 : 0; held = true; if (!off) q.off = 0; }   // back with the handle, then slammed home
       else if (q.lock && rel === 'mag') { off = rp < 0.88 ? 1 : 0; held = true; }
       // a slide locking back or dropping home after a reload eases there (fast going back, a softer run forward), never snaps
