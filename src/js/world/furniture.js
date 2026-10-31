@@ -15,7 +15,7 @@ import { cell, ci, cxw, EMPTY, idx, OBST } from './grid.js';
 import { FURN, lowObst } from './props.js';
 import { STATIONS } from '../stations/stations.js';
 import { eDec, eKey, HOUSE_DOOR, IN, inPlan } from './interior.js';
-import { blockArr } from './collision.js';
+import { blockArr, cellBox } from './collision.js';
 
 const FURN_JIT = { slide: 0.1, turn: 0.045 };
 const FURN_ORDER = ['box', 'bed', 'bench', 'saw', 'shelf', 'rack', 'med', 'radio'];
@@ -120,8 +120,19 @@ export function placeFurniture(rnd, W, doors, ro, kinds, fronts) {
 // put each piece where the plan says (or back where it was built, with none): its cells in the grid (low or tall: what
 // you see and shoot over), its model moved and turned (nudged and twisted a little: FURN_JIT), and its station's spot
 // and footprint with it
+// a tall piece's footprint in each of its cells (world/collision.js: cellBox), off the model as it now stands, so it
+// stops sight, light and rounds only where it is: a rack against the wall, not the whole cell in front of it too. One
+// that fills nearly all of a cell (FURN_FULL of it each way) blocks it whole
+const FURN_FULL = 0.85, _fb = new THREE.Box3();
+function furnBox(f) {
+  f.g.updateWorldMatrix(true, true); _fb.setFromObject(f.g); if (_fb.isEmpty()) return;
+  for (const [i, j] of f.at) {
+    const cx = cxw(i), cz = cxw(j), x0 = Math.max(cx - 0.5, _fb.min.x), x1 = Math.min(cx + 0.5, _fb.max.x), z0 = Math.max(cz - 0.5, _fb.min.z), z1 = Math.min(cz + 0.5, _fb.max.z);
+    cellBox[idx(i, j)] = x1 <= x0 || z1 <= z0 ? [cx, cz, cx, cz] : x1 - x0 >= FURN_FULL && z1 - z0 >= FURN_FULL ? null : [x0, z0, x1, z1];
+  }
+}
 export function applyFurniture(placed, rnd) {
-  for (const f of FURN) for (const [i, j] of f.at) { const k = idx(i, j); if (cell[k] !== OBST) continue; cell[k] = EMPTY; lowObst.delete(k); blockArr[k] = 0; }   // (where it stood last run, if that's not a wall now: world/house.js)
+  for (const f of FURN) for (const [i, j] of f.at) { const k = idx(i, j); cellBox[k] = null; if (cell[k] !== OBST) continue; cell[k] = EMPTY; lowObst.delete(k); blockArr[k] = 0; }   // (where it stood last run, if that's not a wall now: world/house.js)
   for (const f of FURN) {
     const c = placed ? placed.get(f) : furnAt(f, f.c0[0][0], f.c0[0][1], 0);
     f.at = c.cells;
@@ -136,5 +147,6 @@ export function applyFurniture(placed, rnd) {
       f.st.x = c.use[0] + sl * ax; f.st.z = c.use[1] + sl * az;
       if (f.foot0) { const [fx, fz] = quarter(f.foot0[0] - f.piv[0], f.foot0[1] - f.piv[1], c.q), odd = c.q & 1; f.st.foot = [cxw(c.pi) + fx + sl * ax, cxw(c.pj) + fz + sl * az, odd ? f.foot0[3] : f.foot0[2], odd ? f.foot0[2] : f.foot0[3]]; }
     }
+    if (!f.low) furnBox(f);
   }
 }

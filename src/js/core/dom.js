@@ -1,6 +1,16 @@
 // DOM shortcut and the three.js availability check.
 
 export const $ = id => document.getElementById(id);
+// a CSS animation played again from its start (replay: its classes taken off now and put back next frame), or anything
+// else that needs the page to have been drawn once in between (nextFrame), without reading the layout to get there:
+// reading it there and then (el.offsetWidth) makes the browser lay the whole page out on the spot, and with the HUD's
+// numbers moving on it that was a long stall, several to a kill
+const _nf = []; let _nfOn = false;
+export function nextFrame(fn) { _nf.push(fn); if (!_nfOn) { _nfOn = true; requestAnimationFrame(() => { _nfOn = false; _nf.splice(0).forEach(f => f()); }); } }
+export function replay(el, ...cls) {
+  el.classList.remove(...cls); el._rp = cls;   // (the last asked for in a frame is the one played)
+  if (!el._rpQ) { el._rpQ = true; nextFrame(() => { el._rpQ = false; el.classList.add(...el._rp); }); }
+}
 if (!window.THREE) { $('title').querySelector('p').textContent = 'The 3D engine could not load. Check your connection and reload the page.'; throw new Error('three.js did not load'); }   // (and the game goes no further)
 // colours are used as written, with no conversion between sRGB and linear on the way in or out (three.js converts them
 // by default since r152): every colour, light and shader in the game was tuned that way. It has to be set before the

@@ -1,13 +1,15 @@
 // Attachment models: muzzle devices, suppressors, lasers, lights, sights, bayonet, brace.
 
 import { box } from '../core/geometry.js';
-import { roundOn } from './rounds.js';
 import { gunAtt, SCOPE_GUNS, suppressed, T, tierCtx, W8 } from '../game/run-state.js';
 import { heatAll } from '../effects/supp-heat.js';
 import { lensOn, reticleOn } from '../effects/scope-view.js';
 import { GM, X } from './gun-materials.js';
 import { cyl, lathe, profile, ring, rrect, shp, solid, taper, tapeWrap, xsec } from './gun-parts.js';
 
+// the handgun's heavy-duty can (an Osprey, eccentric: its bore near the top): across, tall, its top over the bore (under
+// the slide's own top, 1.9 cm over it), long, how round its corners are (metres)
+const OSPREY = { w: 0.032, h: 0.056, over: 0.017, L: 0.2, r: 0.007 };
 export function fitAttachments(g, D, front, y, info) {
   const isShell = D.ammo === 'shells', side = D.slot === 'side', k = side ? 0.8 : 1, muzzle = front;
   // muzzle devices: a choked shotgun has no room for a can
@@ -25,6 +27,18 @@ export function fitAttachments(g, D, front, y, info) {
       cyl(g, r * 0.9, 0.008, GM.filterB, X, y, front + 0.03 + L + 0.004, 24);                     // domed end
       cyl(g, r * 1.006, 0.05, GM.label, X, y, c, 24); cyl(g, r * 1.01, 0.008, GM.filterD, X, y, c + 0.012, 24);   // label band and its stripe
       ring(g, 0.024 * k, 0.012, GM.steel, X, y, front + 0.02); front += L + 0.04;
+    } else if (s === 3 && tierCtx === 'pistol') {
+      // the handgun's heavy-duty can is an Osprey: a long flat-sided box of a can with its bore up near its top and its
+      // body hung under it (OSPREY: across, tall, its top this far over the bore, long, its corners' round), so its top
+      // stays under the slide's and it never comes up into the sights or across the view; a dark cap on its front end
+      // and the three slanted grooves cut in its sides at the back
+      const O = OSPREY, yt = y + O.over, yb = yt - O.h, x0 = X - O.w / 2, x1 = X + O.w / 2, z0 = front + 0.012, z1 = z0 + O.L;
+      cyl(g, 0.0085, 0.018, GM.metal2, X, y, front + 0.004, 14);   // its mount, threaded onto the barrel
+      xsec(g, new THREE.Shape(rrect(x0, yb, x1, yt, O.r).getPoints(3)), z0, z1 - 0.012, GM.metal, 0.0015);   // the body
+      xsec(g, new THREE.Shape(rrect(x0 + 0.0008, yb + 0.0008, x1 - 0.0008, yt - 0.0008, O.r).getPoints(3)), z1 - 0.012, z1, GM.poly, 0.0015);   // its front cap
+      cyl(g, 0.0045, 0.003, GM.poly, X, y, z1 + 0.001, 12);   // and the hole the round leaves by
+      [-1, 1].forEach(sd => { for (let i = 0; i < 3; i++) { const b = box(g, 0.0012, O.h * 0.62, 0.004, GM.metal2, X + sd * (O.w / 2 + 0.0004), (yt + yb) / 2, z0 + 0.03 + i * 0.011); b.rotation.x = -0.55; } });
+      front = z1;
     } else {
       const r = (s === 3 ? 0.05 : 0.04) * k, L = (s === 3 ? 0.42 : 0.32) * k;
       cyl(g, r, L + 0.012, GM.metal, X, y, front + L / 2 - 0.006, 20);   // threaded on over the muzzle
@@ -54,7 +68,7 @@ export function fitAttachments(g, D, front, y, info) {
     let lg = g, lx = X, u, lz;
     if (L && L.side) { lg = new THREE.Group(); lg.position.set(L.x, L.y, 0); lg.rotation.z = L.side * Math.PI / 2; g.add(lg); lx = 0; u = 0; lz = L.z; }   // its top against the side rail
     else if (L) { u = L.y; lz = L.z; }
-    else { lz = front - 0.22; u = undersideAt(g, X, lz, y); }
+    else { lz = info.mount ? info.mount.z : muzzle - 0.22; u = undersideAt(g, X, lz, y); }   // (off the gun's own muzzle, or the mount it says: never out on a can or a choke)
     if (T('laser') === 1 && rail) {   // a compact pointer clamped straight onto the rail
       box(lg, 0.034, 0.012, 0.064, GM.metal, lx, u - 0.006, lz - 0.004);
       cyl(lg, 0.013, 0.09, GM.metal2, lx, u - 0.022, lz); ring(lg, 0.0145, 0.012, GM.metal, lx, u - 0.022, lz + 0.04);
@@ -79,12 +93,12 @@ export function fitAttachments(g, D, front, y, info) {
     if (L && L.side) { const lg = new THREE.Group(); lg.position.set(L.x, L.y, 0); lg.rotation.z = L.side * Math.PI / 2; g.add(lg); weaponLight(lg, { y: 0, z: L.z }, muzzle, lt, tier, 0, g); }   // its top against the side rail
     else if (L) weaponLight(g, L, muzzle, lt, tier);
     else {   // no rail: on a mount clamped up under the barrel
-      const lz = muzzle - 0.24, u = undersideAt(g, X, lz, y);
+      const lz = info.mount ? info.mount.z : muzzle - 0.24, u = undersideAt(g, X, lz, y);
       box(g, 0.03, 0.016, 0.05, GM.metal, X, u - 0.002, lz); weaponLight(g, { y: u - 0.01, z: lz }, muzzle, lt, tier);
     }
   }
   else if (T('light') && !info.noLight) {
-    const mz = muzzle, br = info.barrelR || 0.014;   // on the barrel, behind any can
+    const mz = info.mount ? info.mount.z + 0.25 : muzzle, br = info.barrelR || 0.014;   // on the barrel, behind any can (or at its mount)
     if (T('light') === 1) { cyl(g, 0.022, 0.14, GM.metal2, X + 0.06, y - 0.02, mz - 0.25); ring(g, 0.026, 0.02, GM.metal, X + 0.06, y - 0.02, mz - 0.175); cyl(g, 0.02, 0.004, GM.lens, X + 0.06, y - 0.02, mz - 0.163); lightEm(g, X + 0.06, y - 0.02, mz - 0.158); [-0.28, -0.22].forEach(o => tapeWrap(g, X, y, mz + o, br + 0.002, X + 0.06 + 0.02, y - 0.02)); }   // taped to the barrel
     else if (D.slot === 'auto' && (D.ammo === 'p9' || D.ammo === 'p10')) {   // a submachine gun's: a bigger flashlight, zip-tied on alongside
       const lx = X + 0.066, ly = y - 0.02, lz = mz - 0.27;
@@ -112,10 +126,11 @@ export function fitAttachments(g, D, front, y, info) {
       cyl(p, 0.037 * rk, 0.005, GM.glass, sx, sy, cz + 0.242 * lk, 24); cyl(p, 0.0285 * rk, 0.005, GM.glass, sx, sy, cz - 0.186 * lk, 20);   // round lenses at both ends, the eyepiece's filling its bell
       p.userData.optic = { kind: 'scope', x: sx, y: sy, zr: cz - 0.186 * lk, zf: cz + 0.242 * lk, r: 0.0285 * rk, relief: rl ? rl.relief : 0.125 };   // (relief: back far enough that the eyecup shows as a dark shell round the picture, as an ACOG's body does)
       lensOn(p, sx, sy, cz - 0.186 * lk - 0.0027, 0.0285 * rk);   // (the eyepiece's glass you look into: effects/scope-view.js)
-      { const e = cz - 0.186 * lk; lathe(p, [[0.0285 * rk, e - 0.014], [0.035 * rk, e - 0.014], [0.0365 * rk, e - 0.01], [0.0345 * rk, e + 0.004], [0.03 * rk, e + 0.01]], GM.rubber, sx, sy, 24); }   // a rubber eyecup: the dark shell round the picture from your eye
+      { const e = cz - 0.186 * lk; lathe(p, [[0.0285 * rk, e - 0.014], [0.035 * rk, e - 0.014], [0.0365 * rk, e - 0.01], [0.0345 * rk, e + 0.004], [0.03 * rk, e + 0.01], [0.0285 * rk, e + 0.01], [0.0285 * rk, e - 0.014]], GM.rubber, sx, sy, 24); }   // a rubber eyecup: the dark shell round the picture from your eye, a solid ring down onto the eyepiece (never a loose one standing off it)
       const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.013 * rk, 0.013 * rk, 0.032 * rk, 8), GM.metal2); tt.position.set(sx, sy + 0.036 * rk, cz + 0.01 * lk); p.add(tt);
       const st = new THREE.Mesh(new THREE.CylinderGeometry(0.013 * rk, 0.013 * rk, 0.032 * rk, 8), GM.metal2); st.rotation.z = Math.PI / 2; st.position.set(sx + 0.036 * rk, sy, cz + 0.01 * lk); p.add(st);
-    } else if (side && sight <= 2) pistolDot(p, sx, by, bz, sight === 2 ? 'cdot' : 'dot');
+    } else if (side && sight === 1) pistolDot(p, sx, by, bz, 'dot');
+    else if (tierCtx === 'smg' && sight === 1) pistolDot(p, sx, unityRiser(p, sx, by, bz), bz, 'dot', 'rmr');   // (the machine pistol's: a Trijicon RMR, as a pistol's, up on a riser)
     else if (sight >= 2) {
       // holographic sight, after an EOTech 512: a slim body low on the rail (the batteries along it, their cap at the
       // front), the window's frame at the back with rounded corners and the glass in it, a thin hood looping up over it,
@@ -147,13 +162,12 @@ export function fitAttachments(g, D, front, y, info) {
       p.userData.optic = { kind: 'dot', x: sx, y: by + 0.032, zr: bz - 0.0285, zf: bz + 0.0335, r: 0.016 };
     }
   }
-  if (roundOn(tierCtx) === 'fire') { ring(g, 0.03, 0.03, GM.ember, X, y, Math.min(front - 0.05, (info.sz || 0.62) + 0.28)); box(g, 0.012, 0.02, 0.05, GM.ember, X + 0.04, y - 0.04, (info.sz || 0.62) - 0.05); }
   if (gunAtt(tierCtx, 'stock') && side) {   // a folding brace off the back of the grip
     [-0.02, 0.02].forEach(o => box(g, 0.01, 0.01, 0.24, GM.metal2, X + o, y - 0.05, 0.4)); box(g, 0.05, 0.13, 0.03, GM.poly, X, y - 0.07, 0.27); box(g, 0.054, 0.14, 0.012, GM.rubber, X, y - 0.07, 0.252);
   }
   return front;
 }
-// a handgun's red dot (its first sight step; the second shows a circle-dot in it instead), cut into the slide, after
+// a handgun's red dot (its first sight step; its second puts the holographic sight on instead), cut into the slide, after
 // the four you see most, each its true size: a Trijicon RMR, its hood a shield, the sides raked in to a flat top; an SRO,
 // the RMR's base under a big round window with the battery cap on top; a Holosun 507C, a squared shroud with flat sides,
 // the solar panel on top at the back, the battery tray in the right side and the buttons in the left; a Leupold
@@ -170,9 +184,10 @@ const PDOT = {
     out: [[-0.015, 0.004], [0.015, 0.004], [0.0148, 0.0235], [0.0128, 0.0285], [0.008, 0.03], [-0.008, 0.03], [-0.0128, 0.0285], [-0.0148, 0.0235]] }
 };
 const PDOT_KINDS = Object.keys(PDOT);
+const PDOT_GLOW = 0.35;   // (a pistol's dot, a hand's length from your eye in a small window, drawn tight with little bloom: reticleOn)
 const pdotOf = id => { const r = W8.rds || (W8.rds = {}); if (!PDOT[r[id]]) r[id] = PDOT_KINDS[Math.floor(Math.random() * PDOT_KINDS.length)]; return r[id]; };
-function pistolDot(p, sx, by, bz, ret) {
-  const k = pdotOf(tierCtx), Q = PDOT[k], zr = bz - Q.L / 2, zf = bz + Q.L / 2, wy = by + Q.wy, low = by + Q.wy - Q.wh;
+function pistolDot(p, sx, by, bz, ret, kind) {
+  const k = kind || pdotOf(tierCtx), Q = PDOT[k], zr = bz - Q.L / 2, zf = bz + Q.L / 2, wy = by + Q.wy, low = by + Q.wy - Q.wh;
   box(p, Q.W, low - by, Q.L, GM.metal, sx, (by + low) / 2, bz);   // the base, down in the slide's cut, up to the window's foot
   // the hood round the window, its front a little rounded off
   let hood;
@@ -186,7 +201,7 @@ function pistolDot(p, sx, by, bz, ret) {
   xsec(p, hood, zf - Q.hood, zf, GM.metal, 0.0005);
   // the glass at the front, tinted, and the dot (or circle-dot) seen through it out at infinity (effects/scope-view.js)
   if (Q.round) cyl(p, Q.ww, 0.0012, GM.holoGlass, sx, wy, zf - 0.003, 24); else box(p, Q.ww * 2, Q.wh * 2, 0.0012, GM.holoGlass, sx, wy, zf - 0.003);
-  reticleOn(p, ret, sx, wy, zf - 0.0065, Q.round ? Q.ww : Q.ww * 2, Q.round ? 0 : Q.wh * 2, Q.moa);
+  reticleOn(p, ret, sx, wy, zf - 0.0065, Q.round ? Q.ww : Q.ww * 2, Q.round ? 0 : Q.wh * 2, Q.moa, PDOT_GLOW);
   // the emitter on the base at the back, its LED looking forward at the glass
   box(p, 0.0042, 0.0026, 0.0032, GM.rubber, sx, low + 0.0013, zr + 0.0065); box(p, 0.0016, 0.001, 0.0004, GM.dotR, sx, low + 0.0014, zr + 0.0083);
   const btn = (x, z) => box(p, 0.0014, 0.0042, 0.0062, GM.rubber, x, by + 0.006, z);
@@ -389,4 +404,17 @@ function undersideAt(g, x, z, yAxis) {
   let low = yAxis;
   for (let moved = true, n = 0; moved && n < 12; n++) { moved = false; for (const [a, b] of boxes) if (b >= low - 0.006 && a < low - 0.0005) { low = a; moved = true; } }
   return low === yAxis ? yAxis - 0.03 : low;
+}
+// a riser after the Unity Tactical FAST, under the machine pistol's red dot so you see over the front sight and a can:
+// its slim body clamped to the rail (a plate down its left side, two bolts through it), standing RISER.h tall at the
+// back, its top rail running on past the front of the base and the underside sloping back down to it there, the rail's
+// cross slots along the top. The optic goes on its top (what it gives back: the height of its rail)
+const RISER = { h: 0.026, len: 0.072, w: 0.021, over: 0.022, slots: 7 };
+function unityRiser(p, x, by, bz) {
+  const R = RISER, z0 = bz - R.len / 2, z1 = bz + R.len / 2, top = by + R.h, zb = z1 - R.over;
+  profile(p, shp([[z0, by], [zb, by], [z1 - 0.002, top - 0.007], [z1, top - 0.006], [z1, top], [z0 + 0.003, top], [z0, top - 0.003]]), R.w, GM.metal, x, 0.0008);   // the body, sloped under the front
+  for (let k = 0; k < R.slots; k++) box(p, R.w + 0.001, 0.0032, 0.0045, GM.metal2, x, top - 0.0012, z0 + 0.008 + k * (R.len - 0.016) / (R.slots - 1));   // the rail's ribs (its slots between)
+  box(p, 0.0026, 0.011, zb - z0 - 0.006, GM.metal2, x + R.w / 2 + 0.0012, by + 0.0055, (z0 + zb) / 2);   // the clamp plate down its left side
+  [-1, 1].forEach(o => { const c = cyl(p, 0.0032, 0.003, GM.steel, x + R.w / 2 + 0.003, by + 0.0055, (z0 + zb) / 2 + o * (zb - z0) * 0.3, 10); c.rotation.set(0, 0, Math.PI / 2); });   // its two bolts
+  return top - 0.002;   // (the dot's mount sits 2 mm down into its rail, as on any)
 }

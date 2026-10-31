@@ -23,6 +23,7 @@ import { inspectCut } from '../player/inspect.js';
 import { relKnock } from '../player/hold-kick.js';
 import { dropLoader, HSH_FEED } from '../player/hold-loaders.js';
 import { drawMul, startSwap, swapFire, swapSt } from '../player/swap.js';
+import { PVP } from '../pvp/pvp.js';
 
 // force: draw it again even if it's the slot in your hands (a new weapon just went into it)
 export function equip(s, force) {
@@ -58,9 +59,10 @@ export const reserveOf = id => { const D = W(id); return D.ammo ? W8.reserve[D.a
 // and then the hands fumble it (up to HURT_REL.fumble of the time a reload, of the time a shell for one fed a round at
 // a time): they stall partway, the gun knocked and something clacking, for a moment before they carry on
 // (never with the revolver: its cylinder's fed and shut with no hesitation). A fumble doesn't freeze the hands: they
-// slow to a near stop and pick up again (fumbleW), moving FUMBLE.adv of the stall's own time through the reload on the
-// way, at full speed going into it and coming out of it, so nothing jolts to a halt or jumps away
-const HURT_REL = { slow: 0.35, fumble: 0.4, shellFumble: 0.18, stall: [0.28, 0.55] }, FUMBLE = { adv: 0.35, knock: 0.6 };
+// slow (to about half speed at the slowest, never to a stop, which read as the game catching) and pick up again
+// (fumbleW), moving FUMBLE.adv of the stall's own time through the reload on the way, at full speed going into it and
+// coming out of it, while the hand holding the mag juggles it (player/hold.js: FUMBLE_HAND), so it reads as a fumble
+const HURT_REL = { slow: 0.35, fumble: 0.4, shellFumble: 0.18, stall: [0.4, 0.65] }, FUMBLE = { adv: 0.65, knock: 0.45 };
 const hurtRel = () => 1 + HURT_REL.slow * SHAKY.k;
 const rollFumble = (chance, B, id) => id !== 'revolver' && SHAKY.k > 0.02 && rand() < chance * SHAKY.k ? [{ t: rr(0.25, 0.7) * B, d: rr(HURT_REL.stall[0], HURT_REL.stall[1]) * (0.6 + 0.4 * SHAKY.k), kind: 'fumble' }] : [];
 // how far a fumble's base has gone at k of the way through it (in its own time): a cubic that leaves at full speed,
@@ -72,7 +74,7 @@ const segAdv = g => g.kind === 'fumble' ? FUMBLE.adv * g.d : 0;
 // one), and with hurt ones most of the time, once, twice or as many as three times running, each slower (hurt: the
 // chance at the worst, the most in a row; d: how long one takes, seconds, and how much longer hurt). Each is a beat
 // of its own written into the reload's timeline (relPlan), so the reload takes that much longer, all of it shown
-const MAG_MISS = { calm: 0.07, hurt: 0.85, most: 3, d: [0.34, 0.46], slow: 0.6, at: 0.8, B: 2.2, lo: 0.7 };   // (B, lo: a quicker reload's misses quicker too, as it is to B seconds, down to lo of them)
+const MAG_MISS = { calm: 0.07, hurt: 0.85, most: 3, d: [0.5, 0.64], slow: 0.45, at: 0.8, B: 2.2, lo: 0.75 };   // (B, lo: a quicker reload's misses quicker too, as it is to B seconds, down to lo of them)
 function rollMisses(B) {
   const k = SHAKY.k, n = k > 0.05 && rand() < MAG_MISS.hurt * k ? 1 + Math.floor(rand() * (1 + (MAG_MISS.most - 1) * k)) : rand() < MAG_MISS.calm ? 1 : 0;
   // (at the point of the base where the mag's just short of the well: MAG_MISS.at of its way up from the pouch)
@@ -128,7 +130,10 @@ export function startReload() {
   const sv = W8.relSave[id]; delete W8.relSave[id];
   if (sv && (sv.st === 'out' || sv.st === 'in')) { resumeStage(id, D, sv); return; }
   const missing = magSize(id) - (W8.mag[id] || 0); if (missing <= 0) return;
-  if (reserveOf(id) <= 0) { toast('No ' + AMMO_NAME[D.ammo] + ' left', { kind: 'bad', icon: 'ammo', sub: 'Craft some at the workbench' }); return; }
+  if (reserveOf(id) <= 0) { if (!PVP.on) if (!PVP.on) toast('No ' + AMMO_NAME[D.ammo] + ' left', { kind: 'bad', icon: 'ammo', sub: 'Craft some at the workbench' }); return; }   // (not in the arena: no workbench there)
+  // (a mag never comes out while the bolt's still being worked from the last shot: the hunting rifle on its box. The
+  // reload waits for the bolt to go home and starts then, by itself: weapons/casings.js tickCycle)
+  if (!D.perShell && W8.cyc && W8.cyc.id === id) { W8.relAfterCyc = id; return; }
   runStat('reloads'); inspectCut();   // (looking it over: straight back to reload, player/inspect.js)
   // the revolver dumps every empty at once, a beat after the cylinder swings out; with a speed loader the live rounds go
   // too (the whole cylinder's tipped out for the loader's full six), back into your pouch
@@ -324,7 +329,7 @@ export const BRK_SHUT = 0.3, BRK_GRAB = 0.42, SHELL_IN = 0.7, SHUT_FIRE_WAIT = 0
 // the revolver loaded a round at a time (no speed loader) is shut the same way, by hand: CYL_SHUT long, the support
 // hand going to the open cylinder for the first CYL_GRAB of it, pushing it round into the frame till it latches at
 // CYL_LATCH, and back onto the grip after (player/hold.js poses it to the same marks)
-export const CYL_SHUT = 0.46, CYL_GRAB = 0.36, CYL_LATCH = 0.74;
+export const CYL_SHUT = 0.46, CYL_GRAB = 0.36, CYL_LATCH = 0.74, SHUT_HOLD = 0.35;
 export const cylShut = D => !!D && !D.breakOpen && !D.akimbo && !!D.perShell && !D.speedload && (CRANE[W8.cur] || []).length > 0;
 // a pump, once its last shell's in: the support hand comes back from the loading port onto the forend and takes hold of
 // it (PUMP_GRAB seconds) before it's worked (weapons/casings.js: tickCycle; player/hold.js eases the hand on)
@@ -347,6 +352,9 @@ export function tickShut(dt) {
   const D = W(curId());
   if (!D || (!D.breakOpen && !cylShut(D))) { W8.brkOpen = false; W8.shutT = 0; W8.shutQ = false; return; }
   if (W8.reloading === 'shell') { W8.brkOpen = true; return; }
+  // (a revolver's reload cut short by a shove, to go on after it: its cylinder's left out through the shove and a moment
+  // after, SHUT_HOLD seconds, rather than pushed shut and swung out again)
+  if (!D.breakOpen && W8.relSave[curId()] && (P.shove || (W8.shutHold = (W8.shutHold || 0) - dt) > 0)) { if (P.shove) W8.shutHold = SHUT_HOLD; W8.brkOpen = true; return; }
   if (W8.brkOpen) { W8.brkOpen = false; W8.shutT = W8.shutMax = (D.breakOpen ? BRK_SHUT * (D.shutMul || 1) : CYL_SHUT) * S.reloadMul; }
   if (W8.shutT <= 0) return;
   W8.shutT -= dt;

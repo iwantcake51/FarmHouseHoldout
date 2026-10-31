@@ -3,7 +3,7 @@
 // cleared and rebuilt; colours something else changes later (the shirt under a jacket, skin) stay shared materials,
 // the rest is baked into a few merged meshes per body part.
 
-import { pick, rand, rr } from '../core/math.js';
+import { clamp, pick, rand, rr } from '../core/math.js';
 import { outline } from '../effects/screen-outlines.js';
 import { basic, lam } from '../core/shaders.js';
 import { box, finePieces, mergeInto, roundRectAt, roundRectLen, roundRing, trimShadows, unfight } from '../core/geometry.js';
@@ -243,6 +243,53 @@ export function blinkStep(b, dt) {
   const e = x => x * x * (3 - 2 * x);
   return u < BLINK.shut ? e(u / BLINK.shut) : 1 - e((u - BLINK.shut) / (1 - BLINK.shut));
 }
+// the eyes looking about when you're not busy (the way anyone's do): they rest on a spot a moment (GAZE.hold), then
+// jump to the next in a quick flick (a saccade: GAZE.sac, a little longer the further it goes, quickest at its start)
+// that lands a touch past it (over) and settles back on (settle); every other look or so off to one side or the other
+// and a little up or down (far, up), then back near the middle, now and then a small hop nearby (near). A big look
+// often brings a blink with it (blink). w (0 to 1) is how free they are to wander: they ease back to straight ahead
+// as it drops (aiming, firing, a hit). z holds one face's own; what comes back is [across, up], each -1 to 1
+const GAZE = { hold: [0.7, 2.8], glance: [0.35, 1.3], far: [0.45, 1], up: 0.55, near: 0.25, sac: [0.03, 0.035], over: 0.08, settle: 30, free: 5, blink: 0.35 };
+export function gazeStep(z, dt, w = 1, b) {
+  if (z.hold === undefined) Object.assign(z, { x: 0, y: 0, fx: 0, fy: 0, tx: 0, ty: 0, ex: 0, ey: 0, u: 1, dur: 0.04, hold: rr(0.3, GAZE.hold[1]), w, out: [0, 0] });
+  if (z.u < 1) {   // mid-flick: out fast, slowing onto (just past) the spot
+    z.u = Math.min(1, z.u + dt / z.dur); const e = 1 - Math.pow(1 - z.u, 3);
+    z.x = z.fx + (z.ex - z.fx) * e; z.y = z.fy + (z.ey - z.fy) * e;
+  } else {
+    const k = 1 - Math.exp(-dt * GAZE.settle); z.x += (z.tx - z.x) * k; z.y += (z.ty - z.y) * k;
+    if ((z.hold -= dt) <= 0) {
+      const out = Math.abs(z.tx) > 0.35, r = rand();
+      if (!out && r < 0.55) { z.tx = (rand() < 0.5 ? -1 : 1) * rr(GAZE.far[0], GAZE.far[1]); z.ty = rr(-1, 1) * GAZE.up; z.hold = rr(GAZE.glance[0], GAZE.glance[1]); }
+      else if (!out && r < 0.75) { z.tx = clamp(z.tx + rr(-1, 1) * GAZE.near, -1, 1); z.ty = clamp(z.ty + rr(-1, 1) * GAZE.near * 0.6, -1, 1); z.hold = rr(GAZE.hold[0], GAZE.hold[1]); }
+      else { z.tx = rr(-1, 1) * GAZE.near; z.ty = rr(-1, 1) * GAZE.near * 0.5; z.hold = rr(GAZE.hold[0], GAZE.hold[1]); }
+      const dx = z.tx - z.x, dy = z.ty - z.y, d = Math.hypot(dx, dy);
+      z.fx = z.x; z.fy = z.y; z.ex = z.tx + dx * GAZE.over; z.ey = z.ty + dy * GAZE.over; z.u = 0; z.dur = GAZE.sac[0] + GAZE.sac[1] * d;
+      if (b && d > 0.8 && rand() < GAZE.blink && b.at !== undefined && b.t < b.at - 0.15) b.at = b.t + 0.02;   // (blinking with it, blinkStep)
+    }
+  }
+  z.w += (w - z.w) * (1 - Math.exp(-dt * GAZE.free));
+  z.out[0] = z.x * z.w; z.out[1] = z.y * z.w; return z.out;
+}
+// the eyes put where they're looking (gazeStep): each iris (with its pupil) slid across its white, never past a hair
+// inside its edge (GAZE_FIT.edge), and the pupil up or down inside the iris; get finds the piece to move (a copy of
+// you, the studio's: ui/gun-view.js). Measured on first use, once the look's faces have been pulled apart (rollLook)
+const GAZE_FIT = { edge: 0.0006, ry: 0.7 };
+const _gzS = o => { const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); const b = g.boundingBox; return [(b.max.x - b.min.x) * Math.abs(o.scale.x), (b.max.y - b.min.y) * Math.abs(o.scale.y)]; };
+export function faceGaze(H, gx, gy, get) {
+  const f = H.userData.face; if (!f) return;
+  for (const g of f.eyes) {
+    const z = g.userData.gaze; if (!z || !z.iris || !z.white) continue;
+    if (z.ix === undefined) {
+      const [ww] = _gzS(z.white), [iw, ih] = _gzS(z.iris), ph = z.pupil ? _gzS(z.pupil)[1] : ih, tilt = Math.abs(Math.tan(z.white.rotation.z)) * ih;
+      const half = Math.max(0, (ww - tilt) / 2 - iw / 2 - GAZE_FIT.edge);
+      z.ix = z.iris.position.x; z.lo = z.white.position.x - half; z.hi = z.white.position.x + half; z.rx = half;
+      if (z.pupil) { z.px = z.pupil.position.x; z.py = z.pupil.position.y; } z.ry = Math.max(0, (ih - ph) / 2 - GAZE_FIT.edge) * GAZE_FIT.ry;
+    }
+    const dx = clamp(z.ix + gx * z.rx, z.lo, z.hi) - z.ix, iris = get ? get(z.iris) : z.iris, pupil = z.pupil && (get ? get(z.pupil) : z.pupil);
+    if (iris) iris.position.x = z.ix + dx;
+    if (pupil) { pupil.position.x = z.px + dx; pupil.position.y = z.py + gy * z.ry; }
+  }
+}
 // which eye you aim with (1, or -1 with a patch over that one: faceMood, player/hold.js tips the head to it)
 export const aimEye = L => L && L.face && L.face.patch && L.face.side === 1 ? -1 : 1;
 // how far out the mouth goes: on the face, or just in front of whatever facial hair covers where it is (the stubble's
@@ -257,7 +304,9 @@ function mouthOver(hair, x, y, hw, h) {
   }
   return z;
 }
-const SKIN_MARK = { t: 0.0012, in: 0.0004 };
+// (lay: each kind of mark a hair further out than the last, so where two overlap, freckles on a smear of grime or a
+// scar across freckles, one's plainly over the other rather than the two flickering through each other)
+const SKIN_MARK = { t: 0.0012, in: 0.0004, lay: { freckle: 0.0002, grime: 0.0004, scar: 0.0006 } };
 // a round flat button (or eyelet) facing out the front: r across, h thick, at x, y, z
 const BTN_G = new THREE.CylinderGeometry(1, 1, 1, 10).rotateX(Math.PI / 2);
 function btn(g, r, h, m, x, y, z) { const b = new THREE.Mesh(BTN_G, m); b.scale.set(r, r, h); b.position.set(x, y, z); b.castShadow = true; g.add(b); return b; }
@@ -272,7 +321,7 @@ export function buildLook(L) {
   const scarM = lm(new THREE.Color(L.skin).lerp(new THREE.Color(0xf0c0b4), 0.38).multiplyScalar(1.06).getHex()), scarEdge = lm(shade(L.skin, 0.84));
   const mark = (w, h, m, x, y, rz, z0 = 0.16) => { const b = box(H, w, h, SKIN_MARK.t, m, x, y, z0 + SKIN_MARK.t / 2 - SKIN_MARK.in); if (rz) b.rotation.z = rz; return b; };
   const scarLine = (len, x, y, rz, z0, w = 0.0075) => { const g = new THREE.Group(); g.position.set(x, y, 0); g.rotation.z = rz || 0; H.add(g);
-    [-1, 1].forEach(q => box(g, 0.003, len * 0.92, SKIN_MARK.t, scarEdge, q * (w / 2 + 0.0012), 0, (z0 ?? 0.16) + SKIN_MARK.t / 2 - SKIN_MARK.in));
+    [-1, 1].forEach(q => box(g, 0.003, len * 0.92, SKIN_MARK.t, scarEdge, q * (w / 2 + 0.0012), 0, (z0 ?? 0.16) + SKIN_MARK.lay.scar + SKIN_MARK.t / 2 - SKIN_MARK.in));
     box(g, w, len, SKIN_MARK.t * 1.6, scarM, 0, 0, (z0 ?? 0.16) + SKIN_MARK.t * 0.8 - SKIN_MARK.in); return g; };
   const face = H.userData.face = { eyes: [], brows: [], mouth: null, aim: aimEye(L) };
   [-1, 1].forEach(s => {
@@ -285,7 +334,7 @@ export function buildLook(L) {
     }
     // every shape has its white, the iris in the eye's colour, and the pupil: small and nearly all iris, a squint, ...
     else if (F.eye === 'beady') { box(H, 0.032, 0.026, 0.012, white, x, y, 0.162); box(H, 0.022, 0.024, 0.012, eyeM, x - s * 0.002, y, 0.164); box(H, 0.01, 0.012, 0.012, dark, x - s * 0.002, y, 0.167); }
-    else if (F.eye === 'narrow' || (F.eye === 'oneSquint' && s === F.side)) { box(H, 0.05, 0.016, 0.012, white, x, y, 0.162); box(H, 0.026, 0.016, 0.012, eyeM, x - s * 0.004, y, 0.164); box(H, 0.011, 0.012, 0.012, dark, x - s * 0.004, y, 0.167); }
+    else if (F.eye === 'narrow' || (F.eye === 'oneSquint' && s === F.side)) { box(H, 0.05, 0.016, 0.012, white, x, y, 0.162); box(H, 0.026, 0.014, 0.012, eyeM, x - s * 0.004, y, 0.164); box(H, 0.011, 0.012, 0.012, dark, x - s * 0.004, y, 0.167); }
     else if (F.eye === 'droopy') {   // the outer corners lower, the lids heavy
       const e = box(H, 0.05, 0.026, 0.012, white, x, y, 0.162); e.rotation.z = s * -0.22; box(H, 0.022, 0.024, 0.012, eyeM, x - s * 0.004, y, 0.164); box(H, 0.011, 0.013, 0.012, dark, x - s * 0.004, y, 0.167);
       box(H, 0.058, 0.012, 0.014, PM.mats.skinDk, x, y + 0.012, 0.169).rotation.z = s * -0.22;
@@ -299,7 +348,10 @@ export function buildLook(L) {
       if (F.eye === 'tired') { box(H, 0.056, 0.014, 0.014, PM.mats.skinDk, x, y + h / 2 - 0.004, 0.169); box(H, 0.05, 0.012, 0.01, circ, x, y - h / 2 - 0.008, 0.162); }   // heavy lids, dark circles under
     }
     if (F.bags) mark(0.046, 0.008, circ, x, y - 0.026);
-    if (!(F.patch && s === F.side)) face.eyes.push(facePart(H, n0, x, y, 0.165, s));   // (a patch doesn't narrow)
+    if (!(F.patch && s === F.side)) {   // (a patch doesn't narrow, or look about)
+      const g = facePart(H, n0, x, y, 0.165, s), of = m => g.children.find(c => c.material === m);
+      g.userData.gaze = { white: of(white), iris: of(eyeM), pupil: of(dark) }; face.eyes.push(g);
+    }
     const n1 = H.children.length;
     // brows: flat, raised at the middle, drawn down in a frown, heavy or thin; sometimes one with a slit shaved in it
     const by = y + (F.eye === 'tired' || F.eye === 'deepset' ? 0.04 : 0.046) + (F.brow === 'skeptic' && s === F.side ? 0.014 : 0);
@@ -331,12 +383,12 @@ export function buildLook(L) {
   if (F.scar === 'cheek') scarLine(0.075, F.side * 0.1, -0.035, F.side * 0.3);
   else if (F.scar === 'nose') scarLine(0.05, 0, N[3] + 0.01, Math.PI / 2 + F.side * 0.25, 0.16 + N[2], 0.006);
   // freckles: a scatter of small, uneven flecks across the nose and cheeks; a mole, the one thing a touch raised
-  if (F.freckles) { const fr = lm(shade(L.skin, 0.78)); [[-0.1, -0.02, 6], [-0.085, -0.04, 5], [-0.115, -0.045, 7], [-0.07, -0.025, 4], [0.1, -0.025, 6], [0.088, -0.045, 5], [0.118, -0.04, 7], [0.072, -0.03, 4], [-0.02, -0.012, 5], [0.024, -0.016, 4], [0.006, -0.03, 4]].forEach(([fx, fy, w]) => mark(w / 1000, w / 1000, fr, fx, fy)); }
+  if (F.freckles) { const fr = lm(shade(L.skin, 0.78)); [[-0.1, -0.02, 6], [-0.085, -0.04, 5], [-0.115, -0.045, 7], [-0.07, -0.025, 4], [0.1, -0.025, 6], [0.088, -0.045, 5], [0.118, -0.04, 7], [0.072, -0.03, 4], [-0.02, -0.012, 5], [0.024, -0.016, 4], [0.006, -0.03, 4]].forEach(([fx, fy, w]) => mark(w / 1000, w / 1000, fr, fx, fy, 0, 0.16 + SKIN_MARK.lay.freckle)); }
   if (F.mole) box(H, 0.009, 0.009, 0.004, lm(shade(L.skin, 0.5)), F.mole[0], F.mole[1], 0.1605);
   if (F.cleft) mark(0.004, 0.024, PM.mats.skinDk, 0, -0.145);
   // grime: smears of dirt worked into the skin, soft-edged (a darker middle in a lighter smudge)
   if (F.grime) { const gr = new THREE.Color(L.skin).multiplyScalar(0.62).lerp(new THREE.Color(0x3a3020), 0.35), g1 = lm(gr.getHex()), g0 = lm(new THREE.Color(L.skin).lerp(gr, 0.5).getHex());
-    [[0.06, 0.032, F.side * 0.095, -0.06, 0.3], [0.046, 0.018, -F.side * 0.06, 0.12, 0.08]].forEach(([w, h, x, y, rz]) => { mark(w, h, g0, x, y, rz); mark(w * 0.62, h * 0.55, g1, x, y, rz, 0.16 + SKIN_MARK.t); }); }
+    [[0.06, 0.032, F.side * 0.095, -0.06, 0.3], [0.046, 0.018, -F.side * 0.06, 0.12, 0.08]].forEach(([w, h, x, y, rz]) => { mark(w, h, g0, x, y, rz, 0.16 + SKIN_MARK.lay.grime); mark(w * 0.62, h * 0.55, g1, x, y, rz, 0.16 + SKIN_MARK.lay.grime + SKIN_MARK.t); }); }
   // ---- hair: short, long, buzzed or none, as one shell round the back and sides of the head (HAIR_W across, a few mm
   // proud of it) that runs up into a top over the crown when there's no hat (or only a bandana, worn as a headband
   // round it). Under a hat the shell stops tucked just inside the hat's band (HAT_TUCK), narrower than every hat, so
@@ -536,7 +588,9 @@ export function buildLook(L) {
 // undoes that (WR_TRUE) rather than squashed with it; its bands are rounded off over the wrist's corners (roundRing)
 const WRIST_Z = 0.405, WR_TRUE = 1 / 0.84, WR_R = 0.016;
 let iceMat = null;
-const wrSph = new THREE.SphereGeometry(1, 10, 8), wrCyl = new THREE.CylinderGeometry(1, 1, 1, 28), wrLink = new THREE.TorusGeometry(1, 0.3, 6, 12), wrGem = new THREE.OctahedronGeometry(1, 0), wrBezel = new THREE.TorusGeometry(1, 0.3, 6, 36);
+// (the beads, knots and links are only a few millimetres across, under a dozen pixels on screen even up close: they're
+// round with fewer sides than a bigger part, never faceted at that size)
+const wrSph = new THREE.SphereGeometry(1, 8, 6), wrCyl = new THREE.CylinderGeometry(1, 1, 1, 28), wrLink = new THREE.TorusGeometry(1, 0.3, 4, 10), wrGem = new THREE.OctahedronGeometry(1, 0), wrBezel = new THREE.TorusGeometry(1, 0.3, 6, 36);
 const _wrq = [0, 0, 0, 0], _wrq2 = [0, 0, 0, 0];
 // what it sits on: how far out from the middle of the arm the outside of whatever's at the wrist is (the bare arm, a
 // sleeve, a cuff: the widest piece across WRIST_Z), so it's snug on it rather than floating off it; it's built

@@ -11,14 +11,23 @@ import {
 } from './gun-parts.js';
 import { REV_CYL, REV_RAIL } from './gun-models.js';
 
+// how much longer the match barrel makes the slide at each level (m): a G17L's at the first, longer after
+const MATCH_SLIDE = [0.04, 0.055, 0.07];
+// where an optic's middle sits along the slide (the red dot, then the holo): back against the slide's rear, where the
+// rear sight was, the way a cut slide carries one
+const PISTOL_OPTIC_Z = [0.573, 0.594];
 export const PISTOL_MODELS = {
   // 9mm pistol: a Glock 17 Gen 5, traced off a side-on photo. The slide (serrations front and back, the sights, the
   // ejection port on the right with the barrel's hood in it) rides on a polymer frame: the dust cover with its rail
   // slot, the squared trigger guard with the safety-blade trigger, the slide stop, takedown lever and magazine
   // release, and the raked grip with its stippled panels. The magazine follows the tier: flush, a +5 base pad, a
-  // 33-round stick, then a 50-round drum
+  // 33-round stick, then a 50-round drum. The match barrel makes it a long-slide, as a G17L or a G40 is: the barrel
+  // and the slide over it longer with each level (MATCH_SLIDE), the frame as it was, the slide's nose out past the dust
+  // cover dropping down to its depth round the recoil spring, its front sight out at the new muzzle and no serrations
+  // at the front
   pistol(g, m) {
     const F = GM.poly, S2 = GM.glockS, mg = g.userData.magG || g, mt = T('mag');
+    const ext = m.match ? MATCH_SLIDE[Math.min(m.match, MATCH_SLIDE.length) - 1] : 0, nose = 0.845 + ext;   // (the slide's front)
     // ---- frame: dust cover and rail, the guard, the grip; the levers
     profile(g, shp([[0.839, 1.124], [0.727, 1.124], [0.727, 1.097], [0.741, 1.1], [0.79, 1.1], [0.798, 1.102], [0.82, 1.104], [0.833, 1.106], [0.839, 1.108]]), 0.028, F, X, 0.002);
     box(g, 0.022, 0.004, 0.006, GM.rubber, X, 1.1, 0.79);
@@ -37,21 +46,28 @@ export const PISTOL_MODELS = {
     box(g, 0.004, 0.006, 0.01, F, X, 1.09, 0.6865);   // its safety blade
     box(g, 0.003, 0.006, 0.022, GM.metal2, X + 0.016, 1.122, 0.662); box(g, 0.003, 0.007, 0.012, GM.metal2, X + 0.016, 1.112, 0.734); box(g, 0.004, 0.012, 0.012, F, X + 0.016, 1.085, 0.645);
     // ---- the barrel and chamber under the slide, the recoil guide in the dust cover
-    cyl(g, 0.0105, 0.29, GM.metal2, X, 1.142, 0.695, 14); box(g, 0.022, 0.018, 0.06, GM.metal2, X, 1.142, 0.575); cyl(g, 0.006, 0.25, GM.metal2, X, 1.115, 0.72, 10);
+    cyl(g, 0.0105, 0.29 + ext, GM.metal2, X, 1.142, 0.695 + ext / 2, 14); box(g, 0.022, 0.018, 0.06, GM.metal2, X, 1.142, 0.575); cyl(g, 0.006, 0.25, GM.metal2, X, 1.115, 0.72, 10);
     // ---- the slide (rides back on each shot, locks open on an empty mag)
     const sl = new THREE.Group(); g.add(sl);
-    profile(sl, shp([[0.542, 1.1245], [0.842, 1.1245], [0.845, 1.137], [0.845, 1.146], [0.841, 1.157], [0.836, 1.16], [0.548, 1.161], [0.542, 1.158]], [rrect(0.687, 1.133, 0.757, 1.155, 0.003)]), 0.028, S2, X, 0.0025);
+    profile(sl, shp([[0.542, 1.1245], [0.842 + ext, 1.1245], [nose, 1.137], [nose, 1.146], [0.841 + ext, 1.157], [0.836 + ext, 1.16], [0.548, 1.161], [0.542, 1.158]], [rrect(0.687, 1.133, 0.757, 1.155, 0.003)]), 0.028, S2, X, 0.0025);
+    // (a long slide's nose, past the frame: down to the dust cover's depth, a shade wider so it rides over the frame as
+    // the slide comes back)
+    if (ext) profile(sl, shp([[0.8395, 1.1255], [nose - 0.001, 1.1255], [nose - 0.001, 1.111], [nose - 0.005, 1.1065], [0.8425, 1.1065], [0.8395, 1.109]]), 0.0285, S2, X, 0.002);
     portFill(sl, 0.687, 1.133, 0.757, 1.155, 0.028, 0.0025, S2);
     box(sl, 0.006, 0.014, 0.066, GM.metal2, X - 0.009, 1.146, 0.72);   // the barrel's hood in the port
-    [-1, 1].forEach(sd => { for (let k = 0; k < 7; k++) box(sl, 0.002, 0.026, 0.003, GM.rubber, X + sd * 0.0166, 1.142, 0.549 + k * 0.0075); for (let k = 0; k < 5; k++) box(sl, 0.002, 0.026, 0.003, GM.rubber, X + sd * 0.0166, 1.142, 0.788 + k * 0.0075); });
+    [-1, 1].forEach(sd => { for (let k = 0; k < 7; k++) box(sl, 0.002, 0.026, 0.003, GM.rubber, X + sd * 0.0166, 1.142, 0.549 + k * 0.0075); if (!ext) for (let k = 0; k < 5; k++) box(sl, 0.002, 0.026, 0.003, GM.rubber, X + sd * 0.0166, 1.142, 0.788 + k * 0.0075); });
     // the Glock's own sights: a slim front post, its back face upright and its front sloped, a round white dot on its
     // back; the rear a block narrower at its top than its base, its square notch outlined by a white U, the dot sitting
-    // in the U as you line them up
-    profile(sl, shp([[0.825, 1.1605], [0.834, 1.1605], [0.834, 1.162], [0.8295, 1.169], [0.825, 1.169]]), 0.003, GM.rubber, X);
-    cyl(sl, 0.00125, 0.0008, GM.dot, X, 1.1665, 0.8248, 12);
-    glockRear(sl, X, 1.169, 0.555, 0.019, 0.0145, 0.0075, 0.009, 0.0042, 0.0034, GM.rubber, GM.dot);
-    irons(g, { kind: 'notch', yr: 1.169, rz: 0.555, yf: 1.169, fz: 0.829 });
-    cyl(sl, 0.0065, 0.002, GM.rubber, X, 1.142, 0.8455, 12);
+    // in the U as you line them up. With an optic on, both come off, the optic sitting at the back of the slide where
+    // the rear one was (PISTOL_OPTIC_Z)
+    const sight = T('sight');
+    if (!sight) {
+      profile(sl, shp([[0.825, 1.1605], [0.834, 1.1605], [0.834, 1.162], [0.8295, 1.169], [0.825, 1.169]].map(([z, y]) => [z + ext, y])), 0.003, GM.rubber, X);
+      cyl(sl, 0.00125, 0.0008, GM.dot, X, 1.1665, 0.8248 + ext, 12);
+      glockRear(sl, X, 1.169, 0.555, 0.019, 0.0145, 0.0075, 0.009, 0.0042, 0.0034, GM.rubber, GM.dot);
+      irons(g, { kind: 'notch', yr: 1.169, rz: 0.555, yf: 1.169, fz: 0.829 + ext });
+    }
+    cyl(sl, 0.0065, 0.002, GM.rubber, X, 1.142, nose + 0.0005, 12);
     // ---- the magazine, lying back at the grip's rake (it drops out along it): the body up inside the grip, then the
     // tier's base under the mag well: flush, a +5 base pad, a 33-round stick, a 50-round drum on its neck
     const t = 0.38, sn = Math.sin(t), cs = Math.cos(t), dn = (z, y, d) => [z - sn * d, y - cs * d];
@@ -71,11 +87,10 @@ export const PISTOL_MODELS = {
       ring(mg, r + 0.0015, 0.006, GM.glockT, X, cy, cz + 0.012); ring(mg, r + 0.0015, 0.006, GM.glockT, X, cy, cz - 0.012);   // the seams round its rim
       cyl(mg, 0.026, 0.008, GM.glockT, X, cy, cz - 0.038, 20); box(mg, 0.034, 0.008, 0.006, GM.rubber, X, cy, cz - 0.044);   // the winding key
     }
-    let front = 0.845;
-    if (m.match) { const e = 0.04 * (m.match - 1); cyl(g, 0.0125, 0.11 + e, GM.metal2, X, 1.142, 0.9 + e / 2); ring(g, 0.0145, 0.012, GM.steel, X, 1.142, 0.95 + e); front = 0.955 + e; }   // a longer barrel with each level
+    const front = nose;
     if (m.auto) box(sl, 0.006, 0.012, 0.04, GM.orange, X + 0.017, 1.135, 0.56);   // the auto sear's selector
     if (m.burst) { box(sl, 0.03, 0.03, 0.016, GM.metal2, X, 1.142, 0.536); box(sl, 0.01, 0.016, 0.02, GM.orange, X + 0.016, 1.15, 0.53).rotation.y = 0.35; }
-    return { front, y: 1.142, magZ: 0.567, magY: 1.05, slide: sl, travel: 0.07, lock: true, top: 1.161, sz: 0.6, ownMags: true, laser: { y: 1.1, z: 0.786 } };   // the laser on the dust cover's rail
+    return { front, y: 1.142, magZ: 0.567, magY: 1.05, slide: sl, travel: 0.07, lock: true, top: 1.161, ownMags: true, laser: { y: 1.1, z: 0.786 }, sz: sight ? PISTOL_OPTIC_Z[Math.min(sight, 2) - 1] : 0.6 };   // the laser on the dust cover's rail
   },
   // .357 revolver: a stainless Smith & Wesson, measured off side-on photos (a 6" 617 for the frame, a snub-nosed 986
   // for the grips). The frame has a real window for the cylinder (so it's empty when the cylinder swings out), a thin
@@ -154,7 +169,11 @@ export const PISTOL_MODELS = {
     xsec(g, shp([[X - 0.0105, 1.181], [X + 0.0105, 1.181], [X + 0.0085, 1.1875], [X - 0.0085, 1.1875]]), 0.674, 0.908, S2, 0.0006);
     for (let k = 0; k < 9; k++) box(g, 0.022, 0.003, 0.005, D, X, 1.1865, 0.745 + k * 0.0165);
     [-1, 1].forEach(sd => { box(g, 0.0022, 0.011, 0.194, D, X + sd * 0.0156, 1.161, 0.776); box(g, 0.0016, 0.003, 0.226, D, X + sd * 0.0152, 1.177, 0.792); });
-    box(g, 0.003, 0.011, 0.012, GM.rubber, X, 1.192, 0.901);
+    // the front sight, as the Mark XIX's: a slim black ramped blade (its back face upright, its front sloped down to the
+    // muzzle) on a dovetail block across the end of the rail, a round white dot on its back to line up between the rear's
+    box(g, 0.012, 0.003, 0.013, S2, X, 1.189, 0.9005);
+    profile(g, shp([[0.895, 1.1885], [0.906, 1.1885], [0.906, 1.1905], [0.8985, 1.1975], [0.895, 1.1975]]), 0.0034, GM.rubber, X);
+    cyl(g, 0.0013, 0.0008, GM.dot, X, 1.1945, 0.8946, 12);
     cyl(g, 0.0062, 0.004, GM.rubber, X, 1.16, 0.9165, 14);
     // ---- frame: the lip under the barrel, takedown buttons, slide stop, the guard and trigger, the hammer
     box(g, 0.03, 0.008, 0.22, S2, X, 1.122, 0.782);
@@ -189,7 +208,7 @@ export const PISTOL_MODELS = {
     profile(sl, shp([[0.536, 1.122], [0.672, 1.122], [0.672, 1.188], [0.6, 1.188], [0.564, 1.185], [0.553, 1.175], [0.548, 1.17], [0.536, 1.17]]), 0.03, S2, X, 0.003);
     for (let k = 0; k < 9; k++) [-1, 1].forEach(sd => { const sr = box(sl, 0.002, 0.044, 0.0035, D, X + sd * 0.0181, 1.152, 0.6 + k * 0.0072); sr.rotation.x = 0.26; });
     [-1, 1].forEach(sd => { cyl(sl, 0.0078, 0.003, D, X + sd * 0.0188, 1.171, 0.566, 18).rotation.set(0, 0, Math.PI / 2); cyl(sl, 0.0062, 0.004, GM.steel, X + sd * 0.0198, 1.171, 0.566, 18).rotation.set(0, 0, Math.PI / 2); const lv = box(sl, 0.003, 0.006, 0.026, GM.steel, X + sd * 0.0198, 1.167, 0.578); lv.rotation.x = 0.22; box(sl, 0.0032, 0.0028, 0.0028, GM.red, X + sd * 0.0198, 1.164, 0.561); });
-    box(sl, 0.0185, 0.0035, 0.018, S2, X, 1.1877, 0.58); notchRear(sl, X, 1.1975, 0.576, 0.0185, 0.008, 0.012, 0.0055, 0.0045, GM.rubber);   // the rear sight on its base, its notch level with the front post (the base no wider than the sight and wholly under the blades: it stood up into the notch, a pale band right across the view down the sights)
+    box(sl, 0.0185, 0.0035, 0.018, S2, X, 1.1877, 0.58); notchRear(sl, X, 1.1975, 0.576, 0.0185, 0.008, 0.012, 0.0055, 0.0045, GM.rubber); [-1, 1].forEach(sd => cyl(sl, 0.0013, 0.0008, GM.dot, X + sd * 0.006, 1.1948, 0.5696, 12));   // the rear sight on its base, a combat blade with a square notch and a white dot either side of it (the front's dot sits between them, 3-dot), its notch level with the front post (the base no wider than the sight and wholly under the blades: it stood up into the notch, a pale band right across the view down the sights)
     irons(g, { kind: 'notch', yr: 1.1975, rz: 0.576, yf: 1.1975, fz: 0.901 });
     // the bolt in the slide's mouth, seen when it runs back
     cyl(g, 0.012, 0.075, GM.steel, X, 1.16, 0.64, 14); box(g, 0.024, 0.03, 0.08, GM.rubber, X, 1.15, 0.636);

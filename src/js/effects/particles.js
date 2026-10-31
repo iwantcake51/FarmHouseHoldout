@@ -1,5 +1,6 @@
 // Pooled particles (blood, dust, sparks, embers, smoke) and flying gibs.
 
+import { stepWallBlood } from './wall-blood.js';
 import { scene, V3 } from '../core/renderer.js';
 import { rand, rr } from '../core/math.js';
 import { basic, lam } from '../core/shaders.js';
@@ -176,6 +177,7 @@ export function stepParticles(dt) {
   stepDrops(dt);
   const gdt = P.dead ? P.deathDt || 0 : dt;   // the world is frozen once you're down, but the blood in the air still lands
   stepBloodMap(gdt);   // new splashes into the farm's blood map (effects/blood-map.js)
+  stepWallBlood(gdt);  // and the blood up the walls drying, running and soaking away (effects/wall-blood.js)
   for (let k = gibs.length - 1; k >= 0; k--) {
     const g = gibs[k]; g.life -= dt;
     if (!g.landed) {

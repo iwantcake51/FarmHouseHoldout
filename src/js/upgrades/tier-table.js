@@ -22,13 +22,13 @@ export const TIERS = {
   // the powder behind every round, whichever kind is loaded (weapons/rounds.js): this line is the gun's damage, the
   // round is what it does (the line's key is still 'ammo')
   ammo: { tag: 'Powder', t: [
-    { r: 'c', name: 'Hand-loads', text: 'A hotter charge behind every round, whichever kind is loaded. +25% damage, but +18% recoil and spread every shot.', ap: () => S.dmgMul *= 1.25 },
-    { r: 'u', name: '+P loads', text: 'Hotter again, with orange tracers. +20% damage, but recoil and spread per shot up to +38%.', ap: () => S.dmgMul *= 1.2 },
-    { r: 'e', name: 'Match-grade loads', text: 'Every charge weighed out the same: +25% damage, and headshots count for more. The hardest kick: recoil and spread per shot up to +60%.', ap: () => S.dmgMul *= 1.25 }] },
+    { r: 'c', name: 'Hand-loads', text: 'A hotter charge behind every round, whichever kind is loaded. +25% damage, but each shot kicks up 18% harder (a little more aside too) and spreads more.', ap: () => S.dmgMul *= 1.25 },
+    { r: 'u', name: '+P loads', text: 'Hotter again, with orange tracers. +20% damage, but the kick up and the spread per shot up to +38%.', ap: () => S.dmgMul *= 1.2 },
+    { r: 'e', name: 'Match-grade loads', text: 'Every charge weighed out the same: +25% damage, and headshots count for more. The hardest kick: up to +60% kick up and spread per shot, and a little more aside.', ap: () => S.dmgMul *= 1.25 }] },
   trigger: { tag: 'Gun', t: [
-    { r: 'c', name: 'Light trigger', text: 'A lighter pull, so shots come quicker.', ap: () => S.rateMul *= TRIG_UP[0] },
-    { r: 'u', name: 'Match trigger', text: 'Lighter again.', ap: () => S.rateMul *= TRIG_UP[1] },
-    { r: 'r', name: 'Hair trigger', text: 'As light as a pull gets.', ap: () => S.rateMul *= TRIG_UP[2] }] },
+    { r: 'c', name: 'Light trigger', text: 'A lighter pull, so shots come quicker, and the gun swings aside more as they do.', ap: () => S.rateMul *= TRIG_UP[0] },
+    { r: 'u', name: 'Match trigger', text: 'Lighter again: quicker, and a little more swing aside.', ap: () => S.rateMul *= TRIG_UP[1] },
+    { r: 'r', name: 'Hair trigger', text: 'As light as a pull gets: quicker still, swinging aside more again.', ap: () => S.rateMul *= TRIG_UP[2] }] },
   // the pistol's own names for them, after what it's given (weapons/gun-models.js): a +5 base plate, a long stick, a drum
   mag: { tag: 'Gun', t: [
     // the auto shotgun's one step is its drum (MAG_UP, game/run-state.js), priced as a rare one (rAs)
@@ -48,7 +48,7 @@ export const TIERS = {
     // on a sniper it also raises the headshot multiplier, and through a scope its headshots crit (SCOPES)
     { r: 'c', name: 'Red dot', text: D => sightText(1, D) + (D && D.sniper ? ' Headshot multiplier +0.15×.' : ''), vis: 'A red dot sight', ap: () => {} },
     { r: 'u', name: 'Holographic sight', text: D => sightText(2, D) + (D && D.sniper ? ' Headshot multiplier +0.15× more.' : ''), vis: 'A holo sight', ap: () => {} },
-    { r: 'r', name: 'Scope', text: D => 'Zooms in when you aim. ' + sightText(3, D) + ' Dead accurate past 10 m.' + (D && D.sniper ? ' Every headshot while aiming is a crit (2× damage).' : ''), vis: 'A scope in rings', ap: () => {} },
+    { r: 'r', name: 'Scope', text: D => 'Zooms in when you aim. ' + sightText(3, D) + ' Fully accurate past 10 m.' + (D && D.sniper ? ' Every headshot while aiming is a crit (2× damage).' : ''), vis: 'A scope in rings', ap: () => {} },
     { r: 'e', name: 'ACOG', text: D => 'Zooms in further. ' + sightText(4, D) + (D && D.sniper ? ' Headshot crits do 2.25×.' : ''), vis: 'A 4× ACOG, its fibre optic glowing red on top', ap: () => {} },
     { r: 'l', name: 'High-power scope', text: D => 'Zooms in furthest. ' + sightText(5, D) + ' Headshot crits do 2.5×.', vis: 'A big scope', ap: () => {} }] },
   laser: { tag: 'Attachment', t: [
@@ -63,7 +63,7 @@ export const TIERS = {
   // and pushed in together (game/run-state.js: SOH). (The pump's two or three shells a go come with Quick hands II and
   // III instead: PAIR_LOAD, TRIPLE)
   loader: { tag: 'Attachment', t: [
-    { r: 'u', name: 'Speed loader', as: { dbl: 'Sleight of Hand', scar: 'Flared magwell' }, text: (D, id) => id === 'scar' ? `A flared magwell funnels the new mag in: every mag change ${Math.round((1 - MAGWELL) * 100)}% quicker.` : D.breakOpen ? 'Load both shells at once instead of one at a time, and close the gun quicker: a reload nearly twice as fast.' : D.ammo === 'shells' ? 'Grab three shells at once and feed them into the tube in one go: a reload about twice as fast.' : 'All 6 rounds go in at once.', ap: () => {} }] },
+    { r: 'u', name: 'Speed loader', as: { dbl: 'Sleight of Hand', scar: 'Flared magwell' }, text: (D, id) => id === 'scar' ? `A flared magwell funnels the new mag in: every mag change ${Math.round((1 - MAGWELL) * 100)}% quicker.` : D.breakOpen ? 'Both shells go in at once instead of one at a time, and the gun closes quicker: a reload nearly twice as fast.' : D.ammo === 'shells' ? 'Three shells go into the tube at a time: a reload about twice as fast.' : 'All 6 rounds go in at once.', ap: () => {} }] },
   choke: { tag: 'Attachment', can: () => hasShotgun(), t: [
     { r: 'u', name: 'Modified choke', text: 'Squeezes the pellets (and slugs) into a tighter cone. Takes the muzzle.', ap: () => {} },
     { r: 'r', name: 'Full choke', text: 'Tighter again.', ap: () => {} }] },

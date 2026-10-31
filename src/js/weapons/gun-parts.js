@@ -1,7 +1,7 @@
 // Part builders for the gun models: cylinders and rings along the bore, profiles extruded from traced outlines,
 // lathes, tapers, stippling and checkering, and the caches that keep shared shapes built once.
 
-import { box, cylZ, sharedGeo, zfPush, zfSpan } from '../core/geometry.js';
+import { box, cylZ, setLo, sharedGeo, simplifyLine, zfPush, zfSpan } from '../core/geometry.js';
 import { GM, X } from './gun-materials.js';
 
 // small builders for gun parts: cylinders along the bore, rings, and a light strip that fakes a top-edge highlight. Any
@@ -23,16 +23,27 @@ function kept(M, cap, key, make) {
   return geo;
 }
 const PROFILES = new Map();
-// a side profile (points in z, y) pushed out to width w across the gun and centred on x, with a soft bevel if asked
+// a side profile (points in z, y) pushed out to width w across the gun and centred on x, with a soft bevel if asked.
+// Its outline (and each hole's) keeps only the points its shape needs (PROFILE_TOL metres: a point on a straight run, or
+// one more than a curve needs, is left out), so its sides and faces are no more triangles than the shape takes
+const PROFILE_TOL = 0.00004;
+// (a closed outline: split in two at the point furthest from its first, each half simplified as a line)
+const _pfLoop = P => {
+  if (P.length < 5) return P;
+  let k = 1, far = -1; P.forEach((p, i) => { const d = p.distanceToSquared(P[0]); if (d > far) { far = d; k = i; } });
+  const L = [...simplifyLine(P.slice(0, k + 1), PROFILE_TOL), ...simplifyLine([...P.slice(k), P[0]], PROFILE_TOL).slice(1, -1)];
+  return L.length >= 3 ? L : P;
+};
 export function profile(g, shape, w, mat, x, bev, segs) {
-  const pts = (Array.isArray(shape) ? shape : [shape]).map(sh => { const e = sh.extractPoints(8); return [e.shape.map(v => [v.x, v.y]), e.holes.map(h => h.map(v => [v.x, v.y]))]; });
-  const geo = kept(PROFILES, 2000, JSON.stringify([pts, w, bev || 0, segs || 1]), () => {
+  const pts = (Array.isArray(shape) ? shape : [shape]).map(sh => { const e = sh.extractPoints(8); return [_pfLoop(e.shape), e.holes.map(_pfLoop)]; });
+  shape = pts.map(([o, hs]) => { const s = new THREE.Shape(o); hs.forEach(h => s.holes.push(new THREE.Path(h))); return s; });
+  const geo = kept(PROFILES, 2000, JSON.stringify([pts.map(([o, hs]) => [o.map(v => [v.x, v.y]), hs.map(h => h.map(v => [v.x, v.y]))]), w, bev || 0, segs || 1]), () => {
     const geo = new THREE.ExtrudeGeometry(shape, bev ? { depth: w, bevelEnabled: true, bevelThickness: bev, bevelSize: bev, bevelSegments: segs || 1, curveSegments: 8 } : { depth: w, bevelEnabled: false, curveSegments: 8 });
     geo.translate(0, 0, -w / 2); geo.rotateY(-Math.PI / 2);   // the outline's x runs down the gun (+z), the width across it
     return geo;
   });
   // (its two sides pushed out a hair where another piece of the gun already has a side in the same plane: zfSpan)
-  let z0 = 1e9, z1 = -1e9, y0 = 1e9, y1 = -1e9; pts.forEach(([o]) => o.forEach(([a, b]) => { z0 = Math.min(z0, a); z1 = Math.max(z1, a); y0 = Math.min(y0, b); y1 = Math.max(y1, b); }));
+  let z0 = 1e9, z1 = -1e9, y0 = 1e9, y1 = -1e9; pts.forEach(([o]) => o.forEach(({ x: a, y: b }) => { z0 = Math.min(z0, a); z1 = Math.max(z1, a); y0 = Math.min(y0, b); y1 = Math.max(y1, b); }));
   const hw = w / 2 + (bev || 0), [cx, sw] = zfSpan(g, 'x', x, hw * 2, [y0, y1, z0, z1]);
   const m = new THREE.Mesh(geo, mat); m.position.x = cx; if (sw !== hw * 2) m.scale.x = sw / (hw * 2); m.castShadow = true; g.add(m); return m;
 }
@@ -116,24 +127,49 @@ export function stipple(g, poly, xo, gap, mat, dotMat) {
   [-1, 1].forEach(sd => profile(g, shp(poly), 0.0008, mat, X + sd * xo, 0.0002));
   const geo = kept(STIPPLE, 200, JSON.stringify([poly, xo, gap, X]), () => stippleDots(poly, xo, gap)); if (geo) g.add(new THREE.Mesh(geo, dotMat));
 }
+// (each dot a little square block standing out from the patch, DOT: as wide as size, out to tall: its flat top, and each
+// side down to the patch a single triangle from the top's edge to the middle of the edge below it, which is all of its
+// sides a dot a couple of pixels across ever shows, not two; never its face on the patch. Far off, its top alone:
+// core/geometry.js)
+const DOT = { size: 0.0011, tall: 0.0011 };
 function stippleDots(poly, xo, gap) {
-  const zs = poly.map(p => p[0]), ys = poly.map(p => p[1]), pos = [], bx = new THREE.BoxGeometry(0.0011, 0.0011, 0.0011).toNonIndexed(); let k = 0;
+  const zs = poly.map(p => p[0]), ys = poly.map(p => p[1]), pos = [], far = []; let k = 0;
   for (let y = Math.min(...ys) + gap / 2; y < Math.max(...ys); y += gap * 0.87) for (let z = Math.min(...zs) + gap / 2 + (k++ % 2) * gap / 2; z < Math.max(...zs); z += gap) {
     const jz = z + (Math.sin(z * 9137 + y * 4271) * 0.3) * gap, jy = y + (Math.sin(z * 3571 - y * 7919) * 0.3) * gap; if (!inPoly(poly, jz, jy)) continue;
-    [-1, 1].forEach(sd => { const gg = bx.clone(); gg.translate(X + sd * (xo + 0.0006), jy, jz); pos.push(gg.attributes.position.array); });
+    [-1, 1].forEach(sd => { const b = X + sd * (xo + 0.00005); pos.push(dotBump(b, sd, jy, jz)); far.push(dotTop(b + sd * DOT.tall, sd, jy, jz)); });
   }
   if (!pos.length) return null;
+  return setLo(flatGeo(pos), flatGeo(far.map(a => new Float32Array(a))));
+}
+// a dot: standing on the patch at x = b, out from it toward sd (which way across the gun); and its top alone
+const dotTop = (x, sd, y, z) => {
+  const h = DOT.size / 2, a = [x, y - h, z - h], b = [x, y + h, z - h], c = [x, y + h, z + h], d = [x, y - h, z + h];
+  return sd > 0 ? [...a, ...b, ...c, ...a, ...c, ...d] : [...a, ...c, ...b, ...a, ...d, ...c];
+};
+const dotBump = (b, sd, y, z) => {
+  const h = DOT.size / 2, t = b + sd * DOT.tall, C = [[y - h, z - h], [y + h, z - h], [y + h, z + h], [y - h, z + h]], out = dotTop(t, sd, y, z);
+  for (let i = 0; i < 4; i++) { const p = C[i], q = C[(i + 1) % 4], m = [b, (p[0] + q[0]) / 2, (p[1] + q[1]) / 2]; if (sd > 0) out.push(t, q[0], q[1], t, p[0], p[1], ...m); else out.push(t, p[0], p[1], t, q[0], q[1], ...m); }
+  return new Float32Array(out);
+};
+// many boxes' triangles (each non-indexed, its points' array) as one flat-shaded geometry
+function flatGeo(pos) {
   const P = new Float32Array(pos.reduce((n, a) => n + a.length, 0)); let at = 0; pos.forEach(a => { P.set(a, at); at += a.length; });
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); geo.computeVertexNormals();
   return geo;
 }
+// a box's face that looks out of the gun's side sd (+-1 across it, x), alone: from far off it's all that shows of a dot or
+// a line standing a millimetre proud (a box's points, non-indexed, run its +x face's two triangles, then its -x face's)
+const outFace = (a, sd) => sd > 0 ? a.slice(0, 18) : a.slice(18, 36);
+// a raised line's box with only what shows of it: its top and its two long sides (not the face it lies on, nor its two
+// ends, a millimetre square each, cut off at the panel's edge)
+const lineFaces = (a, sd) => { const o = new Float32Array(54); o.set(outFace(a, sd)); o.set(a.subarray(36, 72), 18); return o; };
 // checkering on both sides of a stock: a dark panel (poly, points in z, y) lying on the faces at X +- xo, and two
 // crossing sets of fine raised lines over it (gap apart, at +-ang to the gun), each cut off at the panel's edge so none
 // of them run past it (walnut unless the panel and line materials are given)
 export function checker(g, poly, xo, gap, ang, pm, lm) {
   if (poly.length < 3) return;
   [-1, 1].forEach(sd => profile(g, shp(poly), 0.0012, pm || GM.walnutD, X + sd * (xo - 0.0002), 0.0003));   // its face 0.7 mm proud
-  const pos = [], bx = new THREE.BoxGeometry(1, 1, 1).toNonIndexed(), mx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+  const pos = [], far = [], bx = new THREE.BoxGeometry(1, 1, 1).toNonIndexed(), mx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
   [ang, -ang].forEach(an => {
     const dz = Math.cos(an), dy = Math.sin(an), nz = -dy, ny = dz, ds = poly.map(p => p[0] * nz + p[1] * ny);
     for (let d = Math.min(...ds) + gap / 2; d < Math.max(...ds); d += gap) {
@@ -148,15 +184,13 @@ export function checker(g, poly, xo, gap, ang, pm, lm) {
         const sm = (s0 + s1) / 2; if (!inPoly(poly, sm * dz + d * nz, sm * dy + d * ny)) continue;   // keep only the stretches inside
         [-1, 1].forEach(sd => {
           mx.compose(new THREE.Vector3(X + sd * (xo + 0.0011), sm * dy + d * ny, sm * dz + d * nz), q.setFromEuler(e.set(Math.atan2(-dy, dz), 0, 0)), new THREE.Vector3(0.0012, 0.0010, s1 - s0));
-          const gg = bx.clone(); gg.applyMatrix4(mx); pos.push(gg.attributes.position.array);
+          const gg = bx.clone(); gg.applyMatrix4(mx); pos.push(lineFaces(gg.attributes.position.array, sd)); far.push(outFace(gg.attributes.position.array, sd));
         });
       }
     }
   });
   if (!pos.length) return;
-  const P = new Float32Array(pos.reduce((n, a) => n + a.length, 0)); let at = 0; pos.forEach(a => { P.set(a, at); at += a.length; });
-  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); geo.computeVertexNormals();
-  g.add(new THREE.Mesh(geo, lm || GM.walnut2));   // all the lines are one mesh
+  g.add(new THREE.Mesh(setLo(flatGeo(pos), flatGeo(far)), lm || GM.walnut2));   // all the lines are one mesh (far off, their tops alone: core/geometry.js)
 }
 // many small boxes as one mesh: the grooves, ribs and slots set flush into a face ([w, h, d, x, y, z, rx] each), one
 // draw call however many there are
@@ -173,11 +207,16 @@ export function boxes(g, B, mat) {
 // the piece as it went in, and the squeeze's own key): splitting and bending them is most of what a pump, a double
 // barrel or a hunting rifle takes to build
 const TAPERED = new Map();
+// how finely it's cut to bend: only where the squeeze would bend it, an edge split until the squeezed edge is within tol
+// metres of where the squeeze really puts it (so a flat stretch the squeeze keeps flat stays a few big triangles, and a
+// curve down the wrist gets as many as it needs), and never longer down the gun than dz; near, and for its far
+// version, small on screen
+const TAPER_DZ = { near: { tol: 0.0001, dz: 0.12 }, far: { tol: 0.0008, dz: 0.3 } };
 export function taperX(grp, wf) {
   grp.children.forEach(o => {
     if (!o.isMesh) return; o.updateMatrix(); const g0 = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); g0.applyMatrix4(o.matrix);
-    const squeeze = () => {
-      const geo = tessZ(g0, 0.008);   // fine enough down the gun that every surface bends with the squeeze, together
+    const squeeze = (dz = TAPER_DZ.near) => {
+      const geo = tessZ(g0, dz, wf);   // fine enough that every surface bends with the squeeze, together
       const p = geo.attributes.position, nm = geo.attributes.normal;
       for (let i = 0; i < p.count; i++) {
         // squeeze the point, and carry its normal through the squeeze (so a flat face that now bends gently stays smooth
@@ -186,6 +225,7 @@ export function taperX(grp, wf) {
         if (nm) { const nx = nm.getX(i) / f, ny = nm.getY(i), nz = nm.getZ(i) - dx * df / f * nm.getX(i), l = Math.hypot(nx, ny, nz) || 1; nm.setXYZ(i, nx / l, ny / l, nz / l); }
         p.setX(i, X + dx * f);
       }
+      if (dz === TAPER_DZ.near) setLo(geo, squeeze(TAPER_DZ.far));   // (and bent in coarser slices for far off: core/geometry.js)
       return geo;
     };
     o.geometry = wf.key ? kept(TAPERED, 300, wf.key + geoKey(g0), squeeze) : squeeze();
@@ -202,16 +242,23 @@ function geoKey(geo) {
   }
   return k + '|' + (h1 >>> 0).toString(36) + (h2 >>> 0).toString(36);
 }
-// split a (non-indexed) mesh's triangles until no edge runs more than maxDz along the gun. Whether an edge is split
-// (at its middle) depends only on its two ends, so the triangles either side of it split it the same way and no seams
-// open when the points are moved afterwards
-function tessZ(geo, maxDz) {
+// split a (non-indexed) mesh's triangles until no edge, squeezed by wf, strays more than T.tol from the squeeze (looked
+// at a quarter, half and three quarters along it), nor runs more than T.dz along the gun. Whether an edge is split (at
+// its middle) depends only on its two ends, so the triangles either side of it split it the same way and no seams open
+// when the points are moved afterwards
+function tessZ(geo, T, wf) {
   const names = Object.keys(geo.attributes), A = names.map(n => geo.attributes[n]), out = names.map(() => []);
   const vert = (t, k) => A.map(a => { const v = []; for (let c = 0; c < a.itemSize; c++) v.push(a.array[(t * 3 + k) * a.itemSize + c]); return v; });
-  const zOf = v => v[names.indexOf('position')][2], mid = (u, v) => u.map((a, i) => a.map((x, c) => (x + v[i][c]) / 2));
-  const emit = tri => tri.forEach(v => v.forEach((a, i) => out[i].push(...a)));
+  const mid = (u, v) => u.map((a, i) => a.map((x, c) => (x + v[i][c]) / 2));
+  const emit = tri => tri.forEach(v => v.forEach((a, i) => out[i].push(...a))), pi = names.indexOf('position');
+  const bend = (u, v) => {
+    const a = u[pi], b = v[pi]; if (Math.abs(a[2] - b[2]) > T.dz) return true;
+    const ea = (a[0] - X) * wf(a[2]), eb = (b[0] - X) * wf(b[2]);
+    for (const t of [0.25, 0.5, 0.75]) { const z = a[2] + (b[2] - a[2]) * t, dx = a[0] - X + (b[0] - a[0]) * t; if (Math.abs(dx * wf(z) - (ea + (eb - ea) * t)) > T.tol) return true; }
+    return false;
+  };
   const split = (tri, depth) => {
-    const L = [0, 1, 2].map(k => Math.abs(zOf(tri[k]) - zOf(tri[(k + 1) % 3])) > maxDz);
+    const L = [0, 1, 2].map(k => bend(tri[k], tri[(k + 1) % 3]));
     if (depth > 9 || !(L[0] || L[1] || L[2])) { emit(tri); return; }
     const [a, b, c] = tri, ab = L[0] && mid(a, b), bc = L[1] && mid(b, c), ca = L[2] && mid(c, a), d = depth + 1;
     if (ab && bc && ca) { split([a, ab, ca], d); split([ab, b, bc], d); split([ca, bc, c], d); split([ab, bc, ca], d); }

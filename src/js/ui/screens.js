@@ -1,10 +1,11 @@
 // Title, pause and death screens, starting a run and dying.
 
+import { wallBloodClear } from '../effects/wall-blood.js';
 import { $, smoothWheel } from '../core/dom.js';
 import { cv, scene, setZoom, setZoomT, ZOOM_MAX, zoomT } from '../core/renderer.js';
 import { angDiff, cache, clamp, rr, setLast, smooth } from '../core/math.js';
 import { mistReset } from '../world/mist.js';
-import { NET, netLeave, netLink, netSend, netStart } from '../net/net.js';
+import { NET, netAllReady, netLeave, netLink, netReady, netSend, netStart } from '../net/net.js';
 import { cxw } from '../world/grid.js';
 import { PAINT_FADE, stepPaint } from '../world/house.js';
 import { houseLayout } from '../world/interior.js';
@@ -13,6 +14,7 @@ import { rollLook, spawnLook } from '../player/look.js';
 import { clearBodyBlood } from '../effects/body-blood.js';
 import { SLOTS } from '../weapons/slots.js';
 import { curId, freshRun, run, S, stamMax, W, W8 } from '../game/run-state.js';
+import { SET } from './settings.js';
 import { gunMeshes } from '../weapons/gun-materials.js';
 import { buildGuns } from '../weapons/build-weapons.js';
 import { casings, mags } from '../weapons/casings.js';
@@ -44,7 +46,8 @@ import { feedItems, floats } from './hud-text.js';
 import { titleSky } from '../lighting/day-night.js';
 import { resetDrops } from '../stations/supply-drop.js';
 import { clearSpit } from '../zombies/spitter.js';
-import { wantLock } from '../game/view-cam.js';
+import { clearBursts } from '../zombies/elites.js';
+import { quitPull, wantLock } from '../game/view-cam.js';
 import { resetHeart } from './vitals.js';
 import { ragYou, unragYou } from '../player/player-ragdoll.js';
 import { ANIM } from '../player/animation.js';
@@ -56,6 +59,9 @@ import { cheatSaves } from './cheats.js';
 import { netDown, netRunStart, nr, turnedDown } from '../net/sync.js';
 import { toggleCoop } from '../net/lobby.js';
 import { setWarmQ } from '../game/loop.js';
+import { clearScreenBlood } from './screen-blood.js';
+import { PVP, pvpBegin, pvpDied, pvpEnd } from '../pvp/pvp.js';
+import { arenaDown } from '../world/arena.js';
 
 // the death camera's timings and where it's up to (below: startDeath, tickDeathCine). Up here, as a new run clears it
 const DEATH_CINE = { push: 0.55, pushT: 3.2, roll: 0.07, vig: 0.85, vigT: 2.4, spec: 2.3, black: 0.55 };
@@ -82,17 +88,18 @@ export function setState(s) {
 }
 // wipe the farm back to a fresh run: bodies, drops, debris, boards, stats, your character
 function resetRun(keepLook) {
+  pvpEnd(); arenaDown();   // (out of the arena: the farm back first, pvp/pvp.js, world/arena.js)
   houseLayout(NET.on && NET.inGame && NET.houseSeed != null ? NET.houseSeed : (Math.random() * 2147483647) | 0, true);   // a new floor plan (world/interior.js), the host's in co-op
   zombies.forEach(z => { scene.remove(z.m.g); zFree(z.m.g); if (z.blob) scene.remove(z.blob); }); zombies.length = 0;
   ragdolls.forEach(r => { scene.remove(r.g); zFree(r.g); if (r.blob) scene.remove(r.blob); }); ragdolls.length = 0; unragYou(); clearArmorBits();
   gibs.forEach(g => { scene.remove(g.m); zFree(g.m); }); gibs.length = 0;
-  grenades.forEach(g => scene.remove(g.m)); grenades.length = 0; clearSpit();
+  grenades.forEach(g => scene.remove(g.m)); grenades.length = 0; clearSpit(); clearBursts();
   pickups.forEach(p => scene.remove(p.g)); pickups.length = 0;
   resetDrops();   // nothing on its way, no flare (stations/supply-drop.js)
-  bloodMapClear(); clearBodyBlood(); clearDrops(); parts.forEach(p => { p.m.visible = false; p.life = 0; }); casings.concat(mags, SL_DROPS).forEach(c => { c.g.visible = false; c.life = 0; }); smokes.forEach(p => { p.life = 0; p.m.visible = false; });
+  bloodMapClear(); wallBloodClear(); clearBodyBlood(); clearDrops(); parts.forEach(p => { p.m.visible = false; p.life = 0; }); casings.concat(mags, SL_DROPS).forEach(c => { c.g.visible = false; c.life = 0; }); smokes.forEach(p => { p.life = 0; p.m.visible = false; });
   resetBoards(); clearHoles(); freshRun(); if (!keepLook && !NET.on) rollLook(spawnLook()); buildGuns();   // a new look for every run, or the one you're keeping (player/look.js: spawnLook, made in the title's Character menu); the title already dealt one (in co-op you keep the one your teammates have)
   deathCineEnd(); mistReset();
-  P.x = cxw(21); P.z = cxw(22); P.hp = S.maxHp; P.blood = 0; P.bleed = 0; P.bloodFeet = 0; ANIM.bandSwitch = null; P.stam = stamMax(); P.exh = false; P.stamT = 9; P.runDebt = 0; P.runT = 9; P.spdF = 1; P.fatigued = false; P.sprint = false; P.sprintLock = false; P.skid = 0; P.pivot = null; P.fireQ = null; P.pushT = 0; P.runUp = 0; P.carveW = 0; ANIM.sprintK = ANIM.ready = ANIM.readyV = ANIM.faceK = ANIM.skidK = ANIM.pivK = ANIM.scrK = ANIM.bobK = ANIM.pivBank = ANIM.bobSlow = ANIM.rgK = ANIM.rgT = ANIM.vrgT = 0; P.band = 0; P.bandT = 0; P.wraps = 0; P.heal = 0; P.conc = 0; P.kbx = P.kbz = 0; P.dead = false; P.deathT = 0; P.hitFrom = undefined; document.body.classList.remove('dying'); if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; } P.aim = Math.PI; P.vault = null; P.slow = P.stun = P.adr = P.eye = 0; P.adrCd = 0; setTod(15);
+  clearScreenBlood(); P.shoveN = 0; P.shoveLast = undefined; P.x = cxw(21); P.z = cxw(22); P.hp = S.maxHp; P.blood = 0; P.bleed = 0; P.bloodFeet = 0; P.shock = 0; P.shockStun = 0; ANIM.bandSwitch = null; P.stam = stamMax(); P.exh = false; P.stamT = 9; P.runDebt = 0; P.runT = 9; P.spdF = 1; P.fatigued = false; P.sprint = false; P.sprintLock = false; P.skid = 0; P.pivot = null; P.fireQ = null; P.pushT = 0; P.runUp = 0; P.carveW = 0; ANIM.sprintK = ANIM.ready = ANIM.readyV = ANIM.faceK = ANIM.skidK = ANIM.pivK = ANIM.scrK = ANIM.bobK = ANIM.pivBank = ANIM.bobSlow = ANIM.rgK = ANIM.rgT = ANIM.vrgT = 0; P.band = 0; P.bandT = 0; P.wraps = 0; P.heal = 0; P.conc = 0; P.kbx = P.kbz = 0; P.dead = false; P.deathT = 0; P.hitFrom = undefined; document.body.classList.remove('dying'); if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; } P.aim = Math.PI; P.vault = null; P.slow = P.stun = P.adr = P.eye = 0; P.adrCd = 0; setTod(15);
   P.shove = null; P.shoveCd = 0; P.vaultHeat = 0; ANIM.land = 0; ANIM.shoveHit = 0; INTRO.t = -1; benchTipsStart();
   setZoomT(ZOOM_MAX); setHurtFx(0); setFlowDirty(true); setTimeScale(1); setCamPunch(0);   // the intro glides in all the way to the closest zoom
   $('feed').innerHTML = ''; feedItems.length = 0; clearGear();
@@ -104,9 +111,12 @@ function resetRun(keepLook) {
 // new house's paint is on already
 function newRun(soft, dark) {
   audioInit(); resetRun(soft);
+  run.noPerks = (netLink() ? NET.runMode : SET.mode) === 'noperks';   // (no-perk mode, picked on the title or in the co-op lobby, the host's: no cards between waves, waves/waves.js)
   // build every shader now, behind the intro's dark veil, so the first blood, ragdoll or spark never stalls a frame
   // (game/loop.js: warmShaders, on the next frame's targets)
   setWarmQ(true);
+  // the arena (co-op, picked in the lobby): its own map and match, no waves, no intro (pvp/pvp.js)
+  if (netLink() && NET.game === 'arena') { setState('play'); if (dark) stepPaint(PAINT_FADE * 2); pvpBegin(); return; }
   setState('play'); beginBreak(10);
   if (dark) stepPaint(PAINT_FADE * 2);
   startIntro(soft && !dark);   // game/intro.js: the camera glides in, you get up off one knee, then the night is announced
@@ -139,7 +149,7 @@ function switchScreens(dark, fn) {
 const saveBest = () => { if (run.wave > best) { best = run.wave; try { localStorage.setItem('kessler-best', best); } catch (e) {} showBest(); } };
 // start a run: off the title it's a cut through black (cineRun), so the new house and yard are never seen swapping in
 // for the title's; after a death it dips to black. In a co-op lobby only the host starts it, for everyone (net/net.js)
-export function enterRun() { if (NET.on && !NET.inGame) { if (NET.host) netStart(); return; } audioInit(); wantLock(true); if (state === 'title') cineRun(); else switchScreens(true, () => newRun(false)); }
+export function enterRun() { if (NET.on && !NET.inGame) { if (NET.host) { if (netAllReady()) wantLock(true); netStart(); } else netReady(!NET.ready); return; } audioInit(); wantLock(true); if (state === 'title') cineRun(); else switchScreens(true, () => newRun(false)); }
 // off the title, cinematically. Start pressed: the menu drifts away line by line, the title camera starts a slow push
 // in on the farm (CINE.push: how far in, as a share of its zoom) as a vignette closes round it and letterbox bars come
 // in, and the picture dims to black (from CINE.dim ms in, over the rest of CINE.out); the music's been fading since
@@ -188,7 +198,7 @@ $('menuBtn').onclick = leaveToMenu;
 // that puts them back
 const P_SURE = {
   menu: { q: 'Leave for the main menu? This run will be lost.', yes: 'Leave run', go: () => { saveBest(); if (netLink()) netLeave(); leaveToMenu(); } },
-  quit: { q: 'Abandon this run? It ends here, as if you fell.', yes: 'Abandon', go: () => die() }
+  quit: { q: 'Abandon this run? It ends here, as if you fell.', yes: 'Abandon', go: () => { quitPull(); die(); } }   // (from your own eyes, the view drawn back out over you: game/view-cam.js)
 };
 let pSure = null;
 function askLeave(k) { pSure = k; $('pSureQ').textContent = P_SURE[k].q; $('pSureYes').textContent = P_SURE[k].yes; $('pBtns').hidden = true; $('pSure').hidden = false; $('pSureNo').focus({ preventScroll: true }); }
@@ -213,6 +223,7 @@ export function startDeath() {
   setTimeScale(DEATH_SLOW); P.deathDt = 0;
   deathCineStart();   // the camera's last look at you (below)
   if (netLink()) netDown();   // co-op: no slow motion, the farm goes on (net/sync.js)
+  pvpDied();   // (in the arena: who did it, to everyone, pvp/pvp.js)
   // the weapon slips out of your hands and falls (effects/weapon-drop.js); in co-op your teammates see it fall the
   // same, from this one throw. It's only to look at: nobody picks it up
   const gg = gunMeshes[W8.cur];
@@ -231,13 +242,14 @@ export function startDeath() {
 // (DEATH_CINE and DC, the death camera's timings and where it's up to, are at the top of the file)
 function deathCineStart() {
   Object.assign(DC, { on: true, t: 0, side: ANIM.deathSign || 1, spec: false, fading: false, z0: zoomT });
-  $('cineBars').classList.add('on'); $('fadeVeil').classList.remove('cine');
+  if (!PVP.on) $('cineBars').classList.add('on');   // (not in the arena: the card and the class picker sit where they'd come in)
+  $('fadeVeil').classList.remove('cine');
 }
 function tickDeathCine(rdt) {
   if (!DC.on) return;
   DC.t += rdt;
-  $('deathVig').style.opacity = DC.spec ? 0 : (DEATH_CINE.vig * smooth(clamp(DC.t / DEATH_CINE.vigT, 0, 1))).toFixed(3);
-  if (!netLink() || DC.spec) return;
+  $('deathVig').style.opacity = DC.spec ? 0 : ((PVP.on ? 0.5 : 1) * DEATH_CINE.vig * smooth(clamp(DC.t / DEATH_CINE.vigT, 0, 1))).toFixed(3);
+  if (!netLink() || DC.spec || (PVP.on && PVP.mode !== 'rounds')) return;   // (in the arena you're back in soon where you'd watch a teammate: pvp/pvp.js)
   // co-op: to black, then up again on a teammate, the bars gone and the view as it was
   if (!DC.fading && DC.t > DEATH_CINE.spec) { DC.fading = true; veil(true); }
   if (DC.fading && DC.t > DEATH_CINE.spec + DEATH_CINE.black) { DC.spec = true; setZoomT(DC.z0); setZoom(zoomT); $('cineBars').classList.remove('on'); setTimeout(() => { if (DC.spec) veil(false); }, 80); }   // (lifted once the teammate's view has drawn)
@@ -259,6 +271,7 @@ export function tickDeath(rdt) {
 }
 export function die() {
   $('cineBars').classList.remove('on');   // (the end screen comes up over the farm as it lies, still close in on you)
+  document.body.classList.add('dying');   // (the HUD gone from under it, however the run ended: styles/hud-feed.css)
   if (run.wave > best) { best = run.wave; try { localStorage.setItem('kessler-best', best); } catch (e) {} }
   showBest();
   $('deadTitle').textContent = (netLink() ? 'Overrun on wave ' : 'Dead on wave ') + Math.max(1, run.wave);

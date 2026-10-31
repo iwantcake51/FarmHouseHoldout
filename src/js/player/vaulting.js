@@ -20,22 +20,27 @@ import { runStat } from '../ui/run-stats.js';
 import { SPRINT, vaultRush } from './sprint.js';
 import { camVault } from '../game/camera.js';
 import { ANIM } from './animation.js';
+import { VAULT_LOW } from '../world/arena.js';
 
 export function nearestOpening() {
   let best = null, bd = 1.45;
   for (const o of openings) { const d = Math.hypot(o.x - P.x, o.z - P.z); if (d < bd) { bd = d; best = o; } }
   return best;
 }
+// (only square on to it: within VAULT_REACH.win across the window from its middle, along the wall, and winD off the wall)
+const VAULT_REACH = { win: 0.65, winD: 1.25, fence: 0.95 };
 export function vaultTarget(o) {
   if (!o || o.kind !== 'window' || o.boards.length) return null;
-  const side = Math.sign((P.x - o.x) * o.nx + (P.z - o.z) * o.nz) || 1;
+  const dn = (P.x - o.x) * o.nx + (P.z - o.z) * o.nz, da = (P.x - o.x) * -o.nz + (P.z - o.z) * o.nx;
+  if (Math.abs(da) > VAULT_REACH.win || Math.abs(dn) > VAULT_REACH.winD) return null;
+  const side = Math.sign(dn) || 1;
   const x1 = o.x - o.nx * side * 1.05, z1 = o.z - o.nz * side * 1.05;
   if (playerBlocked(ci(x1), ci(z1))) return null;
   return { x1, z1, px: o.x, pz: o.z, py: 0.98 };   // p: the sill you put your hand on
 }
 export function fenceTarget() {
   let best = null, bd = 1.05;
-  const pi = ci(P.x), pj = ci(P.z), isF = (i, j) => inb(i, j) && cell[idx(i, j)] === FENCE;
+  const pi = ci(P.x), pj = ci(P.z), isF = (i, j) => inb(i, j) && (cell[idx(i, j)] === FENCE || VAULT_LOW.has(idx(i, j)));   // (and the arena's sandbags: world/arena.js)
   for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
     const i = pi + di, j = pj + dj; if (!isF(i, j)) continue;
     const d = Math.hypot(cxw(i) - P.x, cxw(j) - P.z); if (d < bd) { bd = d; best = [i, j]; }
@@ -47,7 +52,11 @@ export function fenceTarget() {
   if (runsX && !runsZ) sz = Math.sign(az) || 1; else if (runsZ && !runsX) sx = Math.sign(ax) || 1; else if (Math.abs(ax) > Math.abs(az)) sx = Math.sign(ax) || 1; else sz = Math.sign(az) || 1;
   // keep your sideways momentum: moving along the fence carries you diagonally over it
   const along = sx ? P.vz : P.vx, lat = clamp(along * 0.3, -1.0, 1.0);
+  // (only with the fence right there in front of you: within VAULT_REACH.fence of its line, and where you'd go over it,
+  // straight across or carried along it, a stretch of fence, not the air past the end of a run or a gap in it)
+  if (Math.abs(sx ? ax : az) > VAULT_REACH.fence) return null;
   const tryLand = l => {
+    if (sx ? !isF(i, ci(P.z + l * 0.4)) : !isF(ci(P.x + l * 0.4), j)) return null;
     const x1 = (sx ? fx : P.x + l) + sx * 1.0, z1 = (sz ? fz : P.z + l) + sz * 1.0;
     if (sx && Math.abs(l) > 0.01) { const zz = P.z + l; if (playerBlocked(ci(x1), ci(zz)) || playerBlocked(ci(x1 + 0.25 * sx), ci(zz))) return null; return { x1, z1: zz, px: fx, pz: (P.z + zz) / 2, py: 0.78 }; }
     if (playerBlocked(ci(x1), ci(z1)) || playerBlocked(ci(x1 + 0.25 * Math.sign(x1 - P.x)), ci(z1))) return null;

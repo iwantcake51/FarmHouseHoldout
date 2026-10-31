@@ -97,7 +97,7 @@ export function improveMod(m) { W8.modLv[m] = modLv(m) + 1; recomputeEff(); }
 // B steps through single shots and each fire mode the weapon has (single → burst → full auto → single)
 // what a gun fires as, for the HUD: the mode selected on it, or what the gun does by itself (an automatic's stream, a pump,
 // bolt or break action's one round, a handgun's single shots); n is how many rounds a burst sends
-const ACTION_MODE = { pump: 'Pump', hunting: 'Bolt', dbl: 'Break' };
+const ACTION_MODE = { pump: 'Pump', hunting: 'Bolt', dbl: 'Single' };   // (the double's one barrel at a time: its twin trigger's both at once is 'Twin')
 export function fireModeOf(id) {
   const D = W(id); if (!D || D.melee) return null;
   const fm = W8.fm[id];
@@ -106,7 +106,7 @@ export function fireModeOf(id) {
   if (fm === 'semi') return { k: 'semi', t: 'Semi' };
   if (D.akKit) return { k: 'auto', t: 'Auto' };   // (the battle rifle's AK conversion: weapons/gun-mods.js)
   if (D.fan) return fanning(D) ? { k: 'fan', t: 'Fan' } : { k: 'semi', t: 'Aimed' };   // fanned from the hip, single shots down the sights
-  if (fm === 'both') return { k: 'both', t: 'Both' };   // the double barrel's twin trigger, both barrels at once
+  if (fm === 'both') return { k: 'both', t: 'Twin' };   // the double barrel's twin trigger, both barrels at once
   if (ACTION_MODE[id]) return { k: 'action', t: ACTION_MODE[id] };
   if (WEAP[id].slot === 'auto' || id === 'auto12') return { k: 'auto', t: 'Auto' };
   return { k: 'semi', t: 'Semi' };

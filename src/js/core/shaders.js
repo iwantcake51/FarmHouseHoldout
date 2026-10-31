@@ -10,6 +10,10 @@ export const LMU = { uLightMap: { value: null }, uLmSize: { value: N }, uLmRes: 
   // night vision (lighting/lightmap.js): how much it lifts the black-and-white dark, and how much of the colour it
   // brings back there (a little through the monocular, more through the goggles, never all of it)
   uNvMono: { value: 0 }, uNvSat: { value: 0 },
+  // the grade (lighting/day-night.js: GRADE): the dark takes the cool of the sky rather than going grey (uGrade: that
+  // tint, its luminance 1, and how much), and the picture's split, cool in its shadows against the warm of its light,
+  // with the lit colour fuller (uGrade2: saturation of the lit, how far the shadows cool, how far down they reach)
+  uGrade: { value: new THREE.Vector4(1, 1, 1, 0) }, uGrade2: { value: new THREE.Vector4(1, 0, 0.3, 0) },
   // cloud shade drifting over the farm (offset x, z and how strong; world/atmosphere.js drives it), the house it
   // doesn't reach into, and where the farm starts to fade into the woods and the haze (from / to, metres out)
   uCloud: { value: new THREE.Vector3() }, uHouse: { value: new THREE.Vector4(-1e3, -1e3, -1e3, -1e3) }, uHouseCut: { value: new THREE.Vector4(-1e3, -1e3, -1e3, -1e3) }, uEdge: { value: new THREE.Vector2(HALF + 0.5, HALF + 12) },
@@ -60,6 +64,10 @@ const VERT_BODY = `
 // lights what stands up outside, not the ground just under it or the top of the wall over it
 export const FL_MAX = 22;   // how far a flashlight's shadow rays go (metres): the longest beam's reach and a little over
 const FL_WIN = [1.02, 1.87];   // a window's opening, sill to head (world/house.js)
+// a beam's pool brightening as what it falls on comes close (as a real torch's does: the same light on a smaller spot),
+// k more at the lens itself, half that at d metres, hardly any across a room; and the most it can light a surface
+// (FL_CAP, of the light map's full), a little over a lamp's, so a wall right in front of you is lit hot and pale
+const FL_NEAR = { k: 1.6, d: 1.2 }, FL_CAP = 1.25;
 const FL_FN = `
 float flCone(vec4 f, vec4 k, vec4 fh, vec2 p, float row) {
   vec2 d = p - f.xy; float r = length(d), a0 = k.w, h = k.y + 0.3;
@@ -77,7 +85,8 @@ float flCone(vec4 f, vec4 k, vec4 fh, vec2 p, float row) {
   float hw = ${GUN_Y.toFixed(2)} + (vWp.y - ${GUN_Y.toFixed(2)}) * tw / max(r, 1e-3);   // how high its line from the lens crossed the window
   float gap = smoothstep(${FL_WIN[0].toFixed(2)} - 0.03, ${FL_WIN[0].toFixed(2)} + 0.03, hw) * (1.0 - smoothstep(${FL_WIN[1].toFixed(2)} - 0.03, ${FL_WIN[1].toFixed(2)} + 0.03, hw));
   lit *= mix(1.0, gap, smoothstep(tw - 0.02, tw + 0.1, r));
-  return mix(0.3, cone, smoothstep(0.15, 0.9, r)) * fall * fall * lit;
+  float dd = length(d3), near = 1.0 + ${FL_NEAR.k.toFixed(2)} / (1.0 + dd * dd / ${(FL_NEAR.d * FL_NEAR.d).toFixed(3)});   // (the closer what it falls on, the brighter its pool: FL_NEAR)
+  return mix(0.3, cone * near, smoothstep(0.15, 0.9, r)) * fall * fall * lit;
 }
 `;
 // the light map read smoothly: a cubic B-spline over its texels (four bilinear reads), so a lamp's light falls off in
@@ -90,7 +99,7 @@ vec4 lmCubic(vec2 uv) {
   return mix(mix(texture2D(uLightMap, c0), texture2D(uLightMap, vec2(c1.x, c0.y)), s1.x), mix(texture2D(uLightMap, vec2(c0.x, c1.y)), texture2D(uLightMap, c1), s1.x), s1.y);
 }
 `;
-const FRAG_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLightMap;\nuniform float uLmRes;\n' + LM_CUBIC + 'uniform float uUnseen;\nuniform sampler2D uBloodNoise;\nuniform vec3 uCloud;\nuniform vec4 uHouse;\nuniform vec4 uHouseCut;\nuniform vec2 uEdge;\nuniform float uFogT;\nuniform float uAdapt;\nuniform float uNvMono;\nuniform float uNvSat;\nuniform sampler2D uFlTex;\nuniform vec4 uFlK;\nuniform sampler2D uFlSh;\nuniform sampler2D uFlCookie;\n' + FL_FN;
+const FRAG_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLightMap;\nuniform float uLmRes;\n' + LM_CUBIC + 'uniform float uUnseen;\nuniform sampler2D uBloodNoise;\nuniform vec3 uCloud;\nuniform vec4 uHouse;\nuniform vec4 uHouseCut;\nuniform vec2 uEdge;\nuniform float uFogT;\nuniform float uAdapt;\nuniform float uNvMono;\nuniform float uNvSat;\nuniform vec4 uGrade;\nuniform vec4 uGrade2;\nuniform sampler2D uFlTex;\nuniform vec4 uFlK;\nuniform sampler2D uFlSh;\nuniform sampler2D uFlCookie;\n' + FL_FN;
 // blood and soot on everything that stays put (the ground, floors, walls, fences, trees, crates, furniture), read from
 // the farm's blood map (effects/blood-map.js): red is blood, green how far up walls and trunks a splash reached, blue
 // scorch. Smooth noise in world space breaks its edges up and varies how thick it lies, so it soaks into the ground
@@ -135,7 +144,7 @@ const FRAG_BODY = `
       float u = (float(i) + 0.5) / 6.0; vec4 fP = texture2D(uFlTex, vec2(u, 0.5));
       fl += flCone(texture2D(uFlTex, vec2(u, 0.5 / 3.0)), fP, texture2D(uFlTex, vec2(u, 2.5 / 3.0)), vWp.xz, u) * fP.z;
     }
-    lmS.rgb = min(lmS.rgb + vec3(1.0, 0.95, 0.85) * fl * 0.5, vec3(1.0));
+    lmS.rgb = min(lmS.rgb + vec3(1.0, 0.95, 0.85) * fl * 0.5, vec3(max(${FL_CAP.toFixed(2)}, max(lmS.r, max(lmS.g, lmS.b)))));
   }
   vec3 lmBase = gl_FragColor.rgb, lmC = lmBase * lmS.rgb * 2.0;
   float lmL = smoothstep(0.16, 0.5, dot(lmS.rgb, vec3(0.299, 0.587, 0.114)) * 2.0);
@@ -145,7 +154,15 @@ const FRAG_BODY = `
   float lmBL = dot(lmBase, vec3(0.299, 0.587, 0.114));
   float lmG = (dot(lmC, vec3(0.299, 0.587, 0.114)) + lmBL * uNvMono * lmV) * (1.0 + uAdapt) + uAdapt * 0.016;
   vec3 lmD = mix(vec3(lmG), min(lmBase * (lmG / max(lmBL, 0.02)), vec3(1.0)), uNvSat);
-  gl_FragColor.rgb = mix(lmD, lmC, lmL);   // colour only where there's light: the dark goes black and white
+  // colour only where there's light: the dark goes the cool of the sky (moonlight, the shade of a blue sky), not grey
+  lmD = mix(lmD, lmD * uGrade.rgb, uGrade.a * (1.0 - uNvSat));
+  gl_FragColor.rgb = mix(lmD, lmC, lmL);
+  // and graded: the lit colour fuller, the shadows cooled toward the same tint at their own brightness, so the warm
+  // light has something to stand against
+  { vec3 gc = gl_FragColor.rgb; float gY = dot(gc, vec3(0.299, 0.587, 0.114));
+    gc = mix(vec3(gY), gc, mix(1.0, uGrade2.x, lmL));
+    gc += gY * (uGrade.rgb - 1.0) * (1.0 - smoothstep(0.0, uGrade2.z, gY)) * uGrade2.y;
+    gl_FragColor.rgb = max(gc, vec3(0.0)); }
   // clouds passing over: their shade drifts across the farm by day (not indoors)
   if (uCloud.z > 0.001) {
     vec2 cq = vWp.xz * 0.022 + uCloud.xy;
@@ -200,7 +217,7 @@ const TREE_BODY = `
 export function lit(mat, cut) {
   mat.onBeforeCompile = function (sh) {
     const self = this || mat, wb = !self.userData.mobile;
-    Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmRes: LMU.uLmRes, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen, uBloodNoise: BMU.uBloodNoise, uCloud: LMU.uCloud, uHouse: LMU.uHouse, uHouseCut: LMU.uHouseCut, uEdge: LMU.uEdge, uFogT: LMU.uFogT, uAdapt: LMU.uAdapt, uNvMono: LMU.uNvMono, uNvSat: LMU.uNvSat, uFlTex: LMU.uFlTex, uFlK: LMU.uFlK, uFlSh: LMU.uFlSh, uFlCookie: LMU.uFlCookie });
+    Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmRes: LMU.uLmRes, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen, uBloodNoise: BMU.uBloodNoise, uCloud: LMU.uCloud, uHouse: LMU.uHouse, uHouseCut: LMU.uHouseCut, uEdge: LMU.uEdge, uFogT: LMU.uFogT, uAdapt: LMU.uAdapt, uNvMono: LMU.uNvMono, uNvSat: LMU.uNvSat, uGrade: LMU.uGrade, uGrade2: LMU.uGrade2, uFlTex: LMU.uFlTex, uFlK: LMU.uFlK, uFlSh: LMU.uFlSh, uFlCookie: LMU.uFlCookie });
     sh.vertexShader = VERT_DECL + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + VERT_BODY);
     // (glow: what it gives off of its own, its emissive, kept out of the light map's shading, so it shows in full colour
     // in the dark instead of going grey with everything else: acid, zombies/spitter.js)
@@ -218,6 +235,14 @@ export function lit(mat, cut) {
   };
   mat.customProgramCacheKey = function () { return ((this || mat).userData.mobile ? 'mob-' : '') + ((this || mat).userData.glow ? 'glow-' : '') + (cut === 'tree' ? 'lit-tree' : cut ? 'lit-cut' : 'lit'); };
   return mat;
+}
+// everything that moves with a figure (you, a teammate: the pieces put on them as the run goes, the gear, a hat, the
+// wraps of a bandage) kept off the ground's blood: looked over now and then (markMobile, every MOBILE_SWEEP seconds),
+// any of its lit materials not yet marked is marked, and built again without the blood map. Otherwise a pool on the
+// floor stained whatever of you was over it, as it stains the ground
+export const MOBILE_SWEEP = 0.5;
+export function markMobile(root) {
+  root.traverse(o => { if (!o.isMesh) return; for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m && m.customProgramCacheKey && !m.userData.mobile && m.onBeforeCompile) { m.userData.mobile = true; m.needsUpdate = true; } });
 }
 export const lam = (c, extra) => lit(new THREE.MeshLambertMaterial(Object.assign({ color: c }, extra || {})));
 export const WIND = { value: 0 };

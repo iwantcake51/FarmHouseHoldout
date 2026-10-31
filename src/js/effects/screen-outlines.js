@@ -23,6 +23,10 @@ export const OL_HOLE = { x: 0, y: 0, r: 0 };
 // (an opening's, world/house.js), so it costs nothing in the frame itself
 export const OL_LAYER = 1;
 const OL_PAD = 9;
+// from your own eyes, an outline marked to be seen through walls (its control's userData.olThrough: the last few zombies
+// of a wave, zombies/ai.js) is drawn round all of the model, wherever it stands, hidden only by what's within OL_THROUGH
+// metres of your eyes (your own arms and gun); from above, the see-through rims (effects/outlines.js: xray) do that
+const OL_THROUGH = 1.2;
 // an outline turned on or off eases in and fades out rather than snapping (OL_FADE: how fast, in opacity a second): what
 // it's drawn at is u.sh on its control, chasing its opacity while it's visible and nought once it isn't
 const OL_FADE = { in: 10, out: 4 };
@@ -61,11 +65,12 @@ const olPalData = new Uint8Array(OL.slots * 2 * 4), olPal = new THREE.DataTextur
 olPal.magFilter = olPal.minFilter = THREE.NearestFilter;
 const olComp = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
   uniforms: { tMask: { value: null }, tPal: { value: olPal }, uTex: { value: new THREE.Vector2() }, uScale: { value: 1 }, uGlow: { value: OL.glow }, uGlowA: { value: OL.glowA }, uEps: { value: OL.eps }, uRect: { value: new THREE.Vector4(0, 0, 1, 1) },
-    tScene: { value: null }, uOcc: { value: 0 }, uOccEps: { value: OL.occ }, uHole: { value: new THREE.Vector3() } },
+    tScene: { value: null }, uOcc: { value: 0 }, uOccEps: { value: OL.occ }, uHole: { value: new THREE.Vector3() }, uNF: { value: new THREE.Vector3() } },
   transparent: true, depthTest: false, depthWrite: false,
   vertexShader: `uniform vec4 uRect; varying vec2 vUv;
 void main() { vUv = uRect.xy + (position.xy * 0.5 + 0.5) * uRect.zw; gl_Position = vec4(vUv * 2.0 - 1.0, 0.0, 1.0); }`,
-  fragmentShader: `uniform sampler2D tMask, tPal, tScene; uniform vec2 uTex; uniform float uScale, uGlow, uGlowA, uEps, uOcc, uOccEps; uniform vec3 uHole; varying vec2 vUv;
+  fragmentShader: `uniform sampler2D tMask, tPal, tScene; uniform vec2 uTex; uniform float uScale, uGlow, uGlowA, uEps, uOcc, uOccEps; uniform vec3 uHole, uNF; varying vec2 vUv;
+float lin(float z) { return 2.0 * uNF.x * uNF.y / (uNF.y + uNF.x - (z * 2.0 - 1.0) * (uNF.y - uNF.x)); }
 vec4 pal(float s, float row) { return texture2D(tPal, vec2((s + 0.5) / ${OL.slots.toFixed(1)}, (row + 0.5) / 2.0)); }
 void main() {
   if (uHole.z > 0.0 && distance(gl_FragCoord.xy, uHole.xy) < uHole.z) discard;   // (a scope's eyepiece: OL_HOLE)
@@ -78,8 +83,10 @@ void main() {
       vec2 q = vUv + vec2(cos(a), sin(a)) * r * uScale * uTex;
       vec4 m = texture2D(tMask, q);
       if (m.a < 0.5) continue;
-      if (uOcc > 0.5 && m.g + m.b / 255.0 > texture2D(tScene, q).r + uOccEps) continue;   // (that part of it is behind a wall or anything else drawn in front of it: no line from there)
       float s = floor(m.r * 255.0 + 0.5); if (s == s0) continue;   // (never inside its own model)
+      if (uOcc > 0.5) { float sd = texture2D(tScene, q).r, md = m.g + m.b / 255.0;
+        bool hid = uNF.z > 0.0 ? lin(md) > lin(sd) * 1.015 + 0.08 : md > sd + uOccEps;   // (from your own eyes by how far each is: depth's far from even out there)
+        if (hid && (pal(s, 1.0).g < 0.5 || lin(sd) < uNF.z)) continue; }   // (that part of it is behind a wall or anything else drawn in front of it: no line from there; one seen through walls (OL_THROUGH) is only hidden by what's right in front of your eyes, your own arms and gun)
       if (s0 >= 0.0 && d0 < m.g + m.b / 255.0 - uEps) continue;     // something nearer stands here: the line goes behind it
       vec4 c = pal(s, 0.0); if (c.a < 0.004) continue;
       float w = pal(s, 1.0).r * 4.0;
@@ -98,8 +105,14 @@ const _olV = new V3(), _olB = new THREE.Box3(), _olSz = new THREE.Vector2(), _ol
 function olPlace(r, camera, W, H) {
   for (let o = r.g, inScene = false; ; o = o.parent) { if (!o) return false; if (!o.visible) return false; if (o === scene || o.isScene) { inScene = true; break; } }
   if (!r.rad) { r.g.updateWorldMatrix(true, true); _olB.setFromObject(r.g); if (_olB.isEmpty()) return false; _olB.getCenter(r.c); r.rad = _olB.getSize(_olV).length() * 0.6 + 0.2; r.g.worldToLocal(r.c); }
-  _olV.copy(r.c); r.g.localToWorld(_olV); _olV.project(camera);
-  const ppm = H / ((camera.top - camera.bottom) / camera.zoom);
+  _olV.copy(r.c); r.g.localToWorld(_olV);
+  // (from your own eyes, a perspective view: as big as it is at its distance, all of the screen if you're inside it,
+  // and none of it behind you)
+  const d = camera.isPerspectiveCamera ? _olV.distanceTo(camera.position) : 0;
+  _olV.project(camera);
+  if (camera.isPerspectiveCamera && d <= r.rad) { r.sx = W / 2; r.sy = H / 2; r.sr = Math.hypot(W, H); return true; }
+  if (camera.isPerspectiveCamera && _olV.z > 1) return false;
+  const ppm = camera.isPerspectiveCamera ? H / (2 * Math.tan(camera.fov * Math.PI / 360) * (d - r.rad * 0.9)) : H / ((camera.top - camera.bottom) / camera.zoom);
   r.sx = (_olV.x * 0.5 + 0.5) * W; r.sy = (_olV.y * 0.5 + 0.5) * H; r.sr = r.rad * ppm;
   return true;
 }
@@ -146,13 +159,15 @@ export function outlinePass(camera) {
   const pad = Math.ceil(OL_PAD * px), cx0 = Math.max(0, x0 - pad), cy0 = Math.max(0, y0 - pad), cx1 = Math.min(W, x1 + pad), cy1 = Math.min(H, y1 + pad);
   R.setRenderTarget(olRT); olRT.scissor.set(cx0, cy0, cx1 - cx0, cy1 - cy0); olRT.scissorTest = true; R.setRenderTarget(olRT);
   R.setClearColor(0x000000, 0); R.clear(true, true, false); R.autoClear = false; R.shadowMap.autoUpdate = false;
-  let slot = 0; camera.layers.enable(OL_LAYER);
+  // (from your own eyes the frame's own depth says what stands in front of a line, so only what has a line showing goes
+  // in: an opening's pane, there only for its line, would stand in front of a zombie out past it and hide it)
+  let slot = 0; camera.layers.enable(OL_LAYER); const persp = camera.isPerspectiveCamera;
   for (const r of olRoots) {
-    if (!r.on || slot >= OL.slots - 1 || r.sx + r.sr < x0 || r.sx - r.sr > x1 || r.sy + r.sr < y0 || r.sy - r.sr > y1) continue;
+    if (!r.on || (persp && !r.top) || slot >= OL.slots - 1 || r.sx + r.sr < x0 || r.sx - r.sr > x1 || r.sy + r.sr < y0 || r.sy - r.sr > y1) continue;
     r.slot = ++slot; r.mat.uniforms.uSlot.value = slot;
     const c = r.top, i = slot * 4, j = (OL.slots + slot) * 4;
-    if (c) { olPalData[i] = c.color.r * 255; olPalData[i + 1] = c.color.g * 255; olPalData[i + 2] = c.color.b * 255; olPalData[i + 3] = Math.min(1, c.userData.sh) * 255; olPalData[j] = c.userData.olW / 4 * 255; }
-    else { olPalData[i + 3] = 0; olPalData[j] = 0; }
+    if (c) { olPalData[i] = c.color.r * 255; olPalData[i + 1] = c.color.g * 255; olPalData[i + 2] = c.color.b * 255; olPalData[i + 3] = Math.min(1, c.userData.sh) * 255; olPalData[j] = c.userData.olW / 4 * 255; olPalData[j + 1] = c.userData.olThrough && camera.isPerspectiveCamera ? 255 : 0; }
+    else { olPalData[i + 3] = 0; olPalData[j] = olPalData[j + 1] = 0; }
     // drawn in its mask material: its own meshes as they stand (anything hidden stays hidden), its rims, glows,
     // sprites and a gun's muzzle flash left out (and anything that glows additively, a flash's tongues or a laser
     // beam, never gets a line round it)
@@ -175,6 +190,7 @@ export function outlinePass(camera) {
   // depth (effects/post.js), when there is one
   U.uOcc.value = POST.ok && PS_RT.sc && PS_RT.sc.depthTexture ? 1 : 0; U.tScene.value = U.uOcc.value ? PS_RT.sc.depthTexture : null;
   U.uRect.value.set(x0 / W, y0 / H, (x1 - x0) / W, (y1 - y0) / H); U.uHole.value.set(OL_HOLE.x, OL_HOLE.y, OL_HOLE.r);
+  U.uNF.value.set(camera.near, camera.far, camera.isPerspectiveCamera ? OL_THROUGH : 0);
   R.render(olCompScene, olCompCam);
   R.autoClear = ac; R.shadowMap.autoUpdate = sh; R.setClearColor(_olCC, ca);
 }

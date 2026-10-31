@@ -20,8 +20,6 @@
 #chFind::placeholder{color:rgba(163,158,144,.7)}
 .chTop>.kKey{color:var(--dim);--kh:22px}
 .chTop kbd,#cheatTag kbd{font:600 10px var(--f-ui);padding:2px 5px;border:1px solid rgba(236,230,216,.3);border-radius:3px;color:var(--dim)}
-#chClose{width:28px;height:28px;padding:0;border:0;border-radius:50%;background:none;color:var(--dim);font-size:22px;line-height:1;cursor:pointer;transition:background .15s,color .15s}
-#chClose:hover{color:var(--ink);background:rgba(236,230,216,.08)}
 /* the quick switches: chips with a light that comes on, and the speed */
 .chQuick{display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:0 14px 10px;border-bottom:1px solid var(--chLine)}
 .chQ{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px 0 8px;border:1px solid rgba(236,230,216,.14);border-radius:13px;background:rgba(236,230,216,.04);color:#c9c3b5;font:600 11px var(--f-ui);cursor:pointer;transition:background .15s,border-color .15s,color .15s}

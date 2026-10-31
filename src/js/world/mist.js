@@ -5,7 +5,7 @@
 // rather than a clean circle, and a flashlight cuts a clear path through it along its beam (MIST.path: a
 // better light a much wider one). The further out you zoom, the more of the screen it takes.
 //
-// It's marched at half the resolution and laid over the finished frame (effects/post.js), from where each pixel is on the ground, so
+// It's marched at a third of the resolution and laid over the finished frame (effects/post.js), from where each pixel is on the ground, so
 // it's the same fog in the frame as in play: a zombie out in it can't be seen, outlined or picked out by your
 // crosshair, and one in the thinning ring comes clear as it closes in (mistSee, zombies/zombie-visuals.js).
 
@@ -79,8 +79,9 @@ export const MIST_U = { uMist: { value: new THREE.Vector4() }, uMistS: { value: 
 // it reaches, metres; lo: the share of that it's thick right up to; dens: how thick, per metre, at its thickest), the
 // clear ring round you opening a little wider the higher up (cone), marched along each view ray from where it enters
 // the fog to where it meets the scene (steps, out to far metres), lit paler at its tops than in its depths, glowing
-// round lamps and fires, catching the sun's light looking toward it (sun) and the flashlights' beams
-const MIST_VOL = { top: 3.4, lo: 0.42, dens: 2.6, cone: 0.55, steps: 12, far: 55, sun: 0.38 };
+// round lamps and fires, catching the sun's light looking toward it (sun) and the flashlights' beams; from above, a ray
+// crosses only its shallow slab, so fewer steps do it (stepsTop)
+const MIST_VOL = { top: 3.4, lo: 0.42, dens: 2.6, cone: 0.55, steps: 12, stepsTop: 7, far: 55, sun: 0.38 };
 // the fog's soft noise (built once: mistNoise), tiling, three layers of it: red its billows, green finer curls, blue a
 // slow warp to fold them through each other
 const MIST_N = 128;
@@ -157,9 +158,10 @@ vec4 mistOf(vec2 uv, float d) {
   float T = 1.0, hf, nb, bm, lastD = 0.0, sunK = uMistS.w * pow(max(dot(rd, uMistS.xyz), 0.0), 6.0);
   vec3 col = vec3(0.0), beam = vec3(1.0, 0.94, 0.8) * uMistL.y;
   const int NS = ${MIST_VOL.steps};
-  float prev = t0;
+  float ns = persp ? float(NS) : ${MIST_VOL.stepsTop.toFixed(1)}, prev = t0;
   for (int i = 0; i < NS; i++) {
-    float u = (float(i) + jit) / float(NS), t = t0 + (tEnd - t0) * (persp ? u * u : u), ds = t - prev; prev = t;
+    if (float(i) >= ns) break;
+    float u = (float(i) + jit) / ns, t = t0 + (tEnd - t0) * (persp ? u * u : u), ds = t - prev; prev = t;
     vec3 p = ro + rd * t;
     float dn = mDens(p, hf, nb, bm); lastD = dn;
     mGlow += beam * bm * ds * 0.06 * T * uMist.x;   // (a beam in the air, faint even where it's clear)
@@ -178,7 +180,7 @@ vec4 mistOf(vec2 uv, float d) {
   float A = 1.0 - T; if (A < 0.002) return vec4(0.0);
   return vec4(col / A, A * uMist.w);
 }`;
-export function mistUniforms() {
+export function mistUniforms(vc = cam) {   // (vc: the camera it's seen from: the view's, or a scope's, effects/scope-view.js)
   const U = MIST_U, k = mistEase(), F = camFocus();
   U.uMist.value.set(k, MIST.clear, MIST.ramp, k > 0 ? MIST.max : 0);
   if (!U.tMistN.value) U.tMistN.value = mistNoise();
@@ -187,8 +189,8 @@ export function mistUniforms() {
   U.uMistH.value.set(HOUSE.x0, HOUSE.z0, HOUSE.x1, HOUSE.z1);
   U.uMistW.value.set(MIST.drift[0] * MIST.t, MIST.drift[1] * MIST.t);
   U.uMistC.value.setRGB(0.66, 0.67, 0.64).lerp(_mistNight.setRGB(0.1, 0.12, 0.14), clamp(curDark, 0, 1));   // pale by day, a dark blue grey at night
-  U.uMistInv.value.copy(cam.matrixWorld);
-  viewRect(cam, U.uMistSz.value);
+  U.uMistInv.value.copy(vc.matrixWorld);
+  viewRect(vc, U.uMistSz.value);
   U.uMistL.value.set(MIST.glow, MIST.beam, MIST.t % 1000, 0); U.uMistA.value.setRGB(amb[0], amb[1], amb[2]);
   const c = HOUSE.cut; if (c) U.uMistCut.value.set(c[0], c[1], c[2], c[3]); else U.uMistCut.value.set(1e4, 1e4, 1e4 + 1, 1e4 + 1);
   U.uMistPath.value.set(MIST.path[1][0], MIST.path[1][1], MIST.path[2][0], MIST.path[2][1]);

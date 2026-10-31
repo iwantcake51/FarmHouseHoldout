@@ -23,13 +23,18 @@ import { cancelBandage, startBandage, switchSlot } from '../player/bandages.js';
 import { cancelLeave, enterRun, leaveToMenu, pauseRun, resumeRun } from '../ui/screens.js';
 import { fpAimPx, freeOn, isoOn, locked, viewLook, wantLock } from '../game/view-cam.js';
 import { fireModeSwitched } from '../ui/hud.js';
+import { coopOpen, toggleCoop } from '../net/lobby.js';
+import { netLink } from '../net/net.js';
+import { chatStart } from '../net/chat.js';
 import { toggleWeaponStats } from '../ui/weapon-stats.js';
-import { cheatOn, toggleCheats } from '../ui/cheats.js';
+import { cheatOn, cheatShutAt, toggleCheats } from '../ui/cheats.js';
 import { skipBreak } from '../net/sync.js';
 import { specStep, spectating } from '../net/spectate.js';
 import { giftSend, gunShare } from '../net/teamwork.js';
 import { closeSettings, setOpen, toggleView } from '../ui/settings.js';
 import { startInspect } from '../player/inspect.js';
+import { PVP, pvpChangeClass, pvpPicking } from '../pvp/pvp.js';
+import { leanKey } from '../player/lean.js';
 
 export const keys = new Set();
 // mouseDownR: the right button, which aims, or with a gun in each hand fires the right one (weapons/akimbo.js)
@@ -38,12 +43,17 @@ export const _pv = new V3(), ray = new THREE.Raycaster(), ndc = new THREE.Vector
 addEventListener('keydown', e => {
   const k = keyOf(e);
   const typing = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');   // (typing in a box: the settings' search)
-  if (!typing && (k === ' ' || k.startsWith('arrow') || k === 'tab' || k === 'alt')) e.preventDefault();   // (Alt: no browser menu bar from free look)
+  // (while you play they're the game's: no page scroll, no focus wandering off round the hidden buttons; on the menus
+  // they work as they do on any page, so Tab and Space get you round them and the arrows scroll a long list)
+  const playing = state === 'play' && !openSt && !cheatOn;
+  if (!typing && (k === 'alt' || (playing && (k === ' ' || k.startsWith('arrow') || k === 'tab')))) e.preventDefault();   // (Alt: no browser menu bar from free look)
   if (setOpen()) { if (k === 'escape') closeSettings(); return; }   // the settings panel's open: Esc closes it, and nothing else reaches the game (ui/settings.js)
   if (lookMenuOpen()) { if (k === 'escape') closeLookMenu(); return; }   // and the same for the title's Character menu (ui/look-menu.js)
+  if (k === 'escape' && coopOpen()) { toggleCoop(false); return; }   // the co-op screen: Esc goes back to the title (net/lobby.js)
+  if (k === 'enter' && !typing && state === 'play' && netLink() && !openSt && !cheatOn) { e.preventDefault(); chatStart(); return; }   // in a co-op run, Enter opens the chat box (net/chat.js)
   if (k === 'f9') { e.preventDefault(); if (!e.repeat) toggleCheats(); return; }   // the cheat menu (ui/cheats.js)
   if (k === 'escape' && cheatOn) { toggleCheats(false); menuEscAt = performance.now(); return; }   // (the browser lets go of the mouse on that Esc too: lockLost)
-  if (k === 'escape' && performance.now() - lockLostAt < 400) return;   // (the Esc that let go of the mouse in first person has already paused)
+  if (k === 'escape' && performance.now() - Math.max(lockLostAt, cheatShutAt) < 400) return;   // (nor the Esc a moment after the cheat menu was put away)   // (the Esc that let go of the mouse in first person has already paused)
   keyAct(k, e);
 });
 // what a key does: its binding (input/keybinds.js), from the keyboard or a mouse button it's been put on
@@ -55,17 +65,19 @@ function keyAct(k, e) {
   if (state !== 'play') return;
   // down in co-op: Q and E step through the teammates still standing (net/spectate.js)
   if ((k === 'q' || k === 'e') && spectating()) { if (!e.repeat) specStep(k === 'e' ? 1 : -1); return; }
+  if ((bindIs(k, 'leanL') || bindIs(k, 'leanR')) && !e.repeat && !freeOn()) { leanKey(bindIs(k, 'leanL') ? -1 : 1, true); if (!bindIs(k, 'use')) return; }   // (player/lean.js)
   if (bindIs(k, 'view')) { if (!e.repeat) toggleView(); return; }   // first person and back (ui/settings.js), or out of the free camera
   if (e.repeat && !bindIs(k, 'board') && !bindIs(k, 'tear')) return;
   keys.add(k);
   if (freeOn()) return;   // (flying the free camera, the keys fly it: game/view-cam.js)
-  if (bindIs(k, 'use')) { if (openSt) closeStation(); else { const t = nearestTake(); if (t) takeIt(t); else { const s = nearestStation(); if (s) openStation(s); } } return; }   // a weapon lying here first
+  if (bindIs(k, 'use')) { if (e.repeat) return; if (openSt) closeStation(); else { const t = nearestTake(); if (t) takeIt(t); else { const s = nearestStation(); if (s) openStation(s); } } return; }   // a weapon lying here first
   if (openSt && /^[0-9]$/.test(k)) return;   // (no picking things at a station by number: they're clicked)
   if (k === 'tab' && openSt && openSt.id === 'bench') { e.preventDefault(); benchGunStep(e.shiftKey ? -1 : 1); return; }   // the workbench's weapon tabs (stations/station-ui.js)
   if (k === 'tab' && openSt && openSt.id === 'rack') { e.preventDefault(); rackTab(GUN_RACK.tab + (e.shiftKey ? -1 : 1)); return; }   // the gun rack's lines (stations/armory.js)
   if (bindIs(k, 'reload')) startReload();
-  if (bindIs(k, 'inspect')) startInspect();   // looking your gun over (player/inspect.js)
-  if (bindIs(k, 'bandage')) startBandage();
+  if (bindIs(k, 'inspect') && !pvpPicking()) startInspect();   // (not while the arena's class picker is up)   // looking your gun over (player/inspect.js)
+  if (bindIs(k, 'bandage') && !PVP.on) startBandage();   // (no bandages in the arena: pvp/pvp.js)
+  if (bindIs(k, 'cls') && PVP.on) pvpChangeClass();   // (the arena's class picker, for your next life)
   if (bindIs(k, 'vault')) tryVault();                                    // climbs through windows and hops fences
   if (bindIs(k, 'shove')) shove();   // (board, held at a door or window, boards it up: barricades/interactions.js)
   if (bindIs(k, 'grenade')) throwGrenade();
@@ -82,7 +94,7 @@ function keyAct(k, e) {
   if (bindIs(k, 'zoomIn') || (KB.zoomIn === '=' && k === '+')) setZoomT(clamp(zoomT * 1.15, ZOOM_MIN, ZOOM_MAX));
   if (bindIs(k, 'zoomOut') || (KB.zoomOut === '-' && k === '_')) setZoomT(clamp(zoomT / 1.15, ZOOM_MIN, ZOOM_MAX));
 }
-addEventListener('keyup', e => { const k = keyOf(e); if (k === 'alt') e.preventDefault(); keys.delete(k); });
+addEventListener('keyup', e => { const k = keyOf(e); if (k === 'alt') e.preventDefault(); keys.delete(k); if (bindIs(k, 'leanL') || bindIs(k, 'leanR')) leanKey(bindIs(k, 'leanL') ? -1 : 1, false); });
 addEventListener('blur', () => { keys.clear(); mouseDown = mouseDownR = false; setAimHeld(false); pauseRun(); });
 // right click aims in play, and does nothing anywhere else: no browser menu over the game, its menus or the HUD (the
 // page has no text to copy or fields to paste into)
@@ -121,14 +133,15 @@ addEventListener('mouseup', e => { if (e.button === 3 || e.button === 4) e.preve
 
 // first person: a menu or the pause opened, the mouse is let go; closing it with a click or a key takes it back, and
 // letting it go yourself (Esc) pauses the game, as in any shooter (game/view-cam.js)
-const lookMenu = () => !!openSt || cheatOn || setOpen() || lookMenuOpen();
+const lookMenu = () => !!openSt || cheatOn || setOpen() || lookMenuOpen() || pvpPicking();   // (the arena's class picker too: a click on a class never takes the mouse, pvp/pvp.js)
 export const centerMouse = (ox = 0, oy = 0) => { mouseX = innerWidth / 2 + ox; mouseY = innerHeight / 2 + oy; hasMouse = true; };   // (off the middle by the free aim's offset in first person: game/view-cam.js)
 ['click', 'keydown'].forEach(t => addEventListener(t, () => { if (!isoOn() && state === 'play' && !P.dead && !lookMenu()) wantLock(); }));
 let lockLostAt = -1e9;
 // the mouse let go in first person: the pause menu, unless it was let go by the Esc that just closed a menu (the cheat
-// menu, a station's) or one's still open
+// menu, a station's), one's still open, or the cheat menu was put away a moment ago however it was (its key, its Esc
+// from a box in it, its close button: the mouse being taken back and let go again as it closes isn't you leaving)
 let menuEscAt = -1e9;
-export function lockLost() { if (state === 'play' && !P.dead && !lookMenu() && !cheatOn && !openSt && performance.now() - menuEscAt > 500) { lockLostAt = performance.now(); pauseRun(); } }
+export function lockLost() { if (state === 'play' && !P.dead && !lookMenu() && !cheatOn && !openSt && performance.now() - Math.max(menuEscAt, cheatShutAt) > 500) { lockLostAt = performance.now(); pauseRun(); } }
 
 // setters for the variables above that other files change (an imported variable can only be read)
 export function setMouseDown(v) { return (mouseDown = v); }

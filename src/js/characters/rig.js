@@ -7,10 +7,13 @@ const G = {
   torso: new THREE.BoxGeometry(0.5, 0.6, 0.3), head: new THREE.BoxGeometry(0.32, 0.32, 0.32),
   arm: new THREE.BoxGeometry(0.14, 0.14, 0.56).translate(0, 0, 0.26)
 };
+// every block takes shadows as well as casting them: indoors the roof keeps the sun off you as it does the floor (a
+// body that took none was lit through it, and your own forearms glared from your own eyes), and outside you go into
+// a tree's or the house's shade instead of standing out of it
 export function human(skin, shirt, pants) {
   const mats = { skin: lam(skin), shirt: lam(shirt), pants: lam(pants) };
   const g = new THREE.Group(); g.rotation.order = 'YXZ';
-  const mk = (geo, mat, x, y, z, par) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; (par || g).add(m); return m; };
+  const mk = (geo, mat, x, y, z, par) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; (par || g).add(m); return m; };
   const lower = new THREE.Group(); g.add(lower);
   const legL = mk(G.leg, mats.pants, -0.13, 0.55, 0, lower), legR = mk(G.leg, mats.pants, 0.13, 0.55, 0, lower);
   const upper = new THREE.Group(); g.add(upper);

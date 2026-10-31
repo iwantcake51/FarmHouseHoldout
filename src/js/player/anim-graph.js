@@ -20,6 +20,10 @@ import { PM } from './player.js';
 // (lift), how far the hips ride over each foot (shift, metres) and rock (roll); the backpedal's step (of a forward
 // one), its knees (knee) and how bent they're kept (bend); how quickly the mix follows a change of way (ease)
 const LOCO = { out: 0.26, lift: 0.6, shift: 0.016, roll: 0.035, back: 0.78, knee: 0.85, bend: 0.06, ease: 8 };
+// a run's and a sprint's legs (locoPose): how much further up in front each thigh's driven through its swing at a
+// sprint (drive) and at a run (lean), as a share of the stride (radians each radian of it), and how far the standing
+// knee gives mid-stance (load: radians, at a run and at a sprint)
+const RUN_GAIT = { drive: 0.5, lean: 0.15, load: [0.16, 0.3] };
 const LW = { f: 1, b: 0, s: 0, sd: 1 };
 // where you're going off the way the hips face (a: radians, 0 straight ahead), eased: forward, backward, a side step
 // and which side (sd: +1 out toward the rig's +x)
@@ -33,10 +37,14 @@ export function locoWeights(a, moving, rdt) {
 }
 // the legs for the stride's phase (ph), how big it is (stride), the knees' bend (kn) and the standing knee's give,
 // a sprint (sk) and a bad right leg (bad: its step's share, stiff: its knee's), blended by LW, into o
-export function locoPose(o, ph, stride, kn, give, bad, stiff, limp) {
+export function locoPose(o, ph, stride, kn, give, bad, stiff, limp, run = 0, sk = 0) {
   const s = Math.sin(ph), c = Math.cos(ph), W = LW;
-  // forward: the legs swing fore and aft, each knee bending as its leg comes through
-  const fx = s * stride, fkL = kn * Math.max(0, -Math.cos(ph + 0.35)) ** 1.3 + give, fkR = kn * Math.max(0, Math.cos(ph + 0.35)) ** 1.3 * stiff + give * (1 - limp);
+  // forward: the legs swing fore and aft, each knee bending as its leg comes through. Running, and more at a sprint
+  // (run, sk: RUN_GAIT), the thigh's driven further up in front than it goes back behind (a high knee, the stride
+  // driven up through the swing), and the standing knee gives under you mid-stance as you come down onto it and
+  // straightens to push off
+  const G = RUN_GAIT, fb = G.drive * sk * stride + G.lean * run * stride, ld = run * (G.load[0] + (G.load[1] - G.load[0]) * sk);
+  const fx = s * stride, fkL = kn * Math.max(0, -Math.cos(ph + 0.35)) ** 1.3 + give + ld * Math.max(0, c) ** 2, fkR = (kn * Math.max(0, Math.cos(ph + 0.35)) ** 1.3 + ld * Math.max(0, -c) ** 2) * stiff + give * (1 - limp);
   // backward: a shorter step reached back, the knee lifting early in the swing and the weight kept on bent knees
   const bx = -s * stride * LOCO.back, bkL = kn * LOCO.knee * Math.max(0, -Math.cos(ph + 0.87)) ** 1.3 + give + LOCO.bend, bkR = kn * LOCO.knee * Math.max(0, Math.cos(ph + 0.87)) ** 1.3 * stiff + (give + LOCO.bend) * (1 - limp * 0.5);
   // a side step: the leading leg steps out (opening: its knee lifts), the other closes in after it (its knee lifting
@@ -45,8 +53,10 @@ export function locoPose(o, ph, stride, kn, give, bad, stiff, limp) {
   const lead = A * sp * 0.65, trail = A * sp * 0.35, R = W.sd > 0;   // (the rig's legR is out toward +x)
   const sLz = -(R ? trail : lead), sRz = (R ? lead : trail) * bad, sLk = R ? kTrail : kLead, sRk = (R ? kLead : kTrail) * stiff;
   const sLx = (R ? 0.03 : -0.05) * sp, sRx = (R ? -0.05 : 0.03) * sp;
-  o.lx = W.f * fx + W.b * bx + W.s * sLx;
-  o.rx = -(W.f * fx + W.b * bx) * bad + W.s * sRx;
+  // (the drive's put on through each leg's swing, most as it passes under you, none at the plant, so the standing foot
+  // stays down under the hips rather than lifted off the ground out in front)
+  o.lx = W.f * (fx - fb * Math.max(0, -c)) + W.b * bx + W.s * sLx;
+  o.rx = -(W.f * fx + W.b * bx) * bad - W.f * fb * Math.max(0, c) + W.s * sRx;
   o.lz = W.s * sLz; o.rz = W.s * sRz;
   o.kl = W.f * fkL + W.b * bkL + W.s * sLk; o.kr = W.f * fkR + W.b * bkR + W.s * sRk;
   // the hips over the foot taking the weight, rocking as the other lifts, and turning with a fore-and-aft stride only

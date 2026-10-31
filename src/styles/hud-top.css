@@ -42,6 +42,7 @@
 /* the wave number rolls (ui/hud-text.js): each digit on its drum carries the pale gradient itself */
 #wNum .rs>span{background:linear-gradient(180deg,#fbf7ee 0%,#ece6d8 52%,#c3b7a2 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
 #wSub{margin-top:3px;font-size:11px;line-height:1.35;color:rgba(236,230,216,.82);max-width:240px}
+#wSub .nw{white-space:nowrap}
 #wSub b{font-family:var(--f-num);font-weight:800;font-size:17px;line-height:1;margin-right:3px;color:var(--wc);vertical-align:-1px;font-variant-numeric:tabular-nums}
 #wSub kbd{font-family:var(--f-ui);font-size:10px;border:1px solid rgba(236,230,216,.3);padding:0 4px;border-radius:2px;background:rgba(0,0,0,.25)}
 /* the bar: a slim track with a faint tick every tenth, its fill in the phase's colour with a soft glow at its head */
@@ -58,5 +59,5 @@
 @keyframes moodIn{from{opacity:0;transform:translateX(10px)}}
 #scrim{transition:opacity 1.4s ease}
 /* looking your gun over from your own eyes (player/inspect.js): the whole HUD and the crosshair put away, back the
-   moment you stop (from above it all stays) */
-body.fpView.inspecting .hud:not(#station), body.fpView.inspecting #xh { opacity: 0 !important; pointer-events: none; transition: opacity 0.35s ease !important; }
+   moment you stop (from above it all stays); the arena's count-in, score, kill feed, results and scoreboard stay up */
+body.fpView.inspecting .hud:not(#station, #pvpCount, #pvpRes, #pvpBoard, #pvpTop, #pvpFeed, #pvpBan, #pvpPick, #pvpDmgCard), body.fpView.inspecting #xh { opacity: 0 !important; pointer-events: none; transition: opacity 0.35s ease !important; }

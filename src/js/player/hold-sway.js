@@ -7,27 +7,37 @@ import { W8 } from '../game/run-state.js';
 import { BIPOD, flipOf, gunMeshes, X } from '../weapons/gun-materials.js';
 import { holdOf } from './hold.js';
 
-// a belt-fed gun's belt jiggles: two loose springs, a slow sway of the whole loop and a quicker ripple along it, shaken
+// a belt-fed gun's belt jiggles: two soft springs, a slow sway of the whole loop and a quicker ripple along it, shaken
 // by how the gun moves and turns (its acceleration and gravity, felt in the gun's own frame, so a cant lets the loop sag
-// sideways) and kicked by every shot (beltKick, from weapons/firing.js). Both ends are held, at the feed tray and in the
-// box, so the middle of the loop swings the most
-export const BJ = { a: new V3(), va: new V3(), b: new V3(), vb: new V3(), p: new V3(), v: new V3(), f: new V3(), q: new THREE.Quaternion(), on: false };
-export function beltKick() { BJ.va.x += rr(-0.1, 0.1); BJ.va.y += rr(0.08, 0.2); BJ.vb.x += rr(-0.08, 0.08); BJ.vb.y += rr(-0.1, 0.1); }
+// sideways) and nudged by every shot (beltKick, from weapons/firing.js). Both ends are held, at the feed tray and where it
+// comes up out of the box, so the middle of the loop swings the most; what's folded in the box lies still. The gun's
+// movement is smoothed before it shakes the belt (BELT_SW.feel: how quickly it follows), and the springs are soft and
+// damped near critical, the loop's travel eased off toward its limits (lim, metres) rather than stopped dead at them:
+// the raw frame-to-frame jolts (each shot's kick, each step) had it jumping and snapping against hard stops
+const BELT_SW = { feel: 14, a: { k: 240, d: 22, push: 0.6, lim: [0.012, 0.012, 0.005] }, b: { k: 900, d: 48, push: 0.35, lim: [0.005, 0.005, 0.002] }, kick: [0.035, 0.025] };
+export const BJ = { a: new V3(), va: new V3(), b: new V3(), vb: new V3(), p: new V3(), v: new V3(), acc: new V3(), f: new V3(), q: new THREE.Quaternion(), on: false };
+export function beltKick() { const K = BELT_SW.kick; BJ.va.x += rr(-1, 1) * K[0] * 0.5; BJ.va.y += rr(0.5, 1) * K[0]; BJ.vb.x += rr(-1, 1) * K[1]; BJ.vb.y += rr(-1, 1) * K[1]; }
+const softLim = (v, m) => m * Math.tanh(v / m);
 export function beltJiggle(belt, h, rdt) {
   if (rdt <= 0) return;
   BJ.f.set(X + 0.08, 1.16, 0.535).applyMatrix4((flipOf(h) || h).matrixWorld);   // (on the gun's left: its own frame, weapons/gun-materials.js)
-  if (!BJ.on) { BJ.p.copy(BJ.f); BJ.v.set(0, 0, 0); BJ.a.set(0, 0, 0); BJ.va.set(0, 0, 0); BJ.b.set(0, 0, 0); BJ.vb.set(0, 0, 0); BJ.on = true; }
-  // the loop's own acceleration, turned into the gun's frame with gravity added (less the pull it hangs under when level)
-  const vx = (BJ.f.x - BJ.p.x) / rdt, vy = (BJ.f.y - BJ.p.y) / rdt, vz = (BJ.f.z - BJ.p.z) / rdt;
-  let ax = (vx - BJ.v.x) / rdt, ay = (vy - BJ.v.y) / rdt, az = (vz - BJ.v.z) / rdt; const am = Math.hypot(ax, ay, az); if (am > 60) { ax *= 60 / am; ay *= 60 / am; az *= 60 / am; }
-  BJ.p.copy(BJ.f); BJ.v.set(vx, vy, vz);
-  (flipOf(h) || h).getWorldQuaternion(BJ.q).invert(); BJ.f.set(-ax, -9.8 - ay, -az).applyQuaternion(BJ.q); BJ.f.y += 9.8;
+  if (!BJ.on) { BJ.p.copy(BJ.f); BJ.v.set(0, 0, 0); BJ.acc.set(0, 0, 0); BJ.a.set(0, 0, 0); BJ.va.set(0, 0, 0); BJ.b.set(0, 0, 0); BJ.vb.set(0, 0, 0); BJ.on = true; }
+  // the loop's own acceleration (from its smoothed velocity, itself smoothed), turned into the gun's frame with gravity
+  // added (less the pull it hangs under when level)
+  const e = 1 - Math.exp(-rdt * BELT_SW.feel), vx = (BJ.f.x - BJ.p.x) / rdt, vy = (BJ.f.y - BJ.p.y) / rdt, vz = (BJ.f.z - BJ.p.z) / rdt;
+  const nvx = BJ.v.x + (vx - BJ.v.x) * e, nvy = BJ.v.y + (vy - BJ.v.y) * e, nvz = BJ.v.z + (vz - BJ.v.z) * e;
+  BJ.acc.x += ((nvx - BJ.v.x) / rdt - BJ.acc.x) * e; BJ.acc.y += ((nvy - BJ.v.y) / rdt - BJ.acc.y) * e; BJ.acc.z += ((nvz - BJ.v.z) / rdt - BJ.acc.z) * e;
+  BJ.p.copy(BJ.f); BJ.v.set(nvx, nvy, nvz);
+  (flipOf(h) || h).getWorldQuaternion(BJ.q).invert(); BJ.f.set(-BJ.acc.x, -9.8 - BJ.acc.y, -BJ.acc.z).applyQuaternion(BJ.q); BJ.f.y += 9.8;
+  const A = BELT_SW.a, Bb = BELT_SW.b;
   for (let n = Math.ceil(rdt / (1 / 240)), dt = rdt / n, i = 0; i < n; i++) {
-    BJ.va.addScaledVector(BJ.f, 0.7 * dt).addScaledVector(BJ.a, -1900 * dt).addScaledVector(BJ.va, -10 * dt); BJ.a.addScaledVector(BJ.va, dt);
-    BJ.vb.addScaledVector(BJ.f, 0.5 * dt).addScaledVector(BJ.b, -5600 * dt).addScaledVector(BJ.vb, -22 * dt); BJ.b.addScaledVector(BJ.vb, dt);
+    BJ.va.addScaledVector(BJ.f, A.push * dt).addScaledVector(BJ.a, -A.k * dt).addScaledVector(BJ.va, -A.d * dt); BJ.a.addScaledVector(BJ.va, dt);
+    BJ.vb.addScaledVector(BJ.f, Bb.push * dt).addScaledVector(BJ.b, -Bb.k * dt).addScaledVector(BJ.vb, -Bb.d * dt); BJ.b.addScaledVector(BJ.vb, dt);
   }
-  BJ.a.set(clamp(BJ.a.x, -0.01, 0.01), clamp(BJ.a.y, -0.01, 0.01), clamp(BJ.a.z, -0.004, 0.004)); BJ.b.set(clamp(BJ.b.x, -0.004, 0.004), clamp(BJ.b.y, -0.004, 0.004), clamp(BJ.b.z, -0.002, 0.002));   // the ripple stays small, so the links stay hooked
-  const n = belt.length; belt.forEach((r, k) => { const s = (k + 0.5) / n; r.position.copy(BJ.a).multiplyScalar(Math.sin(Math.PI * s)).addScaledVector(BJ.b, Math.sin(2 * Math.PI * s)); });
+  // (eased off toward their limits, so the links stay hooked, never stopped dead at them)
+  const la = A.lim, lb = Bb.lim, ax = softLim(BJ.a.x, la[0]), ay = softLim(BJ.a.y, la[1]), az = softLim(BJ.a.z, la[2]), bx = softLim(BJ.b.x, lb[0]), by = softLim(BJ.b.y, lb[1]), bz = softLim(BJ.b.z, lb[2]);
+  let n = 0; for (const r of belt) if (!r.userData.inBox) n++;
+  for (let k = 0; k < belt.length; k++) { const r = belt[k]; if (r.userData.inBox) { r.position.set(0, 0, 0); continue; } const s = (k + 0.5) / n, sa = Math.sin(Math.PI * s), sb = Math.sin(2 * Math.PI * s); r.position.set(ax * sa + bx * sb, ay * sa + by * sb, az * sa + bz * sb); }
 }
 // a bipod's legs (the LMG's, weapons/gun-models.js) swing on their hinge with the gun, each on a soft spring, through
 // everything it does: down on them, they're left behind as you walk, run and turn, as the gun comes up into the sights,

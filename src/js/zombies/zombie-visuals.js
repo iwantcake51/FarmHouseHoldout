@@ -1,7 +1,7 @@
 // Zombies and corpses fading with your vision, and the green rim on zombies in melee reach.
 
-import { FP_CAM, scene, V3 } from '../core/renderer.js';
-import { angDiff, clamp, rand, rr, smooth } from '../core/math.js';
+import { CAM_OFF, FP_CAM, scene, V3 } from '../core/renderer.js';
+import { angDiff, clamp, HALF, rand, rr, smooth } from '../core/math.js';
 import { MIST, mistSee } from '../world/mist.js';
 import { outline } from '../effects/screen-outlines.js';
 import { P } from '../player/player.js';
@@ -16,12 +16,16 @@ import { fogSee } from './spawn.js';
 import { rimMat } from '../effects/outlines.js';
 import { openSt } from '../stations/station-ui.js';
 import { state, worldT } from '../game/state.js';
+import { updateBursts } from './elites.js';
 import { meleeTargets } from '../melee/melee.js';
 import { flDir, flOn, los, teamBeam } from '../lighting/lightmap.js';
 import { curDark } from '../lighting/day-night.js';
 import { peekOf, sightTo, visAt, visOn } from '../lighting/vision.js';
 import { fpOn, freeOn, isoOn } from '../game/view-cam.js';
 import { roofOver } from '../world/cutaway.js';
+import { cell, ci, FENCE, idx, inb, OBST, OPEN, WALL } from '../world/grid.js';
+import { obstTop } from '../world/props.js';
+import { inHouseRect } from '../world/house.js';
 import { EYE_COL } from '../effects/eye-glow.js';
 import { camFocus, viewer } from '../net/spectate.js';
 
@@ -36,6 +40,32 @@ const REACH_COL = 0x62e070, REACH_A = 0.6, BURN_COL = 0xff8a1e;
 // the circle round you inside which a zombie behind something shows its outline: full strength up to RED_NEAR metres,
 // then fading out the further it is, to nothing at RED_FAR
 const RED_NEAR = 4, RED_FAR = 12;
+// whether anything could stand between the camera overhead and a zombie at x, z: going from it toward the camera, the
+// line to its feet climbs (_xc.t a metre out); a wall or a window's frame, the house's roof, a fence, a tree's crown or a
+// prop it hasn't climbed over yet by then could hide some of it. Only then are its see-through layers drawn (their
+// depth test shows them only where something's in front anyway): out in the open they're some thirty draws for nothing.
+// (Yours too, and your teammates': player/animation.js, net/avatars.js)
+// It leans the safe way: past the edge of the farm (the woods) anything counts, and a prop of no known height is tall
+const XR_COVER = { step: 0.3, foot: 0.15, wall: 2.7, roof: 4.8, fence: 1.3, prop: 2.4, tall: 9 };
+const _xc = (() => { const h = Math.hypot(CAM_OFF.x, CAM_OFF.z); return { x: CAM_OFF.x / h, z: CAM_OFF.z / h, t: CAM_OFF.y / h }; })();
+export function coverFromCam(x, z) {
+  for (let d = XR_COVER.step; ; d += XR_COVER.step) {
+    const y = XR_COVER.foot + d * _xc.t; if (y > XR_COVER.tall) return false;   // (the line's above anything that stands)
+    const px = x + _xc.x * d, pz = z + _xc.z * d, i = ci(px), j = ci(pz);
+    if (!inb(i, j)) return true;
+    const c = cell[idx(i, j)];
+    if ((c === WALL || c === OPEN) && y < XR_COVER.wall) return true;
+    if (c === FENCE && y < XR_COVER.fence) return true;
+    if (y < XR_COVER.roof && inHouseRect(px, pz, 0.3) && roofOver(px, pz) > 0.3) return true;
+    // props and trees: a tree's crown spreads past its own cell, so the cells round this one too
+    for (let b = j - 1; b <= j + 1; b++) for (let a = i - 1; a <= i + 1; a++) {
+      if (!inb(a, b) || cell[idx(a, b)] !== OBST) continue;
+      const o = obstTop.get(idx(a, b));
+      if (o === undefined || typeof o === 'number') { if (a === i && b === j && y < (o ?? XR_COVER.prop)) return true; }
+      else if (y < o.top && Math.hypot(px - o.x, pz - o.z) < o.r * (o.top - y) / o.top + 0.1) return true;
+    }
+  }
+}
 // the flashlight's outline: how far (r) and how wide (half the cone, radians) each tier's beam picks zombies out
 export const LIGHT_OL = [null, { r: 13, half: 0.42 }, { r: 18, half: 0.62 }], LIGHT_COL = 0xfff1c4;
 // how solid (z.vis) a zombie has to be before the rim starts to show, and by when it's full
@@ -59,6 +89,10 @@ function markReach() {
 // rest keep just the soft blob under them) and the see-through outline for the nearest ZLOD.xray. One already in the
 // set keeps its place until another is ZLOD.keep metres nearer, so nothing flickers between two at the same distance
 const ZLOD = { shadow: 8, xray: 8, keep: 1.5 }, _lod = [];
+// one only faintly there (fading in, or all but hidden in a fog round's fog) doesn't hide what's behind it in the depth: the
+// fog's marched to the depth (effects/post.js), so it would stop at its outline, and the clear ground behind it would
+// show through in its shape
+const ZVIS_DEPTH = 0.4;
 function zombieLOD() {
   const f = camFocus(); _lod.length = 0;
   for (const z of zombies) if (z.vis > 0.02 || z.redOl) { z.lodD = Math.hypot(z.x - f.x, z.z - f.z) - (z.shOn ? ZLOD.keep : 0); _lod.push(z); } else z.lodR = 1e9;
@@ -81,6 +115,15 @@ function zombieLOD() {
 // FP_SEE.near m always is: so none of them pops in or out at an edge. A grate's no wall to them (its slit and bars are
 // there to see through)
 const FP_SEE = { eye: 0.22, side: 0.5, lead: 0.4, hold: 0.6, near: 1.8 };
+// the line only as far as the edge of the farm: past it there's no grid (the woods and the haze out there, drawn as they
+// are, hide what's behind them themselves), so one still out in the fog is seen walking out of it rather than nothing
+// of it showing till it steps onto the farm (zombies/spawn.js: FP_OUT)
+function losIn(ex, ez, tx, tz) {
+  const m = HALF - 0.5, dx = tx - ex, dz = tz - ez; let t = 1;
+  if (Math.abs(tx) > m && dx) t = Math.min(t, ((dx > 0 ? m : -m) - ex) / dx);
+  if (Math.abs(tz) > m && dz) t = Math.min(t, ((dz > 0 ? m : -m) - ez) / dz);
+  return los(ex, ez, ex + dx * Math.max(0, t), ez + dz * Math.max(0, t), true);
+}
 function eyeSees(z, rdt) {
   const e = FP_CAM.position, dx = z.x - e.x, dz = z.z - e.z, L = Math.hypot(dx, dz) || 1, ux = -dz / L, uz = dx / L;
   // (how fast it's going, from where it was last frame, smoothed: its own vx/vz are only knockback)
@@ -92,7 +135,7 @@ function eyeSees(z, rdt) {
     see: for (const eo of [0, FP_SEE.eye, -FP_SEE.eye]) {
       const ex = e.x + ux * eo, ez = e.z + uz * eo;
       for (const [tx, tz] of [[z.x, z.z], [z.x + ux * FP_SEE.side, z.z + uz * FP_SEE.side], [z.x - ux * FP_SEE.side, z.z - uz * FP_SEE.side], [lx, lz]])
-        if (los(ex, ez, tx, tz, true)) { see = true; break see; }
+        if (losIn(ex, ez, tx, tz)) { see = true; break see; }
     }
   }
   z.fpHold = see ? FP_SEE.hold : Math.max(0, (z.fpHold || 0) - rdt);
@@ -100,6 +143,7 @@ function eyeSees(z, rdt) {
 }
 export function updateZombieVisuals(dt, rdt) {
   markReach(); zombieLOD();
+  updateBursts(dt);   // (volatile elites going off: zombies/elites.js)
   const V = viewer(), pk = visOn && peekOf(V);   // (who's looking, and the window they're at: lighting/vision.js)
   for (const z of zombies) {
     if (z.stain) z.stain.burn = z.burn;
@@ -119,7 +163,7 @@ export function updateZombieVisuals(dt, rdt) {
     // one you can't see draws nothing (no colour, its shadow dithered away, its rims faded), so it's left out of the
     // frame altogether rather than drawn invisibly: some sixty draws a zombie saved for every one out of sight
     z.m.g.visible = z.vis > 0.02 || !!z.redOl;
-    if (z.lastVis === undefined || Math.abs(z.lastVis - z.vis) > 0.008) { z.lastVis = z.vis; const shown = z.vis > 0.02 || !!z.redOl; (z.fade || Object.values(z.m.mats)).forEach(mt => { mt.opacity = z.vis; mt.depthWrite = z.vis > 0.05; mt.colorWrite = shown; }); if (z.om) z.om.opacity = z.vis * 0.5; if (z.blob) { z.blob.material.opacity = 0.36 * z.vis; z.blob.visible = z.vis > 0.01; } if (z.dm) z.dm.userData.u.value = z.vis < 0.03 ? 0 : z.vis; }
+    if (z.lastVis === undefined || Math.abs(z.lastVis - z.vis) > 0.008) { z.lastVis = z.vis; const shown = z.vis > 0.02 || !!z.redOl; (z.fade || Object.values(z.m.mats)).forEach(mt => { mt.opacity = z.vis; mt.depthWrite = z.vis > ZVIS_DEPTH; mt.colorWrite = shown; }); if (z.om) z.om.opacity = z.vis * 0.5; if (z.blob) { z.blob.material.opacity = 0.36 * z.vis; z.blob.visible = z.vis > 0.01; } if (z.dm) z.dm.userData.u.value = z.vis < 0.03 ? 0 : z.vis; }
     if (z.inReach || z.reachA > 0) {
       const on = !!z.inReach; z.inReach = false;
       z.reachA = (z.reachA || 0) + ((on ? 1 : 0) - (z.reachA || 0)) * Math.min(1, rdt * (on ? 9 : 5)); if (!on && z.reachA < 0.01) z.reachA = 0;
@@ -130,7 +174,7 @@ export function updateZombieVisuals(dt, rdt) {
     }
     // on fire: an orange rim that flickers with the flames, and the see-through outline goes orange too (tintXray)
     if (z.burn > 0 || z.burnA > 0) {
-      z.burnA = (z.burnA || 0) + ((z.burn > 0 ? 1 : 0) - (z.burnA || 0)) * Math.min(1, rdt * (z.burn > 0 ? 8 : 2)); if (!(z.burn > 0) && z.burnA < 0.01) z.burnA = 0;
+      z.burnA = (z.burnA || 0) + ((z.burn > 0 ? 0.35 + 0.65 * (z.burnK ?? 1) : 0) - (z.burnA || 0)) * Math.min(1, rdt * (z.burn > 0 ? 8 : 2)); if (!(z.burn > 0) && z.burnA < 0.01) z.burnA = 0;   // (its rim glowing up as the fire spreads over it: zombies/ai.js)
       if (!z.burnOl) z.burnOl = outline(z.m.g, 0, 0, 0.034, rimMat(BURN_COL));
       z.burnOl.opacity = z.burnA * z.vis * (0.5 + 0.22 * Math.sin(worldT * 17) * Math.sin(worldT * 7.3 + 1)) * (1 - 0.6 * (z.reachA || 0)); z.burnOl.visible = z.burnA > 0;
       tintXray(z);
@@ -145,7 +189,8 @@ export function updateZombieVisuals(dt, rdt) {
     // (sightTo's peek), stands behind that wall from up here, so its see-through outline would show through the wall
     if (z.xr) { const d = !visOn || z.vis < 0.004 || Math.hypot(z.x - V.x, z.z - V.z) <= 0.7 || los(V.x, V.z, z.x, z.z) ? 1 : 0; z.seeK = z.seeK === undefined ? d : z.seeK + (d - z.seeK) * Math.min(1, rdt * 8); }
     if (z.xr) { const lk = z.redOl || z.lodR < ZLOD.xray ? 1 : 0; z.xrK = z.xrK === undefined ? lk : z.xrK + (lk - z.xrK) * Math.min(1, rdt * 6); if (z.xrK < 0.01) z.xrK = 0; }   // (fading out as it drops out of the nearest few)
-    if (z.xr) { const a = z.vis * Math.max(z.redOl ? 1 : near, rA) * smooth(clamp(roofOver(z.x, z.z), 0, 1)) * z.seeK * z.xrK * (isoOn() ? 1 : 0); if (z.xr.rim.opacity !== a) { z.xr.rim.opacity = a; if (z.xr.sil) z.xr.sil.opacity = a * 0.6; } const on = a > 0.004; if (z.xr.rim.visible !== on) { z.xr.rim.visible = z.xr.fill.visible = on; if (z.xr.sil) z.xr.sil.visible = on; } }   // (out past the circle its three see-through layers aren't drawn at all)
+    if (z.xr) { const cv = isoOn() && z.xrK > 0 && z.vis > 0.02 && coverFromCam(z.x, z.z) ? 1 : 0; z.cvK = z.cvK === undefined ? cv : cv ? 1 : Math.max(0, z.cvK - rdt * 4); }   // (on at once, off after a moment: coverFromCam)
+    if (z.xr) { const a = z.vis * Math.max(z.redOl ? 1 : near, rA) * smooth(clamp(roofOver(z.x, z.z), 0, 1)) * z.seeK * z.xrK * (z.cvK > 0 ? 1 : 0) * (isoOn() ? 1 : 0); if (z.xr.rim.opacity !== a) { z.xr.rim.opacity = a; if (z.xr.sil) z.xr.sil.opacity = a * 0.6; } const on = a > 0.004; if (z.xr.rim.visible !== on) { z.xr.rim.visible = z.xr.fill.visible = on; if (z.xr.sil) z.xr.sil.visible = on; } }   // (out past the circle its three see-through layers aren't drawn at all)
     if (z.redOl) z.redOl.opacity = (0.55 + Math.sin(worldT * 6.25) * 0.3) * (1 - 0.7 * rA);
     // caught in your flashlight's beam after dark: a pale rim, full in the middle of the beam and soft at its edges and its
     // far end (the weapon light reaches further and wider than the taped one, LIGHT_OL)
@@ -175,7 +220,7 @@ export function updateZombieVisuals(dt, rdt) {
     if (r.flash > 0 || r.flashOn) { r.flash = Math.max(0, r.flash - dt); const k2 = r.flash / 0.14, m = r.m.mats; r.flashOn = r.flash > 0;
       for (const mt of Object.values(m)) if (mt) { if (r.flashOn) mt.emissive.setRGB(0.35 * k2 + 0.6 * k2 * k2, 0.1 * k2 + 0.55 * k2 * k2, 0.07 * k2 + 0.45 * k2 * k2); else mt.emissive.setHex(0); } }
     if (r.eyes && r.eyeT < 1.6) { r.eyeT += dt; const e = clamp(r.eyeT / 1.5, 0, 1); r.eyeGlow = Math.pow(1 - e, 1.5); r.eyes.forEach(o => o.material.color.copy(r.eyeLive || _eyeLive).lerp(_eyeDead, smooth(e))); }
-    if (fpOn()) r.vis = eyeSees(r.x, r.z);   // (in first person: as for the living, above)
+    if (fpOn()) r.vis = eyeSees(r, rdt);   // (in first person: as for the living, above)
     else { const v = visAt(r.x, r.z); r.vis += (v - r.vis) * Math.min(1, rdt * 10); }
     Object.values(r.mats).forEach(mt => { mt.opacity = r.vis; mt.depthWrite = r.vis > 0.05; mt.colorWrite = r.vis > 0.03; }); if (r.dm) r.dm.userData.u.value = r.vis < 0.03 ? 0 : r.vis; if (r.blob) { r.blob.material.opacity = 0.42 * r.vis * Math.max(0, 1 - Math.max(0, r.t - 8) * 0.5); r.blob.visible = r.blob.material.opacity > 0.004; }
     r.g.visible = r.vis > 0.03;   // (a body you can't see draws nothing either, as above)

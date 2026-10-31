@@ -4,10 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Kessler Farm</title>
+<link rel="icon" id="favicon" href="data:,">
 <meta name="description" content="Farmhouse Holdout: an isometric zombie survival roguelike. Board up the Kessler farmhouse and survive as long as you can.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Saira+Extra+Condensed:wght@600;800&family=Special+Elite&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&family=Saira+Extra+Condensed:wght@600;800&family=Special+Elite&display=swap">
 <link rel="stylesheet" href="./game.css">
 </head>
 <body>
@@ -50,6 +51,9 @@
       <g id="tk2"><path class="tk" d="M-2.2 -10 L2.2 -10 L0.7 0 L-0.7 0 Z"></path></g>
       <g id="tk3"><path class="tk" d="M-2.2 -10 L2.2 -10 L0.7 0 L-0.7 0 Z"></path></g>
     </g>
+    <!-- a hit's marker: four short strokes on the diagonals, flashed as a round or blow of yours lands (white), through the
+         head (gold), and on a kill (red, bigger): ui/crosshair.js hitMark -->
+    <g id="xhHit" class="hm"><path d="M4.5 4.5 L10 10 M-4.5 4.5 L-10 10 M4.5 -4.5 L10 -10 M-4.5 -4.5 L-10 -10"></path></g>
     <!-- shotguns, by the shell loaded (slugs take the four ticks): buckshot four arcs of a ring as wide as the pellet spread,
          on the diagonals; flechettes eight thin needles pointing in from it; dragon's breath three arcs, one on top and two
          below like a flame's tips -->
@@ -148,12 +152,15 @@
     <div class="spBand" title="Bandages"><svg data-gi="bandage" aria-hidden="true"></svg><b>0</b></div>
     <div class="spRel"></div>
     <div class="spWName"></div>
-    <div class="ammoRow"><span class="big spAmmo"></span><span class="spRes"></span></div>
+    <div class="ammoRow"><img class="spMelee" alt="" hidden><span class="big spAmmo"></span><span class="spRes"></span></div>
   </div>
 </div>
 <!-- where the teammate you're watching is aiming (updateSpecXh, net/spectate.js) -->
 <div id="specXh" aria-hidden="true"><svg width="80" height="80" viewBox="-40 -40 80 80"><circle class="halo" r="17"></circle><g class="in"><circle class="ring" r="15"></circle><g class="tk"><path d="M0 -25V-19"></path><path d="M0 25V19"></path><path d="M-25 0H-19"></path><path d="M25 0H19"></path></g></g><circle class="dot" r="2.6"></circle></svg></div>
 <div class="hud" id="feed"></div>
+<!-- co-op chat in the run (net/chat.js): the last few lines said, and the box Enter opens -->
+<ol class="hud" id="chatLog" aria-live="polite"></ol>
+<div id="chatBox" hidden><span>Say</span><input id="chatIn" maxlength="120" autocomplete="off" spellcheck="false" aria-label="Say something to your team"><small>Enter to send, Esc to close</small></div>
 <div class="hud" id="wStats" hidden></div>
 <div class="hud" id="wLoad" hidden></div>
 <div id="wlTip" role="tooltip"></div>
@@ -161,13 +168,13 @@
 <!-- cheats -->
 <div class="hud" id="cheatTag" hidden></div>
 <div id="cheat" hidden role="dialog" aria-label="Cheat menu">
-  <div class="chTop"><b>Cheats</b><label class="chSearch"><svg data-gi="magnify" aria-hidden="true"></svg><input id="chFind" type="search" placeholder="Search every cheat" autocomplete="off" spellcheck="false" aria-label="Search every cheat"></label><span class="chSpeed" id="chSpeed" role="group" aria-label="Game speed"></span><kbd>F9</kbd><button type="button" id="chClose" aria-label="Close">×</button></div>
+  <div class="chTop"><b>Cheats</b><label class="chSearch"><svg data-gi="magnify" aria-hidden="true"></svg><input id="chFind" type="search" placeholder="Search every cheat" autocomplete="off" spellcheck="false" aria-label="Search every cheat"></label><span class="chSpeed" id="chSpeed" role="group" aria-label="Game speed"></span><kbd>F9</kbd><button class="mClose" id="chClose" type="button" aria-label="Close" title="Close"><svg data-gi="crossMark" aria-hidden="true"></svg></button></div>
   <div class="chQuick" id="chQuick"></div>
   <div class="chMain"><nav class="chRail" id="chRail" role="tablist" aria-label="Sections"></nav><div id="chBody"></div></div>
 </div>
 <!-- /cheats -->
 <div class="hud" id="station" hidden>
-  <div class="stHead"><div id="stTitle"></div><div class="stScrap" title="Scrap"><svg data-gi="scrap"></svg><b id="stScrap">0</b></div></div>
+  <div class="stHead"><div id="stTitle"></div><div class="stScrap" title="Scrap"><svg data-gi="scrap"></svg><b id="stScrap">0</b></div><button class="mClose" id="stX" type="button" aria-label="Close" title="Close"><svg data-gi="crossMark" aria-hidden="true"></svg></button></div>
   <div id="stGuns" role="tablist" hidden></div>
   <div id="stRows"></div>
   <div id="stQuick" hidden></div>
@@ -176,6 +183,8 @@
 </div>
 <div class="hud" id="prompt"><div id="pRows"></div><div id="promptBar"><i></i></div></div>
 <div class="hud" id="toast"><span class="tIc"><svg viewBox="0 0 512 512" id="toastIc"></svg></span><span class="tTx"><b id="toastT"></b><em id="toastS"></em></span><i class="tBar"></i></div>
+<div class="hud" id="streak" aria-live="polite"></div>
+<div class="hud" id="eliteCall" aria-live="polite"><div class="ecSlab"><span class="ecIc"><svg viewBox="0 0 512 512" id="ecIc"></svg></span><span class="ecTx"><small id="ecEye"></small><b id="ecName"></b><em id="ecLine"></em><i id="ecTip"></i><span id="ecList"></span></span></div></div>
 <div class="hud" id="announce" style="opacity:0"><div id="annEye"></div><div id="annBig"></div><div class="annRule"><i></i></div><div id="annSmall"></div></div>
 
 <div id="touch" hidden>
@@ -195,42 +204,21 @@
 <div class="screen" id="title">
   <div class="inner">
    <div class="lead">
-    <div class="eyebrow">Route 9 · Ashby Hollow, Kentucky <span class="stamp">Night 1</span></div>
+    <div class="eyebrow">Route 9, outside Ashby Hollow, Kentucky <span class="stamp">Night 1</span></div>
     <h1>Kessler Farm</h1>
     <div class="story">
       <p>Forty acres of soybean and rust off Route 9, three miles outside Ashby Hollow, Kentucky. The radio stopped making sense on Tuesday. By Thursday the Kesslers were gone, and the people who used to wave from passing trucks had started walking the fence line instead.</p>
       <p>Board up. Prepare for the horde. Survive as long as you can.</p>
     </div>
     <p class="brief">Zombies drop scrap; the workbench turns it into ammo and upgrades for your weapons. Survive a wave and you take one find: a skill, a perk, some aid, or a better gun. When you die, the farm is theirs.</p>
-    <div class="btns"><button class="btn" id="startBtn" type="button">Start the run <kbd data-bind="wave">T</kbd></button><button class="btn ghost" id="coopBtn" type="button" aria-expanded="false" aria-controls="coop">Co-op</button><button class="btn ghost" id="lookBtnTitle" type="button">Character</button><button class="btn ghost" id="setBtnTitle" type="button">Settings</button><span class="note" id="best"></span></div>
-    <div class="coop" id="coop" hidden>
-      <div class="coopHead">Co-op <span>Up to four survivors, online</span></div>
-      <label class="coopName">Your name <input id="coopName" maxlength="16" placeholder="Survivor" autocomplete="off" spellcheck="false"></label>
-      <div class="coopPick" id="coopPick">
-        <button class="btn ghost sm" id="coopHost" type="button">Host a game</button>
-        <span class="or">or join one</span>
-        <input id="coopCode" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false" aria-label="The host's game code">
-        <button class="btn ghost sm" id="coopJoin" type="button">Join</button>
-      </div>
-      <div class="coopRoom" id="coopRoom" hidden>
-        <div class="coopCode"><span>Game code</span><b id="coopShow"></b><button class="coopCopy" id="coopCopy" type="button">Copy</button></div>
-        <ol class="coopList" id="coopList"></ol>
-        <div class="coopView" id="coopView"><span>View <small id="coopViewNote">Everyone plays in it</small></span><div class="coopSeg" role="radiogroup" aria-label="Everyone's view in the run"><button type="button" role="radio" data-v="iso" aria-checked="true">Isometric</button><button type="button" role="radio" data-v="fp" aria-checked="false">First person</button></div></div>
-        <div class="btns"><button class="btn sm" id="coopGo" type="button">Start together <kbd data-bind="wave">T</kbd></button><button class="btn ghost sm" id="coopLeave" type="button">Leave</button></div>
-      </div>
-      <div class="coopMsg" id="coopMsg" role="status" aria-live="polite"></div>
-      <div class="coopFriends">
-        <div class="frHead">Friends <span>Your friend code <b id="frMe"></b><button class="coopCopy" id="frCopy" type="button">Copy</button></span></div>
-        <ul class="frList" id="frList"></ul>
-        <div class="frAdd"><input id="frCode" maxlength="6" placeholder="FRIEND CODE" autocomplete="off" spellcheck="false" aria-label="A friend's code"><button class="coopCopy" id="frAddBtn" type="button">Add friend</button></div>
-        <div class="coopMsg" id="frMsg" role="status" aria-live="polite"></div>
-      </div>
-    </div>
+    <div class="coopView titleView" id="titleView"><span>View <small>From above the farm, or out of your own eyes</small></span><div class="coopSeg" role="radiogroup" aria-label="Your view in the run"><button type="button" role="radio" data-v="iso" aria-checked="true">Isometric</button><button type="button" role="radio" data-v="fp" aria-checked="false">First person</button></div></div>
+    <div class="coopView titleView" id="titleMode"><span>Mode <small>No perks: no cards or aid between waves</small></span><div class="coopSeg" role="radiogroup" aria-label="Your run's mode"><button type="button" role="radio" data-m="normal" aria-checked="true">Normal</button><button type="button" role="radio" data-m="noperks" aria-checked="false">No perks</button></div></div>
+    <div class="btns mlist"><button class="btn" id="startBtn" type="button">Start the run <kbd data-bind="wave">T</kbd></button><button class="btn ghost" id="coopBtn" type="button" aria-expanded="false" aria-controls="coop">Co-op</button><button class="btn ghost" id="lookBtnTitle" type="button">Character</button><button class="btn ghost" id="setBtnTitle" type="button">Settings</button><span class="note" id="best"></span></div>
    </div>
     <div class="ctrls">
       <div class="ctrlHead">Controls</div>
       <div class="ctrlGrp"><h4>Movement</h4>
-        <p><kbd data-key="w">W</kbd><kbd data-key="a">A</kbd><kbd data-key="s">S</kbd><kbd data-key="d">D</kbd><span>Walk</span></p>
+        <p class="wasd"><kbd data-key="w">W</kbd><kbd data-key="a">A</kbd><kbd data-key="s">S</kbd><kbd data-key="d">D</kbd><span>Walk</span></p>
         <p><kbd data-bind="sprint">Shift</kbd><span>Sprint</span></p>
         <p><kbd data-bind="vault">Space</kbd><span>Vault a window or fence</span></p></div>
       <div class="ctrlGrp"><h4>Combat</h4>
@@ -252,11 +240,75 @@
         <p><kbd data-bind="stats">I</kbd><span>Weapon stats</span></p>
         <p><kbd data-key="mouse3">Wheel</kbd><span>Zoom</span></p>
         <p><kbd data-key="escape">Esc</kbd><span>Pause</span></p>
+        <p><kbd data-key="enter">Enter</kbd><span>Chat to your team (co-op)</span></p>
         <p class="ctrlSet"><span>Change any of these in Settings, under Controls</span></p>
       </details>
     </div>
   </div>
 </div>
+
+<!-- co-op (net/lobby.js, net/friends.js, net/chat.js): your name, a game to host or join, its lobby, and your friends -->
+<div id="coop" class="coopScr" hidden role="dialog" aria-modal="true" aria-labelledby="coopTitle">
+  <div class="coopFrame">
+    <header class="coopTop">
+      <h2 id="coopTitle">Co-op</h2>
+      <p>Up to four survivors on one farm, online</p>
+      <label class="coopName">Your name <input id="coopName" maxlength="16" placeholder="Survivor" autocomplete="off" spellcheck="false"></label>
+      <button type="button" class="coopClose" id="coopClose">Back <kbd>Esc</kbd></button>
+    </header>
+    <div class="coopBody">
+      <section class="coopMain" aria-label="Your game">
+        <div class="coopPick" id="coopPick">
+          <div class="cpWay cpHost">
+            <h3>Host a game</h3>
+            <p>Your game runs the farm. Up to three friends join with your code.</p>
+            <div class="btns mlist"><button class="btn" id="coopHost" type="button">Open a lobby</button></div>
+          </div>
+          <div class="cpWay cpJoin">
+            <h3>Join a game</h3>
+            <p>Type the four letters and numbers on the host's lobby.</p>
+            <div class="cpCodeRow"><input id="coopCode" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false" aria-label="The host's game code"><button class="btn ghost sm" id="coopJoin" type="button">Join</button></div>
+          </div>
+          <div class="cpWay cpSolo">
+            <h3>Arena against bots</h3>
+            <p>The arena on your own, against bots (or with them on your side). Nothing to connect to.</p>
+            <div class="btns mlist"><button class="btn ghost" id="coopSolo" type="button">Play solo</button></div>
+          </div>
+          <div class="cpWay cpOpen" id="coopOpenWrap" hidden>
+            <h3>Friends hosting now</h3>
+            <ul class="cpOpenList" id="coopOpen"></ul>
+          </div>
+        </div>
+        <div class="coopRoom" id="coopRoom" hidden>
+          <div class="coopCode" id="coopCodeRow"><span>Game code</span><b id="coopShow"></b><button class="coopCopy" id="coopCopy" type="button">Copy code</button><button class="coopCopy" id="coopLink" type="button">Copy invite link</button></div>
+          <ol class="coopSeats" id="coopList"></ol>
+          <div class="coopMid">
+            <div class="coopChat"><ol id="coopChat" aria-live="polite" aria-label="Lobby chat"></ol><input id="coopSay" maxlength="120" placeholder="Say something to the lobby, Enter to send" autocomplete="off" spellcheck="false" aria-label="Say something to the lobby"></div>
+            <div class="coopSide">
+              <div class="coopView" id="coopView"><span>View <small id="coopViewNote">Everyone plays in it</small></span><div class="coopSeg" role="radiogroup" aria-label="Everyone's view in the run"><button type="button" role="radio" data-v="iso" aria-checked="true">Isometric</button><button type="button" role="radio" data-v="fp" aria-checked="false">First person</button></div></div>
+              <div class="coopView" id="coopGame"><span>Game <small id="coopGameNote">Everyone plays it</small></span><div class="coopSeg" role="radiogroup" aria-label="The game everyone plays"><button type="button" role="radio" data-g="survival" aria-checked="true">Survival</button><button type="button" role="radio" data-g="arena" aria-checked="false">Arena</button></div></div>
+              <div class="coopView" id="coopArena" hidden><span>Arena <small id="coopArenaNote">Everyone against everyone</small></span><div class="coopSeg" role="radiogroup" aria-label="The arena's mode"><button type="button" role="radio" data-a="ffa" aria-checked="true">Deathmatch</button><button type="button" role="radio" data-a="tdm" aria-checked="false">Team deathmatch</button><button type="button" role="radio" data-a="rounds" aria-checked="false">Showdown</button></div></div>
+              <div class="coopView" id="coopBots" hidden><span>Bots <small id="coopBotsNote">How good they are</small></span><div class="coopSeg" role="radiogroup" aria-label="How good the bots are"><button type="button" role="radio" data-s="0" aria-checked="false">Recruit</button><button type="button" role="radio" data-s="1" aria-checked="true">Regular</button><button type="button" role="radio" data-s="2" aria-checked="false">Veteran</button></div><button class="coopCopy coopBotAdd" id="coopBotAdd" type="button">Add a bot</button></div>
+              <div class="coopView" id="coopMode"><span>Mode <small id="coopModeNote">Everyone plays in it</small></span><div class="coopSeg" role="radiogroup" aria-label="Everyone's run mode"><button type="button" role="radio" data-m="normal" aria-checked="true">Normal</button><button type="button" role="radio" data-m="noperks" aria-checked="false">No perks</button></div></div>
+              <div class="btns mlist coopActs"><button class="btn" id="coopGo" type="button">Start together <kbd data-bind="wave">T</kbd></button><button class="btn" id="coopReady" type="button">Ready <kbd data-bind="wave">T</kbd></button><button class="btn ghost" id="coopLeave" type="button">Leave</button></div>
+              <p class="coopWait" id="coopWait" role="status"></p>
+            </div>
+          </div>
+        </div>
+        <div class="coopMsg" id="coopMsg" role="status" aria-live="polite"></div>
+      </section>
+      <aside class="coopFriends" aria-label="Friends">
+        <div class="frHead"><h3>Friends</h3><span>Your friend code <b id="frMe"></b><button class="coopCopy" id="frCopy" type="button">Copy</button></span></div>
+        <div class="frAdd"><input id="frCode" maxlength="6" placeholder="FRIEND CODE" autocomplete="off" spellcheck="false" aria-label="A friend's code"><button class="coopCopy" id="frAddBtn" type="button">Add friend</button></div>
+        <div class="coopMsg" id="frMsg" role="status" aria-live="polite"></div>
+        <ul class="frList" id="frList"></ul>
+        <div class="frRecentWrap" id="frRecentWrap" hidden><h4>Played with recently</h4><ul class="frList" id="frRecent"></ul></div>
+      </aside>
+    </div>
+  </div>
+</div>
+<!-- a friend's invite, on the title whether co-op's open or not (net/friends.js: invRender) -->
+<div id="invToast" hidden role="alert"><span class="invTx"><b></b> invited you to their game</span><button class="coopCopy go" id="invJoin" type="button">Join</button><button class="coopCopy" id="invNo" type="button">Not now</button></div>
 
 <div class="screen" id="upgrade" hidden>
   <div class="wrap">
@@ -280,7 +332,7 @@
       <div><div class="histHead"><span>Your skills, perks and aid</span><b id="pHistN">0</b></div><div class="hist" id="pHist"></div></div>
       <div><div class="histHead"><span>Gear you've bought and been given</span><b id="pBuyN">0</b></div><div class="hist" id="pBuy"></div></div>
     </div>
-    <div class="btns" id="pBtns"><button class="btn" id="resumeBtn" type="button">Resume</button><button class="btn ghost" id="setBtnPause" type="button">Settings</button><button class="btn ghost" id="pMenuBtn" type="button">Main menu</button><button class="btn ghost" id="quitBtn" type="button">Abandon run</button></div>
+    <div class="btns mlist" id="pBtns"><button class="btn" id="resumeBtn" type="button">Resume</button><button class="btn ghost" id="setBtnPause" type="button">Settings</button><button class="btn ghost" id="pMenuBtn" type="button">Main menu</button><button class="btn ghost" id="quitBtn" type="button">Abandon run</button></div>
     <div class="btns pSure" id="pSure" hidden><span class="pSureQ" id="pSureQ" role="alert"></span><button class="btn" id="pSureYes" type="button"></button><button class="btn ghost" id="pSureNo" type="button">Cancel</button></div>
   </div>
 </div>
@@ -291,7 +343,7 @@
     <h2 id="deadTitle">Dead on wave 1</h2>
     <div class="tally" id="deadStats"></div>
     <details class="runMore" id="runMore"><summary>Full run stats</summary><div class="rsBody" id="runStatsBody"></div></details>
-    <div class="btns"><button class="btn" id="againBtn" type="button">New run <kbd data-bind="wave">T</kbd></button><button class="btn ghost" id="menuBtn" type="button">Main menu <kbd data-key="m">M</kbd></button><span class="note" id="deadBest"></span></div>
+    <div class="btns mlist"><button class="btn" id="againBtn" type="button">New run <kbd data-bind="wave">T</kbd></button><button class="btn ghost" id="menuBtn" type="button">Main menu <kbd data-key="m">M</kbd></button><span class="note" id="deadBest"></span></div>
   </div>
 </div>
 <!-- menu wear (styles/screens.css): worn print for the big titles and the stamp, a wobble for brush strokes -->
@@ -316,7 +368,7 @@
 <div id="settings" hidden>
   <div class="setBack"></div>
   <div class="setPanel" role="dialog" aria-modal="true" aria-labelledby="setTitle">
-    <div class="setTop"><h3 id="setTitle">Settings</h3><div class="setTabs" id="setTabs" role="tablist" aria-label="Settings pages"><button type="button" role="tab" data-tab="general" aria-selected="true">General</button><button type="button" role="tab" data-tab="controls" aria-selected="false">Controls</button><i class="setTabInk" aria-hidden="true"></i></div><button class="setX" id="setX" type="button" aria-label="Close settings"><svg data-gi="crossMark" aria-hidden="true"></svg></button></div>
+    <div class="setTop"><h3 id="setTitle">Settings</h3><div class="setTabs" id="setTabs" role="tablist" aria-label="Settings pages"><button type="button" role="tab" data-tab="general" aria-selected="true">General</button><button type="button" role="tab" data-tab="controls" aria-selected="false">Controls</button><i class="setTabInk" aria-hidden="true"></i></div><button class="setX" id="setX" type="button" aria-label="Close settings"><svg data-gi="crossMark" aria-hidden="true"></svg></button><button class="mClose" id="setX" type="button" aria-label="Close" title="Close"><svg data-gi="crossMark" aria-hidden="true"></svg></button></div>
     <div class="setBody" id="setBody"></div>
     <div class="setFoot"><button class="setLink" id="setReset" type="button">Reset to defaults</button><button class="btn sm" id="setDone" type="button">Done</button></div>
   </div>

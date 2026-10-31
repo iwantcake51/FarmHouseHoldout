@@ -20,7 +20,7 @@ import { SFX } from '../audio/sfx.js';
 import { soundAt } from '../audio/spatial.js';
 import { mouseDown } from '../input/keyboard-mouse.js';
 import { tStick } from '../input/touch.js';
-import { MAG_DROP_T } from './reload.js';
+import { MAG_DROP_T, startReload } from './reload.js';
 import { rackCam } from '../game/camera.js';
 import { ANIM } from '../player/animation.js';
 import { holdOf } from '../player/hold.js';
@@ -341,7 +341,15 @@ function settleFlat(c, g, fy) {
   const bar = c.kind === 'bar', q = g.quaternion, a = _sfA.set(0, bar ? 1 : 0, bar ? 0 : 1).applyQuaternion(q).normalize();
   if (bar) { _sfB.set(a.x, 0, a.z); if (_sfB.lengthSq() < 1e-6) _sfB.set(1, 0, 0); _sfB.normalize(); } else _sfB.set(0, a.y < 0 ? -1 : 1, 0);
   const q1 = new THREE.Quaternion().setFromUnitVectors(a, _sfB).multiply(q);
-  c.settle = { t: 0, q0: q.clone(), q1, y0: g.position.y, y1: fy + (c.rest ? c.restY : c.r), dur: FLAT_SETTLE };
+  c.settle = { t: 0, q0: q.clone(), q1, y0: g.position.y, y1: fy + restLift(g, q1), dur: FLAT_SETTLE };
+}
+// how high a piece's middle sits off the ground lying turned q: its own lowest point, so a thick plate or bar lies on
+// the floor rather than sunk half through it (a fixed lift only suited the thinnest)
+const _rsB = new THREE.Box3(), _rsQ = new THREE.Quaternion(), _rsP = new V3();
+function restLift(g, q) {
+  _rsQ.copy(g.quaternion); _rsP.copy(g.position); g.quaternion.copy(q); g.position.set(0, 0, 0); g.updateMatrixWorld(true);
+  _rsB.setFromObject(g); g.quaternion.copy(_rsQ); g.position.copy(_rsP); g.updateMatrixWorld(true);
+  return _rsB.isEmpty() ? 0.01 : -_rsB.min.y + 0.001;
 }
 export function stepDebris(list, dt) {
   tinkT -= dt;
@@ -526,7 +534,7 @@ export function tickCycle(dt) {
   if (W8.grabT > 0) { if (curId() !== W8.grabId || W8.reloading) W8.grabT = 0; else { W8.grabT -= dt; if (W8.grabT > 0) return; W8.grabT = 0; if (W8.grabHeld && W8.held[W8.grabId] && (W8.mag[W8.grabId] || 0) > 0) { chamberCycle(W8.grabId); delete W8.held[W8.grabId]; } } }
   { const id = curId(); if (!W8.cyc && needsRack(id) && (W8.mag[id] || 0) > 0 && !W8.reloading && !swapSt && !(P.bandT > 0) && !P.vault && (!W8.held[id] || ((mouseDown || P.fireQ || (tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.4)) && !openSt))) { chamberCycle(id); delete W8.held[id]; } }   // (held open: only once you go to fire)
   const c = W8.cyc; if (!c) return;
-  if (curId() !== c.id) { if (!c.done) ejectCasing(W(c.id).ammo, 1, EJECT[c.id]); W8.cyc = null; return; }
+  if (curId() !== c.id) { if (!c.done) ejectCasing(W(c.id).ammo, 1, EJECT[c.id]); W8.cyc = null; W8.relAfterCyc = null; return; }
   if (P.vault) return;   // never worked mid-vault (your hands are on the sill or the rail): it waits where it is till you're over
   c.t += dt; const p = (c.t - c.delay) / c.dur, B = c.v.beat;
   // the case flies out as the action hits its rear stop
@@ -535,5 +543,5 @@ export function tickCycle(dt) {
   if (c.stop && p >= c.stop) { W8.cyc = null; return; }   // pulled back to load (openAction): left there
   // home: a round's chambered, if there was one to feed
   if (!c.homed && p >= B.home) { c.homed = true; if ((W8.mag[c.id] || 0) > 0) W8.open[c.id] = false; }
-  if (p >= 1) W8.cyc = null;
+  if (p >= 1) { W8.cyc = null; if (W8.relAfterCyc === c.id) { W8.relAfterCyc = null; startReload(); } }   // (a reload asked for while it was worked: weapons/reload.js)
 }

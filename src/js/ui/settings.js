@@ -23,7 +23,7 @@ const THEMES = { ember: { name: 'Ember', rgb: '216,105,44' }, crimson: { name: '
 // colour blind modes: the whole screen through a colour matrix (an SVG filter on the page), each daltonized: what the
 // eye can't tell apart (CB_SIM, how it sees) shifted into colours it can, I + shift × (I - sim)
 const SET_SHAKE = [50, 100];   // screen shake's slider runs from half the full shake to all of it
-const SET_DEF = { ao: 'on', bloom: 'normal', shadows: 'high', res: 'auto', fps: false, hud: 'normal', theme: 'ember', cb: 'off', vol: 80, music: 60, shake: 75, view: 'iso', fov: 75, sens: 100, smooth: 'off' };
+const SET_DEF = { ao: 'on', bloom: 'normal', shadows: 'high', res: 'auto', fps: false, hud: 'normal', theme: 'ember', cb: 'off', vol: 80, music: 60, shake: 75, view: 'iso', fov: 75, sens: 100, smooth: 'off', mode: 'normal', lean: 'toggle' };
 export const SET = Object.assign({}, SET_DEF);
 try { Object.assign(SET, JSON.parse(localStorage.getItem('kessler-settings') || '{}')); } catch (e) {}
 SET.shake = clamp(+SET.shake || SET_DEF.shake, SET_SHAKE[0], SET_SHAKE[1]);   // (a value saved before the range moved)
@@ -45,10 +45,10 @@ const SET_ROWS = [
   { k: 'theme', name: 'Theme colour', note: 'The highlight on the menus, the HUD and the crosshair', opts: Object.entries(THEMES).map(([k, t]) => [k, `<i class="sSw" style="--sw:rgb(${t.rgb})"></i>${t.name}`]) },
   { k: 'cb', name: 'Colour blind mode', note: 'Shifts the colours of the whole screen apart for your eyes', opts: [['off', 'Off'], ['prot', 'Protanopia (red)'], ['deut', 'Deuteranopia (green)'], ['trit', 'Tritanopia (blue)']] },
   { head: 'Camera' },
-  { k: 'view', name: 'View', note: 'From above the farm, or out of your own eyes (the mouse looks about)', opts: [['iso', 'Isometric'], ['fp', 'First person']] },
   { k: 'fov', name: 'Field of view', note: 'How wide you see in first person', min: 60, max: 100, unit: '°' },
   { k: 'sens', name: 'Mouse sensitivity', note: 'How far the view turns for the mouse, in first person', min: 25, max: 200, unit: '%' },
   { k: 'smooth', name: 'Mouse smoothing', note: 'Eases the view after the mouse over a few frames, in first person (off: it turns the moment the mouse does)', opts: [['off', 'Off'], ['on', 'On']] },
+  { k: 'lean', name: 'Lean', note: 'Toggle: a press leans you over and another straightens you up. Hold: you lean only while the key is held', opts: [['toggle', 'Toggle'], ['hold', 'Hold']] },
   { head: 'Sound' },
   { k: 'vol', name: 'Master volume', min: 0, max: 100, unit: '%' },
   { k: 'music', name: 'Music', note: 'The piano on the menus', min: 0, max: 100, unit: '%' },
@@ -87,14 +87,25 @@ function applySettings() {
 // the view to play in: your own pick, or in a co-op run the host's, which everyone plays in (picked in the lobby: net/net.js)
 const viewFor = () => netLink() ? NET.view : SET.view;
 // the view key: into first person and back, or out of the free camera to the view picked
-// (only out of the free camera: from above or from your own eyes is picked before a run, in the settings, and stays for
-// it; mid-run only the cheat menu changes it)
+// (only out of the free camera: from above or from your own eyes is picked before a run, on the title screen or in the
+// co-op lobby, and stays for it; mid-run only the cheat menu changes it)
 export function toggleView() { if (VCAM.mode === 'free') pickView(viewFor()); }
 // a view picked (the cheat menu's free camera too, which isn't kept)
 export function pickView(v) {
-  if (v !== 'free' && !netLink()) { SET.view = v; saveSettings(); if (!$('settings').hidden) buildSettings(); }   // (the host's view in co-op isn't kept as yours)
+  if (v !== 'free' && !netLink()) { SET.view = v; saveSettings(); titleViewRender(); }   // (the host's view in co-op isn't kept as yours)
   setViewMode(v);
 }
+// the view picked on the title screen, under the story: isometric or first person, for the run you start (a co-op game
+// has its own in the lobby, the host's: net/lobby.js)
+function titleViewRender() { for (const b of $('titleView').querySelectorAll('button')) b.setAttribute('aria-checked', String(b.dataset.v === SET.view)); }
+$('titleView').onclick = e => { const b = e.target.closest('button'); if (b && state === 'title' && !netLink()) pickView(b.dataset.v); };
+titleViewRender();
+// and the run's mode beside it, the same way: normal, or no perks (no cards and no aid between waves, no slow motion as a
+// wave clears, the next break a second after the last zombie falls: waves/waves.js). A co-op game has its own in the
+// lobby, the host's (net/lobby.js)
+function titleModeRender() { for (const b of $('titleMode').querySelectorAll('button')) b.setAttribute('aria-checked', String(b.dataset.m === SET.mode)); }
+$('titleMode').onclick = e => { const b = e.target.closest('button'); if (b && state === 'title' && !netLink()) { SET.mode = b.dataset.m; saveSettings(); titleModeRender(); } };
+titleModeRender();
 // the frame-rate counter: frames counted over half a second
 const FPS = { n: 0, t: 0 };
 export function tickFps(rdt) { if (!SET.fps) return; FPS.n++; FPS.t += rdt; if (FPS.t >= 0.5) { $('fps').textContent = Math.round(FPS.n / FPS.t) + ' fps'; FPS.n = 0; FPS.t = 0; } }
@@ -105,9 +116,8 @@ function setRowHtml(r) {
   if (r.head) return `<div class="setHeadRow">${r.head}</div>`;
   const lab = `<div class="setLab"><b>${r.name}</b>${r.note ? `<small>${r.note}</small>` : ''}</div>`;
   if (r.opts) {
-    const cur = r.opts.find(o => o[0] === SET[r.k]) || r.opts[0], held = r.k === 'view' && (state !== 'title' || NET.on);   // (the view's kept for the run: toggleView; in co-op the host picks it)
-    const why = NET.on ? 'In co-op the host picks it for everyone, in the lobby' : 'Picked before a run, and kept for it (the cheat menu can switch it)';
-    return `<div class="setRow${held ? ' held' : ''}">${held ? `<div class="setLab"><b>${r.name}</b><small>${why}</small></div>` : lab}<div class="sDrop" data-k="${r.k}"><button type="button" class="sDropBtn"${held ? ' disabled' : ''} aria-haspopup="listbox" aria-expanded="false"><span>${cur[1]}</span>${CHEV}</button>
+    const cur = r.opts.find(o => o[0] === SET[r.k]) || r.opts[0];
+    return `<div class="setRow">${lab}<div class="sDrop" data-k="${r.k}"><button type="button" class="sDropBtn" aria-haspopup="listbox" aria-expanded="false"><span>${cur[1]}</span>${CHEV}</button>
       <ul class="sDropList" role="listbox" tabindex="-1">${r.opts.map(([v, t], i) => `<li role="option" data-v="${v}" style="--i:${i}" aria-selected="${v === cur[0]}">${t}</li>`).join('')}</ul></div></div>`;
   }
   if (r.bool) return `<div class="setRow">${lab}<button type="button" class="sTog" role="switch" data-k="${r.k}" aria-checked="${!!SET[r.k]}" aria-label="${r.name}"><i></i></button></div>`;
@@ -164,6 +174,7 @@ export function closeSettings() {
   if (state === 'play') wantLock();   // (back to the game in first person: the mouse straight back, game/view-cam.js)
   setCloseT = setTimeout(() => { el.hidden = true; }, 340);   // (once it's popped back down: styles/settings.css)
 }
+$('setX').onclick = () => closeSettings();   // (the cross on the panel, as Done)
 // a dropdown: opens with its list unrolling under it, closes on a pick, a click anywhere else, or Esc
 function closeDrops(except) { document.querySelectorAll('.sDrop.open').forEach(d => { if (d === except) return; d.classList.remove('open'); const row = d.closest('.setRow'); if (row) row.classList.remove('dropOn'); d.querySelector('.sDropBtn').setAttribute('aria-expanded', 'false'); }); }
 function toggleDrop(d, on) {
@@ -212,6 +223,16 @@ $('setBody').addEventListener('keydown', e => {
 $('settings').addEventListener('pointerdown', e => { if (!e.target.closest('.sDrop')) closeDrops(); if (e.target.classList.contains('setBack')) closeSettings(); });
 $('setDone').onclick = closeSettings;
 $('setX').onclick = closeSettings;
-$('setReset').onclick = () => { if (setTab === 'controls') { stopBinding(); resetBinds(); buildSettings(); return; } Object.assign(SET, SET_DEF); buildSettings(); applySettings(); saveSettings(); };
+// (the view's left as it is: it's picked on the title, not in here; and every key put back at once asks first, a second
+// click within a few seconds)
+let resetAsk = 0;
+$('setReset').onclick = () => {
+  const b = $('setReset');
+  if (setTab === 'controls') {
+    if (performance.now() - resetAsk > 3000) { resetAsk = performance.now(); b.dataset.txt = b.dataset.txt || b.textContent; b.textContent = 'Reset every key? Click again'; b.classList.add('ask'); setTimeout(() => { if (performance.now() - resetAsk >= 2900) { b.textContent = b.dataset.txt; b.classList.remove('ask'); } }, 3000); return; }
+    resetAsk = 0; b.textContent = b.dataset.txt || b.textContent; b.classList.remove('ask'); stopBinding(); resetBinds(); buildSettings(); return;
+  }
+  const view = SET.view; Object.assign(SET, SET_DEF, { view }); buildSettings(); applySettings(); saveSettings();
+};
 ['setBtnTitle', 'setBtnPause'].forEach(id => { $(id).onclick = openSettings; });
 applySettings();

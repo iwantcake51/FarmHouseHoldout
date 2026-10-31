@@ -68,11 +68,11 @@ function attachmentCards() {
     const own = false, nm = roundName(id, k), txt = roundText(id, k);
     out.push({ ic: 'ammo', group, for: () => forYour(id), fx: () => k === roundOn(id) ? [] : roundFx(id, k), cost: own ? 0 : hitsHarder(id, ROUNDS[k].fx) ? dmgCost(id, ROUNDS[k].cost) : ROUNDS[k].cost,
       title: () => (k === on ? 'Loaded: ' : own ? 'Load ' : '') + nm, desc: () => txt + (own || k === 'std' ? '' : ' · One kind loaded at a time'), why: () => k === roundOn(id) ? 'Loaded' : '',
-      make: () => { const fx0 = roundFx(id, k); loadRound(id, k, true); glowGun(id); feed('ammo', 0, nm); if (!own) gotGear({ ic: 'ammo', kind: 'Rounds', name: nm, gun: id, text: txt + ' Loaded now; X swaps between the kinds you own.', fx: fx0 }); } });
+      make: () => { const fx0 = roundFx(id, k); loadRound(id, k, true); glowGun(id); feed('ammo', 0, nm); if (!own) gotGear({ ic: 'ammo', kind: 'Rounds', name: nm, gun: id, text: txt + ' Loaded now; ' + keyOn('ammo') + ' swaps between the kinds you own.', fx: fx0 }); } });
   }
   // the bayonet and the stock go on this gun alone (gunAtt, game/run-state.js)
   const fitAtt = k => { setAtt(id, k, true); buildGuns(id); glowGun(id); };
-  if (D.slot === 'long' && !ownAtt(id, 'bayonet')) out.push({ ic: 'att', group, for: () => forYour(id), fx: () => [{ t: 'Shove stabs for 45', good: true }], cost: 14, title: () => 'Bayonet', desc: () => 'Your shove (V) with this gun stabs instead', why: () => '', make: () => { fitAtt('bayonet'); feed('gear', 0, 'Bayonet'); gotGear({ ic: 'gear', kind: 'Attachment', name: 'Bayonet', gun: id, text: 'Shove (V) with this gun in your hands stabs for 45 damage.' }); } });
+  if (D.slot === 'long' && !ownAtt(id, 'bayonet')) out.push({ ic: 'att', group, for: () => forYour(id), fx: () => [{ t: 'Shove stabs for 45', good: true }], cost: 14, title: () => 'Bayonet', desc: () => 'Your shove (' + keyOn('shove') + ') with this gun stabs instead', why: () => '', make: () => { fitAtt('bayonet'); feed('gear', 0, 'Bayonet'); gotGear({ ic: 'gear', kind: 'Attachment', name: 'Bayonet', gun: id, text: 'Shove (' + keyOn('shove') + ') with this gun in your hands stabs for 45 damage.' }); } });
   if (D.slot === 'side' && !ownAtt(id, 'stock')) out.push({ ic: 'att', group, for: () => forYour(id), fx: () => [{ t: 'KICK −45%', good: true }, { t: 'RECOIL BUILD-UP −40%', good: true }], cost: 12, title: () => 'Shoulder stock', desc: () => 'Braced on your shoulder, it kicks less and fast shots stay tighter', why: () => '', make: () => { fitAtt('stock'); feed('gear', 0, 'Shoulder stock'); gotGear({ ic: 'gear', kind: 'Attachment', name: 'Shoulder stock', gun: id, text: '45% less kick, and quick shots open up 40% slower.' }); } });
   return out;
 }
@@ -133,10 +133,11 @@ const topMod = m => !!MODS[m].conv || !!MODS[m].fm || !!(MOD_LINE[m] && MODS[m].
 // later mod in its first one's place (the auto sear where the burst conversion was), so buying or improving one never
 // moves the cards round
 const modSlot = m => Object.keys(MODS).indexOf(MOD_LINE[m] && MODS[m].need && MOD_LINE[MODS[m].need] ? MODS[m].need : m);
+// (a mod with levels to it shows its stars from the start, none yet filled, as it does once it's yours: MOD_UP)
 function tinkerCards(conv = false) {
   const id = curId(), D = id && W(id); if (!D) return [];
   const out = [], group = conv ? undefined : gearGroup(D);
-  modsFor(id).filter(m => !topMod(m) === !conv).forEach(m => out.push({ ic: 'gear', group, at: modSlot(m), tier: MOD_LINE[m] ? () => MOD_LINE[m] : undefined, for: () => forYour(id), fx: () => modFx(m), cost: tinkerNew(m, id), title: () => MODS[m].name, desc: () => 'New mod · ' + MODS[m].text + multiNote(id, MODS[m].stat), why: () => '',
+  modsFor(id).filter(m => !topMod(m) === !conv).forEach(m => out.push({ ic: 'gear', group, at: modSlot(m), tier: MOD_LINE[m] ? () => MOD_LINE[m] : MOD_UP[m] ? () => [0, MOD_MAX] : undefined, for: () => forYour(id), fx: () => modFx(m), cost: tinkerNew(m, id), title: () => MODS[m].name, desc: () => 'New mod · ' + MODS[m].text + multiNote(id, MODS[m].stat), why: () => '',
     make: () => { const fx0 = modFx(m); magChange(id, () => addMod(id, m)); buildGuns(id); glowGun(id); feed('gear', 0, MODS[m].name); gotGear({ ic: 'gear', kind: 'New mod', name: MODS[m].name, gun: id, text: MODS[m].text + magNote(id), fx: fx0 }); } }));
   modUps(id).filter(m => !topMod(m) === !conv).forEach(m => out.push({ ic: 'gear', group, at: modSlot(m), tier: () => [modLv(m), MOD_LINE[m] ? MOD_LINE[m][1] : MOD_MAX], for: () => forYour(id), fx: () => improveFx(id, m), get cost() { return tinkerUp(m, id); }, title: () => MODS[m].names ? modNameAt(m, modLv(m)) + ' → ' + modNameAt(m, modLv(m) + 1) : MODS[m].name + ' ' + roman(modLv(m)) + ' → ' + roman(modLv(m) + 1), desc: () => 'Improve · ' + MOD_UP[m].t + multiNote(id, MOD_UP[m].up), why: () => '',
     make: () => { const fx0 = improveFx(id, m); magChange(id, () => improveMod(m)); buildGuns(id); glowGun(id); feed('gear', 0, modName(m)); gotGear({ ic: 'gear', kind: 'Mod improved', name: modName(m), gun: id, text: MOD_UP[m].t + '.' + magNote(id), fx: fx0 }); } }));

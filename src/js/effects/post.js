@@ -8,8 +8,10 @@
 // The camera's orthographic, so a point's place in view comes straight from where it is on screen and its depth:
 // that's what makes the occlusion cheap and exact here.
 
+import { lodFigures } from './lod.js';
+import { cullForests, stepSunShadows } from '../world/tree-cull.js';
 import { cam, hemi, OVER_LAYER, R, scene, sun, viewRect } from '../core/renderer.js';
-import { clamp } from '../core/math.js';
+import { clamp, smooth } from '../core/math.js';
 import { MIST, MIST_GLSL, MIST_U, mistTick, mistUniforms } from '../world/mist.js';
 import { flash } from './muzzle-flash.js';
 import { heatBloom, heatGlowing } from './supp-heat.js';
@@ -162,35 +164,22 @@ void main() {
 const copyMat = psMat(`
 uniform sampler2D tSrc; varying vec2 vUv;
 void main() { gl_FragColor = vec4(texture2D(tSrc, vUv).rgb, 1.0); }`, { tSrc: { value: null } });
-// a fog round's fog (world/mist.js), marched at half the resolution into its own target (PS_RT.mist): what it lays
-// over each pixel, its colour with the light of a beam in the air under it (rgb: premultiplied, so the composite's
-// just c * (1 - a) + rgb) and how much it hides (a). It's soft enough not to need every pixel's own march, and a
-// quarter of the pixels is a quarter of its cost, its dearest part by far. Each of its pixels is marched to the scene's
-// depth at one point of the four it covers (mistD, read a quarter of a pixel off their shared corner, so it's always
-// the same one), and the composite brings it up to full size reading the four nearest by how near their depth is to
-// its own pixel's (MIST_UP), so a zombie in the clear in front of thick fog keeps a clean edge instead of a fringe of
-// the fog behind it
-const MIST_UP = { near: 0.05, abs: 0.12 };
+// a fog round's fog (world/mist.js), marched at a third of the resolution (MIST_RES) into its own target (PS_RT.mist):
+// what it lays over each pixel, its colour with the light of a beam in the air under it (rgb: premultiplied, so the
+// composite's just c * (1 - a) + rgb) and how much it hides (a). It's soft enough not to need every pixel's own march,
+// and a ninth of the pixels is a ninth of its cost, its dearest part by far. Each of its pixels is marched to the
+// scene's depth at one point of the ones it covers (mistD: the middle one, or with an even block, a quarter of a pixel
+// off the shared corner of the middle four, uMistOff, so it's always the same one), and the composite brings it up to
+// full size reading the four nearest by how near their depth is to its own pixel's (MIST_UP), so a zombie in the clear
+// in front of thick fog keeps a clean edge instead of a fringe of the fog behind it
+const MIST_UP = { near: 0.05, abs: 0.12 }, MIST_RES = 3;
 const MIST_D = `
-uniform vec2 uFullPx;
-float mistD(vec2 uv) { return viewD(uv - uFullPx * 0.25); }`;
-const mistMat = psMat(`
-${PS_DEPTH}
-${MIST_D}
-varying vec2 vUv;
-${MIST_GLSL}
-void main() {
-  vec4 m = mistOf(vUv, mistD(vUv));
-  gl_FragColor = vec4(m.rgb * m.a + mGlow * (1.0 - m.a), m.a);
-}`, { ...MIST_U, tDepth: { value: null }, uNF: { value: new THREE.Vector3() }, uFullPx: { value: new THREE.Vector2() } });
-// all of it on the screen: the scene, darkened by its occlusion (brought up from half size smoothly, read between
-// its texels), the fog over it, and the glow added over that
-const compMat = psMat(`
-${PS_DEPTH}
-${MIST_D}
-uniform sampler2D tCol, tAO, tB1, tB2, tMist; uniform float uAoK, uAoPow, uB1, uB2, uFogN, uFogF, uDbg, uMistOn; uniform vec2 uMistPx;
-varying vec2 vUv;
-// the fog's half-size picture at uv, whose scene is d out: its four nearest pixels, each by how near it is and how
+uniform vec2 uFullPx; uniform float uMistOff;
+float mistD(vec2 uv) { return viewD(uv - uFullPx * uMistOff); }`;
+// (the fog's picture brought up to full size, by depth: the composite's, and a scope's, mistOver)
+const MIST_UPS = `
+uniform sampler2D tMist; uniform vec2 uMistPx;
+// the fog's small picture at uv, whose scene is d out: its four nearest pixels, each by how near it is and how
 // near its depth is to d (and if none of them is anywhere near, the nearest in depth)
 vec4 mistUp(vec2 uv, float d) {
   vec2 p = uv / uMistPx - 0.5, f = fract(p), b = (floor(p) + 0.5) * uMistPx;
@@ -202,7 +191,60 @@ vec4 mistUp(vec2 uv, float d) {
     s += m * w; ws += w; if (dd < bd) { bd = dd; best = m; }
   }
   return ws > 1e-3 ? s / ws : best;
+}`;
+const mistMat = psMat(`
+${PS_DEPTH}
+${MIST_D}
+varying vec2 vUv;
+${MIST_GLSL}
+void main() {
+  vec4 m = mistOf(vUv, mistD(vUv));
+  gl_FragColor = vec4(m.rgb * m.a + mGlow * (1.0 - m.a), m.a);
+}`, { ...MIST_U, tDepth: { value: null }, uNF: { value: new THREE.Vector3() }, uFullPx: { value: new THREE.Vector2() }, uMistOff: { value: 0 } });
+// a lens flare off the sun or the moon, from your own eyes (and the free camera): a soft glare round it with a faint
+// six-pointed star, and a few dim ghosts of it strung along the line from it through the middle of the screen, each
+// faintly tinted as a lens's coatings tint them (FLARE: t, where along that line, past the middle on the far side for a
+// minus; r, how big; w, how bright; tint). Kept faint, never in the way: it's only there while the sun or the moon itself
+// is in sight (the sky where it is, no wall or tree or roof in front: read off the scene's depth round it), it fades as
+// it nears the edge of the view or goes down to the horizon, and the moon's is far weaker (moon); fog thins it (FLARE_K)
+const FLARE = [{ t: -0.28, r: 0.028, w: 0.11, tint: [1.0, 0.85, 0.6] }, { t: -0.6, r: 0.055, w: 0.065, tint: [0.6, 1.0, 0.75] }, { t: -0.95, r: 0.1, w: 0.05, tint: [0.55, 0.7, 1.0], ring: 1 },
+  { t: 0.42, r: 0.018, w: 0.09, tint: [1.0, 0.7, 0.85] }, { t: -1.35, r: 0.15, w: 0.026, tint: [0.8, 0.9, 1.0] }];
+const FLARE_K = { glare: 0.11, wide: 0.045, star: 0.05, moon: 0.3, edge: [0.95, 1.25], low: [-0.01, 0.07], fog: 0.85 };
+const flareMat = psMat(`
+uniform sampler2D tDepth; uniform vec2 uPos, uAsp; uniform vec3 uCol; uniform float uK;
+varying vec2 vUv;
+float ghost(vec2 p, vec2 c, float r, float ring) { float d = length((p - c) * uAsp); return ring > 0.5 ? exp(-pow((d - r) / (r * 0.08), 2.0)) * 0.6 + (1.0 - smoothstep(r * 0.2, r, d)) * 0.25 : 1.0 - smoothstep(r * 0.35, r, d); }
+void main() {
+  // how much of it's in sight: the sky's (nothing drawn nearer) over a small patch round it
+  float vis = 0.0;
+  for (int i = 0; i < 9; i++) { vec2 o = vec2(float(i - (i / 3) * 3) - 1.0, float(i / 3) - 1.0) * 0.006 / uAsp; vis += step(0.99999, texture2D(tDepth, clamp(uPos + o, 0.001, 0.999)).r); }
+  float k = uK * vis / 9.0; if (k < 0.002) discard;
+  vec2 q = (vUv - uPos) * uAsp, L = uPos - 0.5; float d = length(q), a = atan(q.y, q.x);
+  vec3 col = uCol * (${FLARE_K.glare.toFixed(3)} * exp(-d * 10.0) + ${FLARE_K.wide.toFixed(3)} * exp(-d * 3.2) + ${FLARE_K.star.toFixed(3)} * pow(abs(cos(a * 3.0)), 80.0) * exp(-d * 5.0));
+${FLARE.map(g => `  col += uCol * vec3(${g.tint.map(v => v.toFixed(2)).join(', ')}) * ${g.w.toFixed(3)} * ghost(vUv, 0.5 + L * ${g.t.toFixed(2)}, ${g.r.toFixed(3)}, ${(g.ring || 0).toFixed(1)});`).join('\n')}
+  gl_FragColor = vec4(col * k, 1.0);
+}`, { tDepth: { value: null }, uPos: { value: new THREE.Vector2() }, uAsp: { value: new THREE.Vector2(1, 1) }, uCol: { value: new THREE.Color() }, uK: { value: 0 } });
+Object.assign(flareMat, { transparent: true, blending: THREE.AdditiveBlending });
+const _flP = new THREE.Vector3();
+function lensFlare(target, W, H) {
+  if (!cam.isPerspectiveCamera || POST.noFlare) return;
+  const d = _flP.copy(sun.position).normalize(), up = d.y;
+  _flP.multiplyScalar(100).add(cam.position).project(cam); if (_flP.z > 1) return;
+  const e = Math.max(Math.abs(_flP.x), Math.abs(_flP.y)), lum = sun.color.r * 0.3 + sun.color.g * 0.59 + sun.color.b * 0.11;
+  const ss = (a, b, x) => smooth(clamp((x - a) / (b - a), 0, 1));
+  const k = clamp(lum * 1.2, 0, 1) * (1 - clamp(curDark, 0, 1) * (1 - FLARE_K.moon)) * (1 - ss(FLARE_K.edge[0], FLARE_K.edge[1], e)) * ss(FLARE_K.low[0], FLARE_K.low[1], up) * (1 - FLARE_K.fog * MIST.k);
+  if (k < 0.002) return;
+  const U = flareMat.uniforms; U.tDepth.value = PS_RT.sc.depthTexture; U.uPos.value.set(_flP.x * 0.5 + 0.5, _flP.y * 0.5 + 0.5); U.uAsp.value.set(W / H, 1); U.uCol.value.copy(sun.color); U.uK.value = k;
+  psPass(flareMat, target);
 }
+// all of it on the screen: the scene, darkened by its occlusion (brought up from half size smoothly, read between
+// its texels), the fog over it, and the glow added over that
+const compMat = psMat(`
+${PS_DEPTH}
+${MIST_D}
+${MIST_UPS}
+uniform sampler2D tCol, tAO, tB1, tB2; uniform float uAoK, uAoPow, uB1, uB2, uFogN, uFogF, uDbg, uMistOn;
+varying vec2 vUv;
 void main() {
   vec3 c = texture2D(tCol, vUv).rgb;
   if (uAoK > 0.0) {
@@ -217,7 +259,7 @@ void main() {
   c += texture2D(tB1, vUv).rgb * uB1 + texture2D(tB2, vUv).rgb * uB2;
   gl_FragColor = vec4(c, 1.0);
   gl_FragDepth = texture2D(tDepth, vUv).r;   // (the scene's depth, for what's drawn over the fog to be hidden behind it)
-}`, { tMist: { value: null }, uMistOn: { value: 0 }, uMistPx: { value: new THREE.Vector2() }, uFullPx: { value: new THREE.Vector2() }, tDepth: { value: null }, uNF: { value: new THREE.Vector3() }, tCol: { value: null }, tAO: { value: null }, tB1: { value: null }, tB2: { value: null }, uAoK: { value: AO.k }, uAoPow: { value: AO.pow }, uB1: { value: 0 }, uB2: { value: 0 }, uFogN: { value: 40 }, uFogF: { value: 70 }, uDbg: { value: 0 } });
+}`, { tMist: { value: null }, uMistOn: { value: 0 }, uMistPx: { value: new THREE.Vector2() }, uFullPx: { value: new THREE.Vector2() }, uMistOff: { value: 0 }, tDepth: { value: null }, uNF: { value: new THREE.Vector3() }, tCol: { value: null }, tAO: { value: null }, tB1: { value: null }, tB2: { value: null }, uAoK: { value: AO.k }, uAoPow: { value: AO.pow }, uB1: { value: 0 }, uB2: { value: 0 }, uFogN: { value: 40 }, uFogF: { value: 70 }, uDbg: { value: 0 } });
 // (the composite writes the scene's depth with its colour, whatever's there: depth tested, as only then is it written)
 Object.assign(compMat, { depthTest: true, depthWrite: true, depthFunc: THREE.AlwaysDepth });
 const psQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), copyMat); psQuad.frustumCulled = false;
@@ -244,13 +286,38 @@ export function postTargets() {
   PS_RT.ao = psTarget(...h2); PS_RT.ao2 = psTarget(...h2); PS_RT.hA = psTarget(...h2); PS_RT.hB = psTarget(...h2); PS_PREV.ok = false;
   PS_RT.b1 = psTarget(...h4); PS_RT.b1b = psTarget(...h4); PS_RT.b2 = psTarget(...h8); PS_RT.b2b = psTarget(...h8);
   // (the fog's in half floats where they can be drawn to: a lamp's glow in it goes past white)
-  PS_RT.mist = psTarget(...h2, R.extensions.has('EXT_color_buffer_float') ? { type: THREE.HalfFloatType } : null);
+  PS_RT.mist = psTarget(Math.ceil(W / MIST_RES), Math.ceil(H / MIST_RES), MIST_HF());
   PS_RT.gl = psTarget(...h2, { depthBuffer: true }); PS_RT.gl.depthTexture = new THREE.DepthTexture(...h2, THREE.UnsignedIntType); PS_RT.gl.depthTexture.minFilter = PS_RT.gl.depthTexture.magFilter = THREE.NearestFilter;
 }
 // the fog's shader built ahead with the farm's (game/loop.js: warmShaders), so the first fog round doesn't stall
 // building it as the fog rolls in
 export function postWarm() { psQuad.material = mistMat; R.compile(psScene, psCam); psQuad.material = copyMat; }
 function psPass(mat, target) { psQuad.material = mat; R.setRenderTarget(target); R.render(psScene, psCam); }
+// (the fog's in half floats where they can be drawn to: a lamp's glow in it goes past white)
+const MIST_HF = () => R.extensions.has('EXT_color_buffer_float') ? { type: THREE.HalfFloatType } : null;
+// a fog round's fog laid over a picture drawn from another camera (a scope's, effects/scope-view.js: its target, with
+// the depth it was drawn with), so what's down the scope is as hidden by it as it is round it: marched at half the
+// picture's size and brought up to it by depth as the frame's is
+const mistOverMat = psMat(`
+${PS_DEPTH}
+${MIST_D}
+${MIST_UPS}
+varying vec2 vUv;
+void main() { vec4 m = mistUp(vUv, viewD(vUv)); if (m.a < 0.002 && dot(m.rgb, vec3(1.0)) < 0.002) discard; gl_FragColor = m; }`, { tMist: { value: null }, uMistPx: { value: new THREE.Vector2() }, uFullPx: { value: new THREE.Vector2() }, uMistOff: { value: 0.25 }, tDepth: { value: null }, uNF: { value: new THREE.Vector3() } });
+Object.assign(mistOverMat, { transparent: true, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor });
+let mistOverRT = null;
+export function mistOver(target, camera) {
+  if (!POST.ok || !(MIST.k > 0.001) || !target.depthTexture) return;
+  const w = Math.ceil(target.width / 2), h = Math.ceil(target.height / 2), prev = R.getRenderTarget(), ac = R.autoClear;
+  if (!mistOverRT || mistOverRT.width !== w || mistOverRT.height !== h) { if (mistOverRT) mistOverRT.dispose(); mistOverRT = psTarget(w, h, MIST_HF()); }
+  mistUniforms(camera); if (!(MIST_U.uMist.value.w > 0)) return;
+  const M = mistMat.uniforms, nf = [camera.near, camera.far, camera.isPerspectiveCamera ? 1 : 0];
+  M.tDepth.value = target.depthTexture; M.uNF.value.set(...nf); M.uFullPx.value.set(1 / target.width, 1 / target.height); M.uMistOff.value = 0.25;
+  R.autoClear = true; psPass(mistMat, mistOverRT);
+  const O = mistOverMat.uniforms; O.tMist.value = mistOverRT.texture; O.uMistPx.value.set(1 / w, 1 / h); O.uFullPx.value.set(1 / target.width, 1 / target.height); O.tDepth.value = target.depthTexture; O.uNF.value.set(...nf);
+  R.autoClear = false; psPass(mistOverMat, target);
+  mistUniforms(); R.autoClear = ac; R.setRenderTarget(prev);
+}
 function psBlur(src, tmp, w, h) {
   const U = blurMat.uniforms;
   U.tSrc.value = src.texture; U.uDir.value.set(1 / w, 0); psPass(blurMat, tmp);
@@ -258,12 +325,13 @@ function psBlur(src, tmp, w, h) {
 }
 // the glowing things alone (GLOW_LAYER), when any are out: the camera seeing only them, nothing else drawn (no
 // shadows, no sky). How strongly they're to glow back, or 0 for none this frame
+// (nothing's moved since the frame was drawn: the scene's matrices aren't worked out all over again for it)
 function glowPass() {
   if (!(flash.visible || heatGlowing() || zombies.some(z => z.vis > 0.05 && !z.dead))) return 0;
   const lm = cam.layers.mask, bg = scene.background, sh = R.shadowMap.autoUpdate, cc = R.getClearAlpha(); R.getClearColor(_glCC);
-  cam.layers.set(GLOW_LAYER); scene.background = null; R.shadowMap.autoUpdate = false; R.setClearColor(0x000000, 1);
+  cam.layers.set(GLOW_LAYER); scene.background = null; R.shadowMap.autoUpdate = false; R.setClearColor(0x000000, 1); scene.matrixWorldAutoUpdate = false;
   R.setRenderTarget(PS_RT.gl); R.clear(true, true, false); heatBloom(true); eyeDepth(true); R.render(scene, cam); eyeDepth(false); heatBloom(false);
-  cam.layers.mask = lm; scene.background = bg; R.shadowMap.autoUpdate = sh; R.setClearColor(_glCC, cc);
+  cam.layers.mask = lm; scene.background = bg; R.shadowMap.autoUpdate = sh; R.setClearColor(_glCC, cc); scene.matrixWorldAutoUpdate = true;
   return GLOW.k;
 }
 const _glCC = new THREE.Color();
@@ -277,6 +345,8 @@ function flashDepth() {
 // the frame: the farm drawn, then laid on the screen with its occlusion and glow (game/loop.js)
 export function renderFrame() {
   batchSprites(cam);   // (the particles, all in one: effects/sprite-batch.js)
+  lodFigures(cam);     // (the figures' pieces too small to see left out: effects/lod.js)
+  cullForests(cam); stepSunShadows();   // (only the trees in sight drawn, and the far ones' shadows turned with the sun: world/tree-cull.js)
   if (!POST.ok) { R.render(scene, cam); return; }
   postTargets();
   const W = POST.w, H = POST.h, prev = R.getRenderTarget(), ac = R.autoClear;
@@ -320,7 +390,7 @@ export function renderFrame() {
   const U = compMat.uniforms, mistOn = MIST_U.uMist.value.w > 0;
   U.uMistOn.value = mistOn ? 1 : 0; U.uFullPx.value.set(1 / W, 1 / H);
   if (mistOn) {
-    const M = mistMat.uniforms; M.tDepth.value = sc.depthTexture; M.uNF.value.set(...nf); M.uFullPx.value.set(1 / W, 1 / H);
+    const M = mistMat.uniforms; M.tDepth.value = sc.depthTexture; M.uNF.value.set(...nf); M.uFullPx.value.set(1 / W, 1 / H); M.uMistOff.value = U.uMistOff.value = MIST_RES % 2 ? 0 : 0.25;
     psPass(mistMat, PS_RT.mist); U.tMist.value = PS_RT.mist.texture; U.uMistPx.value.set(1 / PS_RT.mist.width, 1 / PS_RT.mist.height);
   }
   U.tDepth.value = sc.depthTexture; U.uNF.value.set(...nf); U.tCol.value = sc.texture; U.tAO.value = PS_RT.hA.texture;
@@ -329,11 +399,12 @@ export function renderFrame() {
   // (the occlusion thins out into the fog as the scene does: from where the fog starts, measured from the camera)
   if (scene.fog) { U.uFogN.value = scene.fog.near; U.uFogF.value = scene.fog.far; }
   psPass(compMat, prev);
+  { const ac2 = R.autoClear; R.autoClear = false; lensFlare(prev, W, H); R.autoClear = ac2; }   // (the sun's or the moon's flare over it all)
   if (over) {
     const lm = cam.layers.mask, bg = scene.background, sh = R.shadowMap.autoUpdate;
-    cam.layers.set(OVER_LAYER); scene.background = null; R.shadowMap.autoUpdate = false; R.autoClear = false;
+    cam.layers.set(OVER_LAYER); scene.background = null; R.shadowMap.autoUpdate = false; R.autoClear = false; scene.matrixWorldAutoUpdate = false;
     R.setRenderTarget(prev); R.render(scene, cam);
-    cam.layers.mask = lm; scene.background = bg; R.shadowMap.autoUpdate = sh;
+    cam.layers.mask = lm; scene.background = bg; R.shadowMap.autoUpdate = sh; scene.matrixWorldAutoUpdate = true;
   }
   R.autoClear = ac;
 }

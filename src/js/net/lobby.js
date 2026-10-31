@@ -1,11 +1,15 @@
-// The co-op lobby on the title screen: your name, hosting a game or joining one by its code, who's in, and the host's
-// start button. And the team list in the run: everyone else, with their health.
+// The co-op screen (opened from the title's Co-op): your name, hosting a game or joining one (by its code, or a
+// friend's from the list of them hosting now), and once you're in one, its lobby: the four seats with each survivor's
+// picture, who's set to go (a Ready stamp across their seat), the view everyone plays in, the lobby's chat
+// (net/chat.js), the code and an invite link to send, and the host's Start, which waits until everyone's ready. Your
+// friends down the side (net/friends.js). And the team list in the run: everyone else, with their health.
 
 import { $ } from '../core/dom.js';
 import { GI, GI_VB } from '../ui/game-icons.js';
 import { cache, clamp } from '../core/math.js';
 import {
-  NET, NET_COL, NET_MAX, netHost, netJoin, netLeave, netLink, netName, netRoster, netSend, netSetView, netStart
+  NET, NET_COL, netAllReady, netBotAdd, netBotDrop, netHost, netJoin, netKick, netLeave, netLink, netMax, netName, netReady, netRoster, netSend, netSetBotSkill, netSetGame, netSetMode,
+  netSetView, netStart
 } from './net.js';
 import { METAL } from '../barricades/planks.js';
 import { audioInit } from '../audio/audio.js';
@@ -13,51 +17,96 @@ import { SFX } from '../audio/sfx.js';
 import { wantLock } from '../game/view-cam.js';
 import { state } from '../game/state.js';
 import { BASE_HP } from '../ui/hud.js';
-import { frAdd, frAnnounce, friendsUp, frOf, frRender, PALS } from './friends.js';
+import { frAdd, frAnnounce, friendsUp, frOf, frRender, invRender, PALS } from './friends.js';
 import { LOOK } from '../player/look.js';
-import { lookCardOn } from '../ui/look-card.js';
+import { lookThumb } from '../ui/look-card.js';
+import { chatRender } from './chat.js';
+import { PVP, pvpMate } from '../pvp/pvp.js';
+import { BOT_SKILLS } from '../pvp/bots.js';
 
-const lobbySeen = new Set();   // who's been shown in the seats already
+const lobbySeen = new Set();   // who's been shown in the seats already (someone just in slides into their seat)
+let lookSent = '';
 export function lobbyRender() {
-  const on = NET.on, room = on && (NET.host || NET.peers.size > 0);
+  const on = NET.on, room = on && (NET.host || NET.peers.size > 0), host = NET.host;
   $('coopPick').hidden = on;
   $('coopRoom').hidden = !room;
   $('coopShow').textContent = NET.code;
-  $('coopMsg').textContent = NET.status || (room && !NET.host ? 'Waiting for the host to start…' : room && NET.peers.size === 0 ? 'Send this code to your friends. They join from their title screen.' : '');
-  $('coopGo').hidden = !NET.host; $('coopGo').disabled = NET.inGame;
-  $('startBtn').hidden = on;
+  $('startBtn').hidden = on; $('titleView').hidden = on; $('titleMode').hidden = on;   // (your own view's for a run on your own: in co-op it's the lobby's)
+  $('coopBtn').classList.toggle('inLobby', room);   // (the title's Co-op shows you're in one: styles/coop.css)
+  $('coopMsg').textContent = NET.status || '';
+  // your look, if it's changed since the others were told (the Character menu, between visits to the lobby)
+  if (on) { const lk = JSON.stringify(LOOK.cur); if (lk !== lookSent) { lookSent = lk; netSend('look', { look: LOOK.cur }); } } else lookSent = '';
   // the view everyone plays in: the host's to pick (net/net.js), shown to the rest
-  for (const b of $('coopView').querySelectorAll('button')) { b.setAttribute('aria-checked', String(b.dataset.v === NET.view)); b.disabled = !NET.host || NET.inGame; }
-  $('coopViewNote').textContent = NET.host ? 'Everyone plays in it' : 'The host picks it';
-  // the players: the host first, then everyone in the order they came, and the empty places
-  const list = on ? netRoster() : [];
-  if (on && !NET.host) { list.length = 0; list.push({ id: NET.id, name: netName(), idx: NET.idx }, ...[...NET.peers.values()]); }
+  for (const b of $('coopView').querySelectorAll('button')) { b.setAttribute('aria-checked', String(b.dataset.v === NET.view)); b.disabled = !host || NET.inGame; }
+  $('coopViewNote').textContent = host ? 'Everyone plays in it' : 'The host picks it';
+  // and the run's mode, the same: normal or no perks
+  for (const b of $('coopMode').querySelectorAll('button')) { b.setAttribute('aria-checked', String(b.dataset.m === NET.runMode)); b.disabled = !host || NET.inGame; }
+  $('coopModeNote').textContent = host ? 'Everyone plays in it' : 'The host picks it';
+  // and the game: the farm, or the arena and its mode (pvp/pvp.js); no perks only means anything on the farm
+  for (const b of $('coopGame').querySelectorAll('button')) { b.setAttribute('aria-checked', String(b.dataset.g === NET.game)); b.disabled = !host || NET.inGame; }
+  for (const b of $('coopArena').querySelectorAll('button')) { b.setAttribute('aria-checked', String(b.dataset.a === NET.arena)); b.disabled = !host || NET.inGame; }
+  $('coopArena').hidden = NET.game !== 'arena'; $('coopMode').hidden = NET.game === 'arena';
+  $('coopGameNote').textContent = host ? 'Everyone plays it' : 'The host picks it';
+  $('coopArenaNote').textContent = ARENA_NOTE[NET.arena] || '';
+  // the arena's bots: how good they are, and one more in an open seat (the host's; solo, nobody else's to pick)
+  $('coopBots').hidden = NET.game !== 'arena';
+  for (const b of $('coopBots').querySelectorAll('[data-s]')) { b.setAttribute('aria-checked', String(+b.dataset.s === NET.botSkill)); b.disabled = !host || NET.inGame; }
+  $('coopBotsNote').textContent = (BOT_SKILLS[NET.botSkill] || '') + (host ? '' : ' · the host picks');
+  $('coopBotAdd').hidden = !host; $('coopBotAdd').disabled = NET.inGame || NET.peers.size >= netMax() - 1;
+  $('coopCodeRow').hidden = NET.solo;
+  for (const b of $('coopGame').querySelectorAll('[data-g=survival]')) if (NET.solo) b.disabled = true;
+  // what you can do: the host starts once everyone's ready; a joiner says they're ready (or not after all)
+  const others = [...NET.peers.values()], waiting = others.filter(p => !p.ready).map(p => p.name);
+  $('coopGo').hidden = !host; $('coopGo').classList.toggle('held', host && !netAllReady()); $('coopGo').disabled = NET.inGame;
+  $('coopReady').hidden = host || !room;
+  $('coopReady').classList.toggle('ghost', NET.ready); $('coopReady').firstChild.textContent = NET.ready ? 'Cancel ready ' : 'Ready ';
+  $('coopLeave').textContent = host ? 'Close the lobby' : 'Leave';
+  $('coopWait').textContent = !room ? '' : NET.solo ? (others.length ? 'Ready when you are.' : 'Add a bot or two to fight.') : host ? (!others.length ? 'Starting on your own is fine too.' : waiting.length ? 'Waiting for ' + waiting.join(' and ') + ' to get ready' : 'Everyone\u2019s ready')
+    : NET.ready ? 'Waiting for the host to start' : 'Ready up when you\u2019re set';
+  renderSeats();
+  if (!on) lobbySeen.clear();
+  chatRender(); frAnnounce(); frRender(); invRender();
+}
+// the seats: the host first, then everyone in the order they came, and the open ones. Each a card in its player's
+// colour with their survivor's picture (ui/look-card.js: lookThumb), their name and number, Host and You, a Ready stamp
+// across it once they're set, Add friend for someone who isn't one yet, and for the host a cross to send a joiner out
+function renderSeats() {
+  const on = NET.on, list = on ? netRoster() : [];
+  if (on && !NET.host) { list.length = 0; list.push({ id: NET.id, name: netName(), idx: NET.idx, look: LOOK.cur, ready: NET.ready }, ...[...NET.peers.values()]); }
   list.sort((a, b) => a.idx - b.idx);
-  const ol = $('coopList'); ol.textContent = '';
+  const ol = $('coopList'); ol.classList.toggle('six', netMax() > 4); const key = JSON.stringify([NET.host, NET.botSkill, netMax(), list.map(p => [p.id, p.name, p.idx, !!p.ready, !!p.bot, JSON.stringify(p.look || null), p.fid && !!frOf(p.fid)])]);
+  if (ol.dataset.key === key) return; ol.dataset.key = key;
+  ol.textContent = '';
   for (const p of list) {
-    const li = document.createElement('li'); li.style.setProperty('--pc', NET_COL[p.idx] || '#888'); li.textContent = p.name || 'Survivor';
-    if (!lobbySeen.has(p.id)) { lobbySeen.add(p.id); li.className = 'new'; }   // (someone just in slides into their seat)
-    const tag = document.createElement('em'); tag.textContent = (p.id === NET.hostId ? 'Host' : '') + (p.id === NET.id ? (p.id === NET.hostId ? ' · You' : 'You') : ''); li.appendChild(tag);
+    const me = p.id === NET.id, isHost = p.id === NET.hostId, li = document.createElement('li');
+    li.className = 'seat' + (me ? ' you' : '') + (p.ready && !isHost ? ' ready' : '') + (lobbySeen.has(p.id) ? '' : ' new'); lobbySeen.add(p.id);
+    li.style.setProperty('--pc', NET_COL[p.idx] || '#888');
+    const look = me ? LOOK.cur : (NET.peers.get(p.id) || p).look, pic = look ? lookThumb(look) : '';
+    li.innerHTML = '<span class="sPic"></span><span class="sNum"></span><b class="sName"></b><em class="sTag"></em><span class="sStamp">Ready</span>';
+    if (pic) { const im = document.createElement('img'); im.alt = ''; im.src = pic; li.querySelector('.sPic').appendChild(im); }
+    li.querySelector('.sNum').textContent = p.idx + 1; li.querySelector('.sName').textContent = p.name || 'Survivor';
+    li.querySelector('.sTag').textContent = p.bot ? 'Bot · ' + (BOT_SKILLS[NET.botSkill] || '') : [isHost ? 'Host' : p.ready ? '' : 'Not ready yet', me ? 'You' : ''].filter(Boolean).join(', ');
+    if (p.bot) li.classList.add('bot');
     // someone you're playing with who isn't on your friends list yet: one click to add them (net/friends.js)
-    if (p.id !== NET.id && p.fid && p.fid !== PALS.me && !frOf(p.fid)) { const b = document.createElement('button'); b.type = 'button'; b.className = 'coopCopy'; b.textContent = 'Add friend'; b.onclick = () => frAdd(p.fid, p.name); li.appendChild(b); }
-    // the pointer on a seat shows whoever's in it as they've made themselves (ui/look-card.js)
-    lookCardOn(li, 'p:' + p.id, () => ({ look: p.id === NET.id ? LOOK.cur : (NET.peers.get(p.id) || p).look, name: p.name || 'Survivor', col: NET_COL[p.idx], sub: tag.textContent }));
+    if (!me && p.fid && p.fid !== PALS.me && !frOf(p.fid)) { const b = document.createElement('button'); b.type = 'button'; b.className = 'coopCopy sAdd'; b.textContent = 'Add friend'; b.onclick = () => frAdd(p.fid, p.name); li.appendChild(b); }
+    if (NET.host && !me && !NET.inGame) { const b = document.createElement('button'); b.type = 'button'; b.className = 'sKick'; b.textContent = '\u00d7'; b.setAttribute('aria-label', 'Remove ' + (p.name || 'Survivor') + ' from the lobby'); b.onclick = () => p.bot ? netBotDrop(p.id) : netKick(p.id); li.appendChild(b); }
     ol.appendChild(li);
   }
-  for (let k = list.length; k < NET_MAX; k++) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'Open seat'; ol.appendChild(li); }
-  if (!on) lobbySeen.clear();
-  frAnnounce(); frRender();
+  for (let k = list.length; k < netMax(); k++) { const li = document.createElement('li'); li.className = 'seat empty'; li.innerHTML = '<span class="sPic"></span><span class="sNum"></span><b class="sName">Open seat</b><em class="sTag">Waiting for someone</em>'; li.querySelector('.sNum').textContent = k + 1; ol.appendChild(li); }
 }
-// the sheet slides in, and back out before it's gone
-let coopShut = 0;
+// the screen opens over the title and closes back to it (Esc, or Back)
+// (how long it takes to go, ms: the panel sliding off and fading, the title coming back under it, styles/coop.css)
+let coopShut = 0; const COOP_SHUT = 340;
+export const coopOpen = () => !$('coop').hidden && !$('coop').classList.contains('closing');
 export function toggleCoop(open) {
-  const el = $('coop'), shown = !el.hidden && !el.classList.contains('closing'), show = open ?? !shown;
+  const el = $('coop'), show = open ?? !coopOpen();
   $('coopBtn').setAttribute('aria-expanded', String(show));
   clearTimeout(coopShut); el.classList.remove('closing');
-  if (show) { el.hidden = false; $('coopName').value = NET.name; friendsUp(); lobbyRender(); }
-  else if (!el.hidden) { el.classList.add('closing'); coopShut = setTimeout(() => { el.hidden = true; el.classList.remove('closing'); }, 200); }
+  if (show) { el.hidden = false; document.body.classList.remove('coopLeaving'); document.body.classList.add('coopOn'); $('coopName').value = NET.name; friendsUp(); lobbyRender(); invRender(); }
+  else if (!el.hidden) { el.classList.add('closing'); document.body.classList.add('coopLeaving'); coopShut = setTimeout(() => { el.hidden = true; el.classList.remove('closing'); document.body.classList.remove('coopOn', 'coopLeaving'); invRender(); }, COOP_SHUT); }   // (the title's menu fading back in under it as it goes: styles/coop.css)
 }
 $('coopBtn').onclick = () => { audioInit(); toggleCoop(); };
+$('coopClose').onclick = () => toggleCoop(false);
 $('coopName').addEventListener('input', e => {
   NET.name = e.target.value.trim().slice(0, 16);
   try { localStorage.setItem('fhh-name', NET.name); } catch (er) {}
@@ -65,14 +114,33 @@ $('coopName').addEventListener('input', e => {
   lobbyRender();
 });
 $('coopHost').onclick = () => netHost();
+$('coopSolo').onclick = () => netHost(true);
+$('coopBotAdd').onclick = () => netBotAdd();
+$('coopBots').addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (b && !b.disabled) { netSetBotSkill(+b.dataset.s); SFX.click(); } });
 $('coopJoin').onclick = () => netJoin($('coopCode').value);
+// the code box takes the four characters however they come (pasted with a space, lower case) and joins on Enter
+$('coopCode').addEventListener('input', e => { const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4); if (v !== e.target.value) e.target.value = v; });
 $('coopCode').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') netJoin($('coopCode').value); });
 $('coopName').addEventListener('keydown', e => e.stopPropagation());   // typing a name never starts the run (T)
-$('coopGo').onclick = () => { wantLock(true); netStart(); };   // (in first person the mouse is taken with this click: game/view-cam.js)
+$('coopGo').onclick = () => { if (netAllReady()) wantLock(true); netStart(); };   // (in first person the mouse is taken with this click: game/view-cam.js)
+$('coopReady').onclick = () => { netReady(!NET.ready); SFX.click(); };
 $('coopLeave').onclick = () => netLeave();
 $('coopView').onclick = e => { const b = e.target.closest('button'); if (b && !b.disabled) netSetView(b.dataset.v); };
-$('coopCopy').onclick = () => { try { navigator.clipboard.writeText(NET.code); $('coopCopy').textContent = 'Copied'; setTimeout(() => { $('coopCopy').textContent = 'Copy'; }, 1400); } catch (e) {} };
-// a link with ?join=CODE opens the lobby and joins straight away
+$('coopMode').onclick = e => { const b = e.target.closest('button'); if (b && !b.disabled) netSetMode(b.dataset.m); };
+$('coopGame').onclick = e => { const b = e.target.closest('button'); if (b && !b.disabled) netSetGame(b.dataset.g); };
+$('coopArena').onclick = e => { const b = e.target.closest('button'); if (b && !b.disabled) netSetGame('arena', b.dataset.a); };
+// what each of the arena's modes is, in a line under its name
+const ARENA_NOTE = { ffa: 'Everyone for themselves, first to 15 kills', tdm: 'Two sides, back in after you fall, first side to 20 kills', rounds: 'Two sides, one life a round, first to 5 rounds' };
+// a Copy button: says so only once the clipboard's really taken it (a browser that won't let the page at it says that)
+export function copyBtn(el, text) {
+  const was = el.dataset.label || (el.dataset.label = el.textContent);
+  const say = t => { el.textContent = t; clearTimeout(el._cp); el._cp = setTimeout(() => { el.textContent = was; }, 1400); };
+  try { navigator.clipboard.writeText(text).then(() => say('Copied'), () => say('Can\'t copy')); } catch (e) { say('Can\'t copy'); }
+}
+$('coopCopy').onclick = () => copyBtn($('coopCopy'), NET.code);
+// an invite link: this page with ?join=CODE, which opens the co-op screen and joins straight away (between tabs on one
+// machine it keeps ?net=local)
+$('coopLink').onclick = () => copyBtn($('coopLink'), location.origin + location.pathname + '?join=' + NET.code + (NET.mode === 'local' ? '&net=local' : ''));
 { const m = /[?&]join=([A-Za-z0-9]{4})/.exec(location.search); if (m) setTimeout(() => { toggleCoop(true); $('coopCode').value = m[1].toUpperCase(); netJoin(m[1]); }, 300); }
 
 // ---- in the run: your teammates over your own health, each a smaller copy of it (no heart trace): their name, their
@@ -91,7 +159,7 @@ export function renderTeam() {
   const el = $('team'), on = netLink() && state !== 'title';
   if (el.hidden === on) { el.hidden = !on; liftFeed(); }
   if (!on) return;
-  const ps = [...NET.peers.values()].sort((a, b) => a.idx - b.idx);
+  const ps = [...NET.peers.values()].filter(p => !PVP.on || pvpMate(p)).sort((a, b) => a.idx - b.idx);   // (in the arena, only your own side: pvp/pvp.js)
   const key = ps.map(p => [p.id, p.name, Math.round(p.hp ?? 100), p.maxHp, p.heal || 0, p.dead ? 1 : 0, ...(p.stats || [])].join(':')).join('|');
   if (cache.team === key) return; cache.team = key;
   if (el.childElementCount !== ps.length || [...el.children].some((c, k) => c.dataset.id !== ps[k].id)) {

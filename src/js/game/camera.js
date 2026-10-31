@@ -5,7 +5,8 @@ import { CAM_OFF, EL, FWD, GUN_Y, ISO_CAM, RIGHT, setZoom, V3, VIEW, zoom, zoomT
 import { cache, clamp, rand, rr, smooth } from '../core/math.js';
 import { cxw } from '../world/grid.js';
 import { P } from '../player/player.js';
-import { SCOPES, T } from './run-state.js';
+import { curId, SCOPES, T, W8 } from './run-state.js';
+import { EJECT } from '../weapons/casings.js';
 import { camKick, camPunch, camRoll, setCamPunch, setCamRoll, setShake, shake, state, worldT } from './state.js';
 import { aimPt, hasMouse, mouseX, mouseY } from '../input/keyboard-mouse.js';
 import { aiming, scopeAim, scoped, scopePt } from '../player/aiming.js';
@@ -133,7 +134,10 @@ export function updateCamera(rdt) {
   // eye with the gun pointing at the floor; they go down as it tips, WALL_ADS.on radians, and come back once it's all
   // but level again, WALL_ADS.off, so it doesn't flicker at the edge)
   { const tip = ANIM.gtipA || 0; ANIM.wallAds = tip > WALL_ADS.on || (!!ANIM.wallAds && tip > WALL_ADS.off); }
-  { const want = aiming && !(P.skid > SPRINT.skid * 0.4) && !(!iso && (swapSt || P.vault || (ANIM.postVault || 0) > 0.2 || ANIM.wallAds));   // skidding out of a sprint, into the sights as you slow
+  // (nor, from your own eyes, while a break-open gun's being loaded: the double's barrels dropped open, the revolver's
+  // cylinder swung out, right at your eye, the muzzles coming up into your face; it's brought down off the eye for it,
+  // and back up to it once it's shut, if you're still holding aim)
+  { const want = aiming && !(P.skid > SPRINT.skid * 0.4) && !(!iso && (swapSt || P.vault || (ANIM.postVault || 0) > 0.2 || ANIM.wallAds || ((W8.reloading || W8.shutT > 0) && EJECT[curId()] === 'breach')));   // skidding out of a sprint, into the sights as you slow
     // (in first person, steadily over the time it takes, eased at both ends: game/view-cam.js)
     // (from above, on a spring a little under critical, ADS_ISO: the gun comes up, a hair past and settles, and drops
     // back the same; adsP has the overshoot, for the pose, ads stays 0..1 for everything else)

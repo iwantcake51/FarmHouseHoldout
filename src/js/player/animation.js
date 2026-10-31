@@ -1,10 +1,11 @@
 // Player animation: walk, turn, limp, swings, recoil, reloads, death; and the per-frame player visuals.
 
+import { markMobile, MOBILE_SWEEP } from '../core/shaders.js';
 import { GUN_Y, V3 } from '../core/renderer.js';
 import { angDiff, clamp, rr, smooth } from '../core/math.js';
 import { surfaceY } from '../world/house.js';
 import { bandRolls, P, pBlob, PM, pOutline } from './player.js';
-import { blinkStep, faceMood, LOOK, wristSway } from './look.js';
+import { blinkStep, faceGaze, faceMood, gazeStep, LOOK, wristSway } from './look.js';
 import { updateCharBlood, updateWeaponBlood, WSTAIN } from '../effects/body-blood.js';
 import { SLOTS } from '../weapons/slots.js';
 import { curId, hpCap, W, W8 } from '../game/run-state.js';
@@ -22,7 +23,8 @@ import { vaultAt, VB } from './vault-plan.js';
 import { gunGlow, gunGlowId, setGunGlow, setGunGlowId, state, worldK } from '../game/state.js';
 import { INTRO, introKneel, introLook, introPose, titleBlend } from '../game/intro.js';
 import { PIVOT, sprintAnim, WALK_SPEED } from './sprint.js';
-import { fpOn } from '../game/view-cam.js';
+import { fpOn, isoOn } from '../game/view-cam.js';
+import { coverFromCam } from '../zombies/zombie-visuals.js';
 import { springTo } from '../game/camera.js';
 import { roofOver } from '../world/cutaway.js';
 import { PRAG } from './player-ragdoll.js';
@@ -31,6 +33,8 @@ import { ARM_THIN, ARM_X, armRest, poseHands, reach } from './hold.js';
 import { updatePack, updateStow } from './stow.js';
 import { updateBandStow, updateSwap } from './swap.js';
 import { agReset, agState, locoPose, locoWeights } from './anim-graph.js';
+import { leanBody, leanStep } from './lean.js';
+import { ARENA } from '../world/arena.js';
 const _lp = { lx: 0, rx: 0, lz: 0, rz: 0, kl: 0, kr: 0, hx: 0, hz: 0, twist: 1 };
 
 // ---- player animation: eased facing, hips that follow your feet, bob, sway, limp, recoil, reloads, swings ----
@@ -174,6 +178,9 @@ function angerStep(rdt) {
   if (ANIM.anger < 0.002 && !want) ANIM.anger = 0;
   worryStep(rdt); hurtStep(rdt);
   faceMood(LOOK.g.head, ANIM.anger, ANIM.worry, ANIM.hurt, P.dead ? 0 : ANIM.ads || 0, P.dead ? 0 : blinkStep(ANIM.blink || (ANIM.blink = {}), rdt));
+  // and the eyes looking about, free to while you're not aiming, firing or hurt, a little less on the move (player/look.js)
+  const free = P.dead ? 0 : (1 - (ANIM.ads || 0)) * (1 - Math.min(1, (ANIM.anger || 0) * 1.5)) * (1 - Math.min(1, ANIM.hurt || 0)) * (P.moving ? 0.7 : 1);
+  const gz = gazeStep(ANIM.gaze || (ANIM.gaze = {}), rdt, free, ANIM.blink); faceGaze(LOOK.g.head, gz[0], gz[1]);
 }
 // a hit makes you wince (faceMood's h): it's on you at once and held a moment (HURT_FACE.hold, longer for a harder hit),
 // then eases off
@@ -304,9 +311,10 @@ function animatePlayer(dt, rdt) {
     // each foot stepping out further than it comes back in so the legs never cross. Down the sights the stance widens
     // a little and the steps shorten
     // (the blend space: player/anim-graph.js. The knees bend as each leg swings through, most just after it leaves the
-    // ground so the heel lifts clear, and at a sprint they kick right up behind; a little give in the standing knee too)
-    const bad = 1 - limp * LIMP.short, splay = 0.045 * ads, kn = (0.55 + 1.15 * sk) * ANIM.strideK * (1 - 0.3 * ads), give = 0.06 * Math.min(1, runF) + 0.08 * sk;
-    const LP = locoPose(_lp, ph, stride, kn, give, bad, 1 - limp * LIMP.stiff, limp);
+    // ground so the heel lifts clear, and at a sprint they kick right up under the seat; a little give in the standing
+    // knee too, and at a run more, loading under you mid-stance)
+    const bad = 1 - limp * LIMP.short, splay = 0.045 * ads, kn = (0.55 + 1.45 * sk) * ANIM.strideK * (1 - 0.3 * ads), give = 0.06 * Math.min(1, runF) + 0.05 * sk;
+    const LP = locoPose(_lp, ph, stride, kn, give, bad, 1 - limp * LIMP.stiff, limp, smooth(clamp((runF - 0.6) / 0.5, 0, 1)) * ANIM.strideK * (1 - ads), sk * ANIM.strideK);
     pm.legL.rotation.x = LP.lx; pm.legR.rotation.x = LP.rx;   // (the bad leg's step shorter)
     // turning on the spot: a loose pivot with a little give in the legs and a weight shift, never a full step
     pm.legL.rotation.z = LP.lz - splay; pm.legR.rotation.z = LP.rz + splay; pm.lower.rotation.z = (spd <= 0.3 ? ANIM.legYaw * 0.035 : 0) + LP.hz * Math.min(1, runF);
@@ -489,17 +497,24 @@ function animatePlayer(dt, rdt) {
   }
   pm.head.rotation.y = hY - wy; pm.head.rotation.z = hZ - hz;
   pm.upper.rotation.set(up.x, up.y, up.z);
+  leanStep(rdt, ANIM.yaw); leanBody(pm);   // leaning round a corner, from the hips (player/lean.js)
   if (P.vault) vaultHands(pm, P.vault);
   introLook(pm);
   // the state the body's in, for the animation graph to hand over from one to the next without a snap (player/anim-graph.js)
   agState(P.vault ? 'vault' : ANIM.land > 0 ? 'land' : INTRO.t >= 0 || state === 'title' ? 'intro' : 'loco', rdt);
 }
 // your character pose, blood on you and your weapon, muzzle flash, upgrade glow, the burn barrel
+let mobT = 0;
 export function updatePlayerVisuals(dt, rdt) {
   const pm = PM;
   animatePlayer(dt, rdt);
+  if ((mobT -= rdt) <= 0) { mobT = MOBILE_SWEEP; markMobile(pm.g); }   // (nothing of you takes the floor's blood: core/shaders.js)
   // on the title there's no see-through ghost or pale rim on you; they fade in as the camera comes down into the run
-  { const t = (1 - titleBlend()) * (fpOn() ? 0 : 1), k = t * smooth(clamp(roofOver(P.x, P.z), 0, 1)); if (pXray.rim.opacity !== 0.75 * k || pOutline.opacity !== 0.1 * t) { pXray.rim.opacity = 0.75 * k; pXray.sil.opacity = 0.2 * k; pOutline.opacity = 0.1 * t; pXray.rim.visible = pXray.sil.visible = pXray.fill.visible = k > 0.003; } }   // (gone, it's left out of the frame rather than drawn invisibly: three draws a piece of you)   // (the see-through outline fades with a roof going from over you: roofOver, world/cutaway.js; and none of it in first person: game/view-cam.js)
+  // (and only while something could stand between the camera and you: out in the open there's nothing for it to show
+  // through, and it's some hundred and seventy draws, a fill, a silhouette and a rim for each piece of you. On at once,
+  // off a moment after: coverFromCam, zombies/zombie-visuals.js)
+  { const cv = isoOn() && coverFromCam(P.x, P.z); ANIM.xrCv = cv ? 1 : Math.max(0, (ANIM.xrCv || 0) - rdt * 4); }
+  { const t = (1 - titleBlend()) * (fpOn() ? 0 : 1), k = t * smooth(clamp(roofOver(P.x, P.z), 0, 1)) * (ANIM.xrCv > 0 ? 1 : 0); if (pXray.rim.opacity !== 0.75 * k || pOutline.opacity !== 0.1 * t) { pXray.rim.opacity = 0.75 * k; pXray.sil.opacity = 0.2 * k; pOutline.opacity = 0.1 * t; pXray.rim.visible = pXray.sil.visible = pXray.fill.visible = k > 0.003; } }   // (gone, it's left out of the frame rather than drawn invisibly: three draws a piece of you)   // (the see-through outline fades with a roof going from over you: roofOver, world/cutaway.js; and none of it in first person: game/view-cam.js)
   SLOTS.forEach(s => { gunMeshes[s].visible = W8.cur === s && !P.dead && (!P.vault || vaultHold()) && !(ANIM.bandP >= 1); });   // a melee weapon's put away while you vault (it rides on your body, player/stow.js), a gun stays in hand; and while you bandage
   updatePack(dt); updateStow(rdt); wristSway(dt);
   updateSwap(dt, rdt);   // a weapon swap in progress moves the weapons and arms on from there (player/swap.js)
@@ -516,5 +531,5 @@ export function updatePlayerVisuals(dt, rdt) {
   const GS = gunGlowId && WSTAIN[gunGlowId];
   if (GS) { for (const [o, m] of GS.list) if (m.emissive && GLOW_SET.has(o)) m.emissive.setRGB(gl * 0.34, gl * 0.31, gl * 0.2); if (!gl) setGunGlowId(null); }
   if (rdt > 0) updateMuzzleWisp(rdt);   // the smoke still curling off the muzzle after a heavy shot (effects/muzzle-flash.js)
-  if (worldK > 0 && dt > 0) barrelFire(dt);   // (effects/puffs.js; the fire freezes with the world)
+  if (worldK > 0 && dt > 0 && !ARENA.on) barrelFire(dt);   // (none in the arena: world/arena.js)   // (effects/puffs.js; the fire freezes with the world)
 }

@@ -44,8 +44,9 @@ import {
   breakT, clearT, phase, setBreakT, setClearT, setShake, setSpawnQ, setTod, shake, spawnQ, state, tod
 } from '../game/state.js';
 import { shoveZombie } from '../player/shove.js';
-import { breakMax, setBreakMax, surge, waveBar, waveBegins, waveCleared, waveSub } from '../waves/waves.js';
-import { handNo, openUpgrade } from '../upgrades/upgrade-screen.js';
+import { breakMax, clearedDone, setBreakMax, surge, waveBar, waveBegins, waveCleared, waveSub } from '../waves/waves.js';
+import { rushLeft } from '../stations/supply-drop.js';
+import { handNo } from '../upgrades/upgrade-screen.js';
 import { deathCineEnd, die } from '../ui/screens.js';
 import { feed, setH } from '../ui/hud-text.js';
 import { visAt } from '../lighting/vision.js';
@@ -61,6 +62,8 @@ import { renderTeam } from './lobby.js';
 import { renderSpec, SPEC } from './spectate.js';
 import { teamBonus } from './teamwork.js';
 import { frTick } from './friends.js';
+import { chatTick } from './chat.js';
+import { PVP } from '../pvp/pvp.js';
 
 export let NREC = null, NREP = null;   // a hit of yours being written down to send; a teammate's being played out
 export const NZ = new Map();           // zombies by the id the host gave them
@@ -89,16 +92,16 @@ function turnedOf(id) {
 export function spawnTurned() { if (netLink() && NET.host) for (const id of TURN_Q) if (turnedOf(id)) netSpawn('walker', id); TURN_Q.clear(); }
 
 // ---- zombies coming in: the host's seed, so the same one comes in everywhere (tu: the teammate it was, if it was one)
-export function netSpawn(type, tu) {
-  if (!netLink()) return spawnZombie(type);
+export function netSpawn(type, tu, near) {
+  if (!netLink()) return spawnZombie(type, undefined, near);
   const s = (Math.random() * 4294967296) >>> 0, id = ++zSeq;
-  withSeed(s, () => spawnZombie(type, tu ? turnedOf(tu) : undefined)); const z = zombies[zombies.length - 1]; z.id = id; NZ.set(id, z);
-  netSend('zs', { id, ty: type, s, wv: run.wave, tu: tu || undefined });
+  withSeed(s, () => spawnZombie(type, tu ? turnedOf(tu) : undefined, near)); const z = zombies[zombies.length - 1]; z.id = id; NZ.set(id, z);
+  netSend('zs', { id, ty: type, s, wv: run.wave, tu: tu || undefined, nr: near || undefined });
 }
 NET_ON.zs = m => {
   if (NET.host || !netLink()) return;
   const wv = run.wave; run.wave = m.wv;
-  withSeed(m.s, () => spawnZombie(m.ty, m.tu ? turnedOf(m.tu) : undefined)); run.wave = wv;
+  withSeed(m.s, () => spawnZombie(m.ty, m.tu ? turnedOf(m.tu) : undefined, m.nr)); run.wave = wv;
   const z = zombies[zombies.length - 1]; z.id = m.id; NZ.set(m.id, z); z.nx = z.x; z.nz = z.z; z.nf = z.face;
 };
 // a climb over a fence or in at a window starts on the host: the same climb (its seed) plays out here
@@ -115,7 +118,7 @@ function snapOut(rdt) {
   snapT -= rdt; if (snapT > 0) return; snapT = 1 / 12;
   const zs = [];
   for (const z of zombies) if (z.id && !z.dead) zs.push(z.id, nr(z.x), nr(z.z), nr(z.face), Math.round(z.hp), z.out ? 1 : 0, z.atkBoard ? openings.indexOf(z.atkBoard) + 1 : z.atkDoor ? -1 - HOUSE_DOORS.list.indexOf(z.atkDoor) : 0);   // (a door it's beating on: below 0)
-  netSend('w', { td: nr(tod), bt: nr(breakT), bm: breakMax, sq: spawnQ.length, lu: surge.lull > 0 ? 1 : 0, z: zs, b: openings.map(o => o.boards.map(h => Math.round(h))), g: openings.map(o => o.grate ? Math.round(o.grate.hp0) * o.grate.face : 0), mt: METAL.on ? METAL.tier + 1 : 0, dh: HOUSE_DOORS.list.map(d => Math.round(d.hp)) });
+  netSend('w', { td: nr(tod), bt: nr(breakT), bm: breakMax, sq: spawnQ.length + rushLeft(), lu: surge.lull > 0 ? 1 : 0, z: zs, b: openings.map(o => o.boards.map(h => Math.round(h))), g: openings.map(o => o.grate ? Math.round(o.grate.hp0) * o.grate.face : 0), mt: METAL.on ? METAL.tier + 1 : 0, dh: HOUSE_DOORS.list.map(d => Math.round(d.hp)) });
 }
 NET_ON.w = m => {
   if (NET.host || !netLink()) return;
@@ -294,7 +297,7 @@ export function netBoardTear(o, at) { netSend('bt', { o: openings.indexOf(o), x:
 NET_ON.bt = m => { const o = openings[m.o]; if (!NET.host || !o || !o.boards.length) return; tearAll(o, { x: m.x, z: m.z }); };
 
 // ---- the waves: the host's start them, clear them and runs the breaks
-NET_ON.wave = m => { if (NET.host || !netLink() || state === 'title') return; waveBegins(m.n, m.tot, !!m.fog); setSpawnQ(new Array(m.tot).fill('walker')); };
+NET_ON.wave = m => { if (NET.host || !netLink() || state === 'title') return; waveBegins(m.n, m.tot, !!m.fog, m.tw || null, m.np, m.el); setSpawnQ(new Array(m.tot).fill('walker')); };
 NET_ON.clear = () => { if (NET.host || !netLink() || state === 'title' || phase === 'cleared') return; waveCleared(); };
 // starting the next wave early: alone, T does it; in co-op it's a vote, and the wave starts once SKIP_VOTE of everyone
 // in the game (rounded up, the downed too) has pressed T. Pressing it again takes your vote back. The host counts them
@@ -312,11 +315,13 @@ function castSkip(id) {
 NET_ON.skip = m => { if (NET.host) castSkip(m.f); };
 NET_ON.sv = m => { if (NET.host) return; skipVotes.clear(); m.v.forEach(v => skipVotes.add(v)); };
 // the break's line under the wave number: the countdown, and how to start it early (in co-op, the vote so far)
+// (each part kept whole on its line, so a narrow column breaks between them, not off the end of one)
+const subLine = (...parts) => parts.map((p, i) => `<span class="nw">${p}${i < parts.length - 1 ? ' ·' : ''}</span>`).join(' ');
 export function breakSub() {
   const t = `Next wave in ${Math.ceil(Math.max(0, breakT))}s`;
-  if (!netLink()) return t + ` · ${kbd('wave')} to start now`;
+  if (!netLink()) return subLine(t, `${kbd('wave')} to start now`);
   const n = skipVotes.size, need = skipNeed();
-  return t + (skipVotes.has(NET.id) ? ` · Voted to start ${n}/${need} · ${kbd('wave')} takes it back` : ` · ${kbd('wave')} vote to start ${n}/${need}`);
+  return skipVotes.has(NET.id) ? subLine(t, `Voted to start ${n}/${need}`, `${kbd('wave')} takes it back`) : subLine(t, `${kbd('wave')} vote to start ${n}/${need}`);
 }
 // wave cleared: the host tells the rest; anyone down is back a moment later, once the slow motion's played out
 let clearAt = 0;
@@ -336,7 +341,7 @@ export function clientWaves(dt) {
   } else if (phase === 'cleared') {
     setH('wSub', 'Wave cleared'); waveBar(1, 'clear'); respawnCheck();
     setClearT(clearT - (dt / Math.max(timeScale, 0.3)));
-    if (clearT <= 0) { openUpgrade(); return true; }
+    if (clearT <= 0) return clearedDone();
   }
   return false;
 }
@@ -395,13 +400,13 @@ NET_ON.over = () => { if (state === 'play' || state === 'paused') die(); };
 
 // ---- every frame, playing or not
 export function netTick(rdt) {
-  netBeat(rdt); frTick(rdt);
+  netBeat(rdt); frTick(rdt); chatTick();
   if (!NET.on) return;
   if (NET.inGame && state !== 'title') {
     poseOut(rdt);
     if (NET.host) {
       snapOut(rdt);
-      if ((state === 'play' || state === 'paused') && netAllDown()) { overT += rdt; if (overT > 3) { overT = 0; netSend('over', {}); die(); } } else overT = 0;
+      if ((state === 'play' || state === 'paused') && netAllDown() && !PVP.on) { overT += rdt; if (overT > 3) { overT = 0; netSend('over', {}); die(); } } else overT = 0;
     }
   }
   updateAvatars(rdt);

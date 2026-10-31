@@ -7,7 +7,7 @@ import { NET, netLink } from '../net/net.js';
 import { FL_MAX, flPack, LMU } from '../core/shaders.js';
 import { ci, openAt } from '../world/grid.js';
 import { THIN, thinHit, wxSee, wzSee } from '../world/thin-walls.js';
-import { blockArr, bulletBlocked } from '../world/collision.js';
+import { blockArr, boxHitT, bulletBlocked } from '../world/collision.js';
 import { P } from '../player/player.js';
 import { curId, T, W, W8 } from '../game/run-state.js';
 import { gunMeshes, HOLDS, MUZ, X } from '../weapons/gun-materials.js';
@@ -48,7 +48,8 @@ export function los(x0, z0, x1, z1, thru) {
     const i = ci(x0 + dx * s / steps), j = ci(z0 + dz * s / steps);
     if (i === ti && j === tj) return true;
     if (i === si && j === sj) continue;
-    if (i < 0 || j < 0 || i >= N || j >= N || blockArr[j * N + i]) return false;
+    if (i < 0 || j < 0 || i >= N || j >= N) return false;
+    if (blockArr[j * N + i] && boxHitT(j * N + i, x0, z0, dx, dz, 0, 1) !== Infinity) return false;   // (a tall piece of furniture only where it stands: world/collision.js)
     const ob = openAt[j * N + i]; if (ob && shutN(ob) >= 2 && !(thru && ob.grate)) return false;   // two or more boards (or a plated grate) shut out sight and light
   }
   return true;
@@ -234,7 +235,8 @@ function flRay(x, z, a, max) {
     if (t >= max) return max;
     if (i < 0 || j < 0 || i >= N || j >= N) return t;
     const ob = openAt[j * N + i];
-    if (blockArr[j * N + i] || (ob && shutN(ob) >= 2)) return Math.min(max, t + FL_PAST);
+    const bt = blockArr[j * N + i] ? boxHitT(j * N + i, x, z, dx, dz, t, Math.min(nx, nz)) : Infinity;
+    if (bt !== Infinity || (ob && shutN(ob) >= 2)) return Math.min(max, (bt !== Infinity ? bt : t) + FL_PAST);
     if (ob && ob.kind === 'window' && flRayWin === Infinity) { const tw = ob.axis === 'x' ? (ob.z - z) / dz : (ob.x - x) / dx; flRayWin = tw > t && tw < t + 1.5 ? tw : t + 0.5; }
   }
   return max;

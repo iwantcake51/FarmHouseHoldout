@@ -1,7 +1,7 @@
 // Builds the held weapons from stats, mods and tiers; magazines and drums.
 
 import { scene } from '../core/renderer.js';
-import { binModel, box, foldPieces, trimShadows, unfight } from '../core/geometry.js';
+import { binModel, box, foldPieces, spanOf, trimShadows, unfight } from '../core/geometry.js';
 import { LOOK, shirtColours } from '../player/look.js';
 import { stainWeapon } from '../effects/body-blood.js';
 import { SLOTS } from './slots.js';
@@ -11,7 +11,7 @@ import { modLv } from './mod-levels.js';
 import { tierName } from '../upgrades/tier-table.js';
 import { gunAtt, gunTier, magTierIn, recomputeEff, run, S, setTierCtx, T, W, W8 } from '../game/run-state.js';
 import {
-  AKX, BELT, BIPOD, BRK, CHARGE, CRANE, flipIn, GM, gunMeshes, HOLDS, MAGG, MAGPOS, MUZ, setStowDirty, SLIDES, X
+  AKX, BELT, BIPOD, BRK, CHARGE, CRANE, fitted, flipIn, GM, gunMeshes, HOLDS, MAGG, MAGPOS, MUZ, setStowDirty, SLIDES, X
 } from './gun-materials.js';
 import { hi } from './gun-parts.js';
 import { GUNS } from '../melee/melee-models.js';
@@ -19,6 +19,8 @@ import { fitAttachments } from './attachments.js';
 import { buildGear } from '../player/gear.js';
 import { state } from '../game/state.js';
 import { movingOf } from '../net/arsenal.js';
+import { measureGrip } from '../player/grip.js';
+import { HOLD } from '../player/hold.js';
 
 function drum(parent, info, big) {
   const r = big ? 0.15 : 0.115, w = big ? 0.12 : 0.1, cy = info.magY - r - 0.02;
@@ -44,7 +46,8 @@ export function buildWeapon(hold, id, D, mods, rec) {
   // (a gun in a hand is built inside its flipped group, its notes kept on the hold: flipIn, weapons/gun-materials.js)
   const parent = hold.userData.side && !D.melee ? flipIn(hold) : hold;
   // magazines go in their own group so the reload can drop them out of the model and bring a fresh one in
-  const mg = new THREE.Group(); mg.userData.isMag = true; parent.add(mg); parent.userData.magG = hold.userData.magG = mg; rec.magg.push(mg);   // (the models put their mags in it: parent's)
+  // (a bigger mag is marked as fitted, drawn in gold in the slot row as the attachments are: fitted)
+  const mg = new THREE.Group(); mg.userData.isMag = true; mg.userData.att = magT > 0; parent.add(mg); parent.userData.magG = hold.userData.magG = mg; rec.magg.push(mg);   // (the models put their mags in it: parent's)
   const info = GUNS[id](parent, mods);
   if (info && info.crane) rec.crane.push(info.crane);
   if (info && info.charge && !rec.charge) rec.charge = { m: info.charge, at: info.chargeAt, tr: info.chargeTravel || 0.065 };   // how far its handle draws back
@@ -55,7 +58,7 @@ export function buildWeapon(hold, id, D, mods, rec) {
   if (info.baseMag && !info.ownMags) { if (magT >= 2) drum(mg, info, magT >= 3); else { const h = info.baseMag + magT * 0.1; magBox(mg, 0.056, h, 0.08, X, info.magY - h / 2, info.magZ); } }
   else if (info.magZ && !info.ownMags && info.stickMags) { if (magT) { const h = magT >= 2 ? 0.17 : 0.07; magBox(mg, 0.04, h, 0.066, X, 0.962 - h / 2 + 0.004, info.magZ); } }   // the hand cannon: a base plate, then a longer mag below its own
   else if (info.magZ && !info.ownMags) { if (magT >= 2) drum(mg, info, magT >= 3); else if (magT && !info.drumOnly) { const h = 0.06 + magT * 0.07; magBox(mg, 0.058, h, 0.07, X, info.magY - h / 2, info.magZ); } }
-  const nb = parent.children.length, muz = fitAttachments(parent, D, front, y, info) + 0.02;
+  const nb = parent.children.length, muz = fitted(parent, () => fitAttachments(parent, D, front, y, info)) + 0.02;
   // a break-action's barrels carry whatever was fitted on them (a choke, a laser, a light, the shell clip on a
   // sawn-off's forend), so it all swings down with them when it's broken open
   if (info.brk) parent.children.slice(nb).forEach(o => { if (o.position.z > info.brk.position.z + 0.02) { o.position.sub(info.brk.position); info.brk.add(o); } });
@@ -81,11 +84,12 @@ const gearBuilt = { sig: null, look: null, run: null };
 // an attachment bought) it's done in a quiet moment just after (any frame or two it shows first, nobody sees the
 // faces fight), not in the frame you clicked; the copies on your body are made again after it
 const ufSoon = []; let ufSoonT = 0;
+const inHold = (o, h) => { for (; o; o = o.parent) if (o === h) return true; return false; };
 function unfightSoon(g) {
   ufSoon.push(g); if (ufSoonT) return;
   const run = () => {
     ufSoonT = 0; const list = ufSoon.splice(0), slots = new Set();
-    list.forEach(q => { let o = q; while (o.parent) o = o.parent; if (o !== scene) return; unfight(q); const s = SLOTS.find(k => HOLDS[k] && Object.values(HOLDS[k]).includes(q)); if (s) slots.add(s); });
+    list.forEach(q => { let o = q; while (o.parent) o = o.parent; if (o !== scene) return; unfight(q); const s = SLOTS.find(k => HOLDS[k] && Object.values(HOLDS[k]).some(h => inHold(q, h))); if (s) slots.add(s); });   // (a gun's built in the flipped group inside its hold, flipIn: found by the hold it's in)
     slots.forEach(s => { const id = W8.slot[s]; if (id && gunMeshes[s].userData.bloodId === id) { foldGun(s); stainWeapon(id, Object.values(HOLDS[s]), false); } });   // (folded now its faces are settled, and stained again)
     setStowDirty(true);
   };
@@ -102,7 +106,8 @@ function foldGun(s) {
   const stop = new Set(movingOf(HOLDS[s], { magg: MAGG[s] || [], slides: SLIDES[s] || [], crane: CRANE[s] || [], brk: BRK[s], belt: BELT[s] })), lg = BIPOD[s];
   if (lg) (Array.isArray(lg) ? lg : [lg]).forEach(o => { const n = o && (o.isObject3D ? o : o.g); if (n && n.isObject3D) stop.add(n); });
   hs.forEach(h => h.traverse(o => { if (o.isMesh && o.material && o.material.userData && o.material.userData.bloodOf) o.material = o.material.userData.bloodOf; }));
-  stop.forEach(n => { if (n.isObject3D) foldPieces(n, stop); });
+  const span = spanOf(hs[0]);   // (with a far version for when the whole gun's small on screen: core/geometry.js)
+  stop.forEach(n => { if (n.isObject3D) foldPieces(n, stop, { lod: true, span }); });
 }
 export function buildGuns(only) {
   recomputeEff();
@@ -127,6 +132,7 @@ export function buildGuns(only) {
     else { const a = hold(0, 'R'); MUZ[s] = build(a); HOLDS[s] = { R: a }; }
     g.traverse(o => { if (o.isMesh && o.material && !Array.isArray(o.material)) o.material.userData.mobile = true; });   // weapons carry their own blood
     MAGPOS[s] = rec.magpos; CHARGE[s] = rec.charge; BRK[s] = rec.brk; BELT[s] = rec.belt; BIPOD[s] = rec.legs;
+    if (!D.melee && rec.soon) measureGrip(HOLDS[s].R, HOLD[id]);   // (where the support hand takes it, measured now off its fresh pieces, before they're folded a moment later: player/grip.js)
     if (!D.melee && !rec.soon) foldGun(s);   // (one built in play folds once its faces are settled: unfightSoon)
     trimShadows(g); stainWeapon(id, D.melee ? [g] : Object.values(HOLDS[s]), !!D.melee); g.userData.bloodId = id;   // and here it is (effects/body-blood.js)
     setTierCtx(null);

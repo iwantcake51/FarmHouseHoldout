@@ -39,11 +39,16 @@ function stillGather() {
 }
 // one mesh's copy as it stands: where it is (its world matrix), its shape and whether it's shown
 const stillSrc = o => ({ o, m: o.matrixWorld.elements.slice(), geo: o.geometry, ver: o.geometry.attributes.position.version, side: o.material.shadowSide ?? STILL_SIDE[o.material.side] });
+// a piece smaller than this (metres from its middle to its furthest corner) leaves no shadow you'd see: the sun's are
+// softened over more than that (SHADOW_SOFT, core/renderer.js), so it's left out of the copy (as trimShadows does for a
+// figure's: core/geometry.js), and its triangles aren't drawn into the shadow map every frame for nothing
+const STILL_SMALL = 0.03, _stillS = new THREE.Vector3();
+const stillTiny = o => { const g = o.geometry; if (!g.boundingSphere) g.computeBoundingSphere(); o.getWorldScale(_stillS); return g.boundingSphere.radius * Math.max(Math.abs(_stillS.x), Math.abs(_stillS.y), Math.abs(_stillS.z)) < STILL_SMALL; };
 function stillBuild() {
   for (const p of STILL_SH.proxies) { scene.remove(p); p.geometry.dispose(); }
   STILL_SH.proxies.length = 0;
   const bySide = new Map();
-  for (const s of STILL_SH.srcs) { if (!bySide.has(s.side)) bySide.set(s.side, []); bySide.get(s.side).push(s); }
+  for (const s of STILL_SH.srcs) { if (stillTiny(s.o)) continue; if (!bySide.has(s.side)) bySide.set(s.side, []); bySide.get(s.side).push(s); }
   for (const [side, list] of bySide) {
     let nv = 0, ni = 0;
     for (const { o } of list) { const g = o.geometry, n = g.attributes.position.count; nv += n; ni += g.index ? g.index.count : n; }

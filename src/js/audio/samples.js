@@ -9,6 +9,7 @@ import { P } from '../player/player.js';
 import { curId } from '../game/run-state.js';
 import { AC, master, SND_AT } from './audio.js';
 import { earFrom } from './spatial.js';
+import { ARENA } from '../world/arena.js';
 
 // how loud each plays, and (gap, s) the least time between two of it, so eight pellets into one zombie are one hit
 const SAMPLES = {
@@ -31,7 +32,8 @@ const SAMPLES = {
   hit_blunt_1: { vol: 0.6 }, hit_blunt_2: { vol: 0.6 }, hit_blunt_big_1: { vol: 0.75 }, hit_blunt_big_2: { vol: 0.75 },
   hit_blade_1: { vol: 0.55 }, hit_blade_2: { vol: 0.55 }, hit_chop_1: { vol: 0.7 }, hit_chop_2: { vol: 0.7 },
   flesh_1: { vol: 0.32 }, flesh_2: { vol: 0.32 }, head_hit: { vol: 0.28 },
-  sever: { vol: 0.48 }, head_pop: { vol: 0.58 },
+  sever: { vol: 0.48 }, head_pop: { vol: 0.58 }, head_pop_2: { vol: 0.6 },
+  kill_1: { vol: 0.5 }, kill_2: { vol: 0.5 }, kill_3: { vol: 0.55 }, kill_4: { vol: 0.55 }, flesh_3: { vol: 0.26 }, flesh_4: { vol: 0.3 },
   wood_hit_1: { vol: 0.45 }, wood_hit_2: { vol: 0.45 }, wood_break: { vol: 0.55 },
   craft: { vol: 0.5 }, pickup: { vol: 0.5 }, equip: { vol: 0.42 }, upgrade: { vol: 0.45 }, crate_open: { vol: 0.55 }, medkit: { vol: 0.45 }
 };
@@ -100,7 +102,7 @@ export function samplesInit() {
   }
 }
 // whether you're inside the farmhouse
-export const indoors = () => inHouseRect(P.x, P.z, 0);
+export const indoors = () => !ARENA.on && inHouseRect(P.x, P.z, 0);   // (none in the arena: world/arena.js)
 // plays a recorded sound (or one of a list, not the same one twice running). False if it isn't loaded, so the caller
 // plays its synthesized one. o: vol (times its own), rate, jit (the rate's varied by up to this either way, each
 // time), echo (how much goes to the farm's echo: FAR_ECHO), lp (a lowpass at this), hp (a highpass at this), dur (only its first this many seconds, faded out over the

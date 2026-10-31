@@ -27,6 +27,7 @@ import { tickBandage } from '../player/bandages.js';
 import { RUN_REST, SHOT_HOLD, SPRINT, sprintHolds } from '../player/sprint.js';
 import { fpGunPitch, fpOn, VCAM } from '../game/view-cam.js';
 import { ANIM, LOOK_DOWN } from '../player/animation.js';
+import { pvpFrozen } from '../pvp/pvp.js';
 
 const VAULT_BREATH = 1;   // seconds after a vault before stamina starts coming back
 const PITCH_MAX = 0.75;   // how far down (radians) the arms will point a gun
@@ -35,6 +36,8 @@ const AIM_CHEST = 1.4, AIM_NEAR = 1.3, AIM_UP = 0.22, AIM_UP_FP = 0.9;   // wher
 // trigger, swings, reloads, bursts, stamina, bleeding and bandages
 const groundPlane = new THREE.Plane(new V3(0, 1, 0), 0), _gp = new V3();
 const BLEED_FLOOR = 15;   // the health bleeding leaves you on at worst: there it stops, the wound clotted
+// how long a volatile's shell-shock takes to clear (P.shock, from 1 to none: its blur and grey, ui/hud.js)
+const SHOCK_FADE = 3.2;
 export function updateCombat(dt) {
   W8.cd -= dt;
   if (W8.swing > 0) {
@@ -44,7 +47,7 @@ export function updateCombat(dt) {
     if (!W8.hitDone && p >= (heavy ? HEAVY.hit : 0.4)) { W8.hitDone = true; meleeHit(); }
   }
   resumeReload(); tickReload(dt); tickShut(dt); tickCycle(dt);
-  const canFire = !openSt && !P.dead && !(P.bandT > 0) && !(ANIM.bandP > 0.25) && !sprintHolds();   // not till it's back in your hands after a bandage, nor sprinting (player/sprint.js)
+  const canFire = !openSt && !P.dead && !(P.shockStun > 0) && !pvpFrozen() && !(P.bandT > 0) && !(ANIM.bandP > 0.25) && !sprintHolds();   // not till it's back in your hands after a bandage, nor sprinting (player/sprint.js)
   // (a click made while the gun was down at a sprint goes off now it's up: P.fireQ, player/sprint.js; one made while the
   // double barrel was open goes off as it latches: W8.shutFire, weapons/reload.js)
   const stickFire = !!(tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.4), wantFire = (mouseDown || stickFire || !!P.fireQ || W8.shutFire > 0) && canFire;
@@ -111,6 +114,7 @@ export function updateCombat(dt) {
   if (onFarm && !P.dead && hasMouse && !tStick.R && !scoped && !fpOn() && ray.ray.intersectPlane(groundPlane, _gp) && !cursorTarget()) ANIM.lookDnT = 1 - smooth(clamp((Math.hypot(_gp.x - P.x, _gp.z - P.z) - LOOK_DOWN.near) / (LOOK_DOWN.far - LOOK_DOWN.near), 0, 1));
   if (P.kbx || P.kbz) { moveCircle(P, P.kbx * dt, P.kbz * dt, 0.3, true); const f = Math.exp(-dt * 7); P.kbx *= f; P.kbz *= f; if (Math.abs(P.kbx) + Math.abs(P.kbz) < 0.05) P.kbx = P.kbz = 0; }
   P.conc = Math.max(0, (P.conc || 0) - dt / 3.2);
+  P.shock = Math.max(0, (P.shock || 0) - dt / SHOCK_FADE); P.shockStun = Math.max(0, (P.shockStun || 0) - dt);   // (a volatile's: zombies/elites.js)
   W8.heat = Math.max(0, (W8.heat || 0) - dt * 0.55); W8.wispT = (W8.wispT || 0) - dt;
   W8.sprayT = (W8.sprayT || 0) + dt;
   if (W8.spray > 0) { W8.spray *= Math.exp(-dt * SETTLE.rate * settleK(W(curId())) * smooth(clamp((W8.sprayT - SETTLE.hold) / SETTLE.ramp, 0, 1))); if (W8.spray < 0.002) W8.spray = 0; }   // (settling: SETTLE)

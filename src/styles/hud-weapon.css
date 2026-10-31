@@ -90,35 +90,47 @@
 #rounds .mag+.mag{margin-left:9px;padding-left:9px;border-left:1px solid rgba(236,230,216,.3)}
 #rounds .mag.rl{opacity:.35}
 #rounds .mag .belt{width:110px}
-/* bandage counter: a white cross and how many are in the bag */
-#bandBox{display:flex;align-items:center;gap:8px;padding:4px 8px 4px 6px;background:linear-gradient(90deg,rgba(10,12,13,.4),rgba(10,12,13,.78));border:1px solid rgba(236,230,216,.16);border-right:3px solid #d0432c;box-shadow:0 6px 16px -10px rgba(0,0,0,.9);text-shadow:none;transition:opacity .3s,border-color .3s}
-#bandBox svg{width:20px;height:20px;padding:3px;background:#b8352a;border-radius:3px;fill:#fbf7ee;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18),0 0 8px rgba(208,67,44,.45)}
-#bandBox b{font-family:var(--f-num);font-weight:800;font-size:26px;line-height:1;min-width:1ch;color:var(--ink);transform-origin:center}
+/* bandage counter: a red cross and how many are in the bag, set straight on the picture like the rest of the panel;
+   the bag's key beside it */
+#bandBox{display:flex;align-items:center;gap:7px;padding:0 0 2px;transition:opacity .3s}
+#bandBox svg{width:18px;height:18px;padding:3px;background:#b8352a;border-radius:2px;fill:#fbf7ee;box-shadow:0 1px 0 rgba(0,0,0,.6)}
+#bandBox b{font-family:var(--f-num);font-weight:800;font-size:24px;line-height:1;min-width:1ch;color:var(--ink);transform-origin:center}
 #bandBox b.pop{animation:pop .28s ease-out}
-#bandBox kbd{font-family:var(--f-ui);font-size:10px;color:var(--dim);border:1px solid rgba(236,230,216,.25);padding:0 4px;border-radius:2px}
-#bandBox.empty{opacity:.5;border-right-color:rgba(236,230,216,.25)}#bandBox.empty svg{background:#4a3a36;box-shadow:none}
-#reloadTag{color:var(--orange);letter-spacing:.14em;font-size:11px;text-transform:uppercase}
-.slots{display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end;margin-top:4px}
-.slots span{min-width:62px;padding:4px 7px 3px;background:rgba(10,12,13,.45);border-bottom:2px solid transparent;color:var(--dim);font-size:10px;letter-spacing:.08em;text-transform:uppercase;text-align:left}
-.slots span em{font-style:normal;color:rgba(236,230,216,.45);margin-right:5px}
-.slots span.on{border-color:var(--orange);color:var(--ink);background:linear-gradient(0deg,rgba(var(--acc),.18),rgba(10,12,13,.72) 70%);box-shadow:0 4px 12px -6px var(--orange)}
-.slots span{transition:background .15s,border-color .15s,color .15s}
-.slots span.lock{opacity:.35}
+#bandBox kbd{font:600 10px/1 var(--f-ui);color:var(--dim);border:1px solid rgba(236,230,216,.28);padding:2px 4px 1px;border-radius:2px}
+#bandBox.empty{opacity:.45}#bandBox.empty svg{background:#4a3a36;box-shadow:none}
+#reloadTag{font-family:var(--f-num);font-weight:700;font-size:15px;letter-spacing:.05em;color:var(--orange)}
+#reloadTag:empty{display:none}
+/* the slot row: what you carry, each weapon a picture of its own model in the HUD's ink, what's been fitted to it in
+   gold (ui/melee-art.js: gunArt), muzzle to the left as the melee ones lie, by the number that picks it, each only as
+   wide as its picture so the gaps come out even. Under a hairline that closes the panel off; the one in your hands in
+   full with a short orange mark under it, the others faded back, an empty slot only its number */
+.slots{display:flex;gap:14px;justify-content:flex-end;align-items:flex-end;margin-top:3px;padding-top:7px;border-top:1px solid rgba(236,230,216,.18);filter:drop-shadow(0 1px 1px rgba(0,0,0,.85)) drop-shadow(0 0 6px rgba(0,0,0,.35))}
+.slots span{position:relative;display:flex;align-items:flex-end;gap:6px;height:34px;padding-bottom:6px;transition:opacity .15s}
+.slots span em{align-self:flex-start;font:700 13px/1 var(--f-num);font-style:normal;color:rgba(236,230,216,.6)}
+.slots span i{display:block;width:var(--aw,48px);height:26px;background:var(--art) center/contain no-repeat;opacity:.5;transition:opacity .15s}
+/* (the orange mark runs the width of the picture above it) */
+.slots span::after{content:"";position:absolute;right:0;bottom:0;width:0;height:2px;background:var(--orange);transition:width .2s cubic-bezier(.2,.8,.3,1)}
+.slots span.on em{color:var(--ink)}
+.slots span.on i{opacity:1}
+.slots span.on::after{width:var(--aw)}
+.slots span.lock em{color:rgba(236,230,216,.3)}
 /* fire mode, left of the ammo count: the rounds a pull of the trigger sends (one; a burst's; a stream that fades off for
    full auto; one for a pump, bolt or break action) over its name, with the B keycap when the gun can switch. A switch
    rolls the new rounds up into place and flashes the name orange */
-#fireMode{align-self:center;display:grid;justify-items:center;gap:4px;margin-right:8px;padding:5px 8px 4px;min-width:46px;background:linear-gradient(180deg,rgba(10,12,13,.35),rgba(10,12,13,.7));border:1px solid rgba(236,230,216,.13);border-top:2px solid rgba(236,230,216,.3);text-shadow:none}
-#fireMode.sw{border-top-color:var(--orange)}
+#fireMode{align-self:center;display:grid;justify-items:center;gap:4px;margin-right:10px;padding:2px 10px 2px 0;min-width:40px;border-right:1px solid rgba(236,230,216,.2);text-shadow:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.8))}
+#fireMode.sw{border-right-color:var(--orange)}
 #fireMode .fmG{display:flex;align-items:flex-end;gap:2px;height:14px;overflow:hidden}
 #fireMode .fmG i{display:block;width:4px;height:12px;background:linear-gradient(#c47838 0 36%,#d8b45a 36%);border-radius:2px 2px .5px .5px / 3.5px 3.5px .5px .5px;box-shadow:0 1px 0 rgba(0,0,0,.6)}
 #fireMode .fmG.auto i:nth-child(n+3){opacity:.7}#fireMode .fmG.auto i:nth-child(n+4){opacity:.45}#fireMode .fmG.auto i:nth-child(n+5){opacity:.22}
 #fireMode .fmG.burst i{height:12px}
 #fireMode .fmG.fan i:nth-child(1){transform:rotate(-18deg)}#fireMode .fmG.fan i:nth-child(3){transform:rotate(18deg)}
 #fireMode .fmG.action i,#fireMode .fmG.both i{width:5px;height:13px;background:#c9a043}
-/* the badge's rounds are the gun's cartridge too: a rifle round's bottleneck and point, a magnum's flat nose */
+/* the badge's rounds are the gun's cartridge too: a rifle round's bottleneck and point, a magnum's flat nose, a shotgun's
+   red-hulled shell on its brass head */
 #fireMode .fmG.rf i{width:4px;height:14px;border-radius:0;background:linear-gradient(#c47838 0 30%,#d8b45a 30%);clip-path:polygon(50% 0,64% 8%,80% 22%,80% 36%,100% 44%,100% 100%,0 100%,0 44%,20% 36%,20% 22%,36% 8%)}
 #fireMode .fmG.t10 i{width:5px;height:13px;border-radius:0;background:linear-gradient(#c47838 0 26%,#d8b45a 26%);clip-path:polygon(28% 0,72% 0,100% 21%,100% 100%,0 100%,0 21%)}
 #fireMode .fmG.mg i{width:5px;height:13px;border-radius:0;background:linear-gradient(#c47838 0 30%,#d8b45a 30%);clip-path:polygon(30% 0,70% 0,100% 24%,100% 100%,0 100%,0 24%)}
+#fireMode .fmG.sh i{width:6px;height:12px;border-radius:.5px;background:linear-gradient(#a8342a 0 70%,#7a2620 70% 74%,#c9a43a 74%)}
 #fireMode .fmG.in i{animation:fmIn .3s cubic-bezier(.2,.8,.3,1) backwards}
 #fireMode .fmG.in i:nth-child(2){animation-delay:.03s}#fireMode .fmG.in i:nth-child(3){animation-delay:.06s}#fireMode .fmG.in i:nth-child(4){animation-delay:.09s}#fireMode .fmG.in i:nth-child(5){animation-delay:.12s}
 @keyframes fmIn{from{transform:translateY(14px)}}

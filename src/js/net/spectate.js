@@ -7,19 +7,24 @@ import { $ } from '../core/dom.js';
 import { cam, GUN_Y, scene, V3 } from '../core/renderer.js';
 import { NET, NET_COL, netLink } from './net.js';
 import { P } from '../player/player.js';
-import { S, T } from '../game/run-state.js';
+import { S, T, W } from '../game/run-state.js';
 import { dropPickup, pickups } from '../pickups/pickups.js';
 import { state } from '../game/state.js';
 import { DC } from '../ui/screens.js';
 import { paintBar } from './lobby.js';
+import { meleeArt } from '../ui/melee-art.js';
+import { specFpOn } from '../game/view-cam.js';
+import { PVP, pvpKiller, pvpMate } from '../pvp/pvp.js';
 
 export const SPEC = { id: '', key: '' };
 // who the camera's on: you, or once you've fallen, the teammate you picked if they're still standing, else the first
 export function camFocus() {
+  if (netLink() && P.dead) { const K = pvpKiller(); if (K) return K; }   // (the arena's death camera on whoever got you, while it lasts: pvp/pvp.js)
   if (!netLink() || !P.dead || !DC.spec) return P;   // (once the death camera's dipped to black: ui/screens.js)
   let first = null;
+  if (PVP.on && PVP.mode !== 'rounds') return P;   // (in the arena you watch only your own side, and only in Showdown: pvp/pvp.js)
   for (const p of NET.peers.values()) {
-    if (p.dead || p.x === undefined) continue;
+    if (p.dead || p.x === undefined || (PVP.on && !pvpMate(p))) continue;
     if (p.id === SPEC.id) return p;
     if (!first || p.idx < first.idx) first = p;
   }
@@ -37,7 +42,7 @@ export function viewer() {
 }
 // step to the next teammate still standing (dir 1) or the one before (-1), round and round
 export function specStep(dir) {
-  const up = [...NET.peers.values()].filter(p => !p.dead && p.x !== undefined).sort((a, b) => a.idx - b.idx);
+  const up = [...NET.peers.values()].filter(p => !p.dead && p.x !== undefined && (!PVP.on || pvpMate(p))).sort((a, b) => a.idx - b.idx);
   if (up.length < 2) return;
   SPEC.id = up[(up.indexOf(camFocus()) + dir + up.length) % up.length].id; SPEC.key = '';
 }
@@ -46,13 +51,14 @@ export function renderSpec() {
   if (el.hidden === on) { el.hidden = !on; document.body.classList.toggle('spectating', on); SPEC.key = ''; }
   if (!on) return;
   const am = f.am || [], hp = Math.max(0, Math.round(f.hp ?? 100)), mx = f.maxHp || 100, st = f.stats || [];
-  let up = 0; for (const p of NET.peers.values()) if (!p.dead && p.x !== undefined) up++;
-  const key = [f.id, f.name, hp, mx, f.heal || 0, f.wn, JSON.stringify(am), st.join(), up].join('|');
+  let up = 0; for (const p of NET.peers.values()) if (!p.dead && p.x !== undefined && (!PVP.on || pvpMate(p))) up++;
+  const lg = f.lo && f.lo.guns && f.lo.guns[f.wid], key = [f.id, f.name, hp, mx, f.heal || 0, f.wn, f.wid, lg ? JSON.stringify([lg.mods, lg.lv]) : '', JSON.stringify(am), st.join(), up].join('|');
   if (SPEC.key === key) return; SPEC.key = key;
   const q = s => el.querySelector(s);
   el.style.setProperty('--pc', NET_COL[f.idx] || '#888');
   q('.spWho em').textContent = f.name || 'Survivor';
   q('.spHint').hidden = up < 2;
+  q('.spText small:not(.spHint)').textContent = PVP.on ? 'Back next round' : 'Back on your feet when the wave is cleared';
   // their health
   q('.spName b').textContent = f.name || 'Survivor';
   q('.spHp').textContent = hp; q('.spMax').textContent = '/ ' + mx;
@@ -64,6 +70,13 @@ export function renderSpec() {
   q('.spWName').textContent = f.wn || '';
   const ammo = q('.spAmmo'), n = Array.isArray(have) ? Math.min(...have) : have;   // (a pair: the emptier of the two)
   ammo.textContent = melee ? '—' : Array.isArray(have) ? have.join(' · ') : have;
+  // a melee weapon: its picture where the count would be, as your own HUD shows it (ui/melee-art.js), with
+  // the mods they've put on it at their levels (from their loadout, net/arsenal.js), not a dash (the dash only while
+  // their weapon's not known yet)
+  { const D = melee && f.wid ? W(f.wid) : null, img = q('.spMelee'), g = (f.lo && f.lo.guns && f.lo.guns[f.wid]) || {}, mods = g.mods || [], lv = g.lv || {};
+    const art = D && D.melee ? meleeArt(f.wid, mods, m => lv[m] || 1) : null, ak = f.wid + ':' + mods.map(m => m + (lv[m] || 1)).join(',');
+    img.hidden = !art; ammo.hidden = !!art;
+    if (art && img.dataset.w !== ak) { img.dataset.w = ak; img.src = art.url; img.style.width = art.w.toFixed(0) + 'px'; } }
   ammo.classList.toggle('out', !melee && n === 0); ammo.classList.toggle('low', !melee && n > 0 && n <= Math.max(1, Math.floor((cap || 1) * 0.25)));
   q('.spRes').textContent = melee ? '' : '/ ' + res;
   q('.spRel').textContent = rel === 2 ? 'Loading shells' : rel === 1 ? 'Reloading' : '';
@@ -79,6 +92,7 @@ export function updateSpecXh(rdt) {
   if (el.classList.contains('on') !== on) el.classList.toggle('on', on);
   if (!on) { SPEC.xh = null; return; }
   _sxV.set(f.ap[0], GUN_Y, f.ap[1]).project(cam);   // (on the plane aims are taken on, input/keyboard-mouse.js)
+  if (specFpOn()) _sxV.set(0, 0, 0);   // (from their eyes, the middle of the view: where they look)
   const tx = (_sxV.x * 0.5 + 0.5) * innerWidth, ty = (-_sxV.y * 0.5 + 0.5) * innerHeight;
   const c = SPEC.xh && SPEC.xh.id === f.id ? SPEC.xh : (SPEC.xh = { id: f.id, x: tx, y: ty }), k = 1 - Math.exp(-rdt * SPEC_XH.ease);
   c.x += (tx - c.x) * k; c.y += (ty - c.y) * k;

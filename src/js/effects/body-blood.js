@@ -17,7 +17,7 @@ import { W8 } from '../game/run-state.js';
 import { gunMeshes } from '../weapons/gun-materials.js';
 import { worldT } from '../game/state.js';
 
-const BLOOD_HOLD = 15, BLOOD_FADE = 1.5;
+const BLOOD_HOLD = 30, BLOOD_FADE = 3;
 // a splash of blood (amt, 0..1 of soaked) on a list of them; what lands within half a second of the last counts as
 // one splash with it, so a list holds no more than a couple of dozen
 export function splashOn(list, amt) { const l = list[list.length - 1]; if (l && l[1] < 0.5) l[0] += amt; else list.push([amt, 0]); }
@@ -37,6 +37,10 @@ export function addBlood(char, wId, wAmt) {
   if (wId && wAmt) splashOn(W8.bloodW[wId] || (W8.bloodW[wId] = []), wAmt);   // W8 starts afresh each run
 }
 export function clearBodyBlood() { youSplash.length = 0; P.blood = 0; }
+// a wave cleared and done with: you're cleaned up for the next, the blood off you and your weapons (fading off as the
+// stains ease down, effects/body-blood.js: updateWeaponBlood) and the bandages off your arm, cards or no cards
+// (waves/waves.js: clearedDone)
+export function cleanUpAfterWave() { clearBodyBlood(); for (const id in W8.bloodW) W8.bloodW[id].length = 0; P.wraps = 0; }
 
 const BLOOD_NOISE = `
 vec3 bmod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }

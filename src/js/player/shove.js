@@ -2,7 +2,7 @@
 
 import { angDiff, clamp, rand, rr } from '../core/math.js';
 import { P } from './player.js';
-import { curId, EFF, gunAtt, S, W, W8 } from '../game/run-state.js';
+import { curId, EFF, gunAtt, run, S, W, W8 } from '../game/run-state.js';
 import { burst } from '../effects/particles.js';
 import { zombies } from '../zombies/zombie-types.js';
 import { zAnimShove } from '../zombies/zombie-anim.js';
@@ -21,6 +21,7 @@ import { runStat } from '../ui/run-stats.js';
 import { ANIM } from './animation.js';
 import { relKnock } from './hold-kick.js';
 import { netAct, netRec, nr } from '../net/sync.js';
+import { pvpShove } from '../pvp/pvp.js';
 
 // the shove has a shape: a quick wind-up, a hard blow with the weapon itself, then the recovery (shovePose and
 // MBASH: player/hold.js, melee/melee-anim.js). You don't step into it; only the weapon goes out
@@ -31,13 +32,20 @@ EFF.bayonet = { melee: true, dmg: 45, sever: 0.3, kb: 2 };
 // the touch button climbs a window or fence when you are at one, and shoves otherwise
 export function spaceAction() { if (vaultTarget(nearestOpening()) || fenceTarget()) tryVault(); else shove(); }
 const hasBayonet = () => gunAtt(curId(), 'bayonet');   // only on the long gun it was fitted to
+// shove after shove wears your arms out: the first few (free) come as quick as ever, then each one more slows the next
+// (step more of its wait, and half that of the shove itself), up to max times as slow; stop shoving for rest seconds and
+// it comes back, back shoves' worth a second (SHOVE_TIRE)
+const SHOVE_TIRE = { free: 4, step: 0.3, max: 2.2, rest: 2, back: 2 };
 export function shove() {
   if (P.dead || P.vault || openSt || W8.swing > 0 || (P.shoveCd || 0) > 0) return;
   if (P.bandT > 0 || ANIM.bandP > 0) { if (P.bandT > 0) cancelBandage(); ANIM.bandSwitch = null; ANIM.bandP = 0; ANIM.bandW = 0; ANIM.bandK = 0; }
   const cost = stamUse(SHOVE_COST), tired = P.exh || P.stam < cost * 0.5;
   P.stam = Math.max(0, P.stam - cost); P.stamT = 0; if (P.stam <= 0.001) P.exh = true;
-  P.shoveCd = SHOVE_CD * (tired ? 1.5 : 1); runStat('shoves');
-  P.shove = { t: 0, hit: false, power: tired ? 0.5 : 1, stab: hasBayonet(), dur: SHOVE_DUR, hitT: SHOVE_HIT };
+  const T = SHOVE_TIRE, idle = run.time - (P.shoveLast ?? -1e9); P.shoveLast = run.time;
+  P.shoveN = Math.max(0, (P.shoveN || 0) - Math.max(0, idle - T.rest) * T.back) + 1;
+  const worn = Math.min(T.max, 1 + Math.max(0, P.shoveN - T.free) * T.step), slow = 1 + (worn - 1) * 0.5;
+  P.shoveCd = SHOVE_CD * (tired ? 1.5 : 1) * worn; runStat('shoves');
+  P.shove = { t: 0, hit: false, power: tired ? 0.5 : 1, stab: hasBayonet(), dur: SHOVE_DUR * slow, hitT: SHOVE_HIT * slow };
   exitScope(); cutReload(); W8.burstLeft = 0; W8.cd = Math.max(W8.cd, 0.35);
   if (tired) SFX.pant();
 }
@@ -53,6 +61,8 @@ export function tickShove(dt) {
 // seconds, only picking its pace back up toward the end (zombies/ai.js). A runner, thrown off its stride, reels longer
 // before it gets going again (SHOVE_RUNNER: how much longer). A co-op teammate's shove lands here too (net/sync.js)
 const SHOVE_RUNNER = { stagger: 1.9, slow: 1.5 };
+// an elite's not so easily moved: thrown back f of the way, and reeling stun as long (zombies/elites.js)
+const SHOVE_ELITE = { f: 0.4, stun: 0.5 };
 export function shoveZombie(z, nx, nz, f, power, big) {
   z.vx += nx * 9 * f; z.vz += nz * 9 * f;
   const rk = z.type === 'runner' ? SHOVE_RUNNER : { stagger: 1, slow: 1 };
@@ -70,13 +80,14 @@ function landShove(s) {
     if (d > SHOVE_RANGE + z.T.r || (Math.abs(angDiff(Math.atan2(dx, dz), P.aim)) > SHOVE_ARC && d > 0.55) || z.vault) continue;
     const nx = dx / (d || 1), nz = dz / (d || 1), big = z.type === 'brute';
     // brutes barely budge; everyone else is thrown back, loses their swing and stumbles slowly for a few seconds
-    const f = s.power * (big ? 0.25 : 1) * (z.crawl ? 0.6 : 1);
+    const el = z.elite ? SHOVE_ELITE : null, f = s.power * (big ? 0.25 : 1) * (z.crawl ? 0.6 : 1) * (el ? el.f : 1), pw = s.power * (el ? el.stun : 1);
     netAct(z, nx, nz, () => {
-      shoveZombie(z, nx, nz, f, s.power, big); netRec('v', nr(f), nr(s.power), big ? 1 : 0);
+      shoveZombie(z, nx, nz, f, pw, big); netRec('v', nr(f), nr(pw), big ? 1 : 0);
       if (s.stab && !z.dead) hurtZombie(z, EFF.bayonet.dmg * S.meleeMul * s.power, nx, nz, EFF.bayonet.kb, 'bayonet', 'torso');
     });
     hit++; brute = brute || big;
   }
+  hit += pvpShove(s.power);   // (in the arena, anyone on the other side: pvp/pvp.js)
   if (hit) {
     SFX.hitBlunt(true); if (s.stab) SFX.hitBlade(false);
     setShake(Math.max(shake, brute ? 0.2 : 0.3));

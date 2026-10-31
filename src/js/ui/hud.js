@@ -1,6 +1,6 @@
 // The HUD each frame.
 
-import { $ } from '../core/dom.js';
+import { $, replay } from '../core/dom.js';
 import { CURSE_ICON, GI_VB } from './game-icons.js';
 import { cam, cv, V3 } from '../core/renderer.js';
 import { cache, clamp, smooth } from '../core/math.js';
@@ -32,6 +32,7 @@ import { hudMag, renderRounds } from './rounds.js';
 import { renderMeleeArt } from './melee-art.js';
 import { ANIM, hurtFace } from '../player/animation.js';
 import { spectating } from '../net/spectate.js';
+import { PVP, pvpBlur, pvpGrey, pvpRegenAhead } from '../pvp/pvp.js';
 
 // health, ECG, ammo, weapon name, moodles, slots, screen tints
 // a fresh run's max health: anything over it on the bar is bonus health, in its own colour
@@ -70,10 +71,10 @@ export function updateHUD(rdt, D) {
     { const rt = spec ? 0 : Math.round(clamp((0.4 - hpF) / 0.3, 0, 1) * LOW_HP.red * 40) / 40; if (cache.redTint !== rt) { cache.redTint = rt; $('lowTint').style.opacity = rt; } }
     const near = spec || P.dead ? 0 : Math.round(smooth(clamp((NEAR_DEATH.from - hpF) / (NEAR_DEATH.from - NEAR_DEATH.to), 0, 1)) * 40) / 40;
     { const v = near ? near * NEAR_DEATH.vig * (1 - NEAR_DEATH.breath + NEAR_DEATH.breath * Math.sin(performance.now() / 1100)) : 0, vk = Math.round(v * 60) / 60; if (cache.nearVig !== vk) { cache.nearVig = vk; $('nearVig').style.opacity = vk; } }
-    const blur = Math.round((P.conc || 0) * 2.6 * 10) / 10, slow = Math.round(clamp((1 - timeScale) / 0.75, 0, 1) * 60) / 60, dz = P.dead && !spec ? 1 : 0, fk = grey + ':' + blur + ':' + slow + ':' + near + ':' + dz;
+    const pg = Math.round(pvpGrey() * 60) / 60, shk = spec ? 0 : Math.round(smooth(clamp(P.shock || 0, 0, 1)) * 40) / 40, blur = Math.round(Math.max((P.conc || 0) * 2.6, shk * SHOCK_FX.blur, smooth(pvpBlur()) * SHOVE_BLUR) * 10) / 10, slow = Math.round(clamp((1 - timeScale) / 0.75, 0, 1) * 60) / 60, dz = P.dead && !spec ? 1 : 0, fk = grey + ':' + blur + ':' + slow + ':' + near + ':' + dz + ':' + shk + ':' + pg;
     if (cache.grey !== fk) {
       cache.grey = fk;
-      cv.style.filter = (grey ? `grayscale(${grey.toFixed(2)}) brightness(${(1 + grey * LOW_HP.bright).toFixed(2)}) contrast(${(1 + grey * 0.05).toFixed(2)}) ` : '') + (blur ? `blur(${blur}px) brightness(${(1 + blur * 0.06).toFixed(2)}) ` : '') + (slow ? `saturate(${(1 - slow * 0.4).toFixed(2)}) contrast(${(1 + slow * 0.08).toFixed(2)}) hue-rotate(${(-slow * 6).toFixed(1)}deg)` : '');
+      cv.style.filter = (pg ? `saturate(${(1 - pg * 0.92).toFixed(3)}) contrast(${(1 + pg * 0.06).toFixed(3)}) ` : '') + (shk ? `saturate(${(1 - shk * SHOCK_FX.grey).toFixed(2)}) ` : '') + (grey ? `grayscale(${grey.toFixed(2)}) brightness(${(1 + grey * LOW_HP.bright).toFixed(2)}) contrast(${(1 + grey * 0.05).toFixed(2)}) ` : '') + (blur ? `blur(${blur}px) brightness(${(1 + blur * 0.06).toFixed(2)}) ` : '') + (slow ? `saturate(${(1 - slow * 0.4).toFixed(2)}) contrast(${(1 + slow * 0.08).toFixed(2)}) hue-rotate(${(-slow * 6).toFixed(1)}deg)` : '');
       $('slowmo').style.opacity = slow;   // (a cool dimming at the edges only: no letterbox bars)
       if (muff && AC && !(P.conc > 0.05)) muff.frequency.setTargetAtTime(Math.min(slow ? 20000 - slow * 18800 : 20000, 20000 * Math.pow(NEAR_DEATH.lp / 20000, near), dz ? DEATH_LP : 20000), AC.currentTime, dz ? 0.9 : near ? 0.4 : 0.12);   // (slow motion's, or close to death's: NEAR_DEATH)
     }
@@ -87,8 +88,9 @@ export function updateHUD(rdt, D) {
       $('vitals').classList.toggle('badBlood', !!S.badBlood); } }
     // health over the base 100 (armour, Tough skin, Stubborn...) shows in its own colour past where 100 would end
     { const b = Math.min(100, BASE_HP / S.maxHp * 100), bk = Math.round(b * 10); if (cache.hpB !== bk) { cache.hpB = bk; $('hpFill').style.setProperty('--b', b.toFixed(1) + '%'); } }
-    // the blue part: healing still to come, and while a bandage goes on, as much of its healing as is wound so far
-    { const inc = Math.max(0, Math.min(capF - barF, ((P.heal || 0) + bandHeal() * healMul() * bandProg()) / S.maxHp)), hk = Math.round(barF * 500) + ':' + Math.round(inc * 500);
+    // the blue part: healing still to come, and while a bandage goes on, as much of its healing as is wound so far (in
+    // the arena, all the health coming back on its own once it's started to: pvp/pvp.js)
+    { const inc = Math.max(0, Math.min(capF - barF, ((P.heal || 0) + bandHeal() * healMul() * bandProg() + pvpRegenAhead()) / S.maxHp)), hk = Math.round(barF * 500) + ':' + Math.round(inc * 500);
       if (cache.heal !== hk) { cache.heal = hk; const el = $('hpHeal'); el.style.left = (barF * 100) + '%'; el.style.width = (inc * 100) + '%'; } }
     // the blue edge builds as a bandage goes on (player/hold.js, healFx), not the moment you start, and stays faint while it heals you
     { const hv = Math.round(Math.min(1, Math.max(0.85 * (ANIM.healFx || 0), 0.45 * Math.min(1, (P.heal || 0) / 12))) * 60) / 60; if (cache.hv !== hv) { cache.hv = hv; $('healVig').style.opacity = hv; } }
@@ -118,7 +120,7 @@ export function updateHUD(rdt, D) {
     renderMeleeArt(id, D); renderFireMode(id);
     // reloading shows under the crosshair; touch play has no crosshair, so it stays here for touch
     const xhShown = hasMouse && !usingTouch && !scoped;
-    setRoll('reloadTag', W8.reloading && !xhShown ? (W8.reloading === 'shell' ? `Loading ${W8.shellsIn}/${W8.shellsNeed}` : 'Reloading') : (!W8.reloading && !D.melee && !(W8.mag[id] > 0) && W8.reserve[D.ammo] === 0) ? 'Empty. Craft ammo or switch' : '');
+    setRoll('reloadTag', W8.reloading && !xhShown ? (W8.reloading === 'shell' ? `Loading ${W8.shellsIn}/${W8.shellsNeed}` : 'Reloading') : (!W8.reloading && !D.melee && !(W8.mag[id] > 0) && W8.reserve[D.ammo] === 0) ? (PVP.on ? 'Empty. Switch weapons' : 'Empty. Craft ammo or switch') : '');
     renderSlots();
     $('tbWave').hidden = phase !== 'break';
     $('tbAlt').hidden = !D.gl;
@@ -131,22 +133,22 @@ function renderFireMode(id) {
   const sameGun = cache.fmId === id && !!cache.fm; cache.fm = key; cache.fmId = id;
   el.hidden = !m; if (!m) return;
   const g = el.querySelector('.fmG'), n = m.k === 'burst' ? Math.min(4, m.n) : m.k === 'auto' ? 5 : m.k === 'fan' ? 3 : m.k === 'both' ? 2 : 1;
-  g.className = 'fmG ' + m.k + ({ rifle: ' rf', magnum: ' mg', p10: ' t10' }[W(id).ammo] || '') + (sameGun ? ' in' : ''); g.innerHTML = '<i></i>'.repeat(n);   // pointed rifle and magnum rounds
+  g.className = 'fmG ' + m.k + ({ rifle: ' rf', magnum: ' mg', p10: ' t10', shells: ' sh' }[W(id).ammo] || '') + (sameGun ? ' in' : ''); g.innerHTML = '<i></i>'.repeat(n);   // the gun's own cartridge: pointed rifle rounds, flat-nosed magnums and 10mm, shotgun shells
   el.querySelector('.fmT b').textContent = m.t; el.querySelector('.fmT kbd').hidden = !sw;
-  if (sameGun) { el.classList.remove('sw'); void el.offsetWidth; el.classList.add('sw'); }
+  if (sameGun) replay(el, 'sw');
 }
 // switching fire mode (B): the selector clicks over in two steps, the new mode's name comes up beside the crosshair
 // for a moment, and the HUD's rounds roll over to it
 export function fireModeSwitched(id) {
   SFX.click(); tn(0.03, 'square', 900, 700, 0.06); setTimeout(() => tn(0.025, 'square', 1350, 1050, 0.05), 70);
   const m = fireModeOf(id), x = $('xhMode'); if (!m) return;
-  x.textContent = m.t; x.classList.remove('show'); void x.offsetWidth; x.classList.add('show');
+  x.textContent = m.t; replay(x, 'show');
   renderFireMode(id);
 }
 // X loaded another kind of round (weapons/rounds.js): its name by the crosshair, where a new fire mode shows
 export function roundSwitched(id) {
   SFX.click(); setTimeout(() => SFX.click(), 90);
-  const x = $('xhMode'); x.textContent = roundName(id, roundOn(id)); x.classList.remove('show'); void x.offsetWidth; x.classList.add('show');
+  const x = $('xhMode'); x.textContent = roundName(id, roundOn(id)); replay(x, 'show');
 }
 // getting hit (zombies/ai.js, weapons/explosives.js): red floods in from the side of the screen the blow came from and
 // drains away again; a blow with no side to it (a blast right under you) flashes the whole edge instead (styles/overlays.css)
@@ -166,6 +168,10 @@ const LOW_HP = { grey: [0.55, 0.12], bright: 0.24, red: 0.5, pulse: [0.1, 0.04] 
 // off it (down to .lp Hz at worst, through the master lowpass the slow motion uses: whichever's lower), and the edges
 // of the view darken (#nearVig, up to .vig), slowly breathing (.breath of it, at about the rate you breathe)
 const NEAR_DEATH = { from: 0.25, to: 0.04, lp: 4200, vig: 0.75, breath: 0.12 };
+// a volatile's shell-shock (P.shock, 1 fading to none): how hard it blurs the view (px) and drains its colour (of all of it)
+const SHOCK_FX = { blur: 5, grey: 0.85 };
+// a shove in the arena: the most it blurs your view (px), easing off over its second (pvp/pvp.js)
+const SHOVE_BLUR = 3.5;
 const DEATH_LP = 650;   // how dull and far off it all sounds while you lie there (ui/screens.js: the death camera)
 const BLEED_PULSE = 1.5;   // seconds per throb of the bleeding edge: slow and heavy, whatever your heart is doing
 // the side a blow came from, for the red flash and the blur on that side
