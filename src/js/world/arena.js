@@ -43,7 +43,7 @@ import { FLARE_SRC, GLOW_LAYER } from '../effects/post.js';
 
 // its bounds (cells, the walls round it included), the time of day it's always fought at (mid afternoon, the sun
 // starting down and the shadows lengthening), and its plan, a row a line from north (j = z0) to south: # the outer wall, C a container,
-// h block walls (the warehouse, the hut, the spawn yards', the baffles, the stubs), b a jersey barrier, s sandbags and k crate stacks (both vaulted over: VAULT_LOW), o a drum, r a cable
+// h block walls (the warehouse, the hut, the spawn yards', the baffles, the stubs), b a jersey barrier, s sandbags (never vaulted: round them), k crate stacks (vaulted over: VAULT_LOW), o a drum, r a cable
 // spool; A and B each side's spawn, F the spots a free-for-all spawns from (on the floor)
 export const ARENA = { on: false, x0: 1, x1: 42, z0: 1, z1: 42, tod: 15.6 };
 const AR_PLAN = [
@@ -95,14 +95,14 @@ const AR_PLAN = [
 const AR_H = { '#': 3.2, C: 2.6, h: 2.1, b: 1.1, s: 1.15, k: 1.4, o: 1.05, r: 1.1 };
 const AR_LOW = new Set(['b', 's', 'o', 'r', 'k']);
 // (and what's vaulted: the sandbags, the crate stacks and the jersey barriers, chest high, a head showing over them)
-const AR_VAULT = new Set(['s', 'k', 'b']);
+const AR_VAULT = new Set(['k', 'b']);   // (the sandbag walls aren't: you go round them)
 // the sandbag walls' cells, while the arena's up: hopped over like the farm's fence (player/vaulting.js)
 export const VAULT_LOW = new Set();
 // what's vaulted where you stand (the vault prompt: barricades/interactions.js): the nearest within reach, crates or sandbags
 export function arVaultWhat(x, z) {
-  let best = 9, k = 's';
+  let best = 9, k = 'k';
   for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) { const i = ci(x) + di, j = ci(z) + dj, c = AR_KIND(i, j); if (!AR_VAULT.has(c)) continue; const d = Math.hypot(cxw(i) - x, cxw(j) - z); if (d < best) { best = d; k = c; } }
-  return k === 'k' ? 'crates' : k === 'b' ? 'barrier' : 'sandbags';
+  return k === 'b' ? 'barrier' : 'crates';
 }
 // spawn spots by side, worked out from the plan: [x, z, facing]
 const AR_SPAWN = { A: [], B: [], F: [] };

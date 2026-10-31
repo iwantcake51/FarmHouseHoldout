@@ -942,9 +942,10 @@ checked by a script (tools/arena-plan.py) for reachability, spawn safety, sightl
 - **The two halves** mirror each other, so neither side is better off: west against east, each spawn a hatched box
   painted plain white on the concrete (the sides swap ends in Showdown, so neither colour's on it). Eighteen spots
   spread round all three lanes are Deathmatch's spawns.
-- **Vaulting.** The sandbag walls, the crate stacks (1.4 m: a crate with a flat one on top) and the jersey barriers
-  can be vaulted like the farm's fence: walk up to one (a **Vault the sandbags**, **crates** or **barrier** prompt
-  shows) and press the vault key, or sprint into it. Nothing else of the farm's is in your bag: no planks.
+- **Vaulting.** The crate stacks (1.4 m: a crate with a flat one on top) and the jersey barriers can be vaulted like
+  the farm's fence: walk up to one (a **Vault the crates** or **Vault the barrier** prompt shows) and press the vault
+  key, or sprint into it. **The sandbag walls can't be vaulted** (they used to be): you see and shoot over them, but
+  you go round them. Nothing else of the farm's is in your bag: no planks.
 - **Hitboxes fit the props.** A spool, a crate stack or a drum stops you and your rounds only where it really is, not
   across its whole metre of floor.
 - **The light** in Showdown is set once a round and holds still through it (the clock doesn't run during a round):

@@ -40,7 +40,7 @@ export function vaultTarget(o) {
 }
 export function fenceTarget() {
   let best = null, bd = 1.05;
-  const pi = ci(P.x), pj = ci(P.z), isF = (i, j) => inb(i, j) && (cell[idx(i, j)] === FENCE || VAULT_LOW.has(idx(i, j)));   // (and the arena's sandbags: world/arena.js)
+  const pi = ci(P.x), pj = ci(P.z), isF = (i, j) => inb(i, j) && (cell[idx(i, j)] === FENCE || VAULT_LOW.has(idx(i, j)));   // (and the arena's crate stacks and barriers: world/arena.js)
   for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
     const i = pi + di, j = pj + dj; if (!isF(i, j)) continue;
     const d = Math.hypot(cxw(i) - P.x, cxw(j) - P.z); if (d < bd) { bd = d; best = [i, j]; }
