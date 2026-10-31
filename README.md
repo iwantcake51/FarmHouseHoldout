@@ -652,8 +652,10 @@ like pea-shooters). To a 100-health body, before range falloff:
 - Their name shows only while you're aiming at them or looking right at them, in plain sight. From your own eyes
   that means near the middle of the view (more leeway close up); from above, your crosshair on the ground close to
   them. It shows in red, a little see-through, never with their health, and never pinned to the edge of the screen.
-  Your own side keeps its outlines, names and health bars in its colour, and from either view your teammates are
-  outlined through walls while they're alive, gone the moment they go down.
+  Your own side keeps its outlines, names and health bars in its colour, and your teammates are shown through walls
+  while they're alive, gone the moment they go down: from your own eyes as the thin line round them that the last
+  zombies of a wave get (just their outline, not their gun or pack filled in through the wall), from above as a
+  see-through shape.
 - **Spawns** in Deathmatch and when you come back in a team game go to the spot furthest from everyone on the other
   side, and never one any of them can see from where they stand, if there's any other choice.
 
@@ -782,7 +784,8 @@ in are kept, except that use, the bandage and the next kind of round move off E,
 
 **Leaning.** Q and E lean you out to the left and right from the hips, at the hip or down the sights, round a corner or
 over cover. Your upper body tips over (head, arms and gun with it, and everyone else sees you lean), your eyes go about
-32 cm out to that side, and the view rolls a little with them. It eases in and out over about a quarter of a second.
+32 cm out to that side, and the view rolls a little with them, while your arms and the gun cant over further still
+(about twice as far), so the gun lines up with the lean, down the sights too. It eases in and out over about a quarter of a second.
 By default a press leans you and another press (or the other key) straightens you up; Settings, Camera, Lean switches
 it to Hold, where you lean only while the key is held. You lean only as far as there's room, never through a wall. A
 sprint, a vault or going down straightens you up, and leaning at the hip you walk a fifth slower (down the sights it

@@ -11,9 +11,9 @@ import { bulletBlocked, hardBlocked } from '../world/collision.js';
 import { P } from './player.js';
 import { SET } from '../ui/settings.js';
 
-// how far over (rad, at the hips: hip, m up), how far your eyes go out to the side and down with it (m), how much the view rolls with it (rad), how fast it eases (per s), the share
+// how far over (rad, at the hips: hip, m up), how far your eyes go out to the side and down with it (m), how much the view rolls with it (rad) and how much further than that your arms and gun cant over (rad), how fast it eases (per s), the share
 // of your walking pace it costs from the hip, and where to the side it checks for room (m, out from your middle)
-const LEAN = { tilt: 0.3, hip: 0.62, eye: 0.32, drop: 0.06, roll: 0.14, ease: 9, slow: 0.2, room: [0.32, 0.58] };
+const LEAN = { tilt: 0.3, hip: 0.62, eye: 0.32, drop: 0.06, roll: 0.14, cant: 0.24, ease: 9, slow: 0.2, room: [0.32, 0.58] };
 // which way it's meant to go (t: -1 left, 1 right, 0 straight), how far over it is now (v, eased), and which keys are
 // held (Hold: 1 left, 2 right)
 const LEAN_S = { t: 0, v: 0, held: 0 };
@@ -50,6 +50,6 @@ export function leanEye(e, yaw) {
   const a = LEAN_S.v; if (!a) return;
   e.x += -Math.cos(yaw) * a * LEAN.eye; e.z += Math.sin(yaw) * a * LEAN.eye; e.y -= Math.abs(a) * LEAN.drop;
 }
-// the view's roll with it (game/view-cam.js), and your pace leaning (player/movement.js)
-export const leanRoll = () => -LEAN_S.v * LEAN.roll;
+// the view's roll with it, and the arms' and the gun's further cant (game/view-cam.js), and your pace leaning (player/movement.js)
+export const leanRoll = () => -LEAN_S.v * LEAN.roll, leanCant = () => -LEAN_S.v * LEAN.cant;
 export const leanPace = aimed => aimed ? 1 : 1 - LEAN.slow * clamp(Math.abs(LEAN_S.v), 0, 1);

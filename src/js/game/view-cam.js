@@ -39,7 +39,7 @@ import { camFocus, spectating } from '../net/spectate.js';
 import { CEIL, inHouseRect } from '../world/house.js';
 import { pvpKiller, pvpPicking } from '../pvp/pvp.js';
 import { los } from '../lighting/lightmap.js';
-import { leanEye, leanRoll } from '../player/lean.js';
+import { leanCant, leanEye, leanRoll } from '../player/lean.js';
 
 // mode: the view picked; on: the one in use this frame (the isometric one on the menus and when you're down)
 export const VCAM = { mode: 'iso', on: 'iso', yaw: Math.PI, pitch: 0, aimY: GUN_Y, aimD: 26 };   // (aimD: how far down your line of sight it meets something, metres: ui/crosshair.js)
@@ -362,7 +362,7 @@ function lookBy(dx, dy) {
 const viewP = () => V.cp + V.kick + V.tp + V.flp + V.jp + V.np + V.bp + V.vp + V.lp + (V.mp || 0) + (V.mk || 0) + FL.p + (V.shp || 0), viewY = () => V.cy + V.ky + V.fly + V.jy + V.ny + FL.y + (V.shy || 0), viewR = () => V.roll * 0.6 + V.tr + V.br + V.vr + V.lr + (V.mr || 0) + FL.r + (V.kr || 0) + (V.shr || 0) + leanRoll();
 // and the same without the free look (held: the view turns on its own), for what's placed on the gun in your hands, which
 // stays on the aim as you look round (FREE_LOOK)
-const armsP = () => viewP() - V.flp, armsY = () => viewY() - V.fly;
+const armsP = () => viewP() - V.flp, armsY = () => viewY() - V.fly, armsR = () => viewR() + leanCant();   // (leaning, the arms and gun cant over further than the view rolls: player/lean.js)
 const freeLooking = () => fpOn() && keys.has(KB.freeLook) && adsW() < 0.3;
 // the aim set from elsewhere (going into first person, a test): the view onto it, nothing off the middle
 function fpAimSync() {
@@ -388,7 +388,7 @@ function fpFreeAim(dt) {
 const _faQ = new THREE.Quaternion(), _faE = new THREE.Euler(), _faV = new V3();
 export function fpAimPx(arms = false) {
   if (!fpOn()) return [0, 0];
-  _faV.set(0, 0, -1).applyEuler(_faE.set(VCAM.pitch, VCAM.yaw + Math.PI, 0, 'YXZ')).applyQuaternion(_faQ.setFromEuler(_faE.set((arms ? armsP() : viewP()) - V.kick, (arms ? armsY() : viewY()) - V.ky + Math.PI, viewR(), 'YXZ')).invert());
+  _faV.set(0, 0, -1).applyEuler(_faE.set(VCAM.pitch, VCAM.yaw + Math.PI, 0, 'YXZ')).applyQuaternion(_faQ.setFromEuler(_faE.set((arms ? armsP() : viewP()) - V.kick, (arms ? armsY() : viewY()) - V.ky + Math.PI, arms ? armsR() : viewR(), 'YXZ')).invert());
   const f = innerHeight / 2 / Math.tan(FP_CAM.fov * Math.PI / 360), z = Math.max(0.2, -_faV.z);
   return [_faV.x / z * f, -_faV.y / z * f];
 }
@@ -446,7 +446,7 @@ const _rlC = new V3(), _rlD = new V3(), _rlM = new THREE.Matrix4(), _rlQ = new T
 // you turned)
 function viewMat(out) {
   rigEye(_rlE); { const o = EYE_R.o, y = VCAM.yaw, k = (V.pin ?? 1) * EYE_PIN.k; if (EYE_R.on) { _rlE.x -= (o.x * Math.cos(y) + o.z * Math.sin(y)) * k; _rlE.z -= (-o.x * Math.sin(y) + o.z * Math.cos(y)) * k; } }
-  _rlQ.setFromEuler(_rE.set(armsP(), armsY() + Math.PI, viewR(), 'YXZ')); out.compose(_rlE, _rlQ, _rlS);
+  _rlQ.setFromEuler(_rE.set(armsP(), armsY() + Math.PI, armsR(), 'YXZ')); out.compose(_rlE, _rlQ, _rlS);
   if (fpOn()) { out.premultiply(lockInv(_liM)); out.decompose(_rlE, _rlQ, _rlS2); }
   return out;
 }
@@ -601,7 +601,7 @@ export function fpViewSway(gg, grip) {
   // (turned about where it's gripped: the gun's own group sits down at your feet, and a sway's tilt turned about there
   // would swing the gun centimetres back and aside, trailing every step and sidestep)
   gg.updateMatrixWorld(true); _vsP.set(grip[0], grip[1], grip[2]).applyMatrix4(gg.matrixWorld);
-  _rq.setFromEuler(_rE.set(armsP(), armsY() + Math.PI, viewR(), 'YXZ'));
+  _rq.setFromEuler(_rE.set(armsP(), armsY() + Math.PI, armsR(), 'YXZ'));
   _rq2.copy(_rq).multiply(_vcQ.setFromEuler(_rE.set(VS.p, VS.w, VS.r, 'YXZ'))).multiply(_vcQ.copy(_rq).invert());
   _vsO.set(VS.x, VS.y, VS.z).applyQuaternion(_rq);
   _rM.makeTranslation(-_vsP.x, -_vsP.y, -_vsP.z).premultiply(_rM2.makeRotationFromQuaternion(_rq2)).premultiply(_rM2.makeTranslation(_vsP.x + _vsO.x, _vsP.y + _vsO.y, _vsP.z + _vsO.z));
@@ -631,7 +631,7 @@ export function fpRecoil(gg, grip) {
   if (Math.abs(p) + Math.abs(y) + Math.abs(r) + Math.abs(C.z) + Math.abs(S.z) + Math.abs(C.h) + Math.abs(C.x) < 1e-6) return;
   gg.updateMatrixWorld(true);
   // (the turn made in the view's own frame: the view's way, then the turn, then back out of the view's way)
-  _rq.setFromEuler(_rE.set(armsP(), armsY() + Math.PI, viewR(), 'YXZ'));
+  _rq.setFromEuler(_rE.set(armsP(), armsY() + Math.PI, armsR(), 'YXZ'));
   // turned about your wrists or your shoulder (F.pivot, from where it's gripped, in the view's own frame)
   _rp.set(grip[0], grip[1], grip[2]).applyMatrix4(gg.matrixWorld).add(_vcZ.set(F.pivot[0], F.pivot[1], F.pivot[2]).applyQuaternion(_rq));
   _rq2.copy(_rq).multiply(_vcQ.setFromEuler(_rE.set(p, y, r, 'YXZ'))).multiply(_vcQ.copy(_rq).invert());
@@ -1039,7 +1039,7 @@ function adsKickTilt(at, w, room = Infinity) {
   const p = C.p * A[0] * w, y = C.y * A[1] * w, r = C.r * A[2] * w;
   if (Math.abs(p) + Math.abs(y) + Math.abs(r) + Math.abs(push) < 1e-6) return false;
   const U = PM.upper; U.updateMatrixWorld(true);
-  _rq.setFromEuler(_rE.set(armsP(), armsY() + Math.PI, viewR(), 'YXZ'));
+  _rq.setFromEuler(_rE.set(armsP(), armsY() + Math.PI, armsR(), 'YXZ'));
   _ktP.copy(at);
   _ktT.set(0, 0, push).applyQuaternion(_rq);   // (and shoved back toward your eye along the view: adsPush)
   _ktQ.copy(_rq).multiply(_vcQ.setFromEuler(_ktE.set(p, y, r, 'YXZ'))).multiply(_vcQ.copy(_rq).invert());

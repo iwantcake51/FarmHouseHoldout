@@ -276,12 +276,15 @@ export function updateAvatars(rdt) {
     a.hitF = Math.max(0, (a.hitF || 0) - rdt); const hf = a.hitF > 0 && !p.dead;
     if (a.ol) {
       a.ol.visible = !p.dead && (!foe || hf);
+      // (a teammate in the arena, from your own eyes: their outline's line seen through walls, as the last few zombies of
+      // a wave are, effects/screen-outlines.js, not the solid see-through shape with their gun and pack in it)
+      a.ol.userData.olThrough = !p.dead && pvpMate(p);
       if (hf !== !!a.hfOn) { a.hfOn = hf; if (hf) { a.olCol = a.olCol || a.ol.color.clone(); a.ol.color.set(a.hitHead ? 0xffcf4a : 0xffffff); } else { if (a.olCol) a.ol.color.copy(a.olCol); a.ol.opacity = 0.9; } }
       if (hf) a.ol.opacity = 0.35 + 0.65 * a.hitF / HIT_FX.t;
     }
     if (PVP.on && !a.stain) { a.stain = stainZombie(a); a.stain.b = 0; }
     // (in the arena, the blood on them as much as they're hurt: pvp/pvp.js PVP_BLOOD)
-    if (a.stain) { a.stain.b = PVP.on && !p.dead ? PVP_BLOOD * clamp(1 - (p.hp ?? 100) / (p.maxHp || 100), 0, 1) : PVP.on ? a.stain.b : 0; updateZombieStain(a.stain, rdt, rdt); } if (a.xr) { a.cvK = coverFromCam(a.g.position.x, a.g.position.z) ? 1 : Math.max(0, (a.cvK || 0) - rdt * 4); const xo = !p.dead && (pvpMate(p) || ((!foe || a.seen) && isoOn() && a.cvK > 0));   /* (a teammate in the arena: their shape through any wall from either view while they're up, gone the moment they're down) */   /* (someone on the other side only while you can see where they stand: hidden from the camera alone, not from you) */ a.xr.rim.visible = a.xr.fill.visible = xo; if (a.xr.sil) a.xr.sil.visible = xo; }   // (down, no outline round them or through walls; through walls only from above, as zombies are, and only with something in the way: coverFromCam)
+    if (a.stain) { a.stain.b = PVP.on && !p.dead ? PVP_BLOOD * clamp(1 - (p.hp ?? 100) / (p.maxHp || 100), 0, 1) : PVP.on ? a.stain.b : 0; updateZombieStain(a.stain, rdt, rdt); } if (a.xr) { a.cvK = coverFromCam(a.g.position.x, a.g.position.z) ? 1 : Math.max(0, (a.cvK || 0) - rdt * 4); const xo = !p.dead && isoOn() && (pvpMate(p) || ((!foe || a.seen) && a.cvK > 0));   /* (a teammate in the arena: their shape through any wall from above while they're up, gone the moment they're down; from your own eyes their outline's line instead, above) */   /* (someone on the other side only while you can see where they stand: hidden from the camera alone, not from you) */ a.xr.rim.visible = a.xr.fill.visible = xo; if (a.xr.sil) a.xr.sil.visible = xo; }   // (down, no outline round them or through walls; through walls only from above, as zombies are, and only with something in the way: coverFromCam)
     const k = 1 - Math.exp(-rdt * 16), first = !a.cur;
     if (first) a.cur = t.slice();
     const c = a.cur;
