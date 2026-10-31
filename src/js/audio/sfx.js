@@ -99,6 +99,8 @@ export const SFX = {
   // higher knock than going home, and a dry scrape after it
   magTap() { const f = rr(0.92, 1.08); if (!playS('magin_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()), { vol: 0.32, rate: 1.35 * f, gap: 0.05 })) { tn(0.03, 'triangle', 760 * f, 420, 0.1); nz(0.03, 'bandpass', 1900 * f, 900, 0.14, 2.4); } setTimeout(() => nz(0.05, 'bandpass', 2600 * f, 1400, 0.05, 1.6), 35); },
   magOut() { if (playS('magout_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()))) return; tn(0.04, 'square', 900, 600, 0.1); nz(0.05, 'bandpass', 1500, 900, 0.15, 2); },
+  // the M4's flick (player/hold-flick.js): the rush of the gun whipped out to the side, quiet under the mag's clatter
+  flick() { if (playS(['swing_light_1', 'swing_light_2'], { vol: 0.32, rate: 1.35, jit: 0.08 })) return; nz(0.11, 'bandpass', 600, 2200, 0.1, 1.5); },
   magIn() { if (playS('magin_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()))) return; tn(0.05, 'square', 600, 400, 0.14); nz(0.06, 'bandpass', 1200, 700, 0.2, 2); },
   shell() { const id = curId(); if (id === 'hunting' || id === 'revolver' ? playS('round_in', { gap: 0.03, rate: id === 'revolver' ? 1.25 : 1, vol: id === 'revolver' ? 0.8 : 1 }) : playS('shell_load', { gap: 0.03 })) return; tn(0.04, 'square', 700, 500, 0.12); nz(0.07, 'bandpass', 2200, 1200, 0.22, 3); },
   chargePull() { const k = gunKind(); if (playS(k === 'pistol' ? 'slide_pull' : k === 'smg' ? 'charge_pull_smg' : 'charge_pull_rifle')) return; nz(0.07, 'bandpass', 1700, 900, 0.22, 2); tn(0.03, 'square', 900, 700, 0.05); },

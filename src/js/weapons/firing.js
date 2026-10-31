@@ -10,7 +10,7 @@ import { blockArr, bulletBlocked, bulletBlockedAt, inCellBox } from '../world/co
 import { P } from '../player/player.js';
 import { HEAVY_FIRE } from './gun-stats.js';
 import { falloff, headFade } from './ammo.js';
-import { pvpPellet, pvpRay, pvpShotEnd } from '../pvp/pvp.js';
+import { PVP, pvpPellet, pvpRay, pvpShotEnd } from '../pvp/pvp.js';
 import { fireModeOf } from './mod-levels.js';
 import { curId, gunAtt, magSize, run, S, suppMul, suppressed, T, W, W8 } from '../game/run-state.js';
 import { AKX, BELT, BIPOD, MUZ, X } from './gun-materials.js';
@@ -51,6 +51,7 @@ import { HOLD, HOLD_DEF, holdOf } from '../player/hold.js';
 import { gunKick, recoilFeel } from '../player/hold-kick.js';
 import { beltKick, bipodKick } from '../player/hold-sway.js';
 import { shotOut } from '../net/avatars.js';
+import { crouchSpread } from '../player/crouch.js';
 
 // how hard a shot hits back, from what it does to a zombie: 9mm about 0.1-0.2, rifle rounds and magnums 0.3-0.8,
 // the hunting rifle and shotguns up to about 1.2 (a double barrel firing both)
@@ -110,6 +111,7 @@ export function spreadOf(id) {
   if (D.ammo === 'shells' && T('choke')) s *= (D.pellets || 1) > 1 ? (T('choke') === 2 ? 0.49 : 0.7) : (T('choke') === 2 ? 0.3 : 0.55);
   if (D.bipod && P.still > 0.3) s *= 0.12;
   if (fanning(D)) s *= D.fan.spread;
+  s *= crouchSpread();   // crouched, steadier (player/crouch.js)
   if (P.sprint) s *= RG_SPREAD;   // firing at a sprint, with Run and gun (player/sprint.js)
   s *= 1 + XHIT.spread * XR.hb;   // shaken by a blow you've just taken (xhHit, player/shaky-hands.js)
   return Math.min(s, pel ? SG_MAX : SPREAD_MAX);
@@ -131,6 +133,15 @@ export const pelletOff = sp => (rand() + rand() + rand() - 1.5) / 1.5 * sp;
 // spread. And there the pattern's round, all around the middle, not one flat line: each pellet's thrown up or down as
 // far as sideways (SG_FP.v of its spread), and never lands outside that ring
 export const SG_FP = { ring: 0.7, v: 1 };
+// in the arena a shotgun's pattern is the same every shot (as competitive shooters have it, so close up a shell does
+// what it did last time, not a lucky or an unlucky one): one pellet on the crosshair and the rest on two rings round it,
+// every other one on the inner (in, out: of the spread), the whole thing turned a little each shell (turn, radians)
+const SG_PAT = { in: 0.32, out: 0.62, turn: 0.35 };
+function sgPattern(q, n, sp, fp, rot) {
+  if (q === 0) return [0, 0];
+  const a = rot + (q - 1) / Math.max(1, n - 1) * Math.PI * 2, r = sp * (q % 2 ? SG_PAT.in : SG_PAT.out);
+  return fp ? [r * Math.cos(a), r * Math.sin(a)] : [r * Math.cos(a) * (q % 2 ? 0.9 : 1), 0];
+}
 // how far (m) from the point you aimed at a shotgun pellet can land and still hit that part (the head, the chest, a limb):
 // a little more than the part itself, as a pellet clipping its edge counts
 const PELLET_CORE = { head: 0.22, torso: 0.3, armL: 0.15, armR: 0.15, legL: 0.17, legR: 0.17 };
@@ -366,6 +377,7 @@ export function gunFire(id, D, side) {
   if (quietR) suppHeat(id, trPw, T('ammo'));   // (the can warms with each round through it, quicker behind a hotter powder: effects/supp-heat.js)
   const ends = [];   // where the tracers end, for your teammates' screens (net/avatars.js)
   const shotB = new Map();   // the boards the shot goes through, and how hard (barricades/planks.js)
+  const sgRot = (rand() - 0.5) * 2 * SG_PAT.turn;   // (the arena's fixed pattern: SG_PAT)
   for (let p = 0; p < pellets; p++) {
     // a shotgun's pattern is centred on what the crosshair sits on (the first pellet lands exactly there), not on the
     // ground under the cursor, which from this camera is off to one side of a zombie's head
@@ -380,7 +392,8 @@ export function gunFire(id, D, side) {
     // (from your own eyes the pattern's round and inside the ring, SG_FP: each pellet thrown up or down as far as sideways,
     // and one that would land outside the ring pulled back in to its edge)
     let po = pellets > 1 && !aimed ? pelletOff(sp) : 0, pv = one && !aimed ? dv : 0;
-    if (fpOn() && pellets > 1 && !aimed) { const R = SG_FP.ring * sp; pv = pelletOff(sp) * SG_FP.v; const r = Math.hypot(po, pv); if (r > R) { const k = R * rr(0.85, 1) / r; po *= k; pv *= k; } }
+    if (PVP.on && pellets > 1 && !aimed) { [po, pv] = sgPattern(p % (D.pellets || 1), D.pellets || 1, sp, fpOn(), sgRot); if (!fpOn()) pv = 0; }
+    else if (fpOn() && pellets > 1 && !aimed) { const R = SG_FP.ring * sp; pv = pelletOff(sp) * SG_FP.v; const r = Math.hypot(po, pv); if (r > R) { const k = R * rr(0.85, 1) / r; po *= k; pv *= k; } }
     const a = p === 0 && tgt && one ? tgtA + dev : aimed ? tgtA : (pellets > 1 && tgt ? tgtA : base) + (pellets > 1 ? po : dev), dx = Math.sin(a), dz = Math.cos(a);
     // how high the round is along its way: from the muzzle to the part under the crosshair it was aimed at (or the
     // height you're aiming at, out where you're aiming), and on past at the same slope. Every zombie after the first it

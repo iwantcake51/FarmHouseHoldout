@@ -87,7 +87,7 @@ function computeLight() {
   const fl = 0.85 + Math.sin(worldT * 11.1) * 0.08 + 0.035 + Math.sin(worldT * 37.3) * 0.02 + Math.sin(worldT * 23.9) * 0.015;   // fire flicker on the world clock
   LAMP_ON.k = smooth(clamp((dark - LAMP_DARK[0]) / (LAMP_DARK[1] - LAMP_DARK[0]), 0, 1));   // (the arena's floods come on only as it gets dark)
   STATIC_LIGHTS.forEach(L => {
-    if (L.arena) { if (LAMP_ON.k > 0.001) addField(L.field, L.int * LAMP_ON.k, L.col); return; }
+    if (L.arena) { const k = L.always ? 1 : LAMP_ON.k; if (k > 0.001) addField(L.field, L.int * k, L.col); return; }   // (an indoor map's are always on: world/arena-mall.js)
     if (L.spill) { const b = shutN(L.spill); if (b < 2) addField(L.field, L.int * (b ? 0.4 : 1) * (0.08 + 0.92 * dark), L.col); return; }
     addField(L.field, L.int * (L.inside ? 0.55 + 0.6 * dark : 0.15 + 0.85 * dark) * (L.flicker ? fl : 1), L.col);
   });

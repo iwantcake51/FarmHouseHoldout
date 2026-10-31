@@ -92,7 +92,7 @@ export function poseOut(rdt) {
   const now = performance.now(), dt = Math.max(0.03, (now - poseAt) / 1000);
   const vx = clamp((P.x - poseX) / dt, -12, 12), vz = clamp((P.z - poseZ) / dt, -12, 12); poseX = P.x; poseZ = P.z; poseAt = now;
   const msg = { x: r3(P.x), z: r3(P.z), vx: r2(vx), vz: r2(vz), hp: Math.round(Math.max(0, P.hp)), mh: S.maxHp, dead: P.dead ? 1 : 0, v: P.vault ? 1 : 0, pk: (state === 'upgrade' && pickWait === null) || (state === 'leaving' && !bonusHand && bonusDue()) ? 1 : 0, cw: run.cardHand | 0, j,
-    fl: myLight() ? [myLight(), r2(flDir())] : 0, vw: [r2(P.aim), r2(S.cone), r2(S.near), S.nightVis || 0, T('night') || 0], st: [S.planks | 0, S.scrap | 0, run.kills | 0], hl: Math.round((P.heal || 0) + bandHeal() * bandProg()),
+    fl: myLight() ? [myLight(), r2(flDir())] : 0, vw: [r2(P.aim), r2(S.cone), r2(S.near), S.nightVis || 0, T('night') || 0], st: [S.planks | 0, S.scrap | 0, run.kills | 0], hl: Math.round((P.heal || 0) + bandHeal() * bandProg()), cr: P.cr > 0.02 ? r2(P.cr) : 0,   // (cr: how far you're crouched, player/crouch.js)
     ap: !P.dead && state === 'play' ? [r2(aimPt.x), r2(aimPt.z)] : 0,   // (where you're aiming, for the crosshair a teammate watching you sees: net/spectate.js)
     fc: !P.dead && (ANIM.anger || ANIM.worry || ANIM.hurt || ANIM.ads) ? [r2(ANIM.anger || 0), r2(ANIM.worry || 0), r2(ANIM.hurt || 0), r2(ANIM.ads || 0)] : 0 };   // (hl: healing still to come, the blue on your bar; fc: your face, angry, startled, wincing and aiming, faceMood in player/look.js)   // (what the team list shows of you: planks, scrap and kills)
   // what's lying on your farm, a few times a second while a teammate's down (they may be watching you: net/spectate.js)
@@ -272,7 +272,7 @@ export function netDropAvatar(p) {
 NET_ON.p = m => {
   const p = NET.peers.get(m.f); if (!p) return;
   if (m.dead && !p.dead && p.x !== undefined && state !== 'title' && !PVP.on) { teamDown(p); turnedDown(p.id); }   // they've just gone down (net/lobby.js), and they'll be back next wave as one of them (net/sync.js)
-  Object.assign(p, { x: m.x, z: m.z, vx: m.vx || 0, vz: m.vz || 0, hp: m.hp, maxHp: m.mh, vw: m.vw || p.vw, dead: !!m.dead, vault: !!m.v, picking: !!m.pk, cw: m.cw | 0, wp: m.wp, sv: m.sv, ex: m.ex, stats: m.st, am: m.am, heal: m.hl || 0, fl: m.fl || 0, fc: m.fc || 0, ap: m.ap || 0, fv: m.fv || 0, loaded: true }); if (m.wn !== undefined) { p.wn = m.wn; p.wid = m.wid || ''; } if (m.dr) p.drops = m.dr;
+  Object.assign(p, { x: m.x, z: m.z, vx: m.vx || 0, vz: m.vz || 0, hp: m.hp, maxHp: m.mh, vw: m.vw || p.vw, dead: !!m.dead, vault: !!m.v, picking: !!m.pk, cw: m.cw | 0, wp: m.wp, sv: m.sv, ex: m.ex, stats: m.st, am: m.am, heal: m.hl || 0, fl: m.fl || 0, fc: m.fc || 0, ap: m.ap || 0, fv: m.fv || 0, cr: m.cr || 0, loaded: true }); if (m.wn !== undefined) { p.wn = m.wn; p.wid = m.wid || ''; } if (m.dr) p.drops = m.dr;
   // a loadout we haven't got (or an old one): ask for it, once a second at most
   if (m.lk && m.lk !== (p.av ? p.av.lk : p.lk) && performance.now() - (p.loAsk || 0) > 1000) { p.loAsk = performance.now(); netTo(m.f, 'loq', {}); }
   p.tgt = m.j; p.poseAt = performance.now();
@@ -322,6 +322,8 @@ export function updateAvatars(rdt) {
     }
     if (PVP.on && !a.stain) { a.stain = stainZombie(a); a.stain.b = 0; }
     // (in the arena, the blood on them as much as they're hurt: pvp/pvp.js PVP_BLOOD)
+    if (a.stain && a.wasDead && !p.dead) { a.stain.sp.length = 0; a.stain.shown = a.stain.was = 0; }   // (back up from a death: clean at once, a new life)
+    if (a.stain) a.wasDead = !!p.dead;
     if (a.stain) { a.stain.b = PVP.on && !p.dead ? PVP_BLOOD * clamp(1 - (p.hp ?? 100) / (p.maxHp || 100), 0, 1) : PVP.on ? a.stain.b : 0; updateZombieStain(a.stain, rdt, rdt); }
     // (someone on the other side shown through cover from above: in red, whoever they are; a teammate in their own colour)
     if (a.xr && a.xrFoe !== foe) { a.xrFoe = foe; const c = foe ? FOE_TAG.col : NET_COL[p.idx] || '#888'; a.xr.rim.color.set(c); if (a.xr.sil) a.xr.sil.color.set(c); }
@@ -359,7 +361,7 @@ export function updateAvatars(rdt) {
     if (a.blob) { a.blob.position.set(a.g.position.x, 0.02, a.g.position.z); }
     // their footsteps, from their feet: a step every stride's length they cover, a run's when they're moving fast
     { const gx = a.g.position.x, gz = a.g.position.z, d = a.lx === undefined ? 0 : Math.hypot(gx - a.lx, gz - a.lz); a.lx = gx; a.lz = gz;
-      if (d < 1 && !p.dead && !p.vault) { const sp = Math.hypot(p.vx || 0, p.vz || 0), run = sp > 4.2; a.walked = (a.walked || 0) + d; if (a.walked > (run ? 1.05 : 0.72)) { a.walked = 0; footstep(run ? 'run' : 'walk', 0.85, gx, gz); } } }
+      if (d < 1 && !p.dead && !p.vault) { const sp = Math.hypot(p.vx || 0, p.vz || 0), run = sp > 4.2; a.walked = (a.walked || 0) + d; if (a.walked > (run ? 1.05 : 0.72)) { a.walked = 0; footstep(run ? 'run' : 'walk', 0.85 * (1 - 0.65 * (p.cr || 0)), gx, gz); } } }
     // the name: over the head, gone while they're out of sight or past the edge of the screen
     // the dot over their head (and their name); when they're off the screen, it waits at its edge on the line toward
     // them, pointing their way

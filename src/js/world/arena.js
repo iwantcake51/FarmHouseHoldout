@@ -18,11 +18,13 @@
 // wall is 18 m. Floodlights stand
 // in its corners and halfway along each wall.
 //
-// While it's up, the farm's own pieces (the house, the yard, the fence, the stations: world/farm-set.js) are out of the
-// scene and the grid (what's walked through, what stops a round and the eye, the light) is the arena's; when it comes
-// down everything goes back as it was.
+// It's one of the arena's maps (AR_MAPS; the other's indoors, world/arena-mall.js), picked with the match's settings in
+// the lobby. A map is its own world, not built over the farm: while it's up the farm's every piece (the house, the
+// yard, the fence, the stations, the ground and the woods: world/farm-set.js) is out of the scene, the map brings its
+// own ground and surroundings, and the grid (what's walked through, what stops a round and the eye, the light) is the
+// map's; when it comes down everything goes back as it was.
 
-import { scene } from '../core/renderer.js';
+import { scene, V3 } from '../core/renderer.js';
 import { rand, rr, seeded, withSeed } from '../core/math.js';
 import { lam, lit, LMU } from '../core/shaders.js';
 import { box, mergeInto } from '../core/geometry.js';
@@ -40,12 +42,15 @@ import { stillShadowsReset } from '../core/still-shadows.js';
 import { setLightsDirty } from '../barricades/planks.js';
 import { TREE_HIDE } from './tree-cull.js';
 import { FLARE_SRC, GLOW_LAYER } from '../effects/post.js';
+import { MALL } from './arena-mall.js';
+import { FARM_MAP } from './arena-farm.js';
+import { ROUTE_MAP } from './arena-route.js';
 
 // its bounds (cells, the walls round it included), the time of day it's always fought at (mid afternoon, the sun
 // starting down and the shadows lengthening), and its plan, a row a line from north (j = z0) to south: # the outer wall, C a container,
 // h block walls (the warehouse, the hut, the spawn yards', the baffles, the stubs), b a jersey barrier, s sandbags (never vaulted: round them), k crate stacks (vaulted over: VAULT_LOW), o a drum, r a cable
 // spool; A and B each side's spawn, F the spots a free-for-all spawns from (on the floor)
-export const ARENA = { on: false, x0: 1, x1: 42, z0: 1, z1: 42, tod: 15.6 };
+export const ARENA = { on: false, map: 'yard', x0: 1, x1: 42, z0: 1, z1: 42, tod: 15.6, indoor: false };
 const AR_PLAN = [
   '##########################################',
   '#........h........CCCCCC........h........#',
@@ -92,34 +97,52 @@ const AR_PLAN = [
 ];
 // how tall each kind stands (m): what a round fired below it from your own eyes stops on (world/props.js: obstTop), and
 // whether you see and shoot over it (low) or not
-const AR_H = { '#': 3.2, C: 2.6, h: 2.1, b: 1.1, s: 1.15, k: 1.4, o: 1.05, r: 1.1 };
+const AR_H = { '#': 3.2, C: 2.6, h: 2.1, b: 1.1, s: 1.15, k: 1.0, o: 1.05, r: 1.1 };
 const AR_LOW = new Set(['b', 's', 'o', 'r', 'k']);
 // (and what's vaulted: the sandbags, the crate stacks and the jersey barriers, chest high, a head showing over them)
 const AR_VAULT = new Set(['k', 'b']);   // (the sandbag walls aren't: you go round them)
 // the sandbag walls' cells, while the arena's up: hopped over like the farm's fence (player/vaulting.js)
 export const VAULT_LOW = new Set();
+// the maps: each its plan and where it stands on the grid ([x0, z0, x1, z1] cells), how tall each kind in it is, which
+// are low and which vaulted, which are walls, what the vault prompt calls each, how it's built (its pieces back, into
+// its group), its fixed lights, and, indoors, the hour it's always at (its own lights on). Picked with the match's
+// settings (pvp/pvp.js PVP.cfg.map, the lobby's map picker: net/lobby.js)
+const AR_YARD4 = { id: 'yard', name: 'Yard 4', note: 'A freight yard: the warehouse, the plaza, the rail spur', plan: AR_PLAN, b: [1, 1, 42, 42], h: AR_H, low: AR_LOW, vault: AR_VAULT, walls: '#h',
+  what: { k: 'crates', b: 'barrier' }, build: null, indoor: false, tod: null, lights: () => AR_LIGHTS(), flares: [] };
+export const AR_MAPS = { yard: AR_YARD4, mall: MALL, farm: FARM_MAP, route: ROUTE_MAP };
+export const AR_MAP_IDS = Object.keys(AR_MAPS);
+let AR_CUR = AR_YARD4;
+// the map to put up: the grid's bounds for it, and its spawns worked out the first time
+function arMapSet(id) {
+  const M = AR_MAPS[id] || AR_YARD4; AR_CUR = M;
+  ARENA.map = M.id; [ARENA.x0, ARENA.z0, ARENA.x1, ARENA.z1] = M.b; ARENA.indoor = !!M.indoor; ARENA.tod = M.tod ?? 15.6;
+  if (!M.spawn) M.spawn = arSpawnsOf(M);
+}
 // what's vaulted where you stand (the vault prompt: barricades/interactions.js): the nearest within reach, crates or sandbags
 export function arVaultWhat(x, z) {
-  let best = 9, k = 'k';
-  for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) { const i = ci(x) + di, j = ci(z) + dj, c = AR_KIND(i, j); if (!AR_VAULT.has(c)) continue; const d = Math.hypot(cxw(i) - x, cxw(j) - z); if (d < best) { best = d; k = c; } }
-  return k === 'b' ? 'barrier' : 'crates';
+  let best = 9, k = '';
+  for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) { const i = ci(x) + di, j = ci(z) + dj, c = AR_KIND(i, j); if (!AR_CUR.vault.has(c)) continue; const d = Math.hypot(cxw(i) - x, cxw(j) - z); if (d < best) { best = d; k = c; } }
+  return AR_CUR.what[k] || Object.values(AR_CUR.what)[0];
 }
 // spawn spots by side, worked out from the plan: [x, z, facing]
-const AR_SPAWN = { A: [], B: [], F: [] };
-const AR_KIND = (i, j) => { const r = AR_PLAN[j - ARENA.z0]; return r ? r[i - ARENA.x0] || '#' : '#'; };
-AR_PLAN.forEach((r, jj) => [...r].forEach((ch, ii) => {
-  const x = cxw(ARENA.x0 + ii), z = cxw(ARENA.z0 + jj), mid = (cxw(ARENA.x0) + cxw(ARENA.x1)) / 2;
-  if (ch === 'A' || ch === 'B' || ch === 'F') AR_SPAWN[ch].push([x, z, Math.atan2(mid - x, cxw(22) - z)]);   // (facing the middle)
-}));
-// each side's spawn spots in its yard (AR_YARD_AT): every spot the plan marks for it, which is every open spot in the
+// (each map's, worked out the first time it's put up: arMapSet)
+function arSpawnsOf(M) {
+  const S = { A: [], B: [], F: [] }, [x0, , x1] = M.b, mid = (cxw(x0) + cxw(x1)) / 2;
+  M.plan.forEach((r, jj) => [...r].forEach((ch, ii) => {
+    const x = cxw(M.b[0] + ii), z = cxw(M.b[1] + jj);
+    if (ch === 'A' || ch === 'B' || ch === 'F') S[ch].push([x, z, Math.atan2(mid - x, cxw(22) - z)]);   // (facing the middle)
+  }));
+  const main = sd => S[sd].filter(s => S[sd].some(o => o !== s && Math.abs(o[1] - s[1]) < 0.1 && Math.abs(o[0] - s[0]) < 1.1)).map(s => [s[0], s[1]]);
+  return { S, yard: { A: main('A'), B: main('B') } };
+}
+const AR_KIND = (i, j) => { const r = AR_CUR.plan[j - ARENA.z0]; return r ? r[i - ARENA.x0] || '#' : '#'; };
+// each side's spawn spots in its yard (arSpawnsOf: yard): every spot the plan marks for it, which is every open spot in the
 // yard that nothing outside can see (tools/arena-plan.py), so spawns spread over the yard and are safe by its walls
 // (only the main run of them: not a lone spot tucked into a corner by a stub wall, where nobody would start)
-const arYardMain = sd => AR_SPAWN[sd].filter(s => AR_SPAWN[sd].some(o => o !== s && Math.abs(o[1] - s[1]) < 0.1 && Math.abs(o[0] - s[0]) < 1.1)).map(s => [s[0], s[1]]);
-const AR_YARD_AT = { A: arYardMain('A'), B: arYardMain('B') };
 // a side's spots this round, spread over its whole yard (Showdown: arenaSpawn): the first anywhere in it (drawn by the
 // round, the same on every screen), each after as far from all before it as the yard allows
 function yardSpots(sd, seed, n) {
-  const Y = AR_YARD_AT[sd]; if (!Y.length) return null;
+  const Y = AR_CUR.spawn.yard[sd]; if (!Y.length) return null;
   let h = (seed * 2654435761 + (sd === 'B' ? 97 : 13)) >>> 0; const rnd = () => { h = (h ^ (h << 13)) >>> 0; h = (h ^ (h >>> 17)) >>> 0; h = (h ^ (h << 5)) >>> 0; return h / 4294967296; };
   const out = [Y[Math.floor(rnd() * Y.length)]];
   while (out.length <= n) { let best = null, bd = -1; for (const c of Y) { const d = Math.min(...out.map(o => Math.hypot(o[0] - c[0], o[1] - c[1]))) + rnd() * 1.5; if (d > bd) { bd = d; best = c; } } out.push(best); }
@@ -192,7 +215,7 @@ function arFloorTex() {
   const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
 }
 
-let arG = null, arSaved = null;
+let arSaved = null;
 // the pieces, built once (the first match) and kept for the next
 function arBuild() {
   const g = new THREE.Group(); g.userData.still = true;
@@ -216,6 +239,7 @@ function arBuild() {
     arFence(parts, g);
     arSigns(g);
     arOutside(parts, g);
+    arWoods(g); arWallKit(parts);
     mergeInto(g, parts);
     arP = arParts = null;
   });
@@ -279,13 +303,12 @@ function arSpool(parts, x, z) {
 // (a prop's footprint, as its model stands, for what walks into it and what a round hits: world/collision.js cellBox,
 // not the whole cell; out from its middle, -x, -z, +x, +z)
 const arFoot = (x, z, a, b, c, d) => { cellBox[idx(ci(x), ci(z))] = [x - a, z - b, x + c, z + d]; };
-// two crates stacked, the top one turned a little, their slats and corner boards darker
+// one big crate (no flat one stacked on it), its corner boards darker
 function arCrates(parts, x, z) {
-  // (chest high, AR_H.k: a big crate and a flat one on it, to vault over and see over; the flat one turned a little)
-  [[0.95, 0.95, 0, 0], [0.8, 0.45, 0.95, rr(-0.3, 0.3)]].forEach(([s, h, y, a]) => {
-    const c = arPush(parts, box2(s, h, s, AR_M.crate, x, y + h / 2, z)); c.rotation.y = a;
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const p = arPush(parts, box2(0.06, h + 0.005, 0.06, AR_M.crateDk, x + sx * (s / 2 - 0.02), y + h / 2, z + sz * (s / 2 - 0.02))); p.rotation.y = a; }
-  });
+  // (waist high, AR_H.k: vaulted over and seen over)
+  const s = 0.95, h = 0.95;
+  arPush(parts, box2(s, h, s, AR_M.crate, x, h / 2, z));
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) arPush(parts, box2(0.06, h + 0.005, 0.06, AR_M.crateDk, x + sx * (s / 2 - 0.02), h / 2, z + sz * (s / 2 - 0.02)));
   arFoot(x, z, 0.48, 0.48, 0.48, 0.48);
 }
 // a pair of drums, one blue, one rusted, with their rims
@@ -396,6 +419,44 @@ function arOutside(parts, g) {
   at(S, 0); { const x = 16.5, z = 7; B(1.3, 0.9, 2.3, M.yel, x, 0.75, z); B(1.2, 1.3, 1.1, M.craneDk, x, 1.8, z + 0.4); B(0.1, 2.4, 0.1, M.steel, x - 0.45, 1.5, z - 1.25); B(0.1, 2.4, 0.1, M.steel, x + 0.45, 1.5, z - 1.25); B(1.1, 0.06, 1.0, M.steel, x, 0.15, z - 1.75); }
   for (let z = -18; z <= 20; z += 2.2) { B(0.6, 0.35, 2, AR_M.barrier, 14.2, 0.18, z); B(0.25, 0.6, 2, AR_M.barrier, 14.2, 0.65, z); }
 }
+// ---- its own world past the apron: rough ground out to the horizon and the woods round it, its own (the farm and its
+// woods are out of the scene while a map's up: arenaUp). Pines on a ring from just past the apron outwards, thicker
+// further out, none on the camera's sides near in (south and east, AR_WOODS.clear) so from above nothing stands
+// between the camera and the yard
+const AR_WOODS = { n: 420, gap: 4, r1: 95, clear: 14 };   // (from AR_OUT + gap out)
+function arWoods(g) {
+  const tx = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const t = c.getContext('2d'); t.fillStyle = '#4f5238'; t.fillRect(0, 0, 256, 256); const r = seeded(91);
+    for (let k = 0; k < 4000; k++) { t.fillStyle = `rgba(${r() < 0.5 ? '40,44,28' : '108,104,70'},${0.1 + r() * 0.25})`; t.fillRect(r() * 256, r() * 256, 1 + r() * 3, 1 + r() * 3); }
+    const tt = new THREE.CanvasTexture(c); tt.wrapS = tt.wrapT = THREE.RepeatWrapping; tt.repeat.set(30, 30); return tt; })();
+  const gr = new THREE.Mesh(new THREE.PlaneGeometry(320, 320), lam(0xffffff, { map: tx })); gr.rotation.x = -Math.PI / 2; gr.position.y = -0.02; gr.receiveShadow = true; g.add(gr);
+  const trunk = new THREE.CylinderGeometry(0.12, 0.2, 1.6, 6), cone = new THREE.ConeGeometry(1.6, 4.2, 7), cone2 = new THREE.ConeGeometry(1.15, 3, 7);
+  const mT = lam(0x4a3a2a), mL = lam(0x2f4a2c), mL2 = lam(0x3b5a33);
+  const iT = new THREE.InstancedMesh(trunk, mT, AR_WOODS.n), iA = new THREE.InstancedMesh(cone, mL, AR_WOODS.n), iB = new THREE.InstancedMesh(cone2, mL2, AR_WOODS.n);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new V3(), p = new V3(), rnd = seeded(4711), r0 = AR_OUT + AR_WOODS.gap;
+  let n = 0;
+  for (let k = 0; k < AR_WOODS.n * 4 && n < AR_WOODS.n; k++) {
+    const x = (rnd() - 0.5) * 2 * AR_WOODS.r1, z = (rnd() - 0.5) * 2 * AR_WOODS.r1, d = Math.max(Math.abs(x), Math.abs(z - 0.5));
+    if (d < r0 || (d < r0 + AR_WOODS.clear && (z > 0 || x > 0)) || rnd() > 0.35 + 0.65 * (d - r0) / (AR_WOODS.r1 - r0)) continue;
+    const h = 0.8 + rnd() * 0.7; q.setFromAxisAngle(_arY, rnd() * 6.28); s.set(h, h, h);
+    iT.setMatrixAt(n, m.compose(p.set(x, 0.8 * h, z), q, s)); iA.setMatrixAt(n, m.compose(p.set(x, (1.6 + 1.9) * h, z), q, s)); iB.setMatrixAt(n, m.compose(p.set(x, (1.6 + 3.6) * h, z), q, s)); n++;
+  }
+  for (const o of [iT, iA, iB]) { o.count = n; o.castShadow = true; o.receiveShadow = true; o.instanceMatrix.needsUpdate = true; g.add(o); }
+}
+const _arY = new V3(0, 1, 0);
+// the yard's working life, on its walls and floor and never in the way: a conduit along the inside of the west and north
+// walls with junction boxes and a breaker cabinet, floor drains, oil stains and puddles, a hose reel on the wall
+function arWallKit(parts) {
+  const M = { pipe: lam(0x6f6a5e), box: lam(0x8a8f86), cab: lam(0x5d6b5a), drain: lam(0x2e2f30), hose: lam(0x8a2f22) };
+  const xW = cxw(ARENA.x0) + 0.56, zN = cxw(ARENA.z0) + 0.56, x1 = cxw(ARENA.x1), z1 = cxw(ARENA.z1);
+  // (along the north wall's inside face, 1.5 m up, with a box every 6 m; down the west wall the same)
+  arPush(parts, box2(x1 - xW - 1, 0.08, 0.08, M.pipe, (xW + x1) / 2, 1.55, zN)); arPush(parts, box2(0.08, 0.08, z1 - zN - 1, M.pipe, xW, 1.55, (zN + z1) / 2));
+  for (let x = xW + 3; x < x1 - 2; x += 6) arPush(parts, box2(0.32, 0.4, 0.12, M.box, x, 1.45, zN + 0.02));
+  for (let z = zN + 3; z < z1 - 2; z += 6) arPush(parts, box2(0.12, 0.4, 0.32, M.box, xW + 0.02, 1.45, z));
+  arPush(parts, box2(0.9, 1.4, 0.3, M.cab, (xW + x1) / 2 - 9, 0.8, zN + 0.1));   // (the breaker cabinet, by the north wall's middle)
+  arPush(parts, box2(0.12, 0.5, 0.5, M.hose, xW + 0.04, 1.0, (zN + z1) / 2 + 9));   // (a hose reel on the west wall)
+  // drains in the floor where the pad falls (open cells only), as flat grates
+  for (const [i, j] of [[5, 9], [36, 9], [5, 33], [36, 33], [20, 14], [21, 27]]) if (AR_KIND(ARENA.x0 + i, ARENA.z0 + j) === '.') arPush(parts, box2(0.55, 0.02, 0.55, M.drain, cxw(ARENA.x0 + i), 0.02, cxw(ARENA.z0 + j)));
+}
 // how far out the terminal's apron goes from the middle (m), and the woods cleared back to it; and how far each part of
 // the terminal was moved out from where it stood round the old, smaller yard (m)
 const AR_OUT = 35, AR_SHIFT = 13;
@@ -404,9 +465,8 @@ const AR_OUT = 35, AR_SHIFT = 13;
 // cells in the plan), so the fight for the flag isn't in the dark between the walls' lights
 const AR_MID_LAMPS = [[17, 17], [24, 17], [17, 24], [24, 24]];
 const AR_LAMPS = () => { const mi = Math.round((ARENA.x0 + ARENA.x1) / 2), mj = Math.round((ARENA.z0 + ARENA.z1) / 2); return [[ARENA.x0 + 1, ARENA.z0 + 1], [ARENA.x1 - 1, ARENA.z0 + 1], [ARENA.x0 + 1, ARENA.z1 - 1], [ARENA.x1 - 1, ARENA.z1 - 1], [mi, ARENA.z0 + 1], [mi, ARENA.z1 - 1], [ARENA.x0 + 1, mj], [ARENA.x1 - 1, mj], ...AR_MID_LAMPS.map(([i, j]) => [ARENA.x0 + i, ARENA.z0 + j])]; };
-// a floodlight on its pole at each, its head tipped down into the yard; each one's flare (AR_FLARES, put up with the
+// a floodlight on its pole at each, its head tipped down into the yard; each one's flare (AR_YARD4.flares, put up with the
 // arena: arenaUp) and its halo's look
-const AR_FLARES = [];
 // (the lamps' faces and halos lit only as far as they're on: dark grey glass by day, warm white at night)
 const _arOff = new THREE.Color(0x4a4c4e), _arOn = new THREE.Color(0xfff1c8);
 function arLampLit() { const k = LAMP_ON.k; AR_HALO.opacity = 0.8 * k; AR_M.lamp.color.copy(_arOff).lerp(_arOn, k); }
@@ -421,23 +481,22 @@ function arFlood(parts, g) {
     // (a soft halo round it, and a lens flare off it when it's in sight and shining your way: effects/post.js FLARE_SRC)
     const halo = new THREE.Sprite(AR_HALO); halo.scale.setScalar(1.6); halo.onBeforeRender = arLampLit; halo.position.set(0, 0, 0.14); halo.layers.enable(GLOW_LAYER); halo.userData.isFlash = true; hd.add(halo);
     hd.updateMatrixWorld(true); const fw = new THREE.Vector3(0, 0, 1).transformDirection(hd.matrixWorld), fp = new THREE.Vector3(0, 0, 0.12).applyMatrix4(hd.matrixWorld);
-    AR_FLARES.push({ x: fp.x, y: fp.y, z: fp.z, dx: fw.x, dy: fw.y, dz: fw.z, col: [1, 0.88, 0.7] });
+    AR_YARD4.flares.push({ x: fp.x, y: fp.y, z: fp.z, dx: fw.x, dy: fw.y, dz: fw.z, col: [1, 0.88, 0.7] });
   }
 }
 // the arena's lights in the light map: the floods, warm white, strongest as the dusk comes on
 const AR_LIGHTS = () => AR_LAMPS().map(([i, j]) => ({ arena: true, x: cxw(i), z: cxw(j), r: 16, col: [1, 0.86, 0.66], int: 0.9 }));
 
 // ---- up and down
-export function arenaUp() {
+// (what of the farm stays in the scene while a map's up: only the light, the sky and the air; its ground, its woods
+// and its grass go with everything else, each map bringing its own)
+const arKeep = o => o.isLight || o.type === 'Object3D' || o.isPoints || o.isSprite || o.renderOrder < -10 || (o.isMesh && !o.isInstancedMesh && o.geometry && o.geometry.type === 'SphereGeometry' && !o.userData.still) || (o.frustumCulled === false && !o.isGroup && !o.isInstancedMesh && !(o.geometry && o.geometry.type === 'PlaneGeometry'));
+export function arenaUp(id) {
   if (ARENA.on) return;
+  arMapSet(id);
   ARENA.on = true;
-  // the farm's pieces out of the scene (all but the ground under it, the sky, the woods and the air), and its grass
-  const out = [];
-  for (const o of FARM_ROOTS) {
-    if (o.parent !== scene) continue;
-    const keep = !o.userData.road && (o.isLight || o.isPoints || o.isSprite || o.type === 'Object3D' || (o.isInstancedMesh && !arGrass(o)) || (o.isMesh && !o.isInstancedMesh && o.geometry && (o.geometry.type === 'PlaneGeometry' || o.geometry.type === 'SphereGeometry') && !o.userData.still) || o.renderOrder < -10 || o.frustumCulled === false && !o.isGroup);
-    if (!keep) { scene.remove(o); out.push(o); }
-  }
+  const M = AR_CUR, out = [];
+  for (const o of FARM_ROOTS) if (o.parent === scene && !arKeep(o)) { scene.remove(o); out.push(o); }
   // and the house's outer wall pieces, built for each run's floor plan after all that (world/house.js WALL_FORMS)
   for (const w of WALL_FORMS.values()) if (w.g.parent === scene) { scene.remove(w.g); out.push(w.g); }   // (each a form: its group, w.g)
   // what the farm had in the grid, kept to put back
@@ -445,44 +504,38 @@ export function arenaUp() {
     openings: openings.slice(), doors: HOUSE_DOORS.list.slice(), doorKey: HOUSE_DOORS.key, lights: STATIC_LIGHTS.slice(), house: LMU.uHouse.value.clone() };
   openings.length = 0; HOUSE_DOORS.list.length = 0; HOUSE_DOORS.key = 'arena'; wX.fill(0); wZ.fill(0); THIN.n = 0;
   cell.fill(EMPTY); openAt.fill(null); cellBox.fill(null); lowObst.clear(); obstTop.clear();
-  if (!arG) arG = arBuild();   // (the containers' and barriers' footprints go in as they're built)
-  FLARE_SRC.length = 0; FLARE_SRC.push(...AR_FLARES);   // (the floodlights' lens flares: effects/post.js)
+  if (!M.g) M.g = arBuildMap(M);   // (the props' footprints go in as they're built: arCellBoxes keeps them for the next match)
+  FLARE_SRC.length = 0; FLARE_SRC.push(...(M.flares || []));   // (the floodlights' lens flares: effects/post.js)
   for (let j = ARENA.z0; j <= ARENA.z1; j++) for (let i = ARENA.x0; i <= ARENA.x1; i++) {
     const k = AR_KIND(i, j), c = idx(i, j);
-    if (k === '#' || k === 'h') cell[c] = WALL;
-    else if (AR_H[k]) { cell[c] = OBST; obstTop.set(c, AR_H[k]); if (AR_LOW.has(k)) lowObst.add(c); if (AR_VAULT.has(k)) VAULT_LOW.add(c); }
+    if (M.walls.includes(k)) cell[c] = WALL;
+    else if (M.h[k]) { cell[c] = OBST; obstTop.set(c, M.h[k]); if (M.low.has(k)) lowObst.add(c); if (M.vault.has(k)) VAULT_LOW.add(c); }
   }
-  // the woods cleared back from the terminal's apron: the farm's own trees there drawn at nothing, kept to put back
-  arTrees.length = 0;
-  for (const o of FARM_ROOTS) {
-    if (!o.isInstancedMesh || o.parent !== scene) continue;
-    let did = false;
-    for (let k = 0; k < o.count; k++) { o.getMatrixAt(k, _aTM); _aTV.setFromMatrixPosition(_aTM); if (arCleared(_aTV.x, _aTV.z)) { arTrees.push([o, k, _aTM.clone()]); o.setMatrixAt(k, _aTZero); did = true; } }
-    if (did) o.instanceMatrix.needsUpdate = true;
-  }
-  TREE_HIDE.at = arCleared;   // (and the ones the forests draw afresh each frame kept out of it: world/tree-cull.js)
-  arCellBoxes();
-  scene.add(arG);
+  TREE_HIDE.at = () => true;   // (and none of the woods the forests draw afresh each frame: world/tree-cull.js)
+  arCellBoxes(M);
+  scene.add(M.g);
   syncBlock();
-  STATIC_LIGHTS.length = 0; STATIC_LIGHTS.push(...AR_LIGHTS()); STATIC_LIGHTS.forEach(L => { L.field = lightField(L.x, L.z, L.r, null, true); });
+  STATIC_LIGHTS.length = 0; STATIC_LIGHTS.push(...M.lights()); STATIC_LIGHTS.forEach(L => { L.field = lightField(L.x, L.z, L.r, null, true); });
   LMU.uHouse.value.set(-1e3, -1e3, -1e3, -1e3);   // (no roof keeping the clouds' shade off the middle)
   setLightsDirty(true); setVisKey(''); stillShadowsReset();
 }
-const arCleared = (x, z) => Math.abs(x) < AR_OUT + 1.5 && Math.abs(z - 0.5) < AR_OUT + 1.5;
-const arTrees = [], _aTM = new THREE.Matrix4(), _aTV = new THREE.Vector3(), _aTZero = new THREE.Matrix4().makeScale(0, 0, 0).setPosition(0, -50, 0);
-// (the barriers' footprints, as their meshes stand: they're built once, so put back every match)
-const arBoxes = [];
-function arCellBoxes() {
-  if (!arBoxes.length) for (let k = 0; k < cellBox.length; k++) if (cellBox[k]) arBoxes.push([k, cellBox[k]]);
-  for (const [k, b] of arBoxes) cellBox[k] = b;
+// a map's pieces, built the first time it's put up and kept: Yard 4's here (arBuild), the others' by their own
+// builders (world/arena-mall.js), folded into a few meshes
+function arBuildMap(M) {
+  if (M === AR_YARD4) return arBuild();
+  const g = new THREE.Group(); g.userData.still = true;
+  withSeed(4243, () => { const parts = M.build(g); mergeInto(g, parts); });
+  return g;
 }
-// grass, bushes, rocks and the little ground clutter (instanced, all lower than a tree), spread over the whole farm
-function arGrass(o) { const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); return g.boundingBox.max.y - g.boundingBox.min.y < 3; }
+// (the props' footprints, as their meshes stand: they're built once, so put back every match)
+function arCellBoxes(M) {
+  if (!M.boxes) { M.boxes = []; for (let k = 0; k < cellBox.length; k++) if (cellBox[k]) M.boxes.push([k, cellBox[k]]); }
+  for (const [k, b] of M.boxes) cellBox[k] = b;
+}
 export function arenaDown() {
   if (!ARENA.on) return;
   ARENA.on = false; VAULT_LOW.clear(); TREE_HIDE.at = null; FLARE_SRC.length = 0;
-  scene.remove(arG);
-  for (const [o, k, m] of arTrees) { o.setMatrixAt(k, m); o.instanceMatrix.needsUpdate = true; } arTrees.length = 0;
+  scene.remove(AR_CUR.g);
   const s = arSaved; arSaved = null;
   s.out.forEach(o => scene.add(o));
   cell.set(s.cell); for (let k = 0; k < openAt.length; k++) openAt[k] = s.open[k]; for (let k = 0; k < cellBox.length; k++) cellBox[k] = s.box[k];
@@ -494,7 +547,7 @@ export function arenaDown() {
 }
 // the spawn spot for a side (A, B or F) furthest from the enemies given ([x, z] each), a little off where it's marked
 export function arenaSpawn(side, foes, n, seed) {
-  const L = AR_SPAWN[side] || AR_SPAWN.F;
+  const SP = AR_CUR.spawn.S, L = SP[side] || SP.F;
   let best = L[0], bd = -1;
   const yd = n !== undefined && side !== 'F' ? yardSpots(side, seed ?? 0, n) : null;
   if (yd) { const mid = (cxw(ARENA.x0) + cxw(ARENA.x1)) / 2; best = [yd[0], yd[1], Math.atan2(mid - yd[0], cxw(22) - yd[1])]; }   // (Showdown: anywhere in the yard, yardSpots)

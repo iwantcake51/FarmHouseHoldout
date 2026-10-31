@@ -256,13 +256,15 @@ const CUT_LAYERS = [
 const SPLIT_CUT = { v: { n: [1, 0, 0], o: [0, 0, 0] }, h: { n: [0, 1, 0], o: [0, 0.02, 0] }, d: { n: [0.71, 0.71, 0], o: [0, 0, 0] }, e: { n: [-0.71, 0.71, 0], o: [0, 0, 0] } };
 // how often a katana or machete that kills with a blow to the head takes it off on a slant (the rest, as before)
 const SLANT_SPLIT = 0.45;
-export function splitHead(z, dx, dz, kind = 'v') {
-  const head = z.m.head; if (!head || !z.limbs.head) return false;
-  z.limbs.head = false; netRec('p', kind);
+// a head cut in two along one of SPLIT_CUT's planes (kind): every piece on it (the head, its eyes, nose, mouth, hair, a
+// beard, a hat) cut by the plane, so each half keeps only what was on its own side of it, flattened where the cut went
+// through, and the face of the cut built out of skull, meat and brain; the halves thrown apart as gibs. A zombie's
+// (splitHead), or a survivor's in the arena (pvp/pvp.js). stain: the zombie's blood on it, carried onto the halves
+export function halveHead(head, kind, dx, dz, stain) {
   head.updateWorldMatrix(true, true);
   const inv = head.matrixWorld.clone().invert(), wp = new V3(), wq = new THREE.Quaternion(), ws = new V3(), rel = new THREE.Matrix4(), mats = new Map();
   head.matrixWorld.decompose(wp, wq, ws);
-  const pieces = []; head.traverse(o => { if (o.isMesh && !o.userData.isOutline && o.visible) pieces.push(o); });
+  const pieces = []; head.traverse(o => { if (o.isMesh && !o.userData.isOutline && (o.visible || o === head)) pieces.push(o); });   // (the head itself even if it's hidden from your own eyes)
   // the cut's own frame: its x along the plane's normal, through the point on it, so the cut is always x = 0 there (and
   // straight down the middle that's the head's own frame, as it was)
   const C = SPLIT_CUT[kind] || SPLIT_CUT.v, cq = new THREE.Quaternion().setFromUnitVectors(new V3(1, 0, 0), new V3(...C.n).normalize()), co = new V3(...C.o);
@@ -284,10 +286,10 @@ export function splitHead(z, dx, dz, kind = 'v') {
       for (let i = 0; i < a.length; i += 3) { if (a[i] * sd > c) any = true; a[i] = sd > 0 ? Math.max(c, a[i]) : Math.min(-c, a[i]); }
       if (!any) { g.dispose(); return; }
       g.computeVertexNormals();
-      const om = o.material, st = om.userData.bloodOf && z.stain;
+      const om = o.material, st = om.userData.bloodOf && stain;
       let mt;
       if (om.isMeshBasicMaterial) mt = DEAD_EYE;
-      else if (st) { mt = stainMat(om.userData.bloodOf, head, head, z.stain.u, 0, 5); z.stain.list.push([om.userData.bloodOf, mt]); }   // the pieces are in the head's own frame now
+      else if (st) { mt = stainMat(om.userData.bloodOf, head, head, stain.u, 0, 5); stain.list.push([om.userData.bloodOf, mt]); }   // the pieces are in the head's own frame now
       else mt = mats.get(om) || (mats.set(om, relit(om)), mats.get(om));
       mt.opacity = 1; mt.transparent = false; mt.userData.mobile = true;
       const m = new THREE.Mesh(g, mt); m.castShadow = true; half.add(m);
@@ -307,6 +309,12 @@ export function splitHead(z, dx, dz, kind = 'v') {
     if (kind === 'h') gibs.push({ m: half, vx: dx * (sd > 0 ? rr(1.6, 2.6) : rr(0.2, 0.5)), vy: sd > 0 ? rr(2, 3) : rr(0.3, 0.9), vz: dz * (sd > 0 ? rr(1.6, 2.6) : rr(0.2, 0.5)), spin: sd > 0 ? rr(4, 8) : rr(1, 2), life: 9, landed: false });
     else gibs.push({ m: half, vx: across.x * sd * rr(1.4, 2.2) + dx * rr(0.6, 1.4), vy: rr(1.8, 2.8), vz: across.z * sd * rr(1.4, 2.2) + dz * rr(0.6, 1.4), spin: sd * rr(3, 6), life: 9, landed: false });
   });
+  return { wp, across };
+}
+export function splitHead(z, dx, dz, kind = 'v') {
+  const head = z.m.head; if (!head || !z.limbs.head) return false;
+  z.limbs.head = false; netRec('p', kind);
+  const { wp, across } = halveHead(head, kind, dx, dz, z.stain);
   head.parent.remove(head); zFree(head); bloodZombie(z, 0.35);
   // the blood: a burst on along the blow and one off each side with the halves, a red mist where the head was, chunks of
   // brain and bone thrown out, and the ground painted both ways

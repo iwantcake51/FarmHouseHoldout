@@ -68,7 +68,9 @@ body.pvp:not(.pvpTeams) #pvpTop{flex-direction:column;align-items:center;gap:4px
 /* your own name: dark on a light chip, so it's never one of the players' colours */
 #pvpFeed .pfRow b.you{padding:1px 7px;border-radius:2px;background:rgba(244,239,228,.1);box-shadow:inset 0 -2px 0 currentColor}
 #pvpFeed .pfRow em.dm{font-style:normal;font-family:var(--f-num);font-weight:700;font-size:12px;color:var(--dim);letter-spacing:.04em}
-#pvpFeed .pfRow img{height:22px;width:auto;opacity:.9;filter:brightness(1.4)}
+#pvpFeed .pfRow img{height:22px;width:auto;opacity:.95;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}   /* (no brightening: the attachments keep their gold) */
+#pvpFeed .pfRow .as{margin:0 -4px;font:800 13px var(--f-num);color:var(--dim)}
+#pvpFeed .pfRow b.asN{font-size:12px;font-weight:600;opacity:.82}
 #pvpFeed .pfRow svg.hs{width:20px;height:20px;fill:#e2563f}
 @keyframes pfIn{0%{opacity:0;transform:translateX(16px)}100%{opacity:1;transform:none}}
 @keyframes pfOut{0%{opacity:1;transform:none}100%{opacity:0;transform:translateX(-14px)}}
@@ -157,6 +159,7 @@ body.pvp #bandBox{display:none}
 #pvpToast .tIc svg{width:30px;height:30px;fill:#f4efe4;filter:drop-shadow(0 2px 4px rgba(0,0,0,.7))}
 #pvpToast.head .tIc svg{fill:#ffcf4a}#pvpToast.dead .tIc svg{fill:#e2563f}
 #pvpToast small{font-family:var(--f-num);font-weight:800;font-size:13px;letter-spacing:.42em;text-transform:uppercase;color:#f4efe4;text-shadow:0 2px 8px rgba(0,0,0,.7)}
+#pvpToast.assist small{color:#9fd3ff}#pvpToast.assist b{font-size:.8em;opacity:.85}
 #pvpToast.head small{color:#ffcf4a}#pvpToast.dead small{color:#e2563f}#pvpToast.info small{color:var(--dim);letter-spacing:.3em;font-size:11px}
 #pvpToast b{font-family:var(--f-num);font-weight:700;font-size:20px;letter-spacing:.04em;color:var(--ink);text-shadow:0 2px 8px rgba(0,0,0,.7)}
 #pvpToast .tLine{display:block;width:180px;height:2px;margin-top:2px;background:linear-gradient(90deg,transparent,rgba(244,239,228,.85),transparent);transform:scaleX(0);transition:transform .65s cubic-bezier(.5,0,.75,.6)}
@@ -206,6 +209,17 @@ body.pvp #bandBox{display:none}
 #pvpDmgCard .dcRow.given{padding-bottom:12px}
 #pvpDmgCard .dcAlso{padding:8px 16px 12px;margin-top:-4px;font-size:12px;color:var(--dim);border-top:1px solid rgba(236,230,216,.06)}
 #pvpDmgCard .dcAlso b{font-weight:700}
+/* (everyone else who hurt you: an assist, 30 or more, picked out in their colour with its own bar) */
+#pvpDmgCard .dcAlso{display:grid;gap:7px}
+#pvpDmgCard .dcAs{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:2px 9px;padding:5px 8px 6px;border-left:3px solid rgba(236,230,216,.15);background:rgba(255,255,255,.02)}
+#pvpDmgCard .dcAs i{font:800 10px var(--f-num);letter-spacing:.22em;text-transform:uppercase;font-style:normal;color:var(--dim)}
+#pvpDmgCard .dcAs b{color:var(--c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#pvpDmgCard .dcAs span{font-size:12px}#pvpDmgCard .dcAs span em{font:800 14px var(--f-num);font-style:normal;color:var(--ink)}
+#pvpDmgCard .dcAs s{grid-column:1/-1;display:block;height:3px;background:rgba(236,230,216,.08);text-decoration:none}
+#pvpDmgCard .dcAs s u{display:block;height:100%;background:var(--c);opacity:.55;text-decoration:none}
+#pvpDmgCard .dcAs.on{border-left-color:var(--c);background:linear-gradient(90deg,color-mix(in srgb,var(--c) 16%,transparent),rgba(255,255,255,.02))}
+#pvpDmgCard .dcAs.on i{padding:2px 6px;border-radius:2px;background:var(--c);color:#111}
+#pvpDmgCard .dcAs.on s u{opacity:.95}
 #pvpDmgCard .dcBack{display:flex;justify-content:space-between;align-items:center;padding:9px 16px;border-top:1px solid rgba(236,230,216,.08);background:rgba(0,0,0,.22);font:700 12px var(--f-num);letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
 #pvpDmgCard .dcBack b{display:inline-block;min-width:1.2em;font-size:15px;color:var(--ink)}
 #pvpDmgCard .dcBack kbd{margin-right:6px}

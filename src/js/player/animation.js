@@ -34,6 +34,7 @@ import { updatePack, updateStow } from './stow.js';
 import { updateBandStow, updateSwap } from './swap.js';
 import { agReset, agState, locoPose, locoWeights } from './anim-graph.js';
 import { leanBody, leanStep } from './lean.js';
+import { CR, CROUCH, crouchK, crouchLegs, crouchStep, crouchStride } from './crouch.js';
 import { ARENA } from '../world/arena.js';
 const _lp = { lx: 0, rx: 0, lz: 0, rz: 0, kl: 0, kr: 0, hx: 0, hz: 0, twist: 1 };
 
@@ -110,6 +111,10 @@ function vaultPhase(v) { return { c: v.t > 0 ? 1 : smooth(clamp(v.pre / v.preDur
 function vaultPose(pm, v) {
   const { c, t, air } = vaultPhase(v), p0 = v.plan[0];
   const q = air ? vaultAt(v, t) : { y: VB.hip + (p0.y - VB.hip) * c, lean: p0.lean * c, legL: p0.legL * c, legR: p0.legR * c };
+  // (from a crouch the run-up starts from it, not from standing: the hips come up from where they were, the knees
+  // straightening out of the bend into the plan's first pose, no pop up to standing and back down)
+  const cw = air ? 0 : smooth(clamp(CR.vv, 0, 1)) * (1 - c);
+  if (cw > 0) { q.y -= CROUCH.drop * cw; q.legL -= CROUCH.thigh * cw; q.legR -= CROUCH.thigh * cw * 0.96; pm.shinL.rotation.x += CROUCH.knee * cw; pm.shinR.rotation.x += CROUCH.knee * cw * 0.95; }
   pm.g.rotation.x = q.lean;
   pm.legL.rotation.x = q.legL - q.lean; pm.legR.rotation.x = q.legR - q.lean;
   // the hips turn so the legs swing over a fence side by side (the plan's twist); through a window there's no room
@@ -215,6 +220,8 @@ function animatePlayer(dt, rdt) {
   if (P.vault) ANIM.postVault = 0.45; else ANIM.postVault = Math.max(0, (ANIM.postVault || 0) - rdt);
   sprintAnim(rdt);   // (player/sprint.js)
   pm.shinL.rotation.x = pm.shinR.rotation.x = 0;   // the knees straight, unless the stride or a landing bends them below
+  crouchStep(rdt);   // down or up (player/crouch.js)
+  const crk = P.vault ? 0 : crouchK();
   const turnRate = P.vault ? 20 : ANIM.postVault > 0 ? 5 + (1 - ANIM.postVault / 0.45) * 9 : P.pivot ? PIVOT.yawRate : 11;   // ease back round to your aim after a vault; a hard turn's loose, the body trailing the hips round
   // sprinting you turn to face where you're running (faceK), and back round to your aim as you come out of it. Your aim
   // itself is where the cursor is, at once; it's the body that comes round to it, quickly, on a spring (BODY_YAW: how stiff,
@@ -291,7 +298,7 @@ function animatePlayer(dt, rdt) {
   // nothing for a frame) doesn't snap the legs together
   ANIM.strideK = (ANIM.strideK ?? 0) + (Math.min(1, runF) - (ANIM.strideK ?? 0)) * Math.min(1, rdt * 9);
   // (the bad leg's stance is when cos(ph) < 0: bs below; the good leg's when it's above, gs)
-  const ph = P.phase - LIMP.warp * limp * Math.sin(P.phase), s = Math.sin(ph), bs = Math.max(0, -Math.cos(ph)), gs = Math.max(0, Math.cos(ph)), stride = 0.65 * ANIM.strideK * (1 - 0.2 * ads) * (1 + 0.28 * sk);   // a sprint reaches further each step
+  const ph = P.phase - LIMP.warp * limp * Math.sin(P.phase), s = Math.sin(ph), bs = Math.max(0, -Math.cos(ph)), gs = Math.max(0, Math.cos(ph)), stride = 0.65 * ANIM.strideK * (1 - 0.2 * ads) * (1 + 0.28 * sk) * crouchStride();   // (shorter crouched)   // a sprint reaches further each step
   // how much you're backing off: going away from where you face, at a walk or better (full at an aimed backpedal's pace)
   { const back = spd > 0.3 && !P.vault ? Math.max(0, -Math.cos(angDiff(Math.atan2(P.vx, P.vz), ANIM.yaw))) * Math.min(1, spd / 1.4) : 0;
     ANIM.backK = (ANIM.backK || 0) + (back - (ANIM.backK || 0)) * Math.min(1, rdt * BACKPEDAL.ease); }
@@ -371,6 +378,7 @@ function animatePlayer(dt, rdt) {
     const k = smooth(clamp(ANIM.lookDn, 0, 1)), L = LOOK_DOWN;
     pm.shinL.rotation.x += L.knee * k; pm.shinR.rotation.x += L.knee * k * 0.9; pm.legL.rotation.x -= L.thigh * k; pm.legR.rotation.x -= L.thigh * k * 0.85; pm.g.position.y -= L.drop * k;
   }
+  crouchLegs(pm, crk);   // crouched: the knees bent and the hips low, the stride (shorter) walked on top of it (player/crouch.js)
   // sprinting you lean into it from the ankles; skidding to a stop, back against the slide and down onto the back leg
   if (!P.vault) {
     const rel = angDiff(Math.atan2(P.vx, P.vz), ANIM.yaw), sl = skid * Math.min(1, spd / 1.5);   // (leaning on the slide, less as it dies)
@@ -395,7 +403,7 @@ function animatePlayer(dt, rdt) {
   // away as you plant and builds back as you set off instead of cutting out and snapping back in)
   ANIM.bobSlow = P.pivot || P.skid > 0 ? 1 : Math.max(0, (ANIM.bobSlow || 0) - rdt * 1.6);
   ANIM.bobRun = (ANIM.bobRun ?? run1) + (run1 - (ANIM.bobRun ?? run1)) * Math.min(1, rdt * (12 - 9 * ANIM.bobSlow));
-  const bob = Math.abs(Math.cos(ph)) * (0.045 * ANIM.bobRun * (1 - 0.5 * ads) + 0.03 * sk) + (limp ? limp * run1 * (LIMP.rise * smooth(bs) - LIMP.sink * smooth(gs)) : 0);   // (limping: up over the stiff bad leg, down onto the good)
+  const bob = Math.abs(Math.cos(ph)) * (0.045 * ANIM.bobRun * (1 - 0.5 * ads) * (1 - 0.45 * crk) + 0.03 * sk) + (limp ? limp * run1 * (LIMP.rise * smooth(bs) - LIMP.sink * smooth(gs)) : 0);   // (limping: up over the stiff bad leg, down onto the good)
   // (the breath's phase is run on, a little further each frame the quicker you're breathing: worked out from the clock
   // times a rate that changes with your health, every change of health would throw it to a new spot each frame, a
   // wild shudder through the body that got worse the longer the game had been running)
@@ -446,7 +454,7 @@ function animatePlayer(dt, rdt) {
   // breathing lifts the chest a touch
   // (the chest jolts forward on each of a scramble's choppy steps)
   const bpx = -BACKPEDAL.chest * ANIM.backK * (1 - 0.5 * ads);   // backpedalling, the chest back a touch further (BACKPEDAL)
-  let urx = LOOK_DOWN.chest * smooth(clamp(ANIM.lookDn || 0, 0, 1)) + bpx + (ANIM.lx + alx) * fL - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8 + 0.07 * sk + 0.12 * skid + 0.05 * Math.abs(Math.sin(ANIM.scrPh || 0)) * smooth(clamp(ANIM.scrK || 0, 0, 1)), ury = -s * 0.03 * run1 * (1 - ads * 0.7) * fS + ANIM.tw * fT + rgTw + (ANIM.lookC || 0), urz = (ANIM.lz + alz) * fL + sway + ANIM.flinch * 0.12 * ANIM.flinchSide + ANIM.bank * fT + ANIM.rgT * RG_TWIST.roll * (1 - ANIM.rg);
+  let urx = CROUCH.chest * crk + LOOK_DOWN.chest * smooth(clamp(ANIM.lookDn || 0, 0, 1)) + bpx + (ANIM.lx + alx) * fL - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8 + 0.07 * sk + 0.12 * skid + 0.05 * Math.abs(Math.sin(ANIM.scrPh || 0)) * smooth(clamp(ANIM.scrK || 0, 0, 1)), ury = -s * 0.03 * run1 * (1 - ads * 0.7) * fS + ANIM.tw * fT + rgTw + (ANIM.lookC || 0), urz = (ANIM.lz + alz) * fL + sway + ANIM.flinch * 0.12 * ANIM.flinchSide + ANIM.bank * fT + ANIM.rgT * RG_TWIST.roll * (1 - ANIM.rg);
   // hurt: upright, standing leant a touch off the bad leg, and walking leant over it as it takes the weight (LIMP); a
   // wince only catches you a little
   urx += 0.04 * wince; urz += limpLean - 0.035 * limp * still;

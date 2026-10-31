@@ -12,7 +12,9 @@ import {
   netSetView, netSideOf, netStart, netSwitchSide
 } from './net.js';
 import { PVP_CFG_LIM, pvpCfgFix } from '../pvp/pvp.js';
-import { AR_PREVIEW } from '../world/arena-preview.js';
+import { AR_PREVIEW, AR_PREVIEW_MALL } from '../world/arena-preview.js';
+import { AR_PREVIEW_FARM, AR_PREVIEW_ROUTE } from '../world/arena-preview-maps.js';
+import { AR_MAPS } from '../world/arena.js';
 import { METAL } from '../barricades/planks.js';
 import { audioInit } from '../audio/audio.js';
 import { SFX } from '../audio/sfx.js';
@@ -156,10 +158,15 @@ const CFG_ROWS = {
   tdm: [['tdm', 'Kills to win', ''], ['match', 'Match length', ' min']],
   rounds: [['rounds', 'Rounds to win', ''], ['round', 'Round time', ' s'], ['cap', 'Flag capture', ' s'], ['kit', 'Loadouts', ''], ['kitRd', 'New loadout every', ' rounds']]
 };
-let mapDrawn = false;
+// each map's picture from above (world/arena-preview.js), and what's said under it
+const MAP_PIC = { yard: AR_PREVIEW, mall: AR_PREVIEW_MALL, farm: AR_PREVIEW_FARM, route: AR_PREVIEW_ROUTE };
+const MAP_ALT = { yard: 'Yard 4 from above: a walled freight yard with a spawn yard at each end, three lanes and the flag in the middle', mall: 'Larkspur Mall from above: an anchor store at each end, back of house, the concourse and the food court', farm: 'Harlan Farm from above: a machine shed at each end, the burnt barn north, the farmyard and its silos in the middle, the field and the farmhouse shell south', route: 'Route 9 from above: a walled lot at each end, the burnt travel stop north, the forecourt checkpoint in the middle, the highway pile-up south' };
+let mapDrawn = '';
 function cfgRender(host) {
   const on = NET.game === 'arena' && NET.on, box = $('coopArenaRow'); box.hidden = !on; if (!on) return;
-  if (!mapDrawn) { $('coopMap').src = AR_PREVIEW; mapDrawn = true; }   // (a picture of the yard itself: world/arena-preview.js)
+  { const id = (NET.acfg || {}).map || 'yard', M = AR_MAPS[id] || AR_MAPS.yard, img = $('coopMap'), dis = !host || NET.inGame;   // (the map: its picture, name and note; the host steps through them)
+    $('coopMapPrev').disabled = $('coopMapNext').disabled = dis;
+    if (mapDrawn !== id) { const first = !mapDrawn; mapDrawn = id; const put = () => { img.src = MAP_PIC[id] || AR_PREVIEW; img.alt = MAP_ALT[id] || M.name; img.classList.remove('swap'); }; $('coopMapName').textContent = M.name; $('coopMapNote').textContent = M.note; if (first) put(); else { img.classList.add('swap'); setTimeout(put, 160); } } }
   const C = NET.acfg = pvpCfgFix(NET.acfg), rows = CFG_ROWS[NET.arena] || [], el = $('coopCfgRows'), key = JSON.stringify([NET.arena, C, host, NET.inGame]);
   $('coopCfgNote').textContent = host ? 'Yours to set' : 'The host sets it';
   if (el.dataset.key === key) return; el.dataset.key = key;
@@ -170,6 +177,8 @@ function cfgRender(host) {
     return `<div class="cfgRow"><span>${name}</span><span class="cfgCtl">${ctl}</span></div>`;
   }).join('');
 }
+// the host stepping through the maps (world/arena.js AR_MAPS)
+for (const [b, d] of [['coopMapPrev', -1], ['coopMapNext', 1]]) $(b).onclick = () => { const ids = Object.keys(AR_MAPS), k = ids.indexOf((NET.acfg || {}).map || 'yard'); netSetCfg('map', ids[(k + d + ids.length) % ids.length]); SFX.click(); };
 $('coopCfgRows').addEventListener('click', e => {
   const b = e.target.closest('.cfgBtn'); if (!b || b.disabled) return; const k = b.dataset.k, C = NET.acfg || {};
   if (k === 'kit') netSetCfg('kit', C.kit === 'class' ? 'random' : 'class'); else netSetCfg(k, C[k] + PVP_CFG_LIM[k][2] * +b.dataset.d);

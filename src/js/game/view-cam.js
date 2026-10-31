@@ -19,7 +19,7 @@ import { thinRay } from '../world/thin-walls.js';
 import { bulletBlocked } from '../world/collision.js';
 import { P, PM } from '../player/player.js';
 import { swapSt, SWAP_T } from '../player/swap.js';
-import { curId, SCOPE_ACOG, SCOPES, T, W, W8 } from './run-state.js';
+import { carryMul, curId, hasMod, SCOPE_ACOG, SCOPES, T, W, W8 } from './run-state.js';
 import { MS } from '../melee/melee-anim.js';
 import { GM, gunMeshes, HOLDS, MUZ, X } from '../weapons/gun-materials.js';
 import { SPRITE_AIM, SPRITE_RES } from '../effects/sprite-batch.js';
@@ -40,6 +40,7 @@ import { CEIL, inHouseRect } from '../world/house.js';
 import { pvpKiller, pvpPicking } from '../pvp/pvp.js';
 import { los } from '../lighting/lightmap.js';
 import { leanCant, leanEye, leanRoll } from '../player/lean.js';
+import { crouchArms, crouchEyeY, crouchFov, crouchNod, crouchRoll } from '../player/crouch.js';
 
 // mode: the view picked; on: the one in use this frame (the isometric one on the menus and when you're down)
 export const VCAM = { mode: 'iso', on: 'iso', yaw: Math.PI, pitch: 0, aimY: GUN_Y, aimD: 26 };   // (aimD: how far down your line of sight it meets something, metres: ui/crosshair.js)
@@ -71,7 +72,17 @@ const FA = { r: 0.035, take: 0, ease: 10, back: 1.2, adsBack: 6, ads: 0 };
 // bringing the sights up and putting them down: a spring onto them (w: how stiff, in and out; a handgun's quicker),
 // starting gently, quick through the middle and settling softly; and the arc the gun swings through on the way, dipping
 // (dip, metres) and canting over (cant, radians) in the middle of it, the arms tilting with it, both going up and coming down
-const ADS_T = { in: 15, out: 17, side: 19, dip: 0.028, cant: 0.21 };
+const ADS_T = { in: 15, out: 17, dip: 0.028, cant: 0.21 };
+// how quick each gun comes up to the eye, of a rifle's (ADS_SPEED: a handgun and a machine pistol snappiest, a sub gun
+// next, the rifles, then the shotguns, the battle and hunting rifles, the machine gun slowest of all), slowed by its
+// weight as it's carried (game/run-state.js carryMul: its calibre, its magazine, what's bolted on: weight, how much of
+// what that costs your pace it costs the aim too) and quickened a little by a laser (laser, a tier: you're already on
+// target as it comes up)
+const ADS_SPEED = { pistol: 1.3, smg: 1.3, revolver: 1.2, deagle: 1.1, sub: 1.18, ar: 1, scar: 0.88, pump: 0.9, dbl: 0.9, auto12: 0.84, hunting: 0.82, lmg: 0.74, dblSawn: 1.08, other: 1, weight: 0.8, laser: 0.05 };
+function adsSpeed(id) {
+  const k = ADS_SPEED[id === 'dbl' && hasMod('sawn') ? 'dblSawn' : id] ?? ADS_SPEED.other;
+  return k * (1 - ADS_SPEED.weight * (1 - carryMul(id))) * (1 + ADS_SPEED.laser * (T('laser') || 0));
+}
 // a shouldered gun meeting your shoulder as it comes up: a jolt (p, y: radians up and across, r: cant, z: metres back)
 // on a loose spring that shakes out (k, d), and the hands trembling a little on the way up (trem); k per gun; draw: how
 // much harder the stock seats as a long gun comes up from its draw into the hip hold (fpShoulder)
@@ -359,7 +370,7 @@ function lookBy(dx, dy) {
 }
 // the view's own way this frame on top of where it's turned (kick: a shot's, which the aim takes too; tilt, free look,
 // jolts, shake: the view's alone), and its roll
-const viewP = () => V.cp + V.kick + V.tp + V.flp + V.jp + V.np + V.bp + V.vp + V.lp + (V.mp || 0) + (V.mk || 0) + FL.p + (V.shp || 0), viewY = () => V.cy + V.ky + V.fly + V.jy + V.ny + FL.y + (V.shy || 0), viewR = () => V.roll * 0.6 + V.tr + V.br + V.vr + V.lr + (V.mr || 0) + FL.r + (V.kr || 0) + (V.shr || 0) + leanRoll();
+const viewP = () => V.cp + V.kick + V.tp + V.flp + V.jp + V.np + V.bp + V.vp + V.lp + (V.mp || 0) + (V.mk || 0) + FL.p + (V.shp || 0) + crouchNod(), viewY = () => V.cy + V.ky + V.fly + V.jy + V.ny + FL.y + (V.shy || 0), viewR = () => V.roll * 0.6 + V.tr + V.br + V.vr + V.lr + (V.mr || 0) + FL.r + (V.kr || 0) + (V.shr || 0) + leanRoll() + crouchRoll();   // (crouching: a nod and a slight roll as the head goes down and up, player/crouch.js)
 // and the same without the free look (held: the view turns on its own), for what's placed on the gun in your hands, which
 // stays on the aim as you look round (FREE_LOOK)
 const armsP = () => viewP() - V.flp, armsY = () => viewY() - V.fly, armsR = viewR;   // (leaning's further cant of the arms and gun is put on last of all: leanArms)
@@ -398,7 +409,7 @@ export function fpAimPx(arms = false) {
 const WALL_UP_ADS = 2.2;
 export function fpAds(want, rdt) {
   if (want === null) { V.adsX = null; V.adsV = 0; return 0; }
-  const id = curId(), D = W(id), side = !D || D.slot === 'side', w0 = (side ? ADS_T.side : want ? ADS_T.in : ADS_T.out) * (want && ANIM.wallUpT > 0 ? WALL_UP_ADS : 1), S = V.sh;
+  const id = curId(), D = W(id), side = !D || D.slot === 'side', w0 = (want ? ADS_T.in : ADS_T.out) * adsSpeed(id) * (want && ANIM.wallUpT > 0 ? WALL_UP_ADS : 1), S = V.sh;   // (by the gun: ADS_SPEED)
   if (V.adsX === null) V.adsX = ANIM.ads || 0;
   const x0 = V.adsX;
   for (let n = Math.ceil(rdt / (1 / 240)), h = rdt / Math.max(1, n), i = 0; i < n; i++) {
@@ -893,11 +904,14 @@ export function fpSightAlign(gg, raise = true) {
 // down the sights the sight line, which runs along that line, stays on your eye, the reticle only turning with it, and
 // the arms go with the gun at the hip and down the sights alike
 const _lnA = new V3(), _lnM = new THREE.Matrix4(), _lnM2 = new THREE.Matrix4(), _lnQ = new THREE.Quaternion();
+// (and crouched: canted in toward the middle, and lagging the head on the way down and up, player/crouch.js crouchArms)
+const _lnR = new V3(), _lnQ2 = new THREE.Quaternion();
 function leanArms(c) {
-  const a = leanCant(); if (Math.abs(a) < 1e-4) return;
+  const [cr, cl, cp] = crouchArms(ANIM.ads || 0), a = leanCant() + cr; if (Math.abs(a) < 1e-4 && Math.abs(cl) < 1e-5 && Math.abs(cp) < 1e-4) return;
   const up = PM.upper; up.updateMatrixWorld(true);
   _lnA.set(0, 0, 1).applyQuaternion(c.quaternion); _lnQ.setFromAxisAngle(_lnA, a);
-  _lnM.makeTranslation(-c.position.x, -c.position.y, -c.position.z).premultiply(_lnM2.makeRotationFromQuaternion(_lnQ)).premultiply(_lnM2.makeTranslation(c.position.x, c.position.y, c.position.z));
+  _lnR.set(1, 0, 0).applyQuaternion(c.quaternion); _lnQ.premultiply(_lnQ2.setFromAxisAngle(_lnR, cp));
+  _lnM.makeTranslation(-c.position.x, -c.position.y, -c.position.z).premultiply(_lnM2.makeRotationFromQuaternion(_lnQ)).premultiply(_lnM2.makeTranslation(c.position.x, c.position.y + cl, c.position.z));
   _lnM.multiply(up.matrixWorld).premultiply(_lnM2.copy(up.parent.matrixWorld).invert());
   _lnM.decompose(up.position, up.quaternion, up.scale); up.updateMatrixWorld(true);
 }
@@ -1190,7 +1204,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
     // over a vault, whose eye goes with the body)
     { V.pin = (V.pin ?? 1) + ((P.vault ? 0 : 1) - (V.pin ?? 1)) * Math.min(1, rdt * EYE_PIN.ease); const o = EYE_R.o, y = VCAM.yaw, c = Math.cos(y), sn = Math.sin(y), k = V.pin * EYE_PIN.k;
       if (EYE_R.on && k > 0.001) { PM.g.position.x -= (o.x * c + o.z * sn) * k; PM.g.position.z -= (-o.x * sn + o.z * c) * k; PM.g.updateMatrixWorld(true); } }
-    rigEye(_vcE); leanEye(_vcE, VCAM.yaw);   // (leaning: your eyes out to the side, player/lean.js)
+    rigEye(_vcE); leanEye(_vcE, VCAM.yaw); _vcE.y += crouchEyeY();   // (leaning: your eyes out to the side, player/lean.js; crouching, the head's give: player/crouch.js)
     // your arms and what's in your hands carried by the view itself, not by your chest (vmLock); let go over a vault, the
     // arms going over with the body, but not with Vault fire, the gun kept on your aim the whole way over in the view
     // (left to the vaulting body it was swung up and round and left trailing it, a moment behind where you look)
@@ -1250,7 +1264,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
     // in first person every sight's glass is clear to look through (GM.glass, shared, back as it was after)
     glassSee(true);
     // drawn in a little down the sights (a scope's magnified in its own view instead)
-    const fov = (SET.fov || 75) * (1 + V.vfov) * (1 - FPV.ads * (ANIM.ads || 0)) * (1 - (handOptic ? HAND_OPTIC.zoom : 0) * (ANIM.ads || 0)) * (1 - 0.04 * smooth(clamp(ANIM.healFx || 0, 0, 1))) * (1 - clamp(V.jz, -0.2, 0.2)) * (1 + FPV.sprint * smooth(clamp(ANIM.sprintK || 0, 0, 1))) * (1 - (V.ff || 0)) * (1 + (WIDE_FOV[T('eyes') || 0] || 0) * (1 - (ANIM.ads || 0)));   // (a touch wider at a sprint, a touch narrower with each shot: FIRE_FOV; wider with Wide eyes, but not down the sights: WIDE_FOV)
+    const fov = (SET.fov || 75) * (1 + V.vfov) * (1 - FPV.ads * (ANIM.ads || 0)) * (1 - (handOptic ? HAND_OPTIC.zoom : 0) * (ANIM.ads || 0)) * (1 - 0.04 * smooth(clamp(ANIM.healFx || 0, 0, 1))) * (1 - clamp(V.jz, -0.2, 0.2)) * (1 + FPV.sprint * smooth(clamp(ANIM.sprintK || 0, 0, 1))) * (1 - (V.ff || 0)) * (1 + (WIDE_FOV[T('eyes') || 0] || 0) * (1 - (ANIM.ads || 0))) * crouchFov();   // (a touch narrower crouched: player/crouch.js)   // (a touch wider at a sprint, a touch narrower with each shot: FIRE_FOV; wider with Wide eyes, but not down the sights: WIDE_FOV)
     if (Math.abs(c.fov - fov) > 0.01) { c.fov = fov; c.updateProjectionMatrix(); }
   } else {
     SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0;

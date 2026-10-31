@@ -33,8 +33,9 @@ import { specStep, spectating } from '../net/spectate.js';
 import { giftSend, gunShare } from '../net/teamwork.js';
 import { closeSettings, setOpen, toggleView } from '../ui/settings.js';
 import { startInspect } from '../player/inspect.js';
-import { PVP, pvpChangeClass, pvpLocked, pvpPicking } from '../pvp/pvp.js';
+import { PVP, pvpChangeClass, pvpLocked, pvpPicking, pvpSkipDeath } from '../pvp/pvp.js';
 import { leanKey } from '../player/lean.js';
+import { crouchKey } from '../player/crouch.js';
 
 export const keys = new Set();
 // mouseDownR: the right button, which aims, or with a gun in each hand fires the right one (weapons/akimbo.js)
@@ -63,6 +64,8 @@ function keyAct(k, e) {
   if (bindIs(k, 'wave') && !e.repeat && (state === 'title' || (state === 'dead' && P.dead))) { enterRun(); return; }
   if (k === 'm' && !e.repeat && state === 'dead') { leaveToMenu(); return; }
   if (state !== 'play') return;
+  // down in the arena: Space skips the death camera (a second in), F opens the loadouts for your next life (pvp/pvp.js)
+  if (PVP.on && P.dead && !e.repeat && (bindIs(k, 'vault') || bindIs(k, 'use'))) { if (bindIs(k, 'vault')) pvpSkipDeath(); else pvpChangeClass(); return; }
   // down in co-op: Q and E step through the teammates still standing (net/spectate.js)
   if ((k === 'q' || k === 'e') && spectating()) { if (!e.repeat) specStep(k === 'e' ? 1 : -1); return; }
   // (the arena picking and counting in a round: your hands are still till it's live, pvp/pvp.js pvpLocked; no swapping,
@@ -70,6 +73,7 @@ function keyAct(k, e) {
   // count-in, inspecting)
   const still = pvpLocked() && !bindIs(k, 'cls') && !bindIs(k, 'stats') && !bindIs(k, 'view') && !(bindIs(k, 'inspect') && PVP.ph === 'count');   // (in the count-in you can look your gun over; not while the loadout's up)
   if ((bindIs(k, 'leanL') || bindIs(k, 'leanR')) && !e.repeat && !freeOn() && !still) { leanKey(bindIs(k, 'leanL') ? -1 : 1, true); if (!bindIs(k, 'use')) return; }   // (player/lean.js)
+  if (bindIs(k, 'crouch') && !e.repeat && !freeOn() && !still) { crouchKey(true); return; }   // (player/crouch.js)
   if (bindIs(k, 'view')) { if (!e.repeat) toggleView(); return; }   // first person and back (ui/settings.js), or out of the free camera
   if (e.repeat && !bindIs(k, 'board') && !bindIs(k, 'tear')) return;
   keys.add(k);
@@ -99,8 +103,8 @@ function keyAct(k, e) {
   if (bindIs(k, 'zoomIn') || (KB.zoomIn === '=' && k === '+')) setZoomT(clamp(zoomT * 1.15, ZOOM_MIN, ZOOM_MAX));
   if (bindIs(k, 'zoomOut') || (KB.zoomOut === '-' && k === '_')) setZoomT(clamp(zoomT / 1.15, ZOOM_MIN, ZOOM_MAX));
 }
-addEventListener('keyup', e => { const k = keyOf(e); if (k === 'alt') e.preventDefault(); keys.delete(k); if (bindIs(k, 'leanL') || bindIs(k, 'leanR')) leanKey(bindIs(k, 'leanL') ? -1 : 1, false); });
-addEventListener('blur', () => { keys.clear(); mouseDown = mouseDownR = false; setAimHeld(false); pauseRun(); });
+addEventListener('keyup', e => { const k = keyOf(e); if (k === 'alt') e.preventDefault(); keys.delete(k); if (bindIs(k, 'leanL') || bindIs(k, 'leanR')) leanKey(bindIs(k, 'leanL') ? -1 : 1, false); if (bindIs(k, 'crouch')) crouchKey(false); });
+addEventListener('blur', () => { keys.clear(); crouchKey(false); mouseDown = mouseDownR = false; setAimHeld(false); pauseRun(); });
 // right click aims in play, and does nothing anywhere else: no browser menu over the game, its menus or the HUD (the
 // page has no text to copy or fields to paste into)
 addEventListener('contextmenu', e => e.preventDefault());

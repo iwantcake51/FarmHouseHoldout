@@ -274,8 +274,10 @@ for (let k = 0; k < 10; k++) {
   mags.push({ g, pv, body, neck, model, life: 0, vx: 0, vy: 0, vz: 0, spin: 0, roll: 0, r: 0.03, bounces: 4, kind: 'mag' });
 }
 let mIdx = 0;
-// the empty magazine falls out of the well when you start a reload, bounces and lies there a while
-export function dropMag(id, side) {
+// the empty magazine falls out of the well when you start a reload, bounces and lies there a while. fling: flung out
+// instead (the M4's flick, player/hold-flick.js), how fast it leaves the well ({ v: [x, y, z] m/s in the world, spin,
+// roll }), your own speed put on it
+export function dropMag(id, side, fling) {
   const D = W(id), mp = MAGPOS[W8.cur]; if (!D || !mp) return;
   const gg = gunMeshes[W8.cur]; PM.g.updateMatrixWorld(true);
   // the mag that falls is the one on the model (weapons/gun-models.js): its size across, down and along the gun, or a
@@ -303,7 +305,8 @@ export function dropMag(id, side) {
   // it slips out of the well and drops: carried on with you, barely pushed (DROP_PUSH), tumbling slowly, so it leaves the
   // gun where the gun's mag was rather than leaping away from it
   const m = { shape: dr ? [dr.r, dr.t, dr.ax, id === 'pistol' ? 1 : 0] : [w, h, d], mat, p: [_cv.x, _cv.y, _cv.z].map(v => Math.round(v * 1000) / 1000), ry: Math.round(P.aim * 100) / 100, s: W8.cur, sd: side === 'L' ? 1 : 0,
-    v: [P.vx * 0.9 + fx * rr(0, DROP_PUSH) + _cd.x, _cd.y, P.vz * 0.9 + fz * rr(0, DROP_PUSH) + _cd.z].map(v => Math.round(v * 100) / 100), slow: 1, spin: Math.round(rr(3, 7) * (rand() < 0.5 ? -1 : 1) * 100) / 100, roll: Math.round(rr(-4, 4) * 100) / 100 };
+    v: (fling ? [P.vx * 0.9 + fling.v[0] * rr(0.9, 1.1), fling.v[1] * rr(0.85, 1.15), P.vz * 0.9 + fling.v[2] * rr(0.9, 1.1)] : [P.vx * 0.9 + fx * rr(0, DROP_PUSH) + _cd.x, _cd.y, P.vz * 0.9 + fz * rr(0, DROP_PUSH) + _cd.z]).map(v => Math.round(v * 100) / 100),
+    slow: fling ? 0 : 1, spin: Math.round((fling ? fling.spin * rr(0.85, 1.15) : rr(3, 7) * (rand() < 0.5 ? -1 : 1)) * 100) / 100, roll: Math.round((fling ? fling.roll * rr(0.6, 1.2) : rr(-4, 4)) * 100) / 100 };
   placeMag(m, (MAGG[W8.cur] || [])[m.sd]);
   netSend('md', m);   // (co-op: it falls out of your survivor on your teammates' screens too, net/arsenal.js)
 }

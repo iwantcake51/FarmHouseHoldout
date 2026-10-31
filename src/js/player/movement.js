@@ -29,6 +29,7 @@ import { fpAim, fpAimPx, fpOn, freeOn, moveBasis, VCAM } from '../game/view-cam.
 import { ANIM } from './animation.js';
 import { drawMul, startSwap, swapFire, swapSt } from './swap.js';
 import { leanPace } from './lean.js';
+import { crouchPace, crouchQuiet } from './crouch.js';
 
 // Painkillers' regeneration waits this long (seconds) after you last lost health
 export const REGEN_WAIT = 5;
@@ -96,7 +97,7 @@ export function updatePlayer(dt) {
     if ((mx || my) && P.stun <= 0 && !(P.skid > 0) && !P.pivot) {   // (skidding to a stop, or planting for a hard turn, you go where your momentum takes you)
       const hpF = P.hp / hpCap(), hurt = hpF < HURT_SLOW.from ? HURT_SLOW.min + (1 - HURT_SLOW.min) * hpF / HURT_SLOW.from : 1;   // badly hurt, you limp
       const worn = Math.max(HURT_SLOW.floor, hurt * (P.spdF || 1));   // (and blown on top of it: never slower than the floor)
-      const sp = WALK_SPEED * (P.sprint ? 1 + (SPRINT.mul - 1) * sprintPace() : 1) * S.speedMul * (1 - 0.72 * P.slow) * worn * (P.adr > 0 ? 1.15 : 1) * (D0.slow || 1) * carryMul(curId()) * (runReloading() ? RUN_RELOAD.run : 1) * (scoped || scopeAim() || aiming ? adsMove(curId(), scoped || scopeAim()) : 1) * leanPace(scoped || scopeAim() || aiming) * swingSlow() * (P.bandT > 0 ? 1 - BAND_SLOW * (1 - S.bandLess) : 1) * reloadSlow() * heavyFireSlow();
+      const sp = WALK_SPEED * (P.sprint ? 1 + (SPRINT.mul - 1) * sprintPace() : 1) * S.speedMul * (1 - 0.72 * P.slow) * worn * (P.adr > 0 ? 1.15 : 1) * (D0.slow || 1) * carryMul(curId()) * (runReloading() ? RUN_RELOAD.run : 1) * (scoped || scopeAim() || aiming ? adsMove(curId(), scoped || scopeAim()) : 1) * leanPace(scoped || scopeAim() || aiming) * crouchPace() * swingSlow() * (P.bandT > 0 ? 1 - BAND_SLOW * (1 - S.bandLess) : 1) * reloadSlow() * heavyFireSlow();
       // walking where you look is full speed; sideways about 87%, straight backwards about 76%
       const ahead = (1 + wx * Math.sin(P.aim) + wz * Math.cos(P.aim)) / 2, dirMul = P.sprint ? 1 : 0.76 + 0.24 * smooth(ahead);   // (sprinting you turn to run, so there's no backwards)
       tvx = wx * sp * dirMul; tvz = wz * sp * dirMul;
@@ -117,7 +118,7 @@ export function updatePlayer(dt) {
     const ph0 = P.phase; P.phase += dt * (5 + spd * 1.6 * (1 - 0.25 * (ANIM.sprintK || 0)));   // a sprint lengthens the stride more than it quickens it
     // a footstep each time a foot comes down (twice a stride), a run's when you're sprinting, harder the faster you go
     // (audio/footsteps.js picks the ground's own)
-    if (P.moving && Math.floor(P.phase / Math.PI) !== Math.floor(ph0 / Math.PI)) { footstep(P.sprint ? 'run' : 'walk', clamp(spd / WALK_SPEED, 0.45, 1.25)); bloodyStep(); xhStep(clamp(spd / WALK_SPEED, 0.45, 1.3) * (P.sprint ? 1.4 : 1)); }   // and a bloody print if your boots are (effects/blood-map.js)
+    if (P.moving && Math.floor(P.phase / Math.PI) !== Math.floor(ph0 / Math.PI)) { footstep(P.sprint ? 'run' : 'walk', clamp(spd / WALK_SPEED, 0.45, 1.25) * crouchQuiet()); bloodyStep(); xhStep(clamp(spd / WALK_SPEED, 0.45, 1.3) * (P.sprint ? 1.4 : 1)); }   // and a bloody print if your boots are (effects/blood-map.js)
   }
   P.still = P.moving ? 0 : P.still + dt;
 
