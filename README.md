@@ -401,9 +401,67 @@ the pickups feed) is put away. The host picks one of three modes:
   at 2:00 goes to the side with more players up, then the one with more health between them, otherwise it's a draw.
   Between rounds everyone is back at their spawn, whole again, with a fresh loadout and the chance to change class.
 
+**Bots.** Not enough people? In an arena lobby the host can sit bots in the empty seats with **Add a bot**, and send
+one away with the cross on its seat. A bot gives up its seat when a person joins. **Play solo** on the co-op screen
+opens a lobby of your own with three bots already in it. That lobby needs no connection, nobody can join it, and it's
+always the arena. The host picks how good the bots are under **Bots**:
+
+| Skill | Reacts in | Aim starts off by | Sees | Headshots |
+|---|---|---|---|---|
+| Recruit | 0.5–0.8 s | about 17° | 30 m | 10% of hits |
+| Regular | 0.3–0.5 s | about 14° | 36 m | 13% |
+| Veteran | 0.17–0.32 s | about 10° | 42 m | 17% |
+
+To every game in the match a bot is just another player. It picks a class, carries that class's guns and bandages,
+counts in the score, the kill feed and the results, can be spectated, and bleeds and falls like anyone else. The
+host's game runs the bots.
+
+A bot has no wall hacks:
+
+- It sees you only when you're in front of it (or right beside it), within its range, with nothing in the way. Low
+  cover like sandbags doesn't hide you.
+- It hears gunfire up to 28 m away, or 9 m for a suppressed gun, and someone sprinting within 7 m. It only gets a
+  rough idea of where the sound came from, rougher the further off it was.
+- When it's hit, it knows roughly where the shot came from.
+- It remembers where it last saw or heard each foe, and when, for 14 seconds.
+
+What it does with that:
+
+- **Fights.** It strafes side to side, holds still behind low cover, backs off if its class wants more range, or
+  pushes in. The Rush sprints at you and fires on the run, as its Run and gun perk allows.
+- **Takes cover** when it's hurt or reloading up close, sprinting to a spot out of sight of whoever's shooting.
+- **Patches up** when it's hurt or bleeding and nobody's in sight, using its own bandages.
+- **Swings back out** from cover to a spot that can see where its target was, and fights again.
+- **Flanks or pushes** when it loses sight of someone. It either heads straight for the last place it saw them, or
+  circles round to a spot off to their side, keeping out of sight of that place on the way.
+- **Hunts** round the map when it knows of nobody. In the team modes it drifts toward the other side's half, stopping
+  now and then to look about.
+
+Each class fights its own way: the Marksman hangs back at range and swaps to the revolver up close; the Breacher and
+the Rush press in with the shotgun; the Rifleman and the Gunner hold the middle distances.
+
+Its aim isn't perfect. It takes a moment to react to someone new, its aim starts off them and settles onto them, and
+its shots spread more on the move, at a sprint, and the longer it holds the trigger. It fires in bursts at range,
+longer ones close in, and single aimed shots from the rest.
+
+Its body moves like a player's. The poses were recorded from a survivor in this game, not drawn by hand:
+
+- its stride for walking eight ways against where it aims, and for sprinting;
+- its arms and gun aimed, from the hip, or down at a sprint, for each class's guns.
+
+**Nothing of the farm** shows in the arena: no burn barrel fire or moths round its lamps. Running a gun dry says
+**Empty. Switch weapons** with no "craft some at the workbench" popup, as there's no workbench.
+
+**The pause screen** has no close cross: Resume (or Esc) takes you back.
+
+**A version check.** A game that's a build behind or ahead of the host's (a page not refreshed since an update) is
+turned away when it tries to join, with a note to refresh. The two would otherwise play different games: a joiner on
+an old page could find themselves on the farm while everyone else was in the arena.
+
 A match opens on the **class picker**: five cards, each with its two guns and its melee weapon (each pictured) and
 its bandages. Click one or press 1 to 5. Everyone stands frozen at their spawn while picking (10 seconds at the start, 6
-between rounds). At the start, the picker's clock waits until every player has loaded into the arena (up to 15
+between rounds). Clicking a card never takes the mouse for the game; it's taken back when the picker closes. The picker
+sits under the pause screen, never over it. At the start, the picker's clock waits until every player has loaded into the arena (up to 15
 seconds), saying so while it waits.
 
 Then comes the **count-in**, before every match and every Showdown round:

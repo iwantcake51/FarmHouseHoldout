@@ -74,7 +74,7 @@ body.pvp:not(.pvpTeams) #pvpTop{flex-direction:column;align-items:center;gap:4px
 #pvpPick.loading .ppWait{display:block}
 @keyframes ppBlink{from{opacity:.45}to{opacity:1}}
 /* the class picker */
-#pvpPick{position:fixed;inset:0;display:grid;place-content:center;gap:16px;opacity:0;visibility:hidden;background:radial-gradient(ellipse at center,rgba(8,9,10,.55),rgba(8,9,10,.82));z-index:8;transition:opacity .25s,visibility .25s}
+#pvpPick{position:fixed;inset:0;display:grid;place-content:center;gap:16px;opacity:0;visibility:hidden;background:radial-gradient(ellipse at center,rgba(8,9,10,.55),rgba(8,9,10,.82));z-index:4;transition:opacity .25s,visibility .25s}
 #pvpPick.on{opacity:1;visibility:visible;pointer-events:auto}
 #pvpPick.small{background:linear-gradient(0deg,rgba(8,9,10,.85),transparent 60%);place-content:end center;padding-bottom:6vh}
 #pvpPick .ppHead{display:grid;justify-items:center;gap:2px}

@@ -23,6 +23,7 @@ import { inspectCut } from '../player/inspect.js';
 import { relKnock } from '../player/hold-kick.js';
 import { dropLoader, HSH_FEED } from '../player/hold-loaders.js';
 import { drawMul, startSwap, swapFire, swapSt } from '../player/swap.js';
+import { PVP } from '../pvp/pvp.js';
 
 // force: draw it again even if it's the slot in your hands (a new weapon just went into it)
 export function equip(s, force) {
@@ -129,7 +130,7 @@ export function startReload() {
   const sv = W8.relSave[id]; delete W8.relSave[id];
   if (sv && (sv.st === 'out' || sv.st === 'in')) { resumeStage(id, D, sv); return; }
   const missing = magSize(id) - (W8.mag[id] || 0); if (missing <= 0) return;
-  if (reserveOf(id) <= 0) { toast('No ' + AMMO_NAME[D.ammo] + ' left', { kind: 'bad', icon: 'ammo', sub: 'Craft some at the workbench' }); return; }
+  if (reserveOf(id) <= 0) { if (!PVP.on) if (!PVP.on) toast('No ' + AMMO_NAME[D.ammo] + ' left', { kind: 'bad', icon: 'ammo', sub: 'Craft some at the workbench' }); return; }   // (not in the arena: no workbench there)
   // (a mag never comes out while the bolt's still being worked from the last shot: the hunting rifle on its box. The
   // reload waits for the bolt to go home and starts then, by itself: weapons/casings.js tickCycle)
   if (!D.perShell && W8.cyc && W8.cyc.id === id) { W8.relAfterCyc = id; return; }

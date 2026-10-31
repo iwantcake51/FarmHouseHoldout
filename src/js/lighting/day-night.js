@@ -15,6 +15,7 @@ import { titleBlend } from '../game/intro.js';
 import { setT } from '../ui/hud-text.js';
 import { dayPart, dialNight } from '../ui/clock.js';
 import { viewer } from '../net/spectate.js';
+import { ARENA } from '../world/arena.js';
 
 // [hour, sun colour, sun strength, sky strength, background/fog, ambient colour, ambient level, the sky overhead]
 // graded warm on purpose: honey afternoons, a long amber dusk, and nights that sit in plum and ember rather than cold blue;
@@ -144,7 +145,7 @@ export function updateDayNight(rdt) {
     fireflies.seed.forEach((s, k) => { fireflies.pos[k * 3] = s.x + Math.sin(t * s.s + s.p) * 1.2; fireflies.pos[k * 3 + 1] = s.y + Math.sin(t * s.s * 1.7 + s.p) * 0.3; fireflies.pos[k * 3 + 2] = s.z + Math.cos(t * s.s * 0.8 + s.p) * 1.2; });
     fireflies.pts.geometry.attributes.position.needsUpdate = true;
   }
-  moths.m.opacity = clamp((curDark - 0.3) * 1.8, 0, 0.9);
+  moths.m.opacity = ARENA.on ? 0 : clamp((curDark - 0.3) * 1.8, 0, 0.9);   // (none round the farm's lamps and fire in the arena: world/arena.js)
   if (moths.m.opacity > 0.01) {
     const t = worldT;
     moths.seed.forEach((s, k) => {

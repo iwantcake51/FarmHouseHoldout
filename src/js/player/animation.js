@@ -33,6 +33,7 @@ import { ARM_THIN, ARM_X, armRest, poseHands, reach } from './hold.js';
 import { updatePack, updateStow } from './stow.js';
 import { updateBandStow, updateSwap } from './swap.js';
 import { agReset, agState, locoPose, locoWeights } from './anim-graph.js';
+import { ARENA } from '../world/arena.js';
 const _lp = { lx: 0, rx: 0, lz: 0, rz: 0, kl: 0, kr: 0, hx: 0, hz: 0, twist: 1 };
 
 // ---- player animation: eased facing, hips that follow your feet, bob, sway, limp, recoil, reloads, swings ----
@@ -528,5 +529,5 @@ export function updatePlayerVisuals(dt, rdt) {
   const GS = gunGlowId && WSTAIN[gunGlowId];
   if (GS) { for (const [o, m] of GS.list) if (m.emissive && GLOW_SET.has(o)) m.emissive.setRGB(gl * 0.34, gl * 0.31, gl * 0.2); if (!gl) setGunGlowId(null); }
   if (rdt > 0) updateMuzzleWisp(rdt);   // the smoke still curling off the muzzle after a heavy shot (effects/muzzle-flash.js)
-  if (worldK > 0 && dt > 0) barrelFire(dt);   // (effects/puffs.js; the fire freezes with the world)
+  if (worldK > 0 && dt > 0 && !ARENA.on) barrelFire(dt);   // (none in the arena: world/arena.js)   // (effects/puffs.js; the fire freezes with the world)
 }

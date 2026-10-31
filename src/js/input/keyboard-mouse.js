@@ -33,6 +33,7 @@ import { specStep, spectating } from '../net/spectate.js';
 import { giftSend, gunShare } from '../net/teamwork.js';
 import { closeSettings, setOpen, toggleView } from '../ui/settings.js';
 import { startInspect } from '../player/inspect.js';
+import { pvpPicking } from '../pvp/pvp.js';
 
 export const keys = new Set();
 // mouseDownR: the right button, which aims, or with a gun in each hand fires the right one (weapons/akimbo.js)
@@ -129,7 +130,7 @@ addEventListener('mouseup', e => { if (e.button === 3 || e.button === 4) e.preve
 
 // first person: a menu or the pause opened, the mouse is let go; closing it with a click or a key takes it back, and
 // letting it go yourself (Esc) pauses the game, as in any shooter (game/view-cam.js)
-const lookMenu = () => !!openSt || cheatOn || setOpen() || lookMenuOpen();
+const lookMenu = () => !!openSt || cheatOn || setOpen() || lookMenuOpen() || pvpPicking();   // (the arena's class picker too: a click on a class never takes the mouse, pvp/pvp.js)
 export const centerMouse = (ox = 0, oy = 0) => { mouseX = innerWidth / 2 + ox; mouseY = innerHeight / 2 + oy; hasMouse = true; };   // (off the middle by the free aim's offset in first person: game/view-cam.js)
 ['click', 'keydown'].forEach(t => addEventListener(t, () => { if (!isoOn() && state === 'play' && !P.dead && !lookMenu()) wantLock(); }));
 let lockLostAt = -1e9;

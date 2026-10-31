@@ -41,4 +41,3 @@ body.playing.menuUp #c{cursor:default}   /* (a menu up: the pointer shows over t
 .mClose svg{width:16px;height:16px;fill:currentColor}
 .mClose:hover,.mClose:focus-visible{color:var(--ink);border-color:var(--orange);background:rgba(236,230,216,.08)}
 #paused .inner{position:relative}
-#paused .inner>.mClose{position:absolute;top:0;right:0}

@@ -39,23 +39,24 @@ import { unragYou } from '../player/player-ragdoll.js';
 import { deathCineEnd, leaveToMenu } from '../ui/screens.js';
 import { gunArt, meleeArt } from '../ui/melee-art.js';
 import { gorePop } from '../zombies/damage.js';
-import { VCAM } from '../game/view-cam.js';
+import { VCAM, wantLock } from '../game/view-cam.js';
 import { SPEC } from '../net/spectate.js';
 import { GI, GI_VB } from '../ui/game-icons.js';
 import { los } from '../lighting/lightmap.js';
+import { botHit, botIds, botsBegin, botsEnd, botsPhase, botsUpdate } from './bots.js';
 
 // the three ways to play, and what wins each: kills for Deathmatch, a side's kills for Team deathmatch, rounds for
 // Showdown; how long a Showdown round runs before it's called (s), and the cap on a whole Deathmatch (s)
 export const PVP_MODES = { ffa: 'Deathmatch', tdm: 'Team deathmatch', rounds: 'Showdown' };
 const PVP_LIM = { ffa: 15, tdm: 20, rounds: 5 };
-const PVP_T = { pick0: 10, pick: 6, count: 5, loadWait: 15, round: 120, match: 600, roundEnd: 4, over: 9, respawn: 4.5, prot: 1.6 };
+export const PVP_T = { pick0: 10, pick: 6, count: 5, loadWait: 15, round: 120, match: 600, roundEnd: 4, over: 9, respawn: 4.5, prot: 1.6 };
 // each side's colour (A west, B east), and its name
 const PVP_SIDE = { A: { col: '#5fb4e8', name: 'Blue' }, B: { col: '#e2563f', name: 'Red' } };
 // the classes: two guns (each with its attachment steps: game/run-state.js W8.gt) and a melee weapon, mods where a gun
 // has one, and how many bandages; in the order they're offered
 // (each gun's attachments by their line and step, game/run-state.js W8.gt; perks by a skill card's name or a skill line
 // and its step, 'quick:2' for Quick hands II: upgrades/upgrades.js, upgrades/tier-table.js)
-const PVP_CLASSES = [
+export const PVP_CLASSES = [
   { id: 'rifle', name: 'Rifleman', role: 'Steady at any range', guns: [['ar', { sight: 1, laser: 1 }], ['pistol', { laser: 1 }]], melee: 'machete', band: 2, mags: 3, perks: ['Steady aim', 'quick:1'] },
   { id: 'mark', name: 'Marksman', role: 'One careful shot down a long lane', guns: [['hunting', { sight: 3, supp: 1 }], ['revolver', { loader: 1 }]], melee: 'crowbar', band: 1, mags: 3, perks: ['Steady aim', 'Iron lungs'] },
   { id: 'rush', name: 'Rush', role: 'Fast on its feet and brutal up close', guns: [['sub', { sight: 2, supp: 1 }], ['dbl', { loader: 1 }, ['sawn']]], melee: 'katana', band: 1, mags: 3, perks: ['boots:1', 'rungun:2'] },
@@ -69,15 +70,18 @@ const pvpAtts = (id, gt) => Object.keys(gt).map(k => { const st = TIERS[k].t[gt[
 // what a round does to a person (body, before its falloff); a melee blow's; and by where it lands (a shotgun's pellets
 // in the head count for less than a bullet's). A hit can open a bleed (PVP_BLEED: the odds by kind, and how many
 // seconds of bleeding: player/bandages.js stops it)
-const PVP_DMG = { pistol: 24, revolver: 46, deagle: 58, smg: 14, sub: 16, ar: 25, lmg: 23, scar: 40, hunting: 88, pump: 13, dbl: 12, auto12: 8 };
+export const PVP_DMG = { pistol: 24, revolver: 46, deagle: 58, smg: 14, sub: 16, ar: 25, lmg: 23, scar: 40, hunting: 88, pump: 13, dbl: 12, auto12: 8 };
 const PVP_MELEE = { bat: 38, crowbar: 44, wrench: 52, katana: 58, sledge: 92, machete: 48, axe: 72 };
-const PVP_PART = { head: 2, torso: 1, armL: 0.72, armR: 0.72, legL: 0.78, legR: 0.78 }, PVP_HEAD_SHELL = 1.45, PVP_HEAD_MELEE = 1.4;
-const PVP_BLEED = { gun: 0.22, shells: 0.35, blade: 0.45, s: [5, 9] };
+export const PVP_PART = { head: 2, torso: 1, armL: 0.72, armR: 0.72, legL: 0.78, legR: 0.78 }, PVP_HEAD_SHELL = 1.45;
+const PVP_HEAD_MELEE = 1.4;
+export const PVP_BLEED = { gun: 0.22, shells: 0.35, blade: 0.45, s: [5, 9] };
 // a body's reach as a round sees it (m round its middle), and where its parts are by height (m off the ground)
-const PVP_R = 0.32, PVP_Y = { top: 1.86, head: 1.47, torso: 0.86 };
+export const PVP_R = 0.32;
+const PVP_Y = { top: 1.86, head: 1.47, torso: 0.86 };
 
 export const PVP = { on: false, mode: 'ffa', teams: {}, side: 'A', cls: 'rifle', ph: 'idle', t: 0, rd: 1, wins: [0, 0], sc: {}, ts: [0, 0], prot: 0, respawn: 0, last: null, sent: 0, picked: false, resultKey: '' };
 const pvSideOf = id => PVP.teams[id];
+export const pvpSideOf = pvSideOf;
 export const pvpFoe = p => PVP.on && (PVP.mode === 'ffa' || pvSideOf(p.id) !== PVP.side);
 export const pvpMate = p => PVP.on && PVP.mode !== 'ffa' && pvSideOf(p.id) === PVP.side;
 // frozen in place: picking a class, the count in, a round called, the match over
@@ -111,13 +115,14 @@ export function pvpBegin() {
   document.body.classList.add('pvp'); document.body.classList.toggle('pvpTeams', PVP.mode !== 'ffa');
   pvpHudBuild();
   pvpSpawnMe(true);
+  if (isHost()) { botsBegin(); botIds().forEach(id => pvpIn.add(id)); }   // (the bots, the host's to run: pvp/bots.js)
   PVP.waitT = 0; pvpIn.add(NET.id); netSend('pl', {});   // (in: the host's clock starts once everyone is)
   pvpPhase('pick', PVP_T.pick0);
 }
 // the match over and done with (back to the lobby, or the game left): the farm back
 export function pvpEnd() {
   if (!PVP.on) return;
-  PVP.on = false; PVP.ph = 'idle'; pvpIn.clear();
+  PVP.on = false; PVP.ph = 'idle'; pvpIn.clear(); botsEnd();
   document.body.classList.remove('pvp', 'pvpTeams', 'pvpPicking');
   pvpHudHide();
 }
@@ -131,7 +136,7 @@ function pvpPhase(ph, t) {
   if (ph === 'live') { PVP.prot = PVP_T.prot; pvpBanner('Fight', '', 'go'); SFX.wave(); }
   if (ph === 'roundEnd') pvpRoundBanner();
   if (ph === 'over') pvpResults();
-  if (isHost()) pvpCast();
+  if (isHost()) { botsPhase(ph, was); pvpCast(); }
 }
 const pvpRoundSub = () => { const a = PVP.wins[0], b = PVP.wins[1], L = PVP_LIM.rounds; return a === L - 1 && b === L - 1 ? 'Final round' : a === L - 1 || b === L - 1 ? 'Match point' : PVP_SIDE.A.name + ' ' + a + ' – ' + b + ' ' + PVP_SIDE.B.name; };
 
@@ -204,7 +209,7 @@ export function pvpPellet(h, fp, y, id, D, pellets, ox, oz, dx, dz) {
 }
 // is someone behind low cover, as seen from (ox, oz): a barrier, sandbags or a drum on the line in the last
 // metre and a half before them, not right in front of the shooter
-function pvpCovered(x, z, ox, oz, dx, dz, t) {
+export function pvpCovered(x, z, ox, oz, dx, dz, t) {
   for (let s = 0.35; s < 1.6 && s < t - 1.1; s += 0.2) { const i = ci(x - dx * s), j = ci(z - dz * s); if (inb(i, j) && lowObst.has(idx(i, j))) return true; }
   return false;
 }
@@ -231,7 +236,8 @@ export function pvpMelee(D, id) {
 }
 function pvpSend(p, d, part, w, bleed) {
   if (d <= 0) return;
-  netTo(p.id, 'ph', { d, p: part, w, x: Math.round(P.x * 100) / 100, z: Math.round(P.z * 100) / 100, b: bleed ? 1 : 0 });
+  const m = { d, p: part, w, x: Math.round(P.x * 100) / 100, z: Math.round(P.z * 100) / 100, b: bleed ? 1 : 0 };
+  if (p.bot && isHost()) botHit(p.id, Object.assign({ f: NET.id, to: p.id }, m)); else netTo(p.id, 'ph', m);   // (a bot's in the host's game: pvp/bots.js)
   hitMark('hit', part === 'head'); SFX.killTick(part === 'head', 1);
 }
 // hit: what it does to you, and how it feels. Spawn-protected for a moment after you come in, and nothing between rounds
@@ -263,7 +269,7 @@ export function pvpDied() {
   if (PVP.mode !== 'rounds') setTimeout(() => { if (P.dead && PVP.on && PVP.ph === 'live') pvpPickOpen(true, true); }, 1300);
 }
 NET_ON.pk = m => { if (PVP.on) pvpKilled(m); };
-function pvpKilled(m) {
+export function pvpKilled(m) {
   // the score, on the host's game (it tells everyone with the clock)
   if (isHost()) {
     const k = PVP.sc[m.k], v = PVP.sc[m.v];
@@ -297,6 +303,7 @@ export function pvpUpdate(dt) {
     if (PVP.t <= 0) pvpTimeUp();
     else if (PVP.ph === 'live' && PVP.mode === 'rounds') pvpCheckRound();
     if ((pvpCastT -= dt) <= 0) { pvpCastT = 1; pvpCast(); }
+    botsUpdate(dt);
   }
   // down in Deathmatch: back in after a few seconds
   if (P.dead && PVP.mode !== 'rounds' && PVP.ph === 'live' && PVP.respawn > 0 && (PVP.respawn -= dt) <= 0) { pvpPickOpen(false); pvpSpawnMe(false); PVP.prot = PVP_T.prot; SFX.upgrade(); }
@@ -410,8 +417,8 @@ function pvpToast(a, b, kind) {
 function pvpPickOpen(on, small) {
   if (!hudEls) return;
   document.body.classList.toggle('pvpPicking', on);
-  const el = hudEls.pick; el.classList.toggle('on', on); el.classList.toggle('small', !!small);
-  if (!on) return;
+  const el = hudEls.pick, was = el.classList.contains('on'); el.classList.toggle('on', on); el.classList.toggle('small', !!small);
+  if (!on) { if (was && state === 'play') wantLock(); return; }   // (put away: in first person the mouse taken back for the game, game/view-cam.js)
   el.innerHTML = `<div class="ppHead"><i class="ppWait">Waiting for everyone to load in…</i><small>${small ? 'Back in soon' : PVP.mode === 'rounds' && PVP.rd > 1 ? 'Round ' + PVP.rd : PVP_MODES[PVP.mode]}</small><b>Choose your class</b><em>1 – ${PVP_CLASSES.length}</em></div><div class="ppRow">` +
     PVP_CLASSES.map((C, k) => `<button type="button" class="ppCard${C.id === PVP.cls ? ' on' : ''}" data-cls="${C.id}"><kbd>${k + 1}</kbd><b>${C.name}</b><small>${C.role}</small><span class="ppGuns">` +
       C.guns.map(([id, gt]) => { const a = gunArt(id); return `<span class="ppGun"><img alt="" src="${a ? a.url : ''}"><em>${WEAP[id].name}<i>${pvpAtts(id, gt).join(' · ')}</i></em></span>`; }).join('') +

@@ -198,5 +198,7 @@
   "ui/keyboard-map.js",
   "ui/settings.js",
   "pvp/pvp.js",
+  "pvp/bot-poses.js",
+  "pvp/bots.js",
   "game/loop.js"
 ]

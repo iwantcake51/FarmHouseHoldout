@@ -46,6 +46,7 @@ import { teamDown } from './lobby.js';
 import { camFocus, myDrops, updateSpecDrops, updateSpecXh } from './spectate.js';
 import { coverFromCam } from '../zombies/zombie-visuals.js';
 import { PVP, pvpCol, pvpFoe } from '../pvp/pvp.js';
+import { botsHear } from '../pvp/bots.js';
 import { visAt } from '../lighting/vision.js';
 import { los } from '../lighting/lightmap.js';
 
@@ -314,10 +315,12 @@ export function updateAvatars(rdt) {
 // ---- their shots: what your own would show, from where they stand
 export function shotOut(id, D, mw, ends, trSt, trPw, quiet) {
   if (!netLink()) return;
+  botsHear(NET.id, mw.x, mw.z, quiet);   // (the arena's bots hear it: pvp/bots.js)
   netSend('shot', { w: id, q: quiet ? 1 : 0, x: r3(mw.x), y: r3(mw.y), z: r3(mw.z), e: ends.map(e => [r3(e[0]), r3(e[1]), r3(e[2]), e[3] | 0, r3(e[4] || 0)]), st: trSt, pw: r3(trPw), sh: D.ammo === 'shells' ? 1 : 0, dr: D.dragon ? 1 : 0 });
 }
 NET_ON.shot = m => {
   if (state === 'title') return;
+  if (NET.host && !(NET.peers.get(m.f) || {}).bot) botsHear(m.f, m.x, m.z, m.q);   // (a bot's own it's told of itself)
   for (const e of m.e) {
     tracer(m.x, m.y, m.z, e[0], e[1], e[2], m.pw, m.st, e[3] === 3);
     // where it ended, as on their screen: a hole in the wall it hit and its sparks, or dirt kicked up off the ground

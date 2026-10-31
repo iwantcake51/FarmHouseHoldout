@@ -32,7 +32,7 @@ import { hudMag, renderRounds } from './rounds.js';
 import { renderMeleeArt } from './melee-art.js';
 import { ANIM, hurtFace } from '../player/animation.js';
 import { spectating } from '../net/spectate.js';
-import { pvpGrey } from '../pvp/pvp.js';
+import { PVP, pvpGrey } from '../pvp/pvp.js';
 
 // health, ECG, ammo, weapon name, moodles, slots, screen tints
 // a fresh run's max health: anything over it on the bar is bonus health, in its own colour
@@ -119,7 +119,7 @@ export function updateHUD(rdt, D) {
     renderMeleeArt(id, D); renderFireMode(id);
     // reloading shows under the crosshair; touch play has no crosshair, so it stays here for touch
     const xhShown = hasMouse && !usingTouch && !scoped;
-    setRoll('reloadTag', W8.reloading && !xhShown ? (W8.reloading === 'shell' ? `Loading ${W8.shellsIn}/${W8.shellsNeed}` : 'Reloading') : (!W8.reloading && !D.melee && !(W8.mag[id] > 0) && W8.reserve[D.ammo] === 0) ? 'Empty. Craft ammo or switch' : '');
+    setRoll('reloadTag', W8.reloading && !xhShown ? (W8.reloading === 'shell' ? `Loading ${W8.shellsIn}/${W8.shellsNeed}` : 'Reloading') : (!W8.reloading && !D.melee && !(W8.mag[id] > 0) && W8.reserve[D.ammo] === 0) ? (PVP.on ? 'Empty. Switch weapons' : 'Empty. Craft ammo or switch') : '');
     renderSlots();
     $('tbWave').hidden = phase !== 'break';
     $('tbAlt').hidden = !D.gl;

@@ -8,7 +8,8 @@ import { $ } from '../core/dom.js';
 import { GI, GI_VB } from '../ui/game-icons.js';
 import { cache, clamp } from '../core/math.js';
 import {
-  NET, NET_COL, NET_MAX, netAllReady, netHost, netJoin, netKick, netLeave, netLink, netName, netReady, netRoster, netSend, netSetGame, netSetMode, netSetView, netStart
+  NET, NET_COL, NET_MAX, netAllReady, netBotAdd, netBotDrop, netHost, netJoin, netKick, netLeave, netLink, netName, netReady, netRoster, netSend, netSetBotSkill, netSetGame, netSetMode,
+  netSetView, netStart
 } from './net.js';
 import { METAL } from '../barricades/planks.js';
 import { audioInit } from '../audio/audio.js';
@@ -21,6 +22,7 @@ import { LOOK } from '../player/look.js';
 import { lookThumb } from '../ui/look-card.js';
 import { chatRender } from './chat.js';
 import { PVP, pvpMate } from '../pvp/pvp.js';
+import { BOT_SKILLS } from '../pvp/bots.js';
 
 const lobbySeen = new Set();   // who's been shown in the seats already (someone just in slides into their seat)
 let lookSent = '';
@@ -46,13 +48,20 @@ export function lobbyRender() {
   $('coopArena').hidden = NET.game !== 'arena'; $('coopMode').hidden = NET.game === 'arena';
   $('coopGameNote').textContent = host ? 'Everyone plays it' : 'The host picks it';
   $('coopArenaNote').textContent = ARENA_NOTE[NET.arena] || '';
+  // the arena's bots: how good they are, and one more in an open seat (the host's; solo, nobody else's to pick)
+  $('coopBots').hidden = NET.game !== 'arena';
+  for (const b of $('coopBots').querySelectorAll('[data-s]')) { b.setAttribute('aria-checked', String(+b.dataset.s === NET.botSkill)); b.disabled = !host || NET.inGame; }
+  $('coopBotsNote').textContent = (BOT_SKILLS[NET.botSkill] || '') + (host ? '' : ' · the host picks');
+  $('coopBotAdd').hidden = !host; $('coopBotAdd').disabled = NET.inGame || NET.peers.size >= NET_MAX - 1;
+  $('coopCodeRow').hidden = NET.solo;
+  for (const b of $('coopGame').querySelectorAll('[data-g=survival]')) if (NET.solo) b.disabled = true;
   // what you can do: the host starts once everyone's ready; a joiner says they're ready (or not after all)
   const others = [...NET.peers.values()], waiting = others.filter(p => !p.ready).map(p => p.name);
   $('coopGo').hidden = !host; $('coopGo').classList.toggle('held', host && !netAllReady()); $('coopGo').disabled = NET.inGame;
   $('coopReady').hidden = host || !room;
   $('coopReady').classList.toggle('ghost', NET.ready); $('coopReady').firstChild.textContent = NET.ready ? 'Cancel ready ' : 'Ready ';
   $('coopLeave').textContent = host ? 'Close the lobby' : 'Leave';
-  $('coopWait').textContent = !room ? '' : host ? (!others.length ? 'Starting on your own is fine too.' : waiting.length ? 'Waiting for ' + waiting.join(' and ') + ' to get ready' : 'Everyone\u2019s ready')
+  $('coopWait').textContent = !room ? '' : NET.solo ? (others.length ? 'Ready when you are.' : 'Add a bot or two to fight.') : host ? (!others.length ? 'Starting on your own is fine too.' : waiting.length ? 'Waiting for ' + waiting.join(' and ') + ' to get ready' : 'Everyone\u2019s ready')
     : NET.ready ? 'Waiting for the host to start' : 'Ready up when you\u2019re set';
   renderSeats();
   if (!on) lobbySeen.clear();
@@ -65,7 +74,7 @@ function renderSeats() {
   const on = NET.on, list = on ? netRoster() : [];
   if (on && !NET.host) { list.length = 0; list.push({ id: NET.id, name: netName(), idx: NET.idx, look: LOOK.cur, ready: NET.ready }, ...[...NET.peers.values()]); }
   list.sort((a, b) => a.idx - b.idx);
-  const ol = $('coopList'), key = JSON.stringify([NET.host, list.map(p => [p.id, p.name, p.idx, !!p.ready, JSON.stringify(p.look || null), p.fid && !!frOf(p.fid)])]);
+  const ol = $('coopList'), key = JSON.stringify([NET.host, NET.botSkill, list.map(p => [p.id, p.name, p.idx, !!p.ready, !!p.bot, JSON.stringify(p.look || null), p.fid && !!frOf(p.fid)])]);
   if (ol.dataset.key === key) return; ol.dataset.key = key;
   ol.textContent = '';
   for (const p of list) {
@@ -76,10 +85,11 @@ function renderSeats() {
     li.innerHTML = '<span class="sPic"></span><span class="sNum"></span><b class="sName"></b><em class="sTag"></em><span class="sStamp">Ready</span>';
     if (pic) { const im = document.createElement('img'); im.alt = ''; im.src = pic; li.querySelector('.sPic').appendChild(im); }
     li.querySelector('.sNum').textContent = p.idx + 1; li.querySelector('.sName').textContent = p.name || 'Survivor';
-    li.querySelector('.sTag').textContent = [isHost ? 'Host' : p.ready ? '' : 'Not ready yet', me ? 'You' : ''].filter(Boolean).join(', ');
+    li.querySelector('.sTag').textContent = p.bot ? 'Bot · ' + (BOT_SKILLS[NET.botSkill] || '') : [isHost ? 'Host' : p.ready ? '' : 'Not ready yet', me ? 'You' : ''].filter(Boolean).join(', ');
+    if (p.bot) li.classList.add('bot');
     // someone you're playing with who isn't on your friends list yet: one click to add them (net/friends.js)
     if (!me && p.fid && p.fid !== PALS.me && !frOf(p.fid)) { const b = document.createElement('button'); b.type = 'button'; b.className = 'coopCopy sAdd'; b.textContent = 'Add friend'; b.onclick = () => frAdd(p.fid, p.name); li.appendChild(b); }
-    if (NET.host && !me && !NET.inGame) { const b = document.createElement('button'); b.type = 'button'; b.className = 'sKick'; b.textContent = '\u00d7'; b.setAttribute('aria-label', 'Remove ' + (p.name || 'Survivor') + ' from the lobby'); b.onclick = () => netKick(p.id); li.appendChild(b); }
+    if (NET.host && !me && !NET.inGame) { const b = document.createElement('button'); b.type = 'button'; b.className = 'sKick'; b.textContent = '\u00d7'; b.setAttribute('aria-label', 'Remove ' + (p.name || 'Survivor') + ' from the lobby'); b.onclick = () => p.bot ? netBotDrop(p.id) : netKick(p.id); li.appendChild(b); }
     ol.appendChild(li);
   }
   for (let k = list.length; k < NET_MAX; k++) { const li = document.createElement('li'); li.className = 'seat empty'; li.innerHTML = '<span class="sPic"></span><span class="sNum"></span><b class="sName">Open seat</b><em class="sTag">Waiting for someone</em>'; li.querySelector('.sNum').textContent = k + 1; ol.appendChild(li); }
@@ -104,6 +114,9 @@ $('coopName').addEventListener('input', e => {
   lobbyRender();
 });
 $('coopHost').onclick = () => netHost();
+$('coopSolo').onclick = () => netHost(true);
+$('coopBotAdd').onclick = () => netBotAdd();
+$('coopBots').addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (b && !b.disabled) { netSetBotSkill(+b.dataset.s); SFX.click(); } });
 $('coopJoin').onclick = () => netJoin($('coopCode').value);
 // the code box takes the four characters however they come (pasted with a space, lower case) and joins on Enter
 $('coopCode').addEventListener('input', e => { const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4); if (v !== e.target.value) e.target.value = v; });

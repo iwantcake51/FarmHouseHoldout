@@ -269,13 +269,18 @@
             <p>Type the four letters and numbers on the host's lobby.</p>
             <div class="cpCodeRow"><input id="coopCode" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false" aria-label="The host's game code"><button class="btn ghost sm" id="coopJoin" type="button">Join</button></div>
           </div>
+          <div class="cpWay cpSolo">
+            <h3>Arena against bots</h3>
+            <p>The arena on your own, against bots (or with them on your side). Nothing to connect to.</p>
+            <div class="btns mlist"><button class="btn ghost" id="coopSolo" type="button">Play solo</button></div>
+          </div>
           <div class="cpWay cpOpen" id="coopOpenWrap" hidden>
             <h3>Friends hosting now</h3>
             <ul class="cpOpenList" id="coopOpen"></ul>
           </div>
         </div>
         <div class="coopRoom" id="coopRoom" hidden>
-          <div class="coopCode"><span>Game code</span><b id="coopShow"></b><button class="coopCopy" id="coopCopy" type="button">Copy code</button><button class="coopCopy" id="coopLink" type="button">Copy invite link</button></div>
+          <div class="coopCode" id="coopCodeRow"><span>Game code</span><b id="coopShow"></b><button class="coopCopy" id="coopCopy" type="button">Copy code</button><button class="coopCopy" id="coopLink" type="button">Copy invite link</button></div>
           <ol class="coopSeats" id="coopList"></ol>
           <div class="coopMid">
             <div class="coopChat"><ol id="coopChat" aria-live="polite" aria-label="Lobby chat"></ol><input id="coopSay" maxlength="120" placeholder="Say something to the lobby, Enter to send" autocomplete="off" spellcheck="false" aria-label="Say something to the lobby"></div>
@@ -283,6 +288,7 @@
               <div class="coopView" id="coopView"><span>View <small id="coopViewNote">Everyone plays in it</small></span><div class="coopSeg" role="radiogroup" aria-label="Everyone's view in the run"><button type="button" role="radio" data-v="iso" aria-checked="true">Isometric</button><button type="button" role="radio" data-v="fp" aria-checked="false">First person</button></div></div>
               <div class="coopView" id="coopGame"><span>Game <small id="coopGameNote">Everyone plays it</small></span><div class="coopSeg" role="radiogroup" aria-label="The game everyone plays"><button type="button" role="radio" data-g="survival" aria-checked="true">Survival</button><button type="button" role="radio" data-g="arena" aria-checked="false">Arena</button></div></div>
               <div class="coopView" id="coopArena" hidden><span>Arena <small id="coopArenaNote">Everyone against everyone</small></span><div class="coopSeg" role="radiogroup" aria-label="The arena's mode"><button type="button" role="radio" data-a="ffa" aria-checked="true">Deathmatch</button><button type="button" role="radio" data-a="tdm" aria-checked="false">Team deathmatch</button><button type="button" role="radio" data-a="rounds" aria-checked="false">Showdown</button></div></div>
+              <div class="coopView" id="coopBots" hidden><span>Bots <small id="coopBotsNote">How good they are</small></span><div class="coopSeg" role="radiogroup" aria-label="How good the bots are"><button type="button" role="radio" data-s="0" aria-checked="false">Recruit</button><button type="button" role="radio" data-s="1" aria-checked="true">Regular</button><button type="button" role="radio" data-s="2" aria-checked="false">Veteran</button></div><button class="coopCopy coopBotAdd" id="coopBotAdd" type="button">Add a bot</button></div>
               <div class="coopView" id="coopMode"><span>Mode <small id="coopModeNote">Everyone plays in it</small></span><div class="coopSeg" role="radiogroup" aria-label="Everyone's run mode"><button type="button" role="radio" data-m="normal" aria-checked="true">Normal</button><button type="button" role="radio" data-m="noperks" aria-checked="false">No perks</button></div></div>
               <div class="btns mlist coopActs"><button class="btn" id="coopGo" type="button">Start together <kbd data-bind="wave">T</kbd></button><button class="btn" id="coopReady" type="button">Ready <kbd data-bind="wave">T</kbd></button><button class="btn ghost" id="coopLeave" type="button">Leave</button></div>
               <p class="coopWait" id="coopWait" role="status"></p>
@@ -319,7 +325,7 @@
 </div>
 
 <div class="screen" id="paused" hidden>
-  <div class="inner"><button class="mClose" id="pauseX" type="button" aria-label="Close" title="Close"><svg data-gi="crossMark" aria-hidden="true"></svg></button>
+  <div class="inner">
     <div class="eyebrow">Paused</div>
     <h2>Catch your breath</h2>
     <div class="pLists">
