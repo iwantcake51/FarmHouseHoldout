@@ -230,7 +230,7 @@ export function pvpBegin() {
   PVP.ts = [0, 0]; PVP.wins = [0, 0]; PVP.rd = 1; PVP.st = {}; PVP.my = { dmg: 0, hits: 0, shots: 0, hs: 0, long: 0 }; PVP.life = { taken: {}, given: {} }; PVP.ping = 0; PVP.prot = 0; PVP.respawn = 0; PVP.last = null; PVP.resultKey = '';
   try { PVP.cls = localStorage.getItem('fhh-class') || 'rifle'; } catch (e) {}
   if (!PVP_CLASSES.some(c => c.id === PVP.cls)) PVP.cls = 'rifle';
-  arenaUp(); setTod(ARENA.tod);
+  arenaUp(); if (isHost()) PVP.tod = pvpTodPick(); pvpTodRound();
   document.body.classList.add('pvp'); document.body.classList.toggle('pvpTeams', PVP.mode !== 'ffa'); document.body.classList.toggle('pvpRounds', PVP.mode === 'rounds');
   pvpHudBuild();
   pvpSpawnMe(true);
@@ -542,15 +542,19 @@ function pvpDismember(m) {
 let pvpCastT = 0;
 // the clock and the HUD, on real time every frame (game/loop.js), so they run on when the match's end has slowed the
 // game to a stop (pvpEndScale)
-// the light over a Showdown match (PVP_TOD), set as each round starts and still through it: mid-afternoon in the first,
-// a little later every round, night by the fifth (round: hours a round on from from, at most to); once a side's a
-// round off match point it's the small hours before dawn (close), and at match point dawn itself (dawn). The other modes
-// stay in the afternoon. Every game works it out from the score, so they agree
-const PVP_TOD = { from: 15.6, round: 1.6, to: 22, close: 4.2, dawn: 6 };
+// the light over a Showdown match (PVP_TOD), set as each round starts and still through it: morning in the first, a
+// few hours later every round, midday, afternoon, dusk in the fourth and night from the fifth (round: hours a round on
+// from from, at most to); at match point, dawn (dawn). The other modes stay in the afternoon. Every game works it out
+// from the score, so they agree
+const PVP_TOD = { from: 8, round: 3.25, to: 22.5, dawn: 6 };
+// Deathmatch and Team deathmatch: one light for the whole match, drawn by the host as it starts (and sent with the
+// clock, pvpCast): [hour, how likely]. Mostly daylight, morning to late afternoon; now and then dusk or night
+const PVP_DAY = [[8.5, 2], [10.5, 3], [12.5, 3], [14.5, 3], [16.5, 3], [18.5, 1.5], [20.5, 1], [22.5, 1]];
+function pvpTodPick() { let r = rand() * PVP_DAY.reduce((a, d) => a + d[1], 0); for (const [h, w] of PVP_DAY) if ((r -= w) <= 0) return h; return ARENA.tod; }
 function pvpTodRound() {
-  if (PVP.mode !== 'rounds') { setTod(ARENA.tod); return; }
+  if (PVP.mode !== 'rounds') { setTod(PVP.tod ?? ARENA.tod); return; }
   const lead = Math.max(...PVP.wins), L = PVP_LIM.rounds;
-  setTod(lead >= L - 1 ? PVP_TOD.dawn : lead >= L - 2 && L > 2 ? PVP_TOD.close : Math.min(PVP_TOD.to, PVP_TOD.from + PVP_TOD.round * (PVP.rd - 1)));
+  setTod(lead >= L - 1 ? PVP_TOD.dawn : Math.min(PVP_TOD.to, PVP_TOD.from + PVP_TOD.round * (PVP.rd - 1)));
 }
 export function pvpTick(rdt) {
   if (!PVP.on) return;
@@ -646,10 +650,11 @@ function pvpCheckEnd() {
   if (PVP.mode === 'tdm' && Math.max(...PVP.ts) >= PVP_LIM.tdm) pvpPhase('over', PVP_T.over);
 }
 // the host's word on how it stands: everyone's screen follows it
-function pvpCast() { netSend('pm', { ph: PVP.ph, tl: Math.round(PVP.t * 10) / 10, rd: PVP.rd, w: PVP.wins, sc: PVP.sc, ts: PVP.ts, rw: PVP.rw || '', fg: PVP.flag ? 1 : 0, kit: PVP.kit, fl: PVP.flip ? 1 : 0, kn: PVP.kitNext || null }); }
+function pvpCast() { netSend('pm', { ph: PVP.ph, tl: Math.round(PVP.t * 10) / 10, rd: PVP.rd, w: PVP.wins, sc: PVP.sc, ts: PVP.ts, rw: PVP.rw || '', fg: PVP.flag ? 1 : 0, kit: PVP.kit, fl: PVP.flip ? 1 : 0, kn: PVP.kitNext || null, td: PVP.tod ?? null }); }
 NET_ON.pm = m => {
   if (!PVP.on || isHost()) return;
   PVP.sc = m.sc || PVP.sc; PVP.ts = m.ts || PVP.ts; PVP.rd = m.rd; PVP.rw = m.rw; PVP.flip = !!m.fl;
+  if (m.td != null && m.td !== PVP.tod) { PVP.tod = m.td; if (PVP.mode !== 'rounds') pvpTodRound(); }   // (the host's light for the match)
   if (m.kn && JSON.stringify(m.kn) !== JSON.stringify(PVP.kitNext)) { PVP.kitNext = m.kn; pvpWarm(m.kn); }
   if (m.kit !== undefined && JSON.stringify(m.kit) !== JSON.stringify(PVP.kit)) { PVP.kit = m.kit; if (hudEls.pick.classList.contains('on')) pvpPickOpen(true, hudEls.pick.classList.contains('small')); }
   if (m.fg && !PVP.flag && m.ph === 'live') flagUp(); else if (!m.fg && PVP.flag) flagDown();
@@ -958,7 +963,7 @@ function pvpRematch() {
   PVP.sc = {}; roster().forEach(r => { PVP.sc[r.id] = [0, 0]; });
   PVP.ts = [0, 0]; PVP.wins = [0, 0]; PVP.rd = 1; PVP.rw = ''; PVP.killer = ''; PVP.st = {}; PVP.my = { dmg: 0, hits: 0, shots: 0, hs: 0, long: 0 }; PVP.key = '';
   hudEls.res.classList.remove('on'); hudEls.feed.innerHTML = '';
-  PVP.flip = false; setTod(ARENA.tod);   // (the afternoon again, each side at its own end)
+  PVP.flip = false; if (isHost()) PVP.tod = pvpTodPick(); pvpTodRound();   // (a new light for the new match, each side at its own end)
   if (isHost()) botsBegin();
   PVP.ph = 'idle'; pvpPhase('pick', pickT(true));
 }

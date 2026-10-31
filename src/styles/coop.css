@@ -379,8 +379,8 @@ body:not(.playing) #specXh{display:none}
 .coopArenaRow{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;animation:coopPart .35s cubic-bezier(.2,.9,.3,1) both}
 .coopArenaRow[hidden]{display:none}
 .coopMap{margin:0;display:grid;gap:4px;justify-items:start}
-.coopMap canvas{width:112px;height:112px;image-rendering:pixelated;border:1px solid rgba(236,230,216,.18);box-shadow:0 6px 16px -8px rgba(0,0,0,.8)}
-.coopMap figcaption{font:600 12px var(--f-ui);color:var(--ink);max-width:118px}
+.coopMap img{display:block;width:200px;height:auto;aspect-ratio:560/347;object-fit:cover;background:#2a2a28;border:1px solid rgba(236,230,216,.18);box-shadow:0 6px 16px -8px rgba(0,0,0,.8)}
+.coopMap figcaption{font:600 12px var(--f-ui);color:var(--ink);max-width:200px}
 .coopMap figcaption small{display:block;font:400 11px/1.25 var(--f-type);color:#8f877a}
 .coopCfg{display:grid;gap:6px;font-size:13px;color:#c4b9a3}
 .coopCfg small{font-size:12px;color:#8f877a;margin-left:6px}

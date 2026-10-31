@@ -12,7 +12,7 @@ import {
   netSetView, netSideOf, netStart, netSwitchSide
 } from './net.js';
 import { PVP_CFG_LIM, pvpCfgFix } from '../pvp/pvp.js';
-import { arenaMapDraw } from '../world/arena.js';
+import { AR_PREVIEW } from '../world/arena-preview.js';
 import { METAL } from '../barricades/planks.js';
 import { audioInit } from '../audio/audio.js';
 import { SFX } from '../audio/sfx.js';
@@ -159,7 +159,7 @@ const CFG_ROWS = {
 let mapDrawn = false;
 function cfgRender(host) {
   const on = NET.game === 'arena' && NET.on, box = $('coopArenaRow'); box.hidden = !on; if (!on) return;
-  if (!mapDrawn) { arenaMapDraw($('coopMap')); mapDrawn = true; }
+  if (!mapDrawn) { $('coopMap').src = AR_PREVIEW; mapDrawn = true; }   // (a picture of the yard itself: world/arena-preview.js)
   const C = NET.acfg = pvpCfgFix(NET.acfg), rows = CFG_ROWS[NET.arena] || [], el = $('coopCfgRows'), key = JSON.stringify([NET.arena, C, host, NET.inGame]);
   $('coopCfgNote').textContent = host ? 'Yours to set' : 'The host sets it';
   if (el.dataset.key === key) return; el.dataset.key = key;

@@ -458,8 +458,9 @@ the pickups feed) is put away. The host picks one of three modes:
   **Blood** in Showdown stays where it fell all round, none of it soaking away, and is gone the moment the next round
   starts.
 
-**Match settings.** Under the mode in the lobby, beside a small map of the arena (the walls, the containers, the
-cover, each side's spawn in its colour and the flag in the middle), the host sets the match. Everyone else sees the
+**Match settings.** Under the mode in the lobby, beside a picture of the arena (Yard 4 itself, rendered in the game
+from above at midday with nobody in it, rather than the coloured plan of its cells it used to be:
+world/arena-preview.js, taken again whenever the map changes), the host sets the match. Everyone else sees the
 settings as the host has them. They're kept between visits.
 
 | Mode | Settings (start, range) |
@@ -949,9 +950,11 @@ checked by a script (tools/arena-plan.py) for reachability, spawn safety, sightl
 - **Hitboxes fit the props.** A spool, a crate stack or a drum stops you and your rounds only where it really is, not
   across its whole metre of floor.
 - **The light** in Showdown is set once a round and holds still through it (the clock doesn't run during a round):
-  mid-afternoon for round 1, then each round an hour and a half or so later, so dusk comes slowly and it's night by
-  round 4 or 5; the small hours when a side is one round from match point, and dawn at match point. The other modes
-  stay mid-afternoon. Every game works it out from the score, so everyone's sky agrees.
+  morning for round 1 (8:00), then each round about three and a quarter hours later: midday in round 2, afternoon in
+  round 3, dusk in round 4 and night from round 5 on; at match point, dawn. Deathmatch and Team deathmatch draw one
+  light for the whole match as it starts (the host draws it and everyone's game is sent it): mostly daylight, from
+  morning to late afternoon, and now and then dusk or night (about one match in six is dark). **The clock never runs
+  in the arena**, in any mode: the sun and shadows stay where the match (or the round) put them. Every game works it out from the score, so everyone's sky agrees.
 - **Floodlights** stand on poles in each corner, halfway along each wall, and four more round the middle, up on the
   wall stubs at the flag ring's corners. They're **on only at night**: they come on as it gets dark and are off (dark
   glass, no light, no halo, no flare) by day. Lit, their faces glow and bloom, with a soft halo round them, and one in

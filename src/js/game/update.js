@@ -21,7 +21,7 @@ const CLOCK_S = 30;
 // One simulation step. Each system has its own function in its own folder; this just runs them in order.
 export function update(dt) {
   run.time += dt; cheatTick(); runWatch();   // (the end screen's tallies: ui/run-stats.js)   // the cheat menu's switches (ui/cheats.js)
-  if (phase === 'wave' && !cheatIs('clock')) setTod((tod + dt / CLOCK_S) % 24);   // the clock stands still between waves
+  if (phase === 'wave' && !PVP.on && !cheatIs('clock')) setTod((tod + dt / CLOCK_S) % 24);   // the clock stands still between waves (and in the arena, always: pvp/pvp.js sets the light)
   updatePlayer(dt);
   updateCombat(dt);
   if (PVP.on) { pvpUpdate(dt); updateGrenades(dt); updateInteractions(dt); playerChecks(); return; }   // the arena: no farm to run, but the prompts (its sandbags' vault) and whether you're down (pvp/pvp.js)

@@ -126,17 +126,6 @@ function yardSpots(sd, seed, n) {
   return out[n];
 }
 
-// the plan drawn small, for the lobby's preview (net/lobby.js): the floor, the walls and blocks dark, the containers in
-// their colours, the cover lighter, each side's spawn in its colour and the flag's spot in the middle
-const AR_MAP_COL = { '#': '#3a3632', h: '#6b655c', C: '#8a3b2a', k: '#7d5c38', b: '#b4ae9f', s: '#9a8659', o: '#5a6f86', r: '#8c7a5c', A: '#2f5d82', B: '#8e3a2f', F: '#cfc6b3', '.': '#cfc6b3' };
-export function arenaMapDraw(cv) {
-  const x = cv.getContext('2d'), n = AR_PLAN.length, c = cv.width / n;
-  x.fillStyle = '#cfc6b3'; x.fillRect(0, 0, cv.width, cv.height);
-  AR_PLAN.forEach((r, j) => [...r].forEach((ch, i) => { const col = AR_MAP_COL[ch]; if (!col || ch === '.' || ch === 'F') return; x.fillStyle = ch === 'C' ? ['#8a3b2a', '#355a78', '#5d6643', '#9b6a2c'][(i * 7 + j * 3) % 4] : col; x.fillRect(i * c, j * c, Math.ceil(c), Math.ceil(c)); }));
-  x.strokeStyle = '#f2efe6'; x.lineWidth = Math.max(1.5, c * 0.35); x.beginPath(); x.arc(cv.width / 2, cv.height / 2, c * 2.4, 0, Math.PI * 2); x.stroke();
-  x.fillStyle = '#f2efe6'; x.fillRect(cv.width / 2 - c * 0.2, cv.height / 2 - c * 1.6, c * 0.4, c * 1.6); x.fillRect(cv.width / 2, cv.height / 2 - c * 1.6, c * 1.1, c * 0.7);
-}
-
 // ---- the look of it
 // (what stands taller than you, the walls, the hut and the containers, dithered away round you from above when it's
 // between you and the camera, as the trees are: core/shaders.js, world/cutaway.js)

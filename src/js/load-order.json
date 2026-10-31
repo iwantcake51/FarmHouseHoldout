@@ -137,6 +137,7 @@
   "lighting/day-night.js",
   "lighting/vision.js",
   "world/arena.js",
+  "world/arena-preview.js",
   "weapons/laser.js",
   "game/update.js",
   "player/sprint.js",
