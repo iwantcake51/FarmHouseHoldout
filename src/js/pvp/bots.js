@@ -18,6 +18,7 @@ import { angDiff, clamp, rand, rr } from '../core/math.js';
 import { NET, NET_BOT, NET_ON, netAs, netSend } from '../net/net.js';
 import { P } from '../player/player.js';
 import { WEAP } from '../weapons/gun-stats.js';
+import { curId, W8 } from '../game/run-state.js';
 import { SLOTS } from '../weapons/slots.js';
 import { falloff } from '../weapons/ammo.js';
 import { tracerPower } from '../effects/tracers.js';
@@ -25,16 +26,16 @@ import { ARENA, arenaSpawn } from '../world/arena.js';
 import { ci, cxw, idx, inb } from '../world/grid.js';
 import { bulletBlocked, hardBlocked, moveCircle } from '../world/collision.js';
 import { los } from '../lighting/lightmap.js';
-import { PVP, PVP_BLEED, PVP_CLASSES, PVP_DMG, PVP_HEAD_SHELL, PVP_PART, PVP_R, PVP_T, pvpCovered, pvpKilled, pvpSideOf } from './pvp.js';
+import { PVP, PVP_BLEED, PVP_CLASSES, PVP_DMG, PVP_HEAD_SHELL, PVP_PART, PVP_R, PVP_T, PVP_TTK, pvpCovered, pvpKilled, pvpSideOf } from './pvp.js';
 import { BOT_CYC, BOT_GUN, BOT_GY, BOT_IDLE, BOT_LEG, BOT_UP } from './bot-poses.js';
 
 // how good they are, by the lobby's pick (NET.botSkill): how long they take to react to someone new (s), how far off
 // their aim starts on them (rad) and how fast it settles, how much their shots spread on top of the gun's own, how fast
-// they turn (rad/s), how far they see (m) and how wide (half the angle, rad), and how often a hit is in the head
+// they turn at most (rad/s: their aim speeds up and slows down onto a target, never snapping), how far they see (m) and how wide (half the angle, rad), and how often a hit is in the head
 const BOT_SKILL = [
-  { react: [0.5, 0.8], err: 0.3, settle: 2.2, sig: 0.05, turn: 5, view: 30, fov: 1.05, head: 0.1 },
-  { react: [0.3, 0.5], err: 0.24, settle: 3.2, sig: 0.034, turn: 7, view: 36, fov: 1.2, head: 0.13 },
-  { react: [0.17, 0.32], err: 0.18, settle: 4.6, sig: 0.024, turn: 9.5, view: 42, fov: 1.35, head: 0.17 }
+  { react: [0.5, 0.8], err: 0.3, settle: 2.2, sig: 0.075, turn: 2.6, view: 30, fov: 1.05, head: 0.08 },
+  { react: [0.3, 0.5], err: 0.24, settle: 3, sig: 0.055, turn: 3.4, view: 36, fov: 1.2, head: 0.11 },
+  { react: [0.2, 0.34], err: 0.2, settle: 4, sig: 0.04, turn: 4.4, view: 42, fov: 1.35, head: 0.15 }
 ];
 export const BOT_SKILLS = ['Recruit', 'Regular', 'Veteran'];
 const botSk = () => BOT_SKILL[NET.botSkill ?? 1] || BOT_SKILL[1];
@@ -51,7 +52,11 @@ const BOT_STYLE = {
 // own on top), how long they remember someone (s), how long a bandage takes and gives, and how fast bleeding hurts
 const BOT_REACH = { pump: 13, dbl: 8, pistol: 26, revolver: 34, smg: 20, sub: 24, ar: 40, lmg: 38, hunting: 60 };
 const BOT_MOVE = { base: 3, aimed: 0.72, sprint: 1.75, cls: { rush: 1.06, gunner: 0.9 } };
-const BOT_MEM = 14, BOT_BAND = { t: 2.4, heal: 25, rate: 4.5 }, BOT_BLEED = { dps: 1.7, floor: 15 };
+// changing class: after this many more deaths than kills with one, and how far off a killer counts as far or near (m)
+const BOT_SWAP = { deaths: 2, far: 16, near: 7 };
+const BOT_MEM = 14, BOT_BLEED = { dps: 1.7, floor: 15 }, BOT_REGEN = { wait: 2, full: 6.75 };   // (health back on its own as a player's: pvp/pvp.js REGEN)
+// a shot at someone on the move spreads more, by how fast they're going (rad per m/s), to at most max
+const BOT_LEAD = { k: 0.014, max: 0.05 };
 const BOT_NAMES = ['Hollis', 'Ruth', 'Marek', 'Juno', 'Dacey', 'Ozzie', 'Teague', 'Wren', 'Abel', 'Noor', 'Sully', 'Kit'];
 export const botName = used => { const free = BOT_NAMES.filter(n => !used.has(n)); return (free.length ? free : BOT_NAMES)[Math.floor(rand() * (free.length || BOT_NAMES.length))]; };
 
@@ -66,14 +71,16 @@ const botGunOf = b => b.slots[b.cur];
 // ---- the match: each bot in the lobby gets a body and a mind
 export function botsBegin() {
   BOTS.clear();
-  for (const p of NET.peers.values()) if (p.bot) BOTS.set(p.id, { p, id: p.id, cls: PVP_CLASSES[Math.floor(rand() * PVP_CLASSES.length)].id, x: 0, z: 0, vx: 0, vz: 0, aim: 0, hp: 100, dead: true, seed: rand() * 9, mem: new Map(), path: [], ph: 0, poseT: 0, thinkT: 0, senseT: 0, spray: 0, err: 0 });
+  for (const p of NET.peers.values()) if (p.bot) BOTS.set(p.id, { p, id: p.id, rec: {}, cls: PVP_CLASSES[Math.floor(rand() * PVP_CLASSES.length)].id, x: 0, z: 0, vx: 0, vz: 0, aim: 0, hp: 100, dead: true, seed: rand() * 9, mem: new Map(), path: [], ph: 0, poseT: 0, thinkT: 0, senseT: 0, spray: 0, err: 0 });
   for (const b of BOTS.values()) botSpawn(b, true);
 }
 export function botsEnd() { BOTS.clear(); }
 export const botIds = () => [...BOTS.keys()];
+// a kill to a bot's name (pvp/pvp.js pvpKilled), for its record with the class it had (BOT_SWAP)
+export function botKilled(id) { const b = BOTS.get(id); if (b) { const r = b.rec[b.cls] || (b.rec[b.cls] = { k: 0, d: 0 }); r.k++; } }
 // a phase starting (the host's call: pvp/pvp.js): everyone back at their spawn for a new round
 export function botsPhase(ph, was) {
-  if (ph === 'pick' && (was === 'roundEnd' || was === 'idle')) for (const b of BOTS.values()) { if (rand() < 0.3) b.cls = PVP_CLASSES[Math.floor(rand() * PVP_CLASSES.length)].id; botSpawn(b, true); }
+  if (ph === 'pick' && (was === 'roundEnd' || was === 'idle')) for (const b of BOTS.values()) { if (was === 'idle' && rand() < 0.3) b.cls = PVP_CLASSES[Math.floor(rand() * PVP_CLASSES.length)].id; botSpawn(b, true); }
   if (ph === 'count') for (const b of BOTS.values()) if (!b.dead) botArm(b);
   if (ph === 'live') for (const b of BOTS.values()) b.prot = PVP_T.prot;
 }
@@ -88,7 +95,7 @@ function botArm(b) {
     slots[WEAP[id].slot] = id; guns[id] = gl(gt, mods); b.gt[id] = gt;
     const n = WEAP[id].mag || 1; b.mag[id] = n; b.res[id] = Math.max(n * C.mags, WEAP[id].ammo === 'shells' ? 14 : 0);
   }
-  b.slots = slots; b.cur = WEAP[C.guns[0][0]].slot; b.band = C.band; b.relT = 0; b.reloading = false; b.swapT = 0; b.cd = 0; b.burst = 0;
+  b.slots = slots; b.cur = WEAP[C.guns[0][0]].slot; b.relT = 0; b.reloading = false; b.swapT = 0; b.cd = 0; b.burst = 0;
   b.quick = C.perks.includes('quick:2') ? 0.6 : C.perks.includes('quick:1') ? 0.8 : 1;
   b.lo = { slots, guns, stow: {}, hol: 0x1d1d1f, gear: null };
   const key = JSON.stringify(b.lo); let h = 0; for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0; b.lk = h;
@@ -102,7 +109,7 @@ function botSpawn(b, fresh) {
   const foes = botFoes(b).map(f => [f.x, f.z]);
   const list = [{ id: NET.id, idx: NET.idx }, ...[...NET.peers.values()].map(p => ({ id: p.id, idx: p.idx }))].filter(r => pvpSideOf(r.id) === b.side).sort((a, c) => a.idx - c.idx);
   const [x, z, f] = arenaSpawn(PVP.mode === 'ffa' ? 'F' : b.side, foes, PVP.mode === 'rounds' || fresh ? list.findIndex(r => r.id === b.id) : undefined);
-  Object.assign(b, { x, z, vx: 0, vz: 0, aim: f, look: f, hp: 100, dead: false, bleed: 0, heal: 0, healing: false, prot: PVP_T.prot, state: 'roam', path: [], tgt: '', vis: null, last: null, mv: '', react: 0, err: 0, spray: 0, hurtT: -9, seenT: -9, stopT: 0, glanceT: 0, stuck: 0 });
+  Object.assign(b, { x, z, vx: 0, vz: 0, aim: f, av: 0, look: f, hp: 100, dead: false, bleed: 0, calm: 0, regen0: null, stun: 0, prot: PVP_T.prot, state: 'roam', path: [], tgt: '', vis: null, last: null, mv: '', react: 0, err: 0, spray: 0, hurtT: -9, seenT: -9, stopT: 0, glanceT: 0, stuck: 0 });
   b.mem.clear();
   botArm(b);
   b.p.dead = false; b.p.hp = 100;
@@ -110,9 +117,14 @@ function botSpawn(b, fresh) {
 
 // ---- who it's up against: you, the other players (where their pose says) and the other bots
 function botFoes(b) {
-  const out = [], add = (id, x, z, vx, vz, dead) => { if (dead || x === undefined || id === b.id) return; if (PVP.mode !== 'ffa' && pvpSideOf(id) === b.side) return; out.push({ id, x, z, vx: vx || 0, vz: vz || 0 }); };
-  add(NET.id, P.x, P.z, P.vx, P.vz, P.dead);
-  for (const q of NET.peers.values()) { const o = BOTS.get(q.id); if (o) add(o.id, o.x, o.z, o.vx, o.vz, o.dead); else add(q.id, q.x, q.z, q.vx, q.vz, q.dead); }
+  // (with where each is aiming and whether a laser's shining from their gun: a beam it can see gives them away)
+  const out = [], add = (id, x, z, vx, vz, dead, aim, laser) => { if (dead || x === undefined || id === b.id) return; if (PVP.mode !== 'ffa' && pvpSideOf(id) === b.side) return; out.push({ id, x, z, vx: vx || 0, vz: vz || 0, aim, laser }); };
+  add(NET.id, P.x, P.z, P.vx, P.vz, P.dead, P.aim, !!(W8.gt[curId()] || {}).laser);
+  for (const q of NET.peers.values()) {
+    const o = BOTS.get(q.id);
+    if (o) add(o.id, o.x, o.z, o.vx, o.vz, o.dead, o.aim, !!(o.gt && (o.gt[botGunOf(o)] || {}).laser));
+    else { const g = q.lo && q.wid && q.lo.guns[q.wid]; add(q.id, q.x, q.z, q.vx, q.vz, q.dead, q.vw ? q.vw[0] : 0, !!(g && g.gt && g.gt.laser)); }
+  }
   return out;
 }
 // what it sees: each foe in front of it (or right by it), in range and in plain sight. Someone new takes it a moment
@@ -130,8 +142,21 @@ function botSense(b, foes, t) {
     } else {
       if (m) m.seen = false;
       if (d < (Math.hypot(f.vx, f.vz) > 4.2 ? 7 : 2.5)) botNote(b, f.id, f.x, f.z, 1.2, t);
+      else if (f.laser && botBeam(b, f, S)) botNote(b, f.id, f.x, f.z, 1.5, t);   // (their laser seen: where it's coming from)
     }
   }
+}
+// a laser's beam in sight: anywhere along it (to the first wall, LASER_SEE.reach at most) in front of it, in range and
+// in plain sight, every LASER_SEE.step metres
+const LASER_SEE = { reach: 24, step: 1.6 };
+function botBeam(b, f, S) {
+  const dx = Math.sin(f.aim), dz = Math.cos(f.aim);
+  for (let s = LASER_SEE.step; s < LASER_SEE.reach; s += LASER_SEE.step) {
+    const x = f.x + dx * s, z = f.z + dz * s; if (bulletBlocked(x, z)) return false;
+    const ex = x - b.x, ez = z - b.z, d = Math.hypot(ex, ez);
+    if (d < S.view && Math.abs(angDiff(Math.atan2(ex, ez), b.aim)) < S.fov && los(b.x, b.z, x, z)) return true;
+  }
+  return false;
 }
 // something heard (or a hit felt) from someone: roughly where they are botNow, if it hasn't a better idea
 function botNote(b, id, x, z, noise, t, hurt) {
@@ -222,7 +247,6 @@ function botRoam(b) {
 // ---- deciding, a few times a second
 function botThink(b, t) {
   const st = BOT_STYLE[b.cls], T = b.vis;
-  if (b.healing) { if (T) b.healing = false; else return; }
   if (T) {
     b.tgt = T.id; b.seenT = t;
     const d = Math.hypot(T.x - b.x, T.z - b.z), want = st.gun(d);
@@ -247,8 +271,8 @@ function botThink(b, t) {
   const L = botKnown(b, t), id = botGunOf(b);
   if (b.state === 'fight') { b.state = 'hold'; b.holdT = t + rr(0.7, 1.6); b.path = []; b.sprint = false; }
   if (b.state === 'hold' && t < b.holdT) { if (b.mag[id] < (WEAP[id].mag || 1) * 0.6) botReload(b); return; }
-  // patched up when it's safe to: out of sight of anyone for a moment, hurt or bleeding
-  if ((b.bleed > 0 || b.hp < 60) && b.band > 0 && t - b.seenT > 1.5 && t - b.hurtT > 1.5 && (b.state === 'cover' || !L || t - L.t > 3)) { b.healing = true; b.healT = BOT_BAND.t; b.path = []; b.sprint = false; return; }
+  // hurt: it stays in cover till its health's come back (it comes back on its own, as a player's does)
+  if (b.state === 'cover' && b.hp < 70 && t - b.hurtT < BOT_REGEN.full + 1) { if (b.mag[id] < (WEAP[id].mag || 1)) botReload(b); return; }
   if (b.mag[id] < (WEAP[id].mag || 1) * 0.5 && !b.reloading) botReload(b);
   if (!L) {
     if (b.state !== 'roam' || !b.path.length) { b.state = 'roam'; b.path = botRoam(b); b.sprint = rand() < 0.55; }
@@ -287,6 +311,8 @@ export function botsUpdate(dt) {
     }
     if (!live) { b.vx = b.vz = 0; botAimStep(b, dt, t, null); botPose(b, dt, t); continue; }
     b.prot = Math.max(0, (b.prot || 0) - dt);
+    // reeling from a shove: carried back on it, no moving or firing of its own
+    if (b.stun > 0) { b.stun -= dt; const f = Math.exp(-dt * 6); b.vx *= f; b.vz *= f; moveCircle(b, b.vx * dt, b.vz * dt, 0.3, false); botAimStep(b, dt, t, null); botPose(b, dt, t); continue; }
     const foes = botFoes(b);
     if ((b.senseT -= dt) <= 0) { b.senseT = 0.1; botSense(b, foes, t); }
     if ((b.thinkT -= dt) <= 0) { b.thinkT = rr(0.16, 0.26); botThink(b, t); }
@@ -295,8 +321,8 @@ export function botsUpdate(dt) {
     botGun(b, dt, t, foes);
     // bleeding, and a bandage going on and the health it gives coming in
     if (b.bleed > 0) { b.bleed = b.hp <= BOT_BLEED.floor ? 0 : Math.max(0, b.bleed - dt); b.hp = Math.max(Math.min(b.hp, BOT_BLEED.floor), b.hp - BOT_BLEED.dps * dt); }
-    if (b.healing && (b.healT -= dt) <= 0) { b.healing = false; b.band--; b.bleed = 0; b.heal += BOT_BAND.heal; }
-    if (b.heal > 0) { const h = Math.min(b.heal, BOT_BAND.rate * dt); b.heal -= h; b.hp = Math.min(100, b.hp + h); }
+    if (b.bleed > 0 || b.hp >= 100) { if (b.bleed > 0) b.calm = 0; b.regen0 = null; }
+    if (!(b.bleed > 0) && b.hp < 100 && (b.calm += dt) > BOT_REGEN.wait) { if (b.regen0 == null) b.regen0 = b.hp; const u = clamp((b.calm - BOT_REGEN.wait) / (BOT_REGEN.full - BOT_REGEN.wait), 0, 1); b.hp = Math.max(b.hp, b.regen0 + (100 - b.regen0) * u * u); }
     botPose(b, dt, t);
   }
 }
@@ -305,8 +331,7 @@ export function botsUpdate(dt) {
 function botMove(b, dt, t) {
   let dx = 0, dz = 0;
   const T = b.vis, fighting = b.state === 'fight' && T;
-  if (b.healing) { /* still while the bandage goes on */ }
-  else if (b.path.length && (!fighting || b.mv === 'push')) {
+  if (b.path.length && (!fighting || b.mv === 'push')) {
     const [px, pz] = b.path[0], ex = px - b.x, ez = pz - b.z, d = Math.hypot(ex, ez);
     if (d < 0.35) { b.path.shift(); if (b.state === 'roam' && rand() < 0.22) { b.stopT = t + rr(0.3, 0.8); b.glanceT = 0; } }
     else if (t > b.stopT) { dx = ex / d; dz = ez / d; }
@@ -344,8 +369,9 @@ function botAimStep(b, dt, t, T) {
     else if (mv !== null) want = mv;
     else { if (t > b.glanceT) { b.glanceT = t + rr(1.2, 2.8); b.look = b.aim + rr(-1.2, 1.2); } want = b.look; }
   }
-  const da = angDiff(want, b.aim), mx = S.turn * dt * (T ? 1 : 0.7);
-  b.aim += clamp(da, -mx, mx);
+  // (turning as a hand on a mouse does: speeding up toward it and easing off as it gets there, never a snap)
+  const da = angDiff(want, b.aim), top = S.turn * (T ? 1 : 0.7), wv = clamp(da * 6, -top, top);
+  b.av += (wv - b.av) * (1 - Math.exp(-dt * 7)); b.aim += b.av * dt;
 }
 // its gun: switching, reloading, and firing while someone's in its sights (after a moment to react, once its aim's
 // on them, in the gun's reach): short bursts at range, longer ones close in, single aimed shots from the rest
@@ -354,7 +380,7 @@ function botGun(b, dt, t, foes) {
   const id = botGunOf(b), D = WEAP[id];
   if (b.reloading) { if ((b.relT -= dt) <= 0) { const n = Math.min((D.mag || 1) - b.mag[id], b.res[id]); b.mag[id] += n; b.res[id] -= n; b.reloading = false; } return; }
   b.cd -= dt;
-  const T = b.vis; if (!T || b.healing || t < b.react || (b.sprint && !BOT_STYLE[b.cls].runGun)) return;
+  const T = b.vis; if (!T || t < b.react || (b.sprint && !BOT_STYLE[b.cls].runGun)) return;
   const d = Math.hypot(T.x - b.x, T.z - b.z);
   if (d > (BOT_REACH[id] || 25)) return;
   if (Math.abs(angDiff(Math.atan2(T.x - b.x, T.z - b.z), b.aim)) > 0.1 + PVP_R / Math.max(1, d)) return;
@@ -373,7 +399,8 @@ function botGun(b, dt, t, foes) {
 function botShoot(b, id, D, foes, d) {
   const S = botSk(), pel = D.pellets || 1, shells = D.ammo === 'shells', gt = b.gt[id] || {};
   b.mag[id]--;
-  const moving = Math.hypot(b.vx, b.vz), sig = S.sig + (pel > 1 ? 0 : (D.spread || 0.03) * 0.5) + (moving > 0.5 ? (b.sprint ? 0.08 : 0.022) : 0) + b.spray;
+  const moving = Math.hypot(b.vx, b.vz), T = b.vis, tv = T ? Math.hypot(T.vx, T.vz) : 0;
+  const sig = S.sig + (pel > 1 ? 0 : (D.spread || 0.03) * 0.5) + (moving > 0.5 ? (b.sprint ? 0.08 : 0.025) : 0) + b.spray + Math.min(BOT_LEAD.max, tv * BOT_LEAD.k);
   const common = botGauss() * sig; b.spray = Math.min(0.07, b.spray + (D.rate < 0.12 ? 0.006 : 0.012));
   const ox = b.x + Math.sin(b.aim) * 0.55, oz = b.z + Math.cos(b.aim) * 0.55, oy = 1.36, on = new Map(), ends = [];
   for (let k = 0; k < pel; k++) {
@@ -386,7 +413,7 @@ function botShoot(b, id, D, foes, d) {
       const r = rand(), part = r < S.head ? 'head' : r < 0.6 ? 'torso' : r < 0.78 ? (rel > 0 ? 'armR' : 'armL') : (rel > 0 ? 'legR' : 'legL');
       if (pvpCovered(hit.x, hit.z, ox, oz, dx, dz, ht) && part !== 'head' && !part.startsWith('arm')) { ht = Math.max(0.3, ht - 0.9); endK = 1; }   // into the cover in front of them
       else {
-        const s = on.get(hit) || { d: 0, n: 0, head: false, part, top: 0 }, dm = (PVP_DMG[id] || 20) * falloff(id, ht) * (part === 'head' && shells ? PVP_HEAD_SHELL : PVP_PART[part]);
+        const s = on.get(hit) || { d: 0, n: 0, head: false, part, top: 0 }, dm = (PVP_DMG[id] || 20) * PVP_TTK * falloff(id, ht) * (part === 'head' && shells ? PVP_HEAD_SHELL : PVP_PART[part]);
         s.d += dm; s.n++; if (part === 'head') s.head = true; if (dm > s.top) { s.top = dm; s.part = part; } on.set(hit, s);
         endK = 0; ey = part === 'head' ? 1.62 : part.startsWith('leg') ? 0.5 : 1.15;
       }
@@ -410,22 +437,33 @@ function botDeal(b, f, d, part, w, bleed) {
 // screen, knows roughly where that came from, and goes down at nothing left
 export function botHit(id, m) {
   const b = BOTS.get(id), t = botNow(); if (!b || b.dead || PVP.ph !== 'live' || b.prot > 0) return;
-  b.hp -= m.d; b.last = { id: m.f, w: m.w, head: m.p === 'head', d: m.d, at: t };
-  if (m.b) b.bleed = Math.min(14, (b.bleed || 0) + rr(...PVP_BLEED.s));
-  b.hurtT = t; b.healing = false; botNote(b, m.f, m.x, m.z, 1.5, t, true);
+  b.hp -= m.d; b.last = { id: m.f, w: m.w, head: m.p === 'head', d: m.d, at: t, x: m.x, z: m.z, pt: m.p };
+  b.hurtT = t; b.calm = 0; b.regen0 = null; botNote(b, m.f, m.x, m.z, 1.5, t, true);
   const dx = b.x - m.x, dz = b.z - m.z, L = Math.hypot(dx, dz) || 1, pb = { x: bR2(b.x), z: bR2(b.z), dx: bR2(dx / L), dz: bR2(dz / L), h: m.p === 'head' ? 1 : 0, sh: m.f };
   NET_ON.pb(Object.assign({ t: 'pb', f: b.id }, pb)); netAs(b.id, 'pb', pb);
   if (b.hp <= 0) botDie(b, t);
 }
 NET_BOT.ph = m => botHit(m.to, m);
+// shoved (pvp/pvp.js pvpShove, or another player's 'pv'): thrown back, reeling, its aim knocked off
+export function botShoved(id, m) {
+  const b = BOTS.get(id); if (!b || b.dead || PVP.ph !== 'live' || b.prot > 0) return;
+  const k = m.p || 1; b.stun = 0.7 * k; b.vx = m.dx * 5 * k; b.vz = m.dz * 5 * k; b.av += rr(-4, 4); b.err += rr(0.2, 0.35) * (rand() < 0.5 ? -1 : 1); b.burst = 0; b.sprint = false;
+}
+NET_BOT.pv = m => botShoved(m.to, m);
 function botDie(b, t) {
-  b.dead = true; b.hp = 0; b.healing = false; b.reloading = false; b.vx = b.vz = 0; b.path = [];
+  b.dead = true; b.hp = 0; b.reloading = false; b.vx = b.vz = 0; b.path = [];
   const L = b.last && t - b.last.at < 8 ? b.last : null;
-  const m = { k: L ? L.id : '', v: b.id, w: L ? L.w : '', hs: L && L.head ? 1 : 0, hb: L && L.head && L.d >= 60 ? 1 : 0, x: bR2(b.x), z: bR2(b.z) };
+  const m = { k: L ? L.id : '', v: b.id, w: L ? L.w : '', hs: L && L.head ? 1 : 0, hb: L && L.head && L.d >= 60 ? 1 : 0, x: bR2(b.x), z: bR2(b.z), dm: L ? Math.round(Math.hypot(b.x - L.x, b.z - L.z)) : 0, pt: L ? L.pt : '' };
   b.p.dead = true; botPose(b, 0, t, true);
   netSend('pk', m); pvpKilled(m);
   b.respawn = PVP_T.respawn;
-  if (rand() < 0.35) b.cls = PVP_CLASSES[Math.floor(rand() * PVP_CLASSES.length)].id;
+  // dying a lot with its class (BOT_SWAP.deaths more deaths than kills with it): another, one that answers how it died
+  // (shot from far off, the long-range ones; up close, the close-range ones)
+  const rec = b.rec[b.cls] || (b.rec[b.cls] = { k: 0, d: 0 }); rec.d++;
+  if (rec.d - rec.k >= BOT_SWAP.deaths) {
+    const dm = m.dm || 12, pool = dm > BOT_SWAP.far ? ['mark', 'rifle', 'gunner'] : dm < BOT_SWAP.near ? ['breach', 'rush'] : PVP_CLASSES.map(c => c.id);
+    const opts = pool.filter(c => c !== b.cls); b.cls = opts[Math.floor(rand() * opts.length)] || b.cls; b.rec[b.cls] = { k: 0, d: 0 };
+  }
 }
 
 // ---- its body, as a player's pose (net/avatars.js): its legs through the stride (the one for how it's moving against
@@ -434,7 +472,7 @@ function botDie(b, t) {
 const BOT_HZ = 15, BOT_TAU = Math.PI * 2;
 function botPose(b, dt, t, now_) {
   const id = botGunOf(b) || 'pistol', G = BOT_GUN[id] || BOT_GUN.pistol, sp = Math.hypot(b.vx, b.vz);
-  const run = b.sprint && sp > 3.2, fighting = !!b.vis || (b.state !== 'roam' && !b.healing);
+  const run = b.sprint && sp > 3.2, fighting = !!b.vis || b.state !== 'roam';
   const upK = run && !(BOT_STYLE[b.cls].runGun && b.vis) ? 'run' : fighting && !b.reloading ? 'aim' : 'hip';
   const up = G[upK], w = G[upK === 'run' ? 'rw' : upK === 'aim' ? 'aw' : 'hw'];
   const mvA = Math.atan2(b.vx, b.vz), face = run && upK === 'run' ? mvA : b.aim;
@@ -460,9 +498,9 @@ function botPose(b, dt, t, now_) {
 function botMsg(b, j, id, w, upK, full) {
   const k = SLOTS.indexOf(b.cur), C = botCls(b); let sv = 0;
   SLOTS.forEach((s, i) => { if (!b.slots || !b.slots[s]) return; if (s !== b.cur || s === 'side') sv |= 1 << (4 + i); if (s !== b.cur) sv |= 1 << i; });
-  const m = { x: bR3(b.x), z: bR3(b.z), vx: bR2(b.vx), vz: bR2(b.vz), hp: Math.round(Math.max(0, b.hp)), mh: 100, dead: b.dead ? 1 : 0, v: 0, pk: 0, cw: 0, j: j.slice(), fl: 0, vw: [bR2(b.aim), 1.2, 2.4, 0, 0], st: [0, 0, 0], hl: Math.round(b.heal || 0),
+  const m = { x: bR3(b.x), z: bR3(b.z), vx: bR2(b.vx), vz: bR2(b.vz), hp: Math.round(Math.max(0, b.hp)), mh: 100, dead: b.dead ? 1 : 0, v: 0, pk: 0, cw: 0, j: j.slice(), fl: 0, vw: [bR2(b.aim), 1.2, 2.4, 0, 0], st: [0, 0, 0], hl: 0,
     ap: b.dead ? 0 : [bR2(b.x + Math.sin(b.aim) * 4), bR2(b.z + Math.cos(b.aim) * 4)], fc: !b.dead && upK === 'aim' ? [b.vis ? 0.5 : 0.1, 0, botHurtK(b), 1] : 0,
-    wp: b.dead || b.healing ? [] : [[k, ...w, 0]], sv, ex: [0, 0], lk: b.lk, am: [b.mag ? b.mag[id] : 0, b.res ? b.res[id] : 0, WEAP[id].mag || 1, b.reloading ? 1 : 0, b.band || 0] };
+    wp: b.dead ? [] : [[k, ...w, 0]], sv, ex: [0, 0], lk: b.lk, am: [b.mag ? b.mag[id] : 0, b.res ? b.res[id] : 0, WEAP[id].mag || 1, b.reloading ? 1 : 0, 0] };
   if (full) { m.wn = WEAP[id].name; m.wid = id; }
   if (!C) delete m.fc;
   return m;

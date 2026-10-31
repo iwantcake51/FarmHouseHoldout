@@ -8,7 +8,7 @@ import { $ } from '../core/dom.js';
 import { GI, GI_VB } from '../ui/game-icons.js';
 import { cache, clamp } from '../core/math.js';
 import {
-  NET, NET_COL, NET_MAX, netAllReady, netBotAdd, netBotDrop, netHost, netJoin, netKick, netLeave, netLink, netName, netReady, netRoster, netSend, netSetBotSkill, netSetGame, netSetMode,
+  NET, NET_COL, netAllReady, netBotAdd, netBotDrop, netHost, netJoin, netKick, netLeave, netLink, netMax, netName, netReady, netRoster, netSend, netSetBotSkill, netSetGame, netSetMode,
   netSetView, netStart
 } from './net.js';
 import { METAL } from '../barricades/planks.js';
@@ -52,7 +52,7 @@ export function lobbyRender() {
   $('coopBots').hidden = NET.game !== 'arena';
   for (const b of $('coopBots').querySelectorAll('[data-s]')) { b.setAttribute('aria-checked', String(+b.dataset.s === NET.botSkill)); b.disabled = !host || NET.inGame; }
   $('coopBotsNote').textContent = (BOT_SKILLS[NET.botSkill] || '') + (host ? '' : ' · the host picks');
-  $('coopBotAdd').hidden = !host; $('coopBotAdd').disabled = NET.inGame || NET.peers.size >= NET_MAX - 1;
+  $('coopBotAdd').hidden = !host; $('coopBotAdd').disabled = NET.inGame || NET.peers.size >= netMax() - 1;
   $('coopCodeRow').hidden = NET.solo;
   for (const b of $('coopGame').querySelectorAll('[data-g=survival]')) if (NET.solo) b.disabled = true;
   // what you can do: the host starts once everyone's ready; a joiner says they're ready (or not after all)
@@ -74,7 +74,7 @@ function renderSeats() {
   const on = NET.on, list = on ? netRoster() : [];
   if (on && !NET.host) { list.length = 0; list.push({ id: NET.id, name: netName(), idx: NET.idx, look: LOOK.cur, ready: NET.ready }, ...[...NET.peers.values()]); }
   list.sort((a, b) => a.idx - b.idx);
-  const ol = $('coopList'), key = JSON.stringify([NET.host, NET.botSkill, list.map(p => [p.id, p.name, p.idx, !!p.ready, !!p.bot, JSON.stringify(p.look || null), p.fid && !!frOf(p.fid)])]);
+  const ol = $('coopList'); ol.classList.toggle('six', netMax() > 4); const key = JSON.stringify([NET.host, NET.botSkill, netMax(), list.map(p => [p.id, p.name, p.idx, !!p.ready, !!p.bot, JSON.stringify(p.look || null), p.fid && !!frOf(p.fid)])]);
   if (ol.dataset.key === key) return; ol.dataset.key = key;
   ol.textContent = '';
   for (const p of list) {
@@ -92,7 +92,7 @@ function renderSeats() {
     if (NET.host && !me && !NET.inGame) { const b = document.createElement('button'); b.type = 'button'; b.className = 'sKick'; b.textContent = '\u00d7'; b.setAttribute('aria-label', 'Remove ' + (p.name || 'Survivor') + ' from the lobby'); b.onclick = () => p.bot ? netBotDrop(p.id) : netKick(p.id); li.appendChild(b); }
     ol.appendChild(li);
   }
-  for (let k = list.length; k < NET_MAX; k++) { const li = document.createElement('li'); li.className = 'seat empty'; li.innerHTML = '<span class="sPic"></span><span class="sNum"></span><b class="sName">Open seat</b><em class="sTag">Waiting for someone</em>'; li.querySelector('.sNum').textContent = k + 1; ol.appendChild(li); }
+  for (let k = list.length; k < netMax(); k++) { const li = document.createElement('li'); li.className = 'seat empty'; li.innerHTML = '<span class="sPic"></span><span class="sNum"></span><b class="sName">Open seat</b><em class="sTag">Waiting for someone</em>'; li.querySelector('.sNum').textContent = k + 1; ol.appendChild(li); }
 }
 // the screen opens over the title and closes back to it (Esc, or Back)
 let coopShut = 0;

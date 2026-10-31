@@ -33,6 +33,8 @@ const OCC = { w: 192, near: 2.5 };
 let occD = null, occW = 0, occH = 0;
 // what else goes into the picture and is tested against it (world/view-cull.js sets them)
 export const OCC_HOOK = { paint: null, test: null };
+// trees never drawn while it says so, by where they stand (the arena's clearing round its terminal: world/arena.js)
+export const TREE_HIDE = { at: null };
 // a forest: trees [x, z, scale, variant, turn], one instanced mesh per variant into into, in mat; shadows: whether they
 // cast in the shadow map (from their copy that only it draws). Each tree's lean and colour from tint (tilt(), col(c)),
 // dealt in the order the woods were always dealt in
@@ -90,6 +92,7 @@ export function cullForests(c) {
     const h = F.top;
     for (let k = 0; k < F.n; k++) {
       const x = F.at[k * 3], z = F.at[k * 3 + 1], s = F.at[k * 3 + 2];
+      if (TREE_HIDE.at && TREE_HIDE.at(x, z)) continue;
       _tcSp.center.set(x, h * 0.5 * s, z); _tcSp.radius = Math.hypot(F.r * s, h * 0.5 * s);
       if (!_tcFr.intersectsSphere(_tcSp)) continue;
       if (!occ) { const L = F.lv[0]; L.next[L.n++] = k; continue; }

@@ -22,7 +22,7 @@ import { frMet } from './friends.js';
 import { PVP_MODES, pvpTeams } from '../pvp/pvp.js';
 import { botName } from '../pvp/bots.js';
 
-export const NET_V = 3, NET_MAX = 4, NET_PREFIX = 'fhh-coop-', NET_QUIET = 15;   // (NET_V: 3 since the arena and its bots, which a game before them doesn't know; NET_QUIET: seconds without a word before a player counts as gone; a slow machine can stall that long building its shaders)
+export const NET_V = 3, NET_PREFIX = 'fhh-coop-', NET_QUIET = 15;   // (NET_V: 3 since the arena and its bots, which a game before them doesn't know; NET_QUIET: seconds without a word before a player counts as gone; a slow machine can stall that long building its shaders)
 export const NET = { on: false, host: false, mode: /[?&]net=local/.test(location.search) ? 'local' : 'peer', id: '', hostId: '', code: '', name: '', inGame: false, status: '', idx: 0,
   runMode: 'normal',   // everyone's run mode, the host's pick in the lobby (normal or no perks: netSetMode)
   view: 'iso',   // everyone's view in the run, the host's pick in the lobby (isometric or first person: netSetView)
@@ -35,12 +35,14 @@ export const NET = { on: false, host: false, mode: /[?&]net=local/.test(location
 // this build of the game (the hash on game.js the page loaded, tools/build.mjs): a game a build behind or ahead of the
 // host's (a page not refreshed since an update) is turned away, as the two would play different games
 const NET_BUILD = (() => { try { const s = [...document.scripts].find(x => /game\.js/.test(x.src)); return (s && (/[?&]v=([^&]+)/.exec(s.src) || [])[1]) || ''; } catch (e) { return ''; } })();
+// how many can play: four on the farm, six in the arena (pvp/pvp.js)
+export const netMax = () => NET.game === 'arena' ? 6 : 4;
 export const NET_ON = {};   // what to do with each kind of message: NET_ON.hit = m => ...
 // and what the host does with one sent to a bot (pvp/bots.js: a hit on it, someone asking for its loadout): a bot's
 // only in the host's game, so a message for it stops there
 export const NET_BOT = {};
 // each player's colour, by their place in the game (the host first): their name, their marker and their nameplate
-export const NET_COL = ['#e0a050', '#5fb4e8', '#7ad07a', '#d87ad0'];
+export const NET_COL = ['#e0a050', '#5fb4e8', '#7ad07a', '#d87ad0', '#66d1c1', '#e8d35a'];
 export const netLink = () => NET.on && NET.inGame;            // in a co-op run
 export const netClient = () => NET.on && NET.inGame && !NET.host;   // in one someone else hosts: their game runs the zombies
 try { NET.name = (localStorage.getItem('fhh-name') || '').slice(0, 16); } catch (e) {}
@@ -180,7 +182,7 @@ const rosterOut = () => { netOut({ t: 'roster', f: NET.id, list: netRoster(), vi
 // ---- the arena's bots (pvp/bots.js), sat in the lobby by the host: each takes a seat as a player would (and gives it
 // up to someone joining), always ready, in a look of its own
 export function netBotAdd(quiet) {
-  if (!NET.host || NET.inGame || NET.game !== 'arena' || NET.peers.size >= NET_MAX - 1) return;
+  if (!NET.host || NET.inGame || NET.game !== 'arena' || NET.peers.size >= netMax() - 1) return;
   const used = new Set([0, ...[...NET.peers.values()].map(p => p.idx)]); let idx = 1; while (used.has(idx)) idx++;
   const id = 'B-' + Math.random().toString(36).slice(2, 8), name = botName(new Set([...NET.peers.values()].map(p => p.name)));
   NET.peers.set(id, { id, name, look: dealLook(), idx, bot: true, ready: true, heard: performance.now() });
@@ -198,7 +200,7 @@ NET_ON.hello = m => {
   const turn = why => { netRaw(m.f, { t: 'nope', f: NET.id, why }); if (NET.mode === 'local') return; const c = NET.conns.get(m.f); setTimeout(() => { try { c && c.close(); } catch (e) {} }, 300); NET.conns.delete(m.f); };
   if (m.v !== NET_V || (m.b || '') !== NET_BUILD) return turn('Your game is a different version from the host’s: refresh the page (both of you) and try again');
   if (NET.inGame) return turn('That game has already started');
-  if (NET.peers.size >= NET_MAX - 1) { const bot = [...NET.peers.values()].reverse().find(p => p.bot); if (bot) netBotDrop(bot.id, true); else return turn('That game is full'); }   // (a bot gives up its seat to a person)
+  if (NET.peers.size >= netMax() - 1) { const bot = [...NET.peers.values()].reverse().find(p => p.bot); if (bot) netBotDrop(bot.id, true); else return turn('That game is full'); }   // (a bot gives up its seat to a person)
   const used = new Set([0, ...[...NET.peers.values()].map(p => p.idx)]); let idx = 1; while (used.has(idx)) idx++;
   const name = String(m.name || 'Survivor').slice(0, 16);
   NET.peers.set(m.f, { id: m.f, name, look: m.look, idx, fid: m.fid, ready: false, heard: performance.now() });
@@ -241,6 +243,7 @@ const GAMES = ['survival', 'arena'];
 export function netSetGame(g, a) {
   if (!NET.host || NET.inGame) return;
   if (NET.solo && g === 'survival') return;   // (solo, it's the arena: a run on your own is the title's Start)
+  if (g === 'survival' && [...NET.peers.values()].filter(p => !p.bot).length > 3) { NET.status = 'Survival takes four at most'; SFX.deny(); lobbyRender(); return; }   // (the arena takes six)
   if (GAMES.includes(g)) NET.game = g; if (PVP_MODES[a]) NET.arena = a;
   if (NET.game !== 'arena') for (const p of [...NET.peers.values()]) if (p.bot) netBotDrop(p.id, true);   // (no bots on the farm)
   netSend('gm', { gm: NET.game, am: NET.arena }); chatSys(NET.game === 'arena' ? 'Game set to the arena: ' + PVP_MODES[NET.arena] : 'Game set to survival'); lobbyRender();

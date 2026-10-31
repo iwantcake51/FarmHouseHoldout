@@ -21,40 +21,60 @@ import { openings } from './house.js';
 import { HOUSE_DOORS } from './interior.js';
 import { FARM_ROOTS } from './farm-set.js';
 import { STATIC_LIGHTS } from '../lighting/static-lights.js';
-import { lightField } from '../lighting/lightmap.js';
+import { lightField, los } from '../lighting/lightmap.js';
 import { setVisKey } from '../lighting/vision.js';
 import { stillShadowsReset } from '../core/still-shadows.js';
 import { setLightsDirty } from '../barricades/planks.js';
+import { TREE_HIDE } from './tree-cull.js';
 
 // its bounds (cells, the walls round it included), the time of day it's always fought at (mid afternoon, the sun
 // starting down and the shadows lengthening), and its plan, a row a line from north (j = z0) to south: # the outer wall, C a container,
 // h the hut's walls, b a jersey barrier, s sandbags (vaulted over: VAULT_LOW), k a stack of crates, o a drum, r a cable
 // spool; A and B each side's spawn, F the spots a free-for-all spawns from (on the floor)
-export const ARENA = { on: false, x0: 10, x1: 33, z0: 11, z1: 33, tod: 15.6 };
+export const ARENA = { on: false, x0: 1, x1: 42, z0: 1, z1: 42, tod: 15.6 };
 const AR_PLAN = [
-  '########################',
-  '#...o..............o...#',
-  '#.F........F...........#',
-  '#..k.CC..CCCCCC.rCC.k..#',
-  '#....CC..CCCCCC..CC....#',
-  '#....CC..........CC....#',
-  '#....CCb...ss...bCC....#',
-  '#....CCb........bCC....#',
-  '#.A.s..............s.B.#',
-  '#.A.s....hh..hh....s.B.#',
-  '#......s.h....h.s......#',
-  '#FAA...s........s...BBF#',
-  '#......s.h....h.s......#',
-  '#.A.s....hh..hh....s.B.#',
-  '#...s..............s...#',
-  '#....CCb........bCC....#',
-  '#....CCb...ss...bCC....#',
-  '#....CC..........CC....#',
-  '#....CC..CCCCCC..CC....#',
-  '#..k.CCr.CCCCCC..CC.k..#',
-  '#...........F........F.#',
-  '#...o..............o...#',
-  '########################'
+  '##########################################',
+  '#........................................#',
+  '#.k........CCCCCC..o..o..CCCCCC........k.#',
+  '#...hh.hh..CCCCCC........CCCCCC..hh.hh...#',
+  '#...h...h...F................F...h...h...#',
+  '#.................k....k.................#',
+  '#.F.h...h....sss..........sss....h...h.F.#',
+  '#...hh.hh.........hh..hh.........hh.hh...#',
+  '#..........b..................b..........#',
+  '#.......o..b.....k......k.....b..o.......#',
+  '#..........b..r............r..b..........#',
+  '#........................................#',
+  '#...CCCCCC..kCCCCCC....CCCCCCk..CCCCCC...#',
+  '#...CCCCCC..hCCCCCC....CCCCCCh..CCCCCC...#',
+  '#...hh..............................hh...#',
+  '#.............b...o....o...b.............#',
+  '#.............b............b.............#',
+  '#....s..hh.hh......ssss......hh.hh..s....#',
+  '#.AA.s..h...hF..............Fh...h..s.BB.#',
+  '#.AA....h.h.h..k.s......s.k..h.h.h....BB.#',
+  '#.AA.............s......s.............BB.#',
+  '#.AA.............s......s.............BB.#',
+  '#.AA....h.h.h..k.s......s.k..h.h.h....BB.#',
+  '#.AA.s..h...h................h...h..s.BB.#',
+  '#....s..hh.hh......ssss......hh.hh..s....#',
+  '#.............b............b.............#',
+  '#.............b...o....o...b.............#',
+  '#..............hh........hh..............#',
+  '#...CCCCC..hhCCCCC......CCCCChh..CCCCC...#',
+  '#...CCCCC..k.CCCCC......CCCCC.k..CCCCC...#',
+  '#.F....................................F.#',
+  '#.....CC....bbb....k..k....bbb....CC.....#',
+  '#..h..CC..........................CC..h..#',
+  '#..h..CC..CCCCC............CCCCC..CC..h..#',
+  '#.....CC..CCCCC....F..F....CCCCC..CC.....#',
+  '#.....CC..........................CC.....#',
+  '#............k..CC......CC..k............#',
+  '#..sss....F.....CC......CC.....F....sss..#',
+  '#........o..r...CC......CC...r..o........#',
+  '#.k.............CC......CC.............k.#',
+  '#........................................#',
+  '##########################################'
 ];
 // how tall each kind stands (m): what a round fired below it from your own eyes stops on (world/props.js: obstTop), and
 // whether you see and shoot over it (low) or not
@@ -269,10 +289,13 @@ function arOutside(parts, g) {
   for (let k = 0; k < 14; k++) { t.strokeStyle = 'rgba(25,25,24,0.4)'; t.lineWidth = 1.5; t.beginPath(); let a = Math.random() * 512, b = Math.random() * 512; t.moveTo(a, b); for (let q = 0; q < 8; q++) { a += (Math.random() - 0.5) * 60; b += (Math.random() - 0.5) * 60; t.lineTo(a, b); } t.stroke(); }
   const tx = new THREE.CanvasTexture(c); tx.wrapS = tx.wrapT = THREE.RepeatWrapping; tx.repeat.set(7, 7);
   const ap = new THREE.Mesh(new THREE.PlaneGeometry(AR_OUT * 2, AR_OUT * 2), lam(0xffffff, { map: tx })); ap.rotation.x = -Math.PI / 2; ap.position.set(0, 0.006, 0.5); ap.receiveShadow = true; g.add(ap);
-  const B = (w, h, d, m, x, y, z) => arPush(parts, box2(w, h, d, m, x, y, z));
+  // (each part laid out round a yard 24 m across, then shifted out past this one's walls: AR_SHIFT)
+  let SX = 0, SZ = 0; const at = (dx, dz) => { SX = dx; SZ = dz; };
+  const B = (w, h, d, m, x, y, z) => arPush(parts, box2(w, h, d, m, x + SX, y, z + SZ));
+  const S = AR_SHIFT;
   const M = { wh: lam(0x7d8486), whDk: lam(0x5d6466), roof: lam(0x4a4f52), door: lam(0x9a9c94), crane: lam(0xd8a52a), craneDk: lam(0x4a4030), rail: lam(0x5a4e44), tie: lam(0x3c3027), steel: lam(0x6a6e70), yel: lam(0xc79b2b), pal: lam(0x9c8058) };
   // the warehouse, north
-  { const x0 = -17, x1 = 5, z0 = -21, z1 = -14.5, H = 7;
+  at(0, -S); { const x0 = -17, x1 = 5, z0 = -21, z1 = -14.5, H = 7;
     B(x1 - x0, H, z1 - z0, M.wh, (x0 + x1) / 2, H / 2, (z0 + z1) / 2);
     for (let x = x0 + 0.4; x < x1; x += 0.6) B(0.12, H - 0.3, 0.06, M.whDk, x, H / 2, z1 + 0.02);   // (its cladding's ribs)
     B(x1 - x0 + 0.6, 0.35, z1 - z0 + 0.6, M.roof, (x0 + x1) / 2, H + 0.17, (z0 + z1) / 2);
@@ -280,37 +303,41 @@ function arOutside(parts, g) {
   // containers three high under the gantry crane, north-east of the yard
   const col = [AR_M.cont[0], AR_M.cont[1], AR_M.cont[2], AR_M.cont[3], lam(0x6b2f3a), lam(0x2f6060)];
   let ci2 = 0;
+  at(S * 0.6, -S);
   for (let r = 0; r < 3; r++) for (let n = 0; n < 3; n++) for (let y = 0; y < 3 - (r === 2 && n === 1 ? 1 : 0); y++) { const m = col[(ci2++ * 5) % col.length]; B(6, 2.55, 2.4, m, 9 + n * 6.2, 1.3 + y * 2.6, -20 + r * 2.5); B(6.02, 0.1, 2.42, AR_M.contDk, 9 + n * 6.2, 0.06 + y * 2.6, -20 + r * 2.5); }
   { const H = 12.5; for (const x of [5.5, 25]) { for (const z of [-21.5, -12.6]) B(0.6, H, 0.6, M.crane, x, H / 2, z); B(0.6, 0.8, 9.5, M.crane, x, H - 0.4, -17); B(0.4, 0.4, 9.5, M.crane, x, 1.4, -17); }
     for (const z of [-21.5, -12.6]) B(20.2, 1.1, 0.8, M.crane, 15.25, H + 0.4, z);
     B(2.6, 1.6, 2.4, M.craneDk, 13, H + 1.2, -17); B(0.06, 5, 0.06, M.steel, 13, H - 2.6, -17); B(2.4, 0.3, 1.2, M.craneDk, 13, H - 5.2, -17); }
   // containers two high along the west
+  at(-S, 0); for (let n = 4; n < 6; n++) for (let y = 0; y < 2; y++) { const m = col[(n * 3 + y) % col.length]; B(2.4, 2.55, 6, m, -17.5, 1.3 + y * 2.6, -9 + n * 6.3); B(2.42, 0.1, 6.02, AR_M.contDk, -17.5, 0.06 + y * 2.6, -9 + n * 6.3); }
   for (let n = 0; n < 4; n++) for (let y = 0; y < (n === 2 ? 1 : 2); y++) { const m = col[(n * 3 + y * 2 + 1) % col.length]; B(2.4, 2.55, 6, m, -17.5, 1.3 + y * 2.6, -9 + n * 6.3); B(2.42, 0.1, 6.02, AR_M.contDk, -17.5, 0.06 + y * 2.6, -9 + n * 6.3); }
   // a light tower, south-west, its four lamps
-  { const x = -18, z = 15, H = 14; const p = arPush(parts, new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.3, H, 10), AR_M.pole)); p.position.set(x, H / 2, z); p.castShadow = true;
-    B(2.2, 0.15, 0.6, AR_M.pole, x, H, z); for (const o of [-0.8, -0.27, 0.27, 0.8]) { B(0.45, 0.35, 0.2, AR_M.pole, x + o, H + 0.3, z + 0.1); box(g, 0.38, 0.28, 0.02, AR_M.lamp, x + o, H + 0.3, z + 0.21); } }
+  at(-S, S); { const x = -18, z = 15, H = 14; const p = arPush(parts, new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.3, H, 10), AR_M.pole)); p.position.set(x + SX, H / 2, z + SZ); p.castShadow = true;
+    B(2.2, 0.15, 0.6, AR_M.pole, x, H, z); for (const o of [-0.8, -0.27, 0.27, 0.8]) { B(0.45, 0.35, 0.2, AR_M.pole, x + o, H + 0.3, z + 0.1); box(g, 0.38, 0.28, 0.02, AR_M.lamp, x + o + SX, H + 0.3, z + 0.21 + SZ); } }
   // the camera's sides: a rail line south with a flatcar, pallets, a forklift; barriers along the east
-  { const z = 16; for (const o of [-0.72, 0.72]) B(40, 0.14, 0.09, M.rail, 0, 0.07, z + o); for (let x = -20; x <= 20; x += 0.7) B(0.22, 0.08, 2.2, M.tie, x, 0.04, z);
-    B(12, 0.4, 2.6, M.steel, 4, 1.0, z); B(12, 0.15, 2.7, M.craneDk, 4, 1.25, z); for (const x of [-0.5, 8.5]) for (const o of [-0.72, 0.72]) { const w = arPush(parts, new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.12, 12), AR_M.contDk)); w.rotation.x = Math.PI / 2; w.position.set(x, 0.42, z + o); } }
+  at(0, S); { const z = 16; for (const o of [-0.72, 0.72]) B(70, 0.14, 0.09, M.rail, 0, 0.07, z + o); for (let x = -35; x <= 35; x += 0.7) B(0.22, 0.08, 2.2, M.tie, x, 0.04, z);
+    B(12, 0.4, 2.6, M.steel, 4, 1.0, z); B(12, 0.15, 2.7, M.craneDk, 4, 1.25, z); for (const x of [-0.5, 8.5]) for (const o of [-0.72, 0.72]) { const w = arPush(parts, new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.12, 12), AR_M.contDk)); w.rotation.x = Math.PI / 2; w.position.set(x + SX, 0.42, z + o + SZ); } }
   for (const [x, z, n] of [[-8, 19, 3], [-6.4, 19.2, 2], [14, 15, 2], [16, 19, 4]]) for (let y = 0; y < n; y++) { B(1.2, 0.14, 1.0, M.pal, x, 0.07 + y * 0.15, z); }
-  { const x = 16.5, z = 7; B(1.3, 0.9, 2.3, M.yel, x, 0.75, z); B(1.2, 1.3, 1.1, M.craneDk, x, 1.8, z + 0.4); B(0.1, 2.4, 0.1, M.steel, x - 0.45, 1.5, z - 1.25); B(0.1, 2.4, 0.1, M.steel, x + 0.45, 1.5, z - 1.25); B(1.1, 0.06, 1.0, M.steel, x, 0.15, z - 1.75); }
-  for (let z = -8; z <= 10; z += 2.2) { B(0.6, 0.35, 2, AR_M.barrier, 14.2, 0.18, z); B(0.25, 0.6, 2, AR_M.barrier, 14.2, 0.65, z); }
+  at(S, 0); { const x = 16.5, z = 7; B(1.3, 0.9, 2.3, M.yel, x, 0.75, z); B(1.2, 1.3, 1.1, M.craneDk, x, 1.8, z + 0.4); B(0.1, 2.4, 0.1, M.steel, x - 0.45, 1.5, z - 1.25); B(0.1, 2.4, 0.1, M.steel, x + 0.45, 1.5, z - 1.25); B(1.1, 0.06, 1.0, M.steel, x, 0.15, z - 1.75); }
+  for (let z = -18; z <= 20; z += 2.2) { B(0.6, 0.35, 2, AR_M.barrier, 14.2, 0.18, z); B(0.25, 0.6, 2, AR_M.barrier, 14.2, 0.65, z); }
 }
-// how far out the terminal's apron goes from the middle (m), and the woods cleared back to it
-const AR_OUT = 21;
-// a floodlight on its pole in each corner, its head tipped down into the yard
+// how far out the terminal's apron goes from the middle (m), and the woods cleared back to it; and how far each part of
+// the terminal was moved out from where it stood round the old, smaller yard (m)
+const AR_OUT = 35, AR_SHIFT = 13;
+// where the floodlights stand: each corner and halfway along each wall (cells, just inside the wall)
+const AR_LAMPS = () => { const mi = Math.round((ARENA.x0 + ARENA.x1) / 2), mj = Math.round((ARENA.z0 + ARENA.z1) / 2); return [[ARENA.x0 + 1, ARENA.z0 + 1], [ARENA.x1 - 1, ARENA.z0 + 1], [ARENA.x0 + 1, ARENA.z1 - 1], [ARENA.x1 - 1, ARENA.z1 - 1], [mi, ARENA.z0 + 1], [mi, ARENA.z1 - 1], [ARENA.x0 + 1, mj], [ARENA.x1 - 1, mj]]; };
+// a floodlight on its pole at each, its head tipped down into the yard
 function arFlood(parts, g) {
-  const c = [[ARENA.x0 + 1, ARENA.z0 + 1], [ARENA.x1 - 1, ARENA.z0 + 1], [ARENA.x0 + 1, ARENA.z1 - 1], [ARENA.x1 - 1, ARENA.z1 - 1]];
-  for (const [i, j] of c) {
-    const x = cxw(i) - (i < 21 ? 0.42 : -0.42), z = cxw(j) - (j < 22 ? 0.42 : -0.42), H = 5.2;
+  const mx = (cxw(ARENA.x0) + cxw(ARENA.x1)) / 2, mz = (cxw(ARENA.z0) + cxw(ARENA.z1)) / 2;
+  for (const [i, j] of AR_LAMPS()) {
+    const x = cxw(i) + (i === ARENA.x0 + 1 ? -0.42 : i === ARENA.x1 - 1 ? 0.42 : 0), z = cxw(j) + (j === ARENA.z0 + 1 ? -0.42 : j === ARENA.z1 - 1 ? 0.42 : 0), H = 5.2;
     const p = arPush(parts, new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, H, 8), AR_M.pole)); p.position.set(x, H / 2, z); p.castShadow = true;
-    const hd = new THREE.Group(); hd.position.set(x, H, z); hd.rotation.y = Math.atan2(cxw(21.5) - x, cxw(22) - z); hd.rotation.x = 0.5; g.add(hd);
+    const hd = new THREE.Group(); hd.position.set(x, H, z); hd.rotation.y = Math.atan2(mx - x, mz - z); hd.rotation.x = 0.5; g.add(hd);
     box(hd, 0.55, 0.32, 0.18, AR_M.pole, 0, 0, 0); box(hd, 0.48, 0.26, 0.02, AR_M.lamp, 0, 0, 0.1);
   }
 }
 // the arena's lights in the light map: the floods, warm white, strongest as the dusk comes on
-const AR_LIGHTS = () => [[ARENA.x0 + 1, ARENA.z0 + 1], [ARENA.x1 - 1, ARENA.z0 + 1], [ARENA.x0 + 1, ARENA.z1 - 1], [ARENA.x1 - 1, ARENA.z1 - 1]]
-  .map(([i, j]) => ({ arena: true, x: cxw(i), z: cxw(j), r: 15, col: [1, 0.86, 0.66], int: 0.9 }));
+const AR_LIGHTS = () => AR_LAMPS().map(([i, j]) => ({ arena: true, x: cxw(i), z: cxw(j), r: 16, col: [1, 0.86, 0.66], int: 0.9 }));
 
 // ---- up and down
 export function arenaUp() {
@@ -339,9 +366,10 @@ export function arenaUp() {
   for (const o of FARM_ROOTS) {
     if (!o.isInstancedMesh || o.parent !== scene) continue;
     let did = false;
-    for (let k = 0; k < o.count; k++) { o.getMatrixAt(k, _aTM); _aTV.setFromMatrixPosition(_aTM); if (Math.abs(_aTV.x) < AR_OUT + 1.5 && Math.abs(_aTV.z - 0.5) < AR_OUT + 1.5) { arTrees.push([o, k, _aTM.clone()]); o.setMatrixAt(k, _aTZero); did = true; } }
+    for (let k = 0; k < o.count; k++) { o.getMatrixAt(k, _aTM); _aTV.setFromMatrixPosition(_aTM); if (arCleared(_aTV.x, _aTV.z)) { arTrees.push([o, k, _aTM.clone()]); o.setMatrixAt(k, _aTZero); did = true; } }
     if (did) o.instanceMatrix.needsUpdate = true;
   }
+  TREE_HIDE.at = arCleared;   // (and the ones the forests draw afresh each frame kept out of it: world/tree-cull.js)
   arCellBoxes();
   scene.add(arG);
   syncBlock();
@@ -349,6 +377,7 @@ export function arenaUp() {
   LMU.uHouse.value.set(-1e3, -1e3, -1e3, -1e3);   // (no roof keeping the clouds' shade off the middle)
   setLightsDirty(true); setVisKey(''); stillShadowsReset();
 }
+const arCleared = (x, z) => Math.abs(x) < AR_OUT + 1.5 && Math.abs(z - 0.5) < AR_OUT + 1.5;
 const arTrees = [], _aTM = new THREE.Matrix4(), _aTV = new THREE.Vector3(), _aTZero = new THREE.Matrix4().makeScale(0, 0, 0).setPosition(0, -50, 0);
 // (the barriers' footprints, as their meshes stand: they're built once, so put back every match)
 const arBoxes = [];
@@ -360,7 +389,7 @@ function arCellBoxes() {
 function arGrass(o) { const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); return g.boundingBox.max.y - g.boundingBox.min.y < 3; }
 export function arenaDown() {
   if (!ARENA.on) return;
-  ARENA.on = false; VAULT_LOW.clear();
+  ARENA.on = false; VAULT_LOW.clear(); TREE_HIDE.at = null;
   scene.remove(arG);
   for (const [o, k, m] of arTrees) { o.setMatrixAt(k, m); o.instanceMatrix.needsUpdate = true; } arTrees.length = 0;
   const s = arSaved; arSaved = null;
@@ -377,6 +406,8 @@ export function arenaSpawn(side, foes, n) {
   const L = AR_SPAWN[side] || AR_SPAWN.F;
   let best = L[0], bd = -1;
   if (n !== undefined && side !== 'F') best = L[n % L.length];
-  else for (const s of L) { let d = 1e9; for (const f of foes) d = Math.min(d, Math.hypot(f[0] - s[0], f[1] - s[1])); if (!foes.length) d = rand(); if (d > bd) { bd = d; best = s; } }
+  // (the furthest from everyone, never one an enemy can see from where they stand: a spot in plain sight of one counts
+  // for far less however far off it is)
+  else for (const s of L) { let d = 1e9, seen = false; for (const f of foes) { d = Math.min(d, Math.hypot(f[0] - s[0], f[1] - s[1])); if (!seen && los(f[0], f[1], s[0], s[1])) seen = true; } if (!foes.length) d = rand(); if (seen) d -= 1000; if (d > bd) { bd = d; best = s; } }
   return [best[0] + rr(-0.15, 0.15), best[1] + rr(-0.15, 0.15), best[2]];
 }

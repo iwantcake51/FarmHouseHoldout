@@ -22,7 +22,8 @@ FADE = 0.06
 TARGET = 10 ** (-14 / 20)   # every clip's loudest 20 ms brought to this level (RMS), so a set sounds even
 
 # surface.kind -> (folder in the pack, file name pattern, how many to keep). The farm has three grounds: the house's
-# floorboards and the porch (wood), the dirt drive and the trodden yard round the house (dirt), and the grass
+# floorboards and the porch (wood), the dirt drive and the trodden yard round the house (dirt), and the grass; the
+# arena a fourth, its concrete
 SETS = {
     'wood.walk': ('Footsteps_Wood/Footsteps_Wood_Walk', r'Walk', 10),
     'wood.run': ('Footsteps_Wood/Footsteps_Wood_Run', r'Run', 10),
@@ -36,6 +37,11 @@ SETS = {
     'dirt.run': ('Footsteps_DirtyGround/Footsteps_DirtyGround_Run', r'Run', 10),
     'dirt.land': ('Footsteps_DirtyGround/Footsteps_DirtyGround_Land', r'Land', 3),
     'dirt.jump': ('Footsteps_DirtyGround/Footsteps_DirtyGround_Land', r'Start', 3),
+    # the arena's concrete pad (world/arena.js): the pack's tile, hard and flat
+    'concrete.walk': ('Footsteps_Tile/Footsteps_Tile_Walk', r'Walk', 8),
+    'concrete.run': ('Footsteps_Tile/Footsteps_Tile_Run', r'Run', 6),
+    'concrete.land': ('Footsteps_Tile/Footsteps_Tile_Jump', r'Land', 3),
+    'concrete.jump': ('Footsteps_Tile/Footsteps_Tile_Jump', r'Start', 3),
 }
 
 
@@ -79,7 +85,7 @@ def main():
         with open(OUT_JS, 'w') as fh:
             fh.write('// Where each footstep sits in src/sounds/footsteps.mp3: surface.kind -> [start, length] in seconds. Written by\n')
             fh.write('// tools/pack-footsteps.py from assets/sounds/Footsteps.zip; run that again rather than editing this by hand.\n\n')
-            fh.write('const FOOT_SPRITE = {\n')
+            fh.write('export const FOOT_SPRITE = {\n')
             for key, clips in sprite.items(): fh.write(f"  '{key}': {json.dumps(clips, separators=(',', ':'))},\n")
             fh.write('};\n')
         print(f'{sum(len(v) for v in sprite.values())} clips, {t:.1f} s, {os.path.getsize(OUT_MP3) / 1024:.0f} KB -> {os.path.relpath(OUT_MP3, ROOT)}')

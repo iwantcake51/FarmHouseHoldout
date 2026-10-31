@@ -396,9 +396,9 @@ the pickups feed) is put away. The host picks one of three modes:
   point furthest from everyone else, and you can change class while you wait.
 - **Team deathmatch.** Two sides, Blue and Red (players alternate between them in the order they joined). Each side
   starts at its own end and respawns there. The first side to 20 kills wins.
-- **Showdown.** Two sides (1v1, 2v2, or 2v1 with three), one life a round, first side to 5 rounds. Go down and the
+- **Showdown.** Two sides (1v1 up to 3v3), one life a round, first side to 5 rounds. Go down and the
   view dips to black and comes up on a teammate still standing. The last side standing takes the round. A round left
-  at 2:00 goes to the side with more players up, then the one with more health between them, otherwise it's a draw.
+  at 1:00 goes to the side with more players up, then the one with more health between them, otherwise it's a draw.
   Between rounds everyone is back at their spawn, whole again, with a fresh loadout and the chance to change class.
 
 **Bots.** Not enough people? In an arena lobby the host can sit bots in the empty seats with **Add a bot**, and send
@@ -408,9 +408,9 @@ always the arena. The host picks how good the bots are under **Bots**:
 
 | Skill | Reacts in | Aim starts off by | Sees | Headshots |
 |---|---|---|---|---|
-| Recruit | 0.5–0.8 s | about 17° | 30 m | 10% of hits |
-| Regular | 0.3–0.5 s | about 14° | 36 m | 13% |
-| Veteran | 0.17–0.32 s | about 10° | 42 m | 17% |
+| Recruit | 0.5–0.8 s | about 17° | 30 m | 8% of hits |
+| Regular | 0.3–0.5 s | about 14° | 36 m | 11% |
+| Veteran | 0.2–0.34 s | about 11° | 42 m | 15% |
 
 To every game in the match a bot is just another player. It picks a class, carries that class's guns and bandages,
 counts in the score, the kill feed and the results, can be spectated, and bleeds and falls like anyone else. The
@@ -422,6 +422,8 @@ A bot has no wall hacks:
   cover like sandbags doesn't hide you.
 - It hears gunfire up to 28 m away, or 9 m for a suppressed gun, and someone sprinting within 7 m. It only gets a
   rough idea of where the sound came from, rougher the further off it was.
+- It sees a laser's beam: if any of the beam (up to 24 m, stopping at the first wall) is in front of it and in plain
+  sight, it knows roughly where it's coming from.
 - When it's hit, it knows roughly where the shot came from.
 - It remembers where it last saw or heard each foe, and when, for 14 seconds.
 
@@ -430,7 +432,7 @@ What it does with that:
 - **Fights.** It strafes side to side, holds still behind low cover, backs off if its class wants more range, or
   pushes in. The Rush sprints at you and fires on the run, as its Run and gun perk allows.
 - **Takes cover** when it's hurt or reloading up close, sprinting to a spot out of sight of whoever's shooting.
-- **Patches up** when it's hurt or bleeding and nobody's in sight, using its own bandages.
+- **Waits it out** in cover when it's hurt, till its health has come back.
 - **Swings back out** from cover to a spot that can see where its target was, and fights again.
 - **Flanks or pushes** when it loses sight of someone. It either heads straight for the last place it saw them, or
   circles round to a spot off to their side, keeping out of sight of that place on the way.
@@ -440,9 +442,14 @@ What it does with that:
 Each class fights its own way: the Marksman hangs back at range and swaps to the revolver up close; the Breacher and
 the Rush press in with the shotgun; the Rifleman and the Gunner hold the middle distances.
 
-Its aim isn't perfect. It takes a moment to react to someone new, its aim starts off them and settles onto them, and
-its shots spread more on the move, at a sprint, and the longer it holds the trigger. It fires in bursts at range,
-longer ones close in, and single aimed shots from the rest.
+Its aim isn't perfect, and it misses. It takes a moment to react to someone new, its aim starts off them and settles
+onto them, and its shots spread more on the move, at a sprint, the longer it holds the trigger, and the faster its
+target is moving. It turns like a hand on a mouse, speeding up toward a target and easing off as it gets there,
+never snapping onto you. It fires in bursts at range, longer ones close in, and single aimed shots from the rest.
+
+**Changing class.** A bot keeps a record of kills and deaths with each class. Once it has died two more times than
+it's killed with one, it switches, picking one that answers how it keeps dying: the long-range classes when it's
+being shot from more than 16 m, the close-range ones when it's dying within 7 m.
 
 Its body moves like a player's. The poses were recorded from a survivor in this game, not drawn by hand:
 
@@ -475,13 +482,25 @@ Then comes the **count-in**, before every match and every Showdown round:
 
 The classes: always two guns and a melee weapon, with their attachments and perks set.
 
-| Class | Guns and attachments | Perks | Melee | Bandages |
-|---|---|---|---|---|
-| Rifleman | Assault rifle (red dot, laser pointer), handgun (laser pointer) | Steady aim, Quick hands | Machete | 2 |
-| Marksman | Hunting rifle (scope, oil-filter can), revolver (speed loader) | Steady aim, Iron lungs | Crowbar | 1 |
-| Rush | Submachine gun (holo, integral suppressor), sawn-off double barrel (Sleight of Hand) | Good boots, Run and gun II | Katana | 1 |
-| Breacher | Pump shotgun (laser pointer, modified choke), machine pistol (red dot, oil-filter can) | Quick hands II, Vault fire | Fire axe | 2 |
-| Gunner | Light machine gun (laser pointer), handgun (oil-filter can) | Quick hands, Quick draw | Pipe wrench | 2 |
+| Class | Guns and attachments | Perks | Melee |
+|---|---|---|---|
+| Rifleman | Assault rifle (red dot, laser pointer), handgun (laser pointer) | Steady aim, Quick hands | Machete |
+| Marksman | Hunting rifle (scope, oil-filter can), revolver (speed loader) | Steady aim, Iron lungs | Crowbar |
+| Rush | Submachine gun (holo, integral suppressor), sawn-off double barrel (Sleight of Hand) | Good boots, Run and gun II | Katana |
+| Breacher | Pump shotgun (laser pointer, modified choke), machine pistol (red dot, oil-filter can) | Quick hands II, Vault fire | Fire axe |
+| Gunner | Light machine gun (laser pointer), handgun (oil-filter can) | Quick hands, Quick draw | Pipe wrench |
+
+**Changing class mid-match.** Press **L** to bring the class picker up over the match, and again to put it away. A
+class picked while your spawn protection's still running (you've only just come in and haven't fired) is yours at
+once; otherwise it's yours the next time you come in. While you're down in Deathmatch the picker comes up on its own.
+
+**No bandages, no bleeding.** Your health comes back on its own:
+
+- It starts once you've gone 2 seconds without being hurt.
+- It comes back slowly at first, then faster and faster.
+- However low you were, you're full again 6.75 seconds after the last hit.
+
+Getting hurt again starts the wait over. Bots heal the same way.
 
 The perks are the survival game's skills and work the same way:
 
@@ -493,38 +512,50 @@ The perks are the survival game's skills and work the same way:
 - **Vault fire**: quicker vaults, and you can shoot while going over.
 - **Quick draw**: quicker weapon swaps.
 
-A can adds its little damage between players too, as it does against zombies. You only ever have your class's perks; picking another class swaps them. Each card in the picker lists the attachments
+Each card pictures its guns with the class's own attachments and mods, whatever's fitted to yours. A can adds its little damage between players too, as it does against zombies. You only ever have your class's perks; picking another class swaps them. Each card in the picker lists the attachments
 under each gun and the perks underneath.
 
 Each gun starts with a full mag and three more (the LMG one more box; shotguns at least 14 shells). There are no
 pickups, and coming back in gives you a fresh loadout.
 
-**Damage between players** is its own table rather than the zombies', so no gun kills everything in one shot. To a
-100-health body, before range falloff:
+**Damage between players** is its own table rather than the zombies', so no gun kills everything in one shot. The
+table was balanced as a whole (the automatics brought closer together, the handgun and the hunting rifle up a little),
+then everything was eased down to 80% so every fight lasts a little longer. To a 100-health body, before range
+falloff:
 
-| Gun | Damage | Body shots to kill |
-|---|---|---|
-| Handgun | 24 | 5 |
-| Revolver | 46 | 3 |
-| Hand cannon | 58 | 2 |
-| Machine pistol | 14 | 8 |
-| Submachine gun | 16 | 7 |
-| Assault rifle | 25 | 4 |
-| Light machine gun | 23 | 5 |
-| Battle rifle | 40 | 3 |
-| Hunting rifle | 88 | 2 |
+| Gun | Damage | Body shots to kill | Close-range time to kill |
+|---|---|---|---|
+| Handgun | 21 | 5 | 0.84 s |
+| Revolver | 37 | 3 | 0.84 s |
+| Hand cannon | 46 | 3 | 0.68 s |
+| Machine pistol | 12 | 9 | 0.60 s |
+| Submachine gun | 14 | 7 | 0.43 s |
+| Assault rifle | 18 | 6 | 0.48 s |
+| Light machine gun | 15 | 7 | 0.42 s |
+| Battle rifle | 32 | 4 | 0.66 s |
+| Hunting rifle | 72 | 2 (1 to the head) | 1.15 s |
 
 - **Where it lands.** A head takes double (a shotgun pellet in the head 1.45×), and an arm or leg about three
   quarters.
 - **Shotguns.** Each pellet counts: the pump's eight are 13 apiece and the double's 12 (the sawn-off's more, and
-  harder up close), the auto shotgun's seven 8 apiece. So a shotgun kills up close and falls away fast past a few
-  metres, as each gun's own falloff has it.
-- **Melee** hits for 38 (bat) to 92 (sledgehammer). A blow to the head does 1.4×, and so does an axe's chop more often.
-- **Bleeding.** A hit can open a bleed (more likely from a blade, or from three or more pellets at once) that drains
-  you down to 15 until a bandage stops it.
+  harder up close), the auto shotgun's seven 8 apiece (all before the 80%). So a shotgun kills up close and falls
+  away fast past a few metres, as each gun's own falloff has it.
+- **Melee** hits for 30 (bat) to 74 (sledgehammer). A blow to the head does 1.4×, and so does an axe's chop more often.
 - **Who decides a hit.** Whoever fires works out the hit against where the target stands on their screen, and the
   target's game takes the damage.
-- **Spawn protection.** For 1.6 seconds after you come in, nothing hurts you.
+- **Spawn protection.** For 2 seconds after you come in, nothing hurts you. Firing, swinging or shoving ends it at
+  once. A strip under the crosshair runs down while it lasts.
+- **Shoves** (V) work on other players and bots too, in front of you and within reach. They're knocked back, can't
+  move or fire for about half a second, and take a little damage. Their view jolts and blurs for a second, easing off
+  as it goes.
+
+**Hit feedback.**
+
+- **Damage numbers** pop up over whoever you hit and add up while you keep hitting them. They're white, and turn gold
+  once a hit's gone in the head.
+- Each hit makes the wet sound of it going in, a duller one to the head, and a burst head pops.
+- Down the sights, where the crosshair's put away, a hit shows its own marker over the sight: four short ticks that
+  pop out and fade, gold for the head, red for a kill.
 
 **Cover and sight.**
 
@@ -534,9 +565,12 @@ pickups, and coming back in gives you a fresh loadout.
 - From above, the fog of war hides anyone on the other side you can't see, their name and all, until they come into
   sight.
 - Nobody on the other side is outlined or shown through walls, from either view.
-- Their name shows only while you (or the teammate you're watching) can see them and they're on your screen: never
-  pinned to the edge of the screen pointing their way, and never with their health. Your own side keeps its
-  outlines, names and health bars, and every name is in its side's colour.
+- Their name shows only while you're aiming at them or looking right at them, in plain sight. From your own eyes
+  that means near the middle of the view (more leeway close up); from above, your crosshair on the ground close to
+  them. It shows in red, a little see-through, never with their health, and never pinned to the edge of the screen.
+  Your own side keeps its outlines, names and health bars in its colour.
+- **Spawns** in Deathmatch and when you come back in a team game go to the spot furthest from everyone on the other
+  side, and never one any of them can see from where they stand, if there's any other choice.
 
 **Gore.**
 
@@ -546,41 +580,65 @@ pickups, and coming back in gives you a fresh loadout.
 - A kill leaves a pool spreading under the body.
 - A headshot kill that hits hard enough (60 or more) bursts the head in a red mist with chips of skull, on every
   screen, and the head stays gone until that player is back.
+- **Limbs come off** as a zombie's do, on the hit that kills:
+  - A shotgun within 7 m blows the arm or leg it hit (or one at random) to red mist.
+  - A blade, or a heavy round (hunting rifle, revolver, hand cannon) to an arm or a leg, throws it off whole, tumbling
+    away.
+  - Blood pumps from where it was for a couple of seconds, and the player's whole again when they're back.
 
 **The HUD.**
 
 - **Up top.** Deathmatch shows the clock and everyone's kills as chips in their colour, the leader first. The team
   modes show each side's score in its colour either side of the clock and the mode. Showdown adds five diamonds for
   rounds won and a figure for each player, greyed out once they're down.
-- **The kill feed** runs down the top right: the killer, the weapon they used (its picture) with a skull for a
-  headshot, and who went down.
+- **The kill feed** runs down the middle of the left side of the screen. Each line shows the killer, the weapon they
+  used (its picture), a red headshot mark for a headshot, how far off they were in metres, and who went down. Your own
+  kills and deaths are picked out in orange.
 - **Big calls** come up for the round, **Fight**, and the round won or lost with the score.
-- **The results** come up at the end: Victory, Defeat or Draw, with everyone's kills and deaths, and then everyone's
-  back in the lobby.
+- **The results** come up at the end, even if you're down: Victory, Defeat or Draw, with everyone's kills and deaths,
+  and then everyone's back in the lobby.
+- **The end of the match** slows the game down more and more as the last kill lands, to a dead stop about three
+  seconds later, the results over the frozen moment. The clock and the HUD run on real time, so they carry on.
+- **The death camera** goes to whoever killed you and follows them: from above it keeps them in the middle, and from
+  your own eyes it draws out of yours and then follows from behind and above them, from your side. It lasts till
+  you're back in, or in Showdown its first 3.5 seconds before it moves to a teammate.
+- **Inspecting** your weapon from your own eyes puts the HUD away but leaves the count-in, the score, the kill feed,
+  the results and the scoreboard up. You can't inspect while the class picker is up.
 
 **The map** is an old freight yard (Yard 4) in a clearing in the woods, where the farm stands: the farm is taken away
 for the match and put back after it.
 
-- **The layout.** A cast concrete pad (expansion joints, oil stains, tyre marks, cracks, wet patches) is walled round
-  with tall precast panels. Two shipping containers stand down each side and two across the middle, ribbed, in rust red, faded
-  blue, olive and ochre. In the very middle is a roofless block hut with a doorway in each wall. There are jersey
-  barriers with a stripe of warning paint, sandbag walls (across the middle lanes, in front of the hut's side doorways
-  and at each spawn), two-high crate stacks, drums, cable spools, and a floodlight on a pole in each corner. The walls
-  carry their paint: the yard's name, its warnings, an arrow to the west gate, and a couple of tags.
+- **The size.** 42 by 42 metres inside the walls, more than three times the old yard and almost the whole of the
+  farm's ground.
+- **Three lanes** run west to east between the two spawns, split by long dividers of containers and walls:
+  - **North:** a block building with a door in each wall, a container, a row of barriers, sandbags and crates.
+  - **Middle:** each side's spawn yard, then a long block building with doors east and west, a door at each end and
+    two pillars inside. The centre is a ring of sandbags round an open patch, the Showdown flag's spot.
+  - **South:** a maze of containers, sandbags and crates.
+  - Each divider has three gaps to cross between lanes: one near each side and a wide one in the middle.
+- **Cover everywhere.** Containers, block walls and crate stacks stop you, your rounds and your sight. Jersey
+  barriers, sandbag walls, drums and spools only stop you: you see and shoot over them, and they come up to about your
+  chest.
+- **The two halves** mirror each other, so neither side is better off: west against east, each side's spawn a
+  hatched pad painted in its colour. Ten spots spread round all three lanes are Deathmatch's spawns.
 - **Vaulting.** The sandbag walls can be vaulted like the farm's fence: walk up to one and press the vault key, or
   sprint into it.
-- **The two halves** mirror each other, so neither side is better off: west against east, each side's spawn a
-  hatched pad painted in its colour.
-- **The light.** It's always mid-afternoon there, the sun starting down and the shadows lengthening.
-- **What blocks what.** The walls, containers, hut and crates stop you, your rounds and your sight. The barriers,
-  sandbags, drums and spools only stop you: you see and shoot over them, and they come up to about your chest.
-- **The south and east walls**, the camera's sides when you play from above, stand only waist high with chain-link
-  over them to full height, so nobody near them is lost behind them.
-- **Outside** is the rest of a freight terminal on a worn asphalt apron, with the woods cleared back from it.
+- **The light.** It's always mid-afternoon there, the sun starting down and the shadows lengthening. A floodlight on
+  a pole stands in each corner and halfway along each wall.
+- **The walls.** Tall precast panels, with the yard's name, its warnings, an arrow to the west gate and a couple of
+  tags. The south and east walls (the camera's sides from above) stand only waist high with chain-link over them to
+  full height, so nobody near them is lost behind them.
+- **Underfoot** it's concrete, and so are the footsteps (the pack's hard tile recordings).
+- **Outside** is the rest of a freight terminal on a worn asphalt apron 70 m across, with the woods cleared back from
+  it. The trees there aren't drawn at all while the arena's up, even by the forest's own per-frame culling.
   - On the far sides from the camera: a long warehouse with its roller doors, containers stacked three high under a
     yellow gantry crane, two-high stacks along the west, and a light tower.
   - On the camera's sides, only low things: a rail line with a flatcar, pallets, a forklift and a line of barriers.
   - From your own eyes the crane and the stacks make a skyline over the walls.
+
+**Six players.** The arena takes up to six (survival still four), so 3v3 in the team modes. The lobby shows six seats
+when the game's set to the arena, and the two new seats have their own colours. A lobby with more than four people in
+it can't be switched to survival.
 
 ## Controls
 
@@ -596,6 +654,7 @@ any page (moving round the buttons and pressing them) and the arrows scroll; onl
 | W A S D | Walk | Mouse | Aim and fire | Hold F | Board up a window or door |
 | Shift | Sprint | Right click | Aim down the sights | Hold C | Tear a board down |
 | Space | Vault a window or fence | R | Reload | E | Use a station or pick something up |
+| | | L | Change class (arena) | | |
 | Wheel, + − | Zoom | 1 – 4 | Switch weapon | Q | Bandage |
 | N | Back out of the free camera (cheat menu only; not listed in Settings without it) | V | Shove | T | Start the next wave early |
 | Hold Alt | Free look (first person) | B | Switch fire mode | H | Share a gun (co-op) |

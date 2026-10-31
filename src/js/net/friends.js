@@ -6,7 +6,7 @@
 // from being friends. Between tabs (?net=local) the same goes over a BroadcastChannel.
 
 import { $ } from '../core/dom.js';
-import { NET, NET_MAX, NET_V, netCode, netJoin, netLib, netName, PEER_OPTS } from './net.js';
+import { NET, NET_V, netMax, netCode, netJoin, netLib, netName, PEER_OPTS } from './net.js';
 import { SFX } from '../audio/sfx.js';
 import { lobbyRender } from './lobby.js';
 import { LOOK } from '../player/look.js';
@@ -43,8 +43,8 @@ const frOnline = c => { const s = PALS.st.get(c); return !!s && performance.now(
 
 // what you're doing, for them
 function frHello(q) {
-  const st = NET.inGame ? 'game' : NET.on ? 'lobby' : 'menu', room = NET.host && !NET.inGame ? NET_MAX - 1 - NET.peers.size : 0;
-  return { t: 'hi', v: NET_V, name: netName(), st, game: room > 0 ? NET.code : '', room, wave: NET.inGame ? run.wave | 0 : 0, q: q ? 1 : 0, look: LOOK.cur };   // (look: your survivor, for the card they see on hovering you: ui/look-card.js)
+  const st = NET.inGame ? 'game' : NET.on ? 'lobby' : 'menu', room = NET.host && !NET.inGame ? netMax() - 1 - NET.peers.size : 0;
+  return { t: 'hi', v: NET_V, name: netName(), st, game: room > 0 ? NET.code : '', room, mx: netMax(), wave: NET.inGame ? run.wave | 0 : 0, q: q ? 1 : 0, look: LOOK.cur };   // (look: your survivor, for the card they see on hovering you: ui/look-card.js)
 }
 function frSend(c, m) {
   try {
@@ -56,7 +56,7 @@ function frRecv(c, m) {
   if (!m || !/^[A-Z0-9]{6}$/.test(c) || c === PALS.me) return;
   const s = frState(c); s.heard = performance.now();
   if (m.t === 'hi') {
-    Object.assign(s, { name: String(m.name || 'Survivor').slice(0, 16), st: m.st, game: m.v === NET_V ? m.game || '' : '', room: m.room || 0, wave: m.wave | 0 });
+    Object.assign(s, { name: String(m.name || 'Survivor').slice(0, 16), st: m.st, game: m.v === NET_V ? m.game || '' : '', room: m.room || 0, max: m.mx || 4, wave: m.wave | 0 });
     if (m.look && typeof m.look === 'object' && !Array.isArray(m.look)) s.look = m.look;
     let f = frOf(c);
     if (!f) { f = { c, n: s.name }; PALS.list.push(f); frSave(); PALS.msg = s.name + ' added you as a friend'; }   // they added you: added back
@@ -125,7 +125,7 @@ function frWhat(s, on) {
   if (!on) return 'Away';
   if (s.inv) return 'Invited you to their game';
   if (s.st === 'game') return s.wave ? 'In a run, wave ' + s.wave : 'In a run';
-  if (s.game) return 'Hosting, ' + (NET_MAX - s.room) + ' of ' + NET_MAX + ' in';
+  if (s.game) return 'Hosting, ' + ((s.max || 4) - s.room) + ' of ' + (s.max || 4) + ' in';
   return s.st === 'lobby' ? 'In a lobby' : 'On the title screen';
 }
 export function frRender() {
@@ -135,7 +135,7 @@ export function frRender() {
   const ul = $('frList'), now = performance.now();
   const rows = PALS.list.map(f => {
     const s = PALS.st.get(f.c) || {}, on = frOnline(f.c), name = s.name || f.n || 'Friend';
-    const join = on && !NET.inGame && (s.inv || s.game) && NET.code !== (s.inv || s.game), invite = on && NET.host && !NET.inGame && s.st === 'menu' && NET.peers.size < NET_MAX - 1;
+    const join = on && !NET.inGame && (s.inv || s.game) && NET.code !== (s.inv || s.game), invite = on && NET.host && !NET.inGame && s.st === 'menu' && NET.peers.size < netMax() - 1;
     return { f, on, name, what: frWhat(s, on), join, invite: invite && !(s.sent && now - s.sent < 8000), sent: invite && s.sent && now - s.sent < 8000, game: on && s.st === 'game', del: PALS.del === f.c };
   }).sort((a, b) => b.on - a.on || a.name.localeCompare(b.name));
   const key = JSON.stringify(rows.map(r => [r.f.c, r.on, r.name, r.what, r.join, r.invite, r.sent, r.del]));
@@ -176,7 +176,7 @@ export function frRender() {
     ok.dataset.key = okey; ok.textContent = '';
     for (const { f, s } of open) {
       const li = document.createElement('li'), name = s.name || f.n || 'Friend';
-      li.innerHTML = '<b></b><em></em>'; li.querySelector('b').textContent = name + '\u2019s game'; li.querySelector('em').textContent = (NET_MAX - s.room) + ' of ' + NET_MAX + ' in' + (s.inv ? ', invited you' : '');
+      li.innerHTML = '<b></b><em></em>'; li.querySelector('b').textContent = name + '\u2019s game'; li.querySelector('em').textContent = ((s.max || 4) - s.room) + ' of ' + (s.max || 4) + ' in' + (s.inv ? ', invited you' : '');
       frBtn(li, 'Join', 'coopCopy go', () => frJoin(f.c));
       ok.appendChild(li);
     }

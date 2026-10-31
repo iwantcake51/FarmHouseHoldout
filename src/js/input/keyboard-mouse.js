@@ -33,7 +33,7 @@ import { specStep, spectating } from '../net/spectate.js';
 import { giftSend, gunShare } from '../net/teamwork.js';
 import { closeSettings, setOpen, toggleView } from '../ui/settings.js';
 import { startInspect } from '../player/inspect.js';
-import { pvpPicking } from '../pvp/pvp.js';
+import { PVP, pvpChangeClass, pvpPicking } from '../pvp/pvp.js';
 
 export const keys = new Set();
 // mouseDownR: the right button, which aims, or with a gun in each hand fires the right one (weapons/akimbo.js)
@@ -73,8 +73,9 @@ function keyAct(k, e) {
   if (k === 'tab' && openSt && openSt.id === 'bench') { e.preventDefault(); benchGunStep(e.shiftKey ? -1 : 1); return; }   // the workbench's weapon tabs (stations/station-ui.js)
   if (k === 'tab' && openSt && openSt.id === 'rack') { e.preventDefault(); rackTab(GUN_RACK.tab + (e.shiftKey ? -1 : 1)); return; }   // the gun rack's lines (stations/armory.js)
   if (bindIs(k, 'reload')) startReload();
-  if (bindIs(k, 'inspect')) startInspect();   // looking your gun over (player/inspect.js)
-  if (bindIs(k, 'bandage')) startBandage();
+  if (bindIs(k, 'inspect') && !pvpPicking()) startInspect();   // (not while the arena's class picker is up)   // looking your gun over (player/inspect.js)
+  if (bindIs(k, 'bandage') && !PVP.on) startBandage();   // (no bandages in the arena: pvp/pvp.js)
+  if (bindIs(k, 'cls') && PVP.on) pvpChangeClass();   // (the arena's class picker, for your next life)
   if (bindIs(k, 'vault')) tryVault();                                    // climbs through windows and hops fences
   if (bindIs(k, 'shove')) shove();   // (board, held at a door or window, boards it up: barricades/interactions.js)
   if (bindIs(k, 'grenade')) throwGrenade();

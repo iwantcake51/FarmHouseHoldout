@@ -35,13 +35,14 @@ body.pvp:not(.pvpTeams) #pvpTop{flex-direction:column;align-items:center;gap:4px
 #pvpTop .ptChip.me em{color:var(--ink)}
 
 /* the kill feed, top right */
-#pvpFeed{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));top:calc(14px + env(safe-area-inset-top,0px));display:grid;justify-items:end;gap:4px;z-index:6}
-#pvpFeed .pfRow{display:flex;align-items:center;gap:8px;padding:4px 10px;background:rgba(14,15,16,.72);border:1px solid rgba(236,230,216,.1);font-size:12px;animation:pfIn .3s cubic-bezier(.2,.9,.3,1.1) both;transition:opacity .4s,transform .4s}
-#pvpFeed .pfRow.me{background:rgba(14,15,16,.86);border-color:rgba(236,230,216,.35)}
-#pvpFeed .pfRow.out{opacity:0;transform:translateX(12px)}
-#pvpFeed .pfRow b{font-weight:700;letter-spacing:.02em;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#pvpFeed .pfRow img{height:16px;width:auto;opacity:.9;filter:brightness(1.4)}
-#pvpFeed .pfRow svg.hs{width:14px;height:14px;fill:#e2563f}
+#pvpFeed{position:fixed;left:calc(22px + env(safe-area-inset-left,0px));top:50%;translate:0 -50%;display:grid;justify-items:start;gap:6px;z-index:6}
+#pvpFeed .pfRow{display:flex;align-items:center;gap:10px;padding:6px 14px 6px 12px;background:linear-gradient(90deg,rgba(12,13,14,.86),rgba(12,13,14,.62) 70%,rgba(12,13,14,0));border-left:3px solid rgba(236,230,216,.22);font-size:15px;animation:pfIn .3s cubic-bezier(.2,.9,.3,1.1) both;transition:opacity .4s,transform .4s}
+#pvpFeed .pfRow.me{background:linear-gradient(90deg,rgba(28,24,18,.92),rgba(28,24,18,.7) 70%,rgba(28,24,18,0));border-left-color:var(--orange)}
+#pvpFeed .pfRow.out{opacity:0;transform:translateX(-14px)}
+#pvpFeed .pfRow b{font-weight:700;letter-spacing:.02em;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#pvpFeed .pfRow em.dm{font-style:normal;font-family:var(--f-num);font-weight:700;font-size:12px;color:var(--dim);letter-spacing:.04em}
+#pvpFeed .pfRow img{height:22px;width:auto;opacity:.9;filter:brightness(1.4)}
+#pvpFeed .pfRow svg.hs{width:20px;height:20px;fill:#e2563f}
 @keyframes pfIn{0%{opacity:0;transform:translateX(16px)}100%{opacity:1;transform:none}}
 
 /* the big calls, middle of the screen: the round, Fight, the round won or lost */
@@ -121,3 +122,16 @@ body.pvpPicking #xh,body.pvpPicking .xhWorld{opacity:0!important}
 #pvpRes tr.me td{background:rgba(236,230,216,.06)}
 #pvpRes p{margin:10px 0 0;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
 @media (prefers-reduced-motion:reduce){#pvpCount b.tick,#pvpBan.on b,#pvpFeed .pfRow,#pvpToast.on b{animation:none}}
+/* damage numbers (pvp/pvp.js dmgNum): over whoever you hit, adding up while you keep hitting them, white, gold once a
+   hit's gone in the head; each new hit pops it */
+.pvpDmg{position:fixed;left:0;top:0;z-index:5;pointer-events:none;font-family:var(--f-num);font-weight:800;font-size:22px;line-height:1;color:#f4efe4;translate:-50% -50%;text-shadow:0 2px 0 rgba(0,0,0,.55),0 0 10px rgba(0,0,0,.45);will-change:transform,opacity}
+.pvpDmg.head{color:#ffcf4a}
+.pvpDmg.pop{animation:pdPop .22s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes pdPop{0%{scale:1.45}100%{scale:1}}
+body.pvp #bandBox{display:none}
+/* spawn protection: a small strip under the crosshair while it lasts (pvp/pvp.js) */
+#pvpProt{position:fixed;left:50%;top:calc(50% + 70px);translate:-50% 0;z-index:5;pointer-events:none;display:grid;justify-items:center;gap:4px;font:700 11px var(--f-num);letter-spacing:.24em;text-transform:uppercase;color:#bfe3ff;opacity:0;transition:opacity .25s}
+#pvpProt.on{opacity:1}
+#pvpProt s{display:block;width:120px;height:3px;background:rgba(191,227,255,.18)}
+#pvpProt s u{display:block;height:100%;background:#bfe3ff;transform-origin:left;text-decoration:none}
+@media (prefers-reduced-motion:reduce){.pvpDmg.pop{animation:none}}

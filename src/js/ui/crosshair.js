@@ -32,13 +32,17 @@ export const projV = new V3();
 // left over to show as you come off the sights, however long after
 const xhMark = $('xhHit');
 export function hitMark(kind, head) {
-  if (xh.hidden || fpSighted()) return;
+  // down the sights, where the crosshair's put away: a marker of its own over the sight, and a kick through it (ADS_HIT)
+  if (fpSighted()) { adsHit.classList.remove('hit', 'head', 'kill'); replay(adsHit, kind === 'kill' ? 'kill' : 'hit', ...(head || kind === 'head' ? ['head'] : [])); return; }
+  if (xh.hidden) return;
   xhMark.classList.remove('hit', 'head', 'kill');
   replay(xhMark, kind === 'kill' ? 'kill' : 'hit', ...(head || kind === 'head' ? ['head'] : []));
 }
 // and taken off once it's played: left on, it played again every time the crosshair was shown (coming back off the
 // sights), a kill's red marker with nothing hit
 const hitMarkOff = () => xhMark.classList.remove('hit', 'head', 'kill');
+// the down-the-sights marker: four short ticks round the middle of the screen
+const adsHit = (() => { const d = document.createElement('div'); d.id = 'adsHit'; d.innerHTML = '<i></i><i></i><i></i><i></i>'; document.body.appendChild(d); d.addEventListener('animationend', () => d.classList.remove('hit', 'head', 'kill')); return d; })();
 xhMark.addEventListener('animationend', hitMarkOff);
 const xh = $('xh'), xhRing = $('xhReload'), xhAmmo = $('xhAmmo'), xhAmmoBg = $('xhAmmoBg'), xhGl = $('xhGl'), xhSpread = $('xhSpread');
 // an akimbo pair's left gun: its own arc and reload ring, mirrored on the left

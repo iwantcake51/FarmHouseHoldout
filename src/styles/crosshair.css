@@ -116,3 +116,13 @@
 @keyframes hmKill{0%{opacity:1;transform:scale(1.7)}55%{opacity:1;transform:scale(1.15)}100%{opacity:0;transform:scale(1.05)}}
 @media (prefers-reduced-motion:reduce){#xh .hm.hit,#xh .hm.kill{animation-name:hmFade}}
 @keyframes hmFade{0%{opacity:1}100%{opacity:0}}
+/* down the sights, where the crosshair's put away (ui/crosshair.js hitMark): its own marker over the sight, four short
+   ticks on the diagonals that pop out and fade, gold for the head, red for a kill */
+#adsHit{position:fixed;left:50%;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;pointer-events:none;z-index:4;opacity:0}
+#adsHit i{position:absolute;left:14px;top:0;width:2px;height:8px;border-radius:1px;background:#f4efe4;box-shadow:0 0 3px rgba(0,0,0,.6);transform-origin:1px 15px}
+#adsHit i:nth-child(1){rotate:45deg}#adsHit i:nth-child(2){rotate:135deg}#adsHit i:nth-child(3){rotate:225deg}#adsHit i:nth-child(4){rotate:315deg}
+#adsHit.head i{background:#ffcf4a}#adsHit.kill i{background:#ec4128;width:2.6px;height:10px}
+#adsHit.hit{animation:adsHitA .2s ease-out}#adsHit.kill{animation:adsHitK .38s cubic-bezier(.2,.8,.3,1)}
+@keyframes adsHitA{0%{opacity:1;scale:1.35}100%{opacity:0;scale:1}}
+@keyframes adsHitK{0%{opacity:1;scale:1.6}60%{opacity:1;scale:1.05}100%{opacity:0;scale:1}}
+@media (prefers-reduced-motion:reduce){#adsHit.hit,#adsHit.kill{animation-name:hmFade}}

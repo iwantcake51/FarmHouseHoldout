@@ -21,6 +21,7 @@ import { runStat } from '../ui/run-stats.js';
 import { ANIM } from './animation.js';
 import { relKnock } from './hold-kick.js';
 import { netAct, netRec, nr } from '../net/sync.js';
+import { pvpShove } from '../pvp/pvp.js';
 
 // the shove has a shape: a quick wind-up, a hard blow with the weapon itself, then the recovery (shovePose and
 // MBASH: player/hold.js, melee/melee-anim.js). You don't step into it; only the weapon goes out
@@ -86,6 +87,7 @@ function landShove(s) {
     });
     hit++; brute = brute || big;
   }
+  hit += pvpShove(s.power);   // (in the arena, anyone on the other side: pvp/pvp.js)
   if (hit) {
     SFX.hitBlunt(true); if (s.stab) SFX.hitBlade(false);
     setShake(Math.max(shake, brute ? 0.2 : 0.3));

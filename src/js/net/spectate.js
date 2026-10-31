@@ -14,11 +14,12 @@ import { DC } from '../ui/screens.js';
 import { paintBar } from './lobby.js';
 import { meleeArt } from '../ui/melee-art.js';
 import { specFpOn } from '../game/view-cam.js';
-import { PVP, pvpMate } from '../pvp/pvp.js';
+import { PVP, pvpKiller, pvpMate } from '../pvp/pvp.js';
 
 export const SPEC = { id: '', key: '' };
 // who the camera's on: you, or once you've fallen, the teammate you picked if they're still standing, else the first
 export function camFocus() {
+  if (netLink() && P.dead) { const K = pvpKiller(); if (K) return K; }   // (the arena's death camera on whoever got you, while it lasts: pvp/pvp.js)
   if (!netLink() || !P.dead || !DC.spec) return P;   // (once the death camera's dipped to black: ui/screens.js)
   let first = null;
   if (PVP.on && PVP.mode !== 'rounds') return P;   // (in the arena you watch only your own side, and only in Showdown: pvp/pvp.js)

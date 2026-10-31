@@ -1,7 +1,8 @@
 /* HUD scale, death fade, the pickup feed and floating labels. */
 #waveBox,#moodles,#vitals,#arms,#feed{zoom:1.12}
 #xh svg{transform:scale(1.08)}
-body.dying .hud,body.dying #xh,body.dying #ammoWarn,body.dying #scrim{opacity:0!important;transition:opacity 1.4s ease!important}
+/* (going down: the HUD fades away, all but the arena's score, kill feed, results and scoreboard) */
+body.dying .hud:not(#pvpRes,#pvpTop,#pvpFeed,#pvpBan,#pvpPick,#pvpToast,#pvpCount,#pvpBoard,#pvpDmgCard),body.dying #xh,body.dying #ammoWarn,body.dying #scrim{opacity:0!important;transition:opacity 1.4s ease!important}
 body.dying #c{cursor:default}
 #dead:not([hidden]){animation:deadIn 1.6s ease both}
 @keyframes deadIn{from{opacity:0}}

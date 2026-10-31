@@ -37,7 +37,8 @@ import { SET, setOpen } from '../ui/settings.js';
 import { DC } from '../ui/screens.js';
 import { camFocus, spectating } from '../net/spectate.js';
 import { CEIL, inHouseRect } from '../world/house.js';
-import { pvpPicking } from '../pvp/pvp.js';
+import { pvpKiller, pvpPicking } from '../pvp/pvp.js';
+import { los } from '../lighting/lightmap.js';
 
 // mode: the view picked; on: the one in use this frame (the isometric one on the menus and when you're down)
 export const VCAM = { mode: 'iso', on: 'iso', yaw: Math.PI, pitch: 0, aimY: GUN_Y, aimD: 26 };   // (aimD: how far down your line of sight it meets something, metres: ui/crosshair.js)
@@ -966,11 +967,15 @@ const DEATH_FP = { t: 2.4, back: 2.6, up: 2.3, side: 0.9, fov: 60 };
 const QUIT_RISE = { up: 0.45, wait: 0.2 };
 // (indoors: how far under the ceiling it stops, how far short of a wall, and the least it draws back)
 const DEATH_IN = { ceil: 0.3, wall: 0.3, min: 0.4 };
-const DFP = { on: false, t: 0, p: new V3(), q: new THREE.Quaternion(), fov: 75, yaw: 0 }, _dfT = new V3(), _dfP = new V3(), _dfM = new THREE.Matrix4(), _dfQ = new THREE.Quaternion();
+const DFP = { on: false, t: 0, p: new V3(), q: new THREE.Quaternion(), fov: 75, yaw: 0, kc: false, kp: new V3() }, _dfT = new V3(), _dfP = new V3(), _dfM = new THREE.Matrix4(), _dfQ = new THREE.Quaternion();
 function fpDeathCam(rdt, c) {
-  if (!DFP.on) { DFP.on = true; DFP.t = 0; DFP.p.copy(c.position); DFP.q.copy(c.quaternion); DFP.fov = c.fov; DFP.yaw = VCAM.yaw; }
+  if (!DFP.on) { DFP.on = true; DFP.t = 0; DFP.p.copy(c.position); DFP.q.copy(c.quaternion); DFP.fov = c.fov; DFP.yaw = VCAM.yaw; DFP.kc = false; }
   DFP.t += rdt; const k = smooth(clamp(DFP.t / DEATH_FP.t, 0, 1)), y = DFP.yaw;
   PM.torso.getWorldPosition(_dfT);
+  // in the arena, once you've seen yourself drop, over to whoever did it: behind them from your side, a little above,
+  // following them about (KILL_CAM: when it goes, how far back and up, how quick it follows)
+  const K = pvpKiller();
+  if (K && K.av && DFP.t > KILL_CAM.at) { killCam(rdt, c, K.av.g.position); return; }
   // (behind and above where you were facing, a little off to one side)
   _dfP.set(_dfT.x - Math.sin(y) * DEATH_FP.back + Math.cos(y) * DEATH_FP.side, _dfT.y + DEATH_FP.up, _dfT.z - Math.cos(y) * DEATH_FP.back - Math.sin(y) * DEATH_FP.side);
   // (indoors, under the ceiling and short of the walls: it'd rise through the roof and back through a wall, DEATH_IN)
@@ -994,6 +999,17 @@ function fpDeathCam(rdt, c) {
   const fov = DFP.fov + (DEATH_FP.fov - DFP.fov) * k; if (Math.abs(c.fov - fov) > 0.01) { c.fov = fov; c.updateProjectionMatrix(); }
 }
 const _dfV = new V3();
+const KILL_CAM = { at: 0.9, back: 3.4, up: 2.2, side: 0.9, follow: 3, fov: 62 }, _kcT = new V3(), _kcW = new V3();
+function killCam(rdt, c, g) {
+  const dx = _dfT.x - g.x, dz = _dfT.z - g.z, L = Math.hypot(dx, dz) || 1, ux = dx / L, uz = dz / L;
+  let r = KILL_CAM.back; while (r > 0.9 && !los(g.x, g.z, g.x + ux * r - uz * KILL_CAM.side, g.z + uz * r + ux * KILL_CAM.side)) r -= 0.3;   // (short of a wall behind them)
+  _kcW.set(g.x + ux * r - uz * KILL_CAM.side, KILL_CAM.up, g.z + uz * r + ux * KILL_CAM.side); _kcT.set(g.x, 1.2, g.z);
+  if (!DFP.kc) { DFP.kc = true; DFP.kp.copy(c.position); }
+  const f = 1 - Math.exp(-rdt * KILL_CAM.follow);
+  DFP.kp.lerp(_kcW, f); c.position.copy(DFP.kp); PM.head.visible = true;
+  _dfM.lookAt(c.position, _kcT, _dfV.set(0, 1, 0)); _dfQ.setFromRotationMatrix(_dfM); c.quaternion.slerp(_dfQ, Math.min(1, f * 1.6));
+  const fov = c.fov + (KILL_CAM.fov - c.fov) * f; if (Math.abs(c.fov - fov) > 0.01) { c.fov = fov; c.updateProjectionMatrix(); }
+}
 // each frame, from game/camera.js: the view in use, then the camera placed. roll: the springs' tip (a shot, a hit, a
 // vault), sh: the shake
 // (MELEE_CAM) the swing's tip and pitch, from how fast the weapon's head is going across you and up or down (MS: its fist

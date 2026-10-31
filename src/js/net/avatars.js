@@ -241,6 +241,15 @@ NET_ON.p = m => {
   if (m.lk && m.lk !== (p.av ? p.av.lk : p.lk) && performance.now() - (p.loAsk || 0) > 1000) { p.loAsk = performance.now(); netTo(m.f, 'loq', {}); }
   p.tgt = m.j; p.poseAt = performance.now();
 };
+// someone on the other side, under your aim: from your own eyes within FOE_TAG.ang of the middle of the view (more,
+// close up), from above your crosshair on the ground within FOE_TAG.near of them; and nothing between you
+const FOE_TAG = { ang: 0.08, near: 1.4, col: '#e2563f', op: 0.72 }, _ftC = new V3(), _ftD = new V3(), _ftH = new V3();
+function foeEyed(a) {
+  const g = a.g.position, F = camFocus(); if (!los(F.x, F.z, g.x, g.z)) return false;
+  if (!fpOn()) return Math.hypot(aimPt.x - g.x, aimPt.z - g.z) < FOE_TAG.near;
+  cam.getWorldPosition(_ftC); cam.getWorldDirection(_ftD); a.head.getWorldPosition(_ftH); _ftH.y -= 0.35; _ftH.sub(_ftC);
+  const d = _ftH.length() || 1; return Math.acos(clamp(_ftH.dot(_ftD) / d, -1, 1)) < FOE_TAG.ang + 0.35 / d;
+}
 // every frame: each teammate's survivor eased toward their last pose, their name over them
 const _tagV = new V3(), TAG_GONE = { stay: 2.5, fade: 1.5 };
 export function updateAvatars(rdt) {
@@ -270,7 +279,7 @@ export function updateAvatars(rdt) {
     // down, they go down as a ragdoll here as they did on their own screen (player/player-ragdoll.js), thrown on the way
     // they were going and a little off their facing, and lie where they fell; up again, their pose takes over
     if (p.dead && !a.rag) { POSE_K.forEach((key, n) => set(a[key], n)); a.g.updateMatrixWorld(true); const f = c[4] || 0, s = rr(-0.6, 0.6); a.rag = survivorRagdoll(a, a.g.position.x, a.g.position.z, f, p.vx, p.vz, -Math.sin(f + s), -Math.cos(f + s), null); }
-    else if (!p.dead && a.rag) { endSurvivorRagdoll(a.rag); a.rag = null; a.headGone = false; }
+    else if (!p.dead && a.rag) { endSurvivorRagdoll(a.rag); a.rag = null; a.headGone = false; ['armL', 'armR', 'legL', 'legR'].forEach(k => { if (a[k]) a[k].visible = true; }); }   // (up again, whole: a limb taken off going down, pvp/pvp.js)
     if (a.rag) stepRagdoll(a.rag, rdt);
     else POSE_K.forEach((key, n) => set(a[key], n));
     arsenalFrame(p, a, rdt);   // their weapons (net/arsenal.js)
@@ -301,15 +310,15 @@ export function updateAvatars(rdt) {
     // over the body till the next wave (TAG_GONE: how long it stays, how long it takes to go)
     a.deadT = p.dead ? (a.deadT || 0) + rdt : 0;
     const tg = 1 - smooth(clamp((a.deadT - TAG_GONE.stay) / TAG_GONE.fade, 0, 1));
-    // (none over the one whose eyes you're watching from; and someone on the other side, only while you see them: in
-    // plain sight of you (or the teammate you're watching) and on your screen, never as an arrow at its edge)
-    const F = camFocus(), hideFoe = pvpFoe(p) && (!a.seen || !inView || (!p.dead && !los(F.x, F.z, a.g.position.x, a.g.position.z)));
-    const tgo = a.fvc || hideFoe ? 0 : tg;
+    // (none over the one whose eyes you're watching from; and in the arena someone on the other side's only while you're
+    // aiming at them or looking right at them, in plain sight, red and a little see-through: foeEyed)
+    const hideFoe = foe && (p.dead || !inView || !foeEyed(a));
+    const tgo = a.fvc || hideFoe ? 0 : foe ? FOE_TAG.op : tg;
     if (a.tagO !== tgo) { a.tagO = tgo; a.tag.style.opacity = tgo; }
     a.tag.style.transform = `translate(${tx.toFixed(1)}px,${ty.toFixed(1)}px)`;
     const hk = clamp((p.hp ?? 100) / (p.maxHp || 100), 0, 1); if (a.hk !== hk) { a.hk = hk; a.tagBar.style.transform = `scaleX(${hk.toFixed(3)})`; }
     // in the arena a name in its side's colour, and nothing of how hurt someone on the other side is (pvp/pvp.js)
-    { const pc = PVP.on ? pvpCol(p.id) : NET_COL[p.idx] || '#888', foe = pvpFoe(p); if (a.pc !== pc) { a.pc = pc; a.tag.style.setProperty('--pc', pc); } if (a.foeTag !== foe) { a.foeTag = foe; a.tag.classList.toggle('foe', foe); } }
+    { const pc = PVP.on ? (pvpFoe(p) ? FOE_TAG.col : pvpCol(p.id)) : NET_COL[p.idx] || '#888', foe = pvpFoe(p); if (a.pc !== pc) { a.pc = pc; a.tag.style.setProperty('--pc', pc); } if (a.foeTag !== foe) { a.foeTag = foe; a.tag.classList.toggle('foe', foe); } }
   }
 }
 // ---- their shots: what your own would show, from where they stand

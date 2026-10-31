@@ -32,7 +32,7 @@ import { hudMag, renderRounds } from './rounds.js';
 import { renderMeleeArt } from './melee-art.js';
 import { ANIM, hurtFace } from '../player/animation.js';
 import { spectating } from '../net/spectate.js';
-import { PVP, pvpGrey } from '../pvp/pvp.js';
+import { PVP, pvpBlur, pvpGrey } from '../pvp/pvp.js';
 
 // health, ECG, ammo, weapon name, moodles, slots, screen tints
 // a fresh run's max health: anything over it on the bar is bonus health, in its own colour
@@ -71,7 +71,7 @@ export function updateHUD(rdt, D) {
     { const rt = spec ? 0 : Math.round(clamp((0.4 - hpF) / 0.3, 0, 1) * LOW_HP.red * 40) / 40; if (cache.redTint !== rt) { cache.redTint = rt; $('lowTint').style.opacity = rt; } }
     const near = spec || P.dead ? 0 : Math.round(smooth(clamp((NEAR_DEATH.from - hpF) / (NEAR_DEATH.from - NEAR_DEATH.to), 0, 1)) * 40) / 40;
     { const v = near ? near * NEAR_DEATH.vig * (1 - NEAR_DEATH.breath + NEAR_DEATH.breath * Math.sin(performance.now() / 1100)) : 0, vk = Math.round(v * 60) / 60; if (cache.nearVig !== vk) { cache.nearVig = vk; $('nearVig').style.opacity = vk; } }
-    const pg = Math.round(pvpGrey() * 60) / 60, shk = spec ? 0 : Math.round(smooth(clamp(P.shock || 0, 0, 1)) * 40) / 40, blur = Math.round(Math.max((P.conc || 0) * 2.6, shk * SHOCK_FX.blur) * 10) / 10, slow = Math.round(clamp((1 - timeScale) / 0.75, 0, 1) * 60) / 60, dz = P.dead && !spec ? 1 : 0, fk = grey + ':' + blur + ':' + slow + ':' + near + ':' + dz + ':' + shk + ':' + pg;
+    const pg = Math.round(pvpGrey() * 60) / 60, shk = spec ? 0 : Math.round(smooth(clamp(P.shock || 0, 0, 1)) * 40) / 40, blur = Math.round(Math.max((P.conc || 0) * 2.6, shk * SHOCK_FX.blur, smooth(pvpBlur()) * SHOVE_BLUR) * 10) / 10, slow = Math.round(clamp((1 - timeScale) / 0.75, 0, 1) * 60) / 60, dz = P.dead && !spec ? 1 : 0, fk = grey + ':' + blur + ':' + slow + ':' + near + ':' + dz + ':' + shk + ':' + pg;
     if (cache.grey !== fk) {
       cache.grey = fk;
       cv.style.filter = (pg ? `saturate(${(1 - pg * 0.92).toFixed(3)}) contrast(${(1 + pg * 0.06).toFixed(3)}) ` : '') + (shk ? `saturate(${(1 - shk * SHOCK_FX.grey).toFixed(2)}) ` : '') + (grey ? `grayscale(${grey.toFixed(2)}) brightness(${(1 + grey * LOW_HP.bright).toFixed(2)}) contrast(${(1 + grey * 0.05).toFixed(2)}) ` : '') + (blur ? `blur(${blur}px) brightness(${(1 + blur * 0.06).toFixed(2)}) ` : '') + (slow ? `saturate(${(1 - slow * 0.4).toFixed(2)}) contrast(${(1 + slow * 0.08).toFixed(2)}) hue-rotate(${(-slow * 6).toFixed(1)}deg)` : '');
@@ -169,6 +169,8 @@ const LOW_HP = { grey: [0.55, 0.12], bright: 0.24, red: 0.5, pulse: [0.1, 0.04] 
 const NEAR_DEATH = { from: 0.25, to: 0.04, lp: 4200, vig: 0.75, breath: 0.12 };
 // a volatile's shell-shock (P.shock, 1 fading to none): how hard it blurs the view (px) and drains its colour (of all of it)
 const SHOCK_FX = { blur: 5, grey: 0.85 };
+// a shove in the arena: the most it blurs your view (px), easing off over its second (pvp/pvp.js)
+const SHOVE_BLUR = 3.5;
 const DEATH_LP = 650;   // how dull and far off it all sounds while you lie there (ui/screens.js: the death camera)
 const BLEED_PULSE = 1.5;   // seconds per throb of the bleeding edge: slow and heavy, whatever your heart is doing
 // the side a blow came from, for the red flash and the blur on that side

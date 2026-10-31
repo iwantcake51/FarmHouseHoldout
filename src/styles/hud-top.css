@@ -59,5 +59,5 @@
 @keyframes moodIn{from{opacity:0;transform:translateX(10px)}}
 #scrim{transition:opacity 1.4s ease}
 /* looking your gun over from your own eyes (player/inspect.js): the whole HUD and the crosshair put away, back the
-   moment you stop (from above it all stays) */
-body.fpView.inspecting .hud:not(#station), body.fpView.inspecting #xh { opacity: 0 !important; pointer-events: none; transition: opacity 0.35s ease !important; }
+   moment you stop (from above it all stays); the arena's count-in, score, kill feed, results and scoreboard stay up */
+body.fpView.inspecting .hud:not(#station, #pvpCount, #pvpRes, #pvpBoard, #pvpTop, #pvpFeed, #pvpBan, #pvpPick, #pvpDmgCard), body.fpView.inspecting #xh { opacity: 0 !important; pointer-events: none; transition: opacity 0.35s ease !important; }
