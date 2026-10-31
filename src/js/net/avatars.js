@@ -322,7 +322,10 @@ export function updateAvatars(rdt) {
     }
     if (PVP.on && !a.stain) { a.stain = stainZombie(a); a.stain.b = 0; }
     // (in the arena, the blood on them as much as they're hurt: pvp/pvp.js PVP_BLOOD)
-    if (a.stain) { a.stain.b = PVP.on && !p.dead ? PVP_BLOOD * clamp(1 - (p.hp ?? 100) / (p.maxHp || 100), 0, 1) : PVP.on ? a.stain.b : 0; updateZombieStain(a.stain, rdt, rdt); } if (a.xr) { a.cvK = coverFromCam(a.g.position.x, a.g.position.z) ? 1 : Math.max(0, (a.cvK || 0) - rdt * 4); const xo = !p.dead && isoOn() && (pvpMate(p) || ((!foe || a.seen) && a.cvK > 0));   /* (a teammate in the arena: their shape through any wall from above while they're up, gone the moment they're down; from your own eyes their outline's line instead, above) */   /* (someone on the other side only while you can see where they stand: hidden from the camera alone, not from you) */ a.xr.rim.visible = a.xr.fill.visible = xo; if (a.xr.sil) a.xr.sil.visible = xo; }   // (down, no outline round them or through walls; through walls only from above, as zombies are, and only with something in the way: coverFromCam)
+    if (a.stain) { a.stain.b = PVP.on && !p.dead ? PVP_BLOOD * clamp(1 - (p.hp ?? 100) / (p.maxHp || 100), 0, 1) : PVP.on ? a.stain.b : 0; updateZombieStain(a.stain, rdt, rdt); }
+    // (someone on the other side shown through cover from above: in red, whoever they are; a teammate in their own colour)
+    if (a.xr && a.xrFoe !== foe) { a.xrFoe = foe; const c = foe ? FOE_TAG.col : NET_COL[p.idx] || '#888'; a.xr.rim.color.set(c); if (a.xr.sil) a.xr.sil.color.set(c); }
+    if (a.xr) { a.cvK = coverFromCam(a.g.position.x, a.g.position.z) ? 1 : Math.max(0, (a.cvK || 0) - rdt * 4); const xo = !p.dead && isoOn() && (pvpMate(p) || ((!foe || a.seen) && a.cvK > 0));   /* (a teammate in the arena: their shape through any wall from above while they're up, gone the moment they're down; from your own eyes their outline's line instead, above) */   /* (someone on the other side only while you can see where they stand: hidden from the camera alone, not from you) */ a.xr.rim.visible = a.xr.fill.visible = xo; if (a.xr.sil) a.xr.sil.visible = xo; }   // (down, no outline round them or through walls; through walls only from above, as zombies are, and only with something in the way: coverFromCam)
     const k = 1 - Math.exp(-rdt * 16), first = !a.cur;
     if (first) a.cur = t.slice();
     const c = a.cur;
@@ -382,7 +385,7 @@ export function updateAvatars(rdt) {
     a.tag.style.transform = `translate(${tx.toFixed(1)}px,${ty.toFixed(1)}px)`;
     const hk = clamp((p.hp ?? 100) / (p.maxHp || 100), 0, 1); if (a.hk !== hk) { a.hk = hk; a.tagBar.style.transform = `scaleX(${hk.toFixed(3)})`; }
     // in the arena a name in its side's colour, and nothing of how hurt someone on the other side is (pvp/pvp.js)
-    { const pc = PVP.on ? (pvpFoe(p) ? FOE_TAG.col : pvpCol(p.id)) : NET_COL[p.idx] || '#888', foe = pvpFoe(p); if (a.pc !== pc) { a.pc = pc; a.tag.style.setProperty('--pc', pc); } if (a.foeTag !== foe) { a.foeTag = foe; a.tag.classList.toggle('foe', foe); } }
+    { const pc = PVP.on ? (pvpFoe(p) ? FOE_TAG.col : pvpCol(p.id)) : NET_COL[p.idx] || '#888', foe = pvpFoe(p); if (a.pc !== pc) { a.pc = pc; a.tag.style.setProperty('--pc', pc); a.tag.style.setProperty('--dc', PVP.on && !foe ? NET_COL[p.idx] || '#888' : pc); } if (a.foeTag !== foe) { a.foeTag = foe; a.tag.classList.toggle('foe', foe); } }
   }
 }
 // ---- their shots: what your own would show, from where they stand

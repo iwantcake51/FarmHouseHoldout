@@ -184,7 +184,10 @@ function cineRun() {
 // to the title: a dip to black, and the menu comes in piece by piece as it lifts
 export function leaveToMenu() { switchScreens(true, () => { backToMenu(); $('title').classList.add('arrive'); }); }
 // the pause screen fades in and out instead of snapping
-export function pauseRun() { if (state !== 'play' || P.dead || switching) return; $('quitBtn').hidden = netLink(); setState('paused'); }   // (in co-op the farm goes on while you're paused, and there's no abandoning it for the others)
+export function pauseRun() { if (state !== 'play' || P.dead || switching) return; $('quitBtn').hidden = END_GAME.can ? !END_GAME.can() : netLink(); setState('paused'); }   // (in co-op the farm goes on while you're paused, and there's no ending it for the others; in the arena only the host can end it, for everyone)
+// ending the game from the pause screen: a run ends where it stands and goes to its tally; in the arena (pvp/pvp.js
+// sets these) the match ends for everyone and goes to its results
+export const END_GAME = { can: null, go: null };
 export function resumeRun() {
   const el = $('paused'); if (state !== 'paused' || switching || el.classList.contains('closing')) return;
   cancelLeave();
@@ -198,7 +201,7 @@ $('menuBtn').onclick = leaveToMenu;
 // that puts them back
 const P_SURE = {
   menu: { q: 'Leave for the main menu? This run will be lost.', yes: 'Leave run', go: () => { saveBest(); if (netLink()) netLeave(); leaveToMenu(); } },
-  quit: { q: 'Abandon this run? It ends here, as if you fell.', yes: 'Abandon', go: () => { quitPull(); die(); } }   // (from your own eyes, the view drawn back out over you: game/view-cam.js)
+  quit: { q: 'End the game here and go to the end screen?', yes: 'End game', go: () => { if (END_GAME.go && END_GAME.go()) return; quitPull(); die(); } }   // (from your own eyes, the view drawn back out over you: game/view-cam.js)
 };
 let pSure = null;
 function askLeave(k) { pSure = k; $('pSureQ').textContent = P_SURE[k].q; $('pSureYes').textContent = P_SURE[k].yes; $('pBtns').hidden = true; $('pSure').hidden = false; $('pSureNo').focus({ preventScroll: true }); }

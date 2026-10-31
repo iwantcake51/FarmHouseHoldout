@@ -23,7 +23,7 @@
 .lmView button svg{width:15px;height:15px;fill:currentColor}
 .lmView button:hover{background:rgba(236,230,216,.08);color:var(--ink)}
 .lmView button.on{color:var(--orange)}
-.lmSide{display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;grid-template-columns:minmax(0,1fr);min-height:0;min-width:0}
+.lmSide{display:grid;grid-template-rows:auto auto auto minmax(0,1fr) auto;grid-template-columns:minmax(0,1fr);min-height:0;min-width:0}
 .lmTopR{display:flex;align-items:center;gap:10px}
 .lmTop{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:20px 20px 12px}
 .lmHead h3{margin:0;font:800 30px/1 var(--f-num);text-transform:uppercase;letter-spacing:.01em;color:var(--ink)}
@@ -31,13 +31,41 @@
 /* the parts of you: one row of tabs, the picked one lit */
 /* (all on one row: it scrolls sideways when they don't fit, faded at its ends, the picked one kept in view; the arrow
    keys or Q and E step through them) */
-.lmTabs{display:flex;flex-wrap:nowrap;gap:4px;padding:0 20px 12px;border-bottom:1px solid rgba(236,230,216,.07);overflow-x:auto;scrollbar-width:none;
+/* (the wheel runs it along too, and the mouse can drag it: ui/look-menu.js sideScroll; a thin bar under it shows there's
+   more, and can be dragged itself) */
+.lmTabs,.lmSlotList{overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scrollbar-color:rgba(236,230,216,.2) transparent;overscroll-behavior-x:contain}
+.lmTabs::-webkit-scrollbar,.lmSlotList::-webkit-scrollbar{height:4px}
+.lmTabs::-webkit-scrollbar-thumb,.lmSlotList::-webkit-scrollbar-thumb{background:rgba(236,230,216,.2);border-radius:2px}
+.lmTabs.drag,.lmSlotList.drag{cursor:grabbing;scroll-behavior:auto}
+.lmTabs.drag button,.lmSlotList.drag button{pointer-events:none}
+.lmTabs{display:flex;flex-wrap:nowrap;gap:4px;padding:0 20px 10px;border-bottom:1px solid rgba(236,230,216,.07);
   -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 18px,#000 calc(100% - 18px),transparent);mask-image:linear-gradient(90deg,transparent 0,#000 18px,#000 calc(100% - 18px),transparent)}
-.lmTabs::-webkit-scrollbar{display:none}
 .lmTabs button{flex:none;display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border:1px solid rgba(236,230,216,.12);border-radius:999px;background:rgba(236,230,216,.04);color:var(--dim);font:600 11.5px var(--f-ui);cursor:pointer;transition:background .15s,color .15s,border-color .15s}
 .lmTabs button:hover{color:var(--ink);border-color:rgba(var(--acc),.5)}
 .lmTabs button.on{color:#1a120c;background:var(--orange);border-color:var(--orange)}
 .lmTabs button .chIco{width:10px;height:10px;fill:currentColor;opacity:.8}
+/* the survivors you've saved: a chip each along a row of their own over the tabs, the one you're in lit with its name to
+   type over (a dot on it while it's changed since it was saved), + New at the end; Save and the cross to the right */
+.lmSlots{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:0 20px 10px}
+.lmSlotList{display:flex;flex-wrap:nowrap;gap:4px;padding-bottom:4px;min-width:0}
+.lmSlot{flex:none;display:inline-flex;align-items:center;max-width:170px;height:28px;padding:0 10px;border:1px dashed rgba(236,230,216,.2);border-radius:6px;background:transparent;color:var(--dim);
+  font:600 11.5px var(--f-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+button.lmSlot{display:block;line-height:26px}
+.lmSlot:hover{color:var(--ink);border-color:rgba(var(--acc),.55)}
+.lmSlot.on{position:relative;padding:0 18px 0 0;border:1px solid rgba(var(--acc),.75);background:rgba(var(--acc),.12);cursor:text}
+.lmSlot.on input{width:13ch;min-width:0;height:100%;padding:0 0 0 10px;border:0;outline:none;background:transparent;color:var(--ink);font:600 11.5px var(--f-ui);user-select:text;-webkit-user-select:text}
+.lmSlot.on::after{content:"";position:absolute;right:8px;top:50%;width:6px;height:6px;margin-top:-3px;border-radius:50%;background:#6fd07a;box-shadow:0 0 6px rgba(111,208,122,.6)}
+.lmSlot.on.dirty::after{background:var(--orange);box-shadow:0 0 6px rgba(var(--acc),.6)}
+.lmSlot.on:focus-within{background:rgba(var(--acc),.2)}
+.lmSlot.add{border-style:solid;border-color:rgba(236,230,216,.12);background:rgba(236,230,216,.04)}
+.lmSlotActs{display:flex;align-items:center;gap:4px;padding-bottom:4px}
+.lmSlotActs:empty{display:none}
+.lmSlotSave{height:28px;padding:0 11px;border:1px solid rgba(var(--acc),.7);border-radius:6px;background:rgba(var(--acc),.16);color:var(--ink);font:700 11.5px var(--f-ui);cursor:pointer;transition:background .15s,opacity .15s}
+.lmSlotSave:hover:not(:disabled){background:rgba(var(--acc),.3)}
+.lmSlotSave:disabled{opacity:.4;border-color:rgba(236,230,216,.14);background:transparent;cursor:default}
+.lmSlotDel{width:28px;height:28px}
+.lmSlotDel svg{width:12px;height:12px}
+.lmSlotDel.arm{color:#fff;background:#b8352a;border-color:#b8352a}
 .lmBody{overflow-y:auto;overflow-x:hidden;padding:14px 20px 16px;overscroll-behavior:contain;scrollbar-gutter:stable}   /* (the game's own scrollbar: styles/base.css) */
 .lmBody .chLook,.lmBody>.chLkG+.chLkG{margin-top:8px}
 .lmBody>.chLkG{margin-bottom:8px}

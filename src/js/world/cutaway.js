@@ -3,7 +3,9 @@
 import { cam, renderScale, YAW, zoom } from '../core/renderer.js';
 import { clamp, smooth } from '../core/math.js';
 import { LMU, TREE_CUT } from '../core/shaders.js';
-import { ci, idx, inb } from './grid.js';
+import { cell, ci, idx, inb, OBST } from './grid.js';
+import { lowObst } from './props.js';
+import { ARENA } from './arena.js';
 import { ceilG, HOUSE, HOUSE_FP, inHouseRect, porchRoof, roof, stepPaint, walls } from './house.js';
 import { IW_LINES, updateDoors } from './interior.js';
 import { TREES } from './trees.js';
@@ -14,7 +16,10 @@ import { isoOn } from '../game/view-cam.js';
 import { projV } from '../ui/crosshair.js';
 import { camFocus } from '../net/spectate.js';
 
-const TOWARD_CAM = { x: Math.sin(YAW), z: Math.cos(YAW) };   // flat direction from the scene toward the camera
+const TOWARD_CAM = { x: Math.sin(YAW), z: Math.cos(YAW) };
+// the arena's tall cover dithered away round you from above: looked for this far toward the camera (m), and this far
+// either side of that line (m)
+const ARENA_CUT = { far: 4.5, wide: 0.55 };   // flat direction from the scene toward the camera
 const SQ = Math.SQRT1_2;
 // a wall face (f: which way it looks, N S W E; at: the line of the wall cells it's on) fades only if the line from you (F:
 // or the teammate you're watching) toward the camera actually passes through it
@@ -88,6 +93,11 @@ export function updateCutaway(rdt) {
       const vx = t.x - F.x, vz = t.z - F.z, along = vx * TOWARD_CAM.x + vz * TOWARD_CAM.z;
       if (along < -0.4 || along > 5.2 * t.s) continue;
       if (Math.abs(vx * TOWARD_CAM.z - vz * TOWARD_CAM.x) < 1.25 * t.s) { want = 1; break; }
+    }
+    // (and in the arena, any of its tall cover between you and the camera: world/arena.js)
+    if (!want && state !== 'title' && isoOn() && ARENA.on) for (let t = 0.4; t < ARENA_CUT.far && !want; t += 0.25) for (const o of [-ARENA_CUT.wide, 0, ARENA_CUT.wide]) {
+      const i = ci(F.x + TOWARD_CAM.x * t + TOWARD_CAM.z * o), j = ci(F.z + TOWARD_CAM.z * t - TOWARD_CAM.x * o);
+      if (inb(i, j) && cell[idx(i, j)] === OBST && !lowObst.has(idx(i, j))) { want = 1; break; }
     }
     TREE_CUT.value += (want - TREE_CUT.value) * Math.min(1, rdt * 6); if (Math.abs(want - TREE_CUT.value) < 0.003) TREE_CUT.value = want;
   }

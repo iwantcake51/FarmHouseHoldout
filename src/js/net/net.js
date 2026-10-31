@@ -296,8 +296,7 @@ NET_ON.rmode = m => { if (NET.host || !RUN_MODES.includes(m.rm)) return; if (NET
 NET_ON.view = m => { if (NET.host || (m.view !== 'iso' && m.view !== 'fp')) return; if (NET.view !== m.view) chatSys('The host set the view to ' + (m.view === 'fp' ? 'first person' : 'isometric')); NET.view = m.view; lobbyRender(); };
 NET_ON.bye = m => { if (m.f === NET.hostId && !NET.host) netLost('The host closed the game'); else netGone(m.f, 'left'); };
 NET_ON.name = m => { const p = NET.peers.get(m.f); if (p) { p.name = String(m.name || 'Survivor').slice(0, 16); lobbyRender(); } };
-// a joiner who's changed how they look in the Character menu while waiting: their seat's picture with it
-NET_ON.look = m => { const p = NET.peers.get(m.f); if (p && m.look && typeof m.look === 'object') { p.look = m.look; lobbyRender(); } };
+// (someone's new look, in the lobby or the run: net/sync.js)
 NET_ON.beat = () => {};
 // the host starts the run for everyone
 export function netStart() {

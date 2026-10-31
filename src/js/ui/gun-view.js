@@ -9,6 +9,7 @@ import { clamp } from '../core/math.js';
 import { binModel, BLOB_TEX } from '../core/geometry.js';
 import { PM } from '../player/player.js';
 import { bareLook } from '../player/gear.js';
+import { bareBack } from '../player/stow.js';
 import { ARM_THIN, ARM_X } from '../player/hold.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { modLv } from '../weapons/mod-levels.js';
@@ -162,7 +163,8 @@ export function showFigure(key, fresh, gear, easy, room = 1) {
     figPart.clear();
     // (in first person your head's hidden: game/view-cam.js; the copy has it as ever)
     const hv = PM.head.visible; PM.head.visible = true;
-    const copy = () => { PM.g.updateMatrixWorld(true); return copyPlain(PM.g); }, c = gear ? copy() : bareLook(copy); PM.head.visible = hv;
+    // (and the pack as it's shown in here: no planks on it, the melee weapon snug across it, player/stow.js bareBack)
+    const copy = () => { PM.g.updateMatrixWorld(true); return copyPlain(PM.g); }, c = bareBack(() => gear ? copy() : bareLook(copy)); PM.head.visible = hv;
     c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); if (easy) standEasy(); gvPivot.add(c); gvModel = c; gvSig = '';
     c.updateMatrixWorld(true);
   }

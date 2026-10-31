@@ -18,7 +18,9 @@ import { lightsDirty, setLightsDirty, shutN } from '../barricades/planks.js';
 import { vaultHold } from '../player/vaulting.js';
 import { lmT, setLmT, state, worldT } from '../game/state.js';
 import { muzzle } from '../weapons/firing.js';
-import { STATIC_LIGHTS } from './static-lights.js';
+import { LAMP_ON, STATIC_LIGHTS } from './static-lights.js';
+// how dark it has to get for the arena's floodlights to start coming on, and to be full on
+const LAMP_DARK = [0.2, 0.5];
 import { amb, curDark, setLitHere } from './day-night.js';
 import { computeVision } from './vision.js';
 import { spitLights } from '../zombies/spitter.js';
@@ -83,7 +85,9 @@ function computeLight() {
   for (let k = 0; k < FNN; k++) { lmTgt[k * 3] = amb[0]; lmTgt[k * 3 + 1] = amb[1]; lmTgt[k * 3 + 2] = amb[2]; }
   if (lightsDirty) { setLightsDirty(false); STATIC_LIGHTS.forEach(L => { if (!L.fill && !L.spill) L.field = lightField(L.x, L.z, L.r, L.cone, true); }); }
   const fl = 0.85 + Math.sin(worldT * 11.1) * 0.08 + 0.035 + Math.sin(worldT * 37.3) * 0.02 + Math.sin(worldT * 23.9) * 0.015;   // fire flicker on the world clock
+  LAMP_ON.k = smooth(clamp((dark - LAMP_DARK[0]) / (LAMP_DARK[1] - LAMP_DARK[0]), 0, 1));   // (the arena's floods come on only as it gets dark)
   STATIC_LIGHTS.forEach(L => {
+    if (L.arena) { if (LAMP_ON.k > 0.001) addField(L.field, L.int * LAMP_ON.k, L.col); return; }
     if (L.spill) { const b = shutN(L.spill); if (b < 2) addField(L.field, L.int * (b ? 0.4 : 1) * (0.08 + 0.92 * dark), L.col); return; }
     addField(L.field, L.int * (L.inside ? 0.55 + 0.6 * dark : 0.15 + 0.85 * dark) * (L.flicker ? fl : 1), L.col);
   });

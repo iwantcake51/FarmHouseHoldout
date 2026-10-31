@@ -188,7 +188,7 @@ export function barrelFree(lat, L) {
 // muzzle position in the world, and the angle from it to the cursor so shots and the laser meet under the crosshair; a
 // gun pushed back off something in front of you fires from just short of it (ANIM.barrel, from gunPush; each of a
 // pair from its own, ANIM.barrelS)
-const TR_ADS = { ads: 0.5, out: 0.7 }, _trO = new V3();
+const TR_ADS = { ads: 0.5, out: 0.7 }, _trO = new V3(), _eyeW = new V3();
 export function muzzle(sideSign) {
   const D = W(curId()), ak = !!(D && D.akimbo), sg = sideSign || W8.akSide, sx = ak ? AKX * sg : X;
   const bar = ak && ANIM.barrelS ? ANIM.barrelS[sg < 0 ? 'L' : 'R'] : ANIM.barrel, m = Math.max(0.15, Math.min(MUZ[W8.cur] || 0.9, (bar ?? Infinity) - BARREL.clear));
@@ -336,7 +336,11 @@ export function gunFire(id, D, side) {
   // goes to it from the muzzle: so it leaves along the barrel as the kick has it, closing on the crosshair just as it
   // does at rest, however far the kick has lifted the muzzle as well as turned it
   const fpo = fpOn() && !D.akimbo && hasMouse ? shotOff() : null, fpT = fpo ? shotPt(fpo) : null;
-  const { ox, oz, a: base0 } = muzzle(), base = fpT && Math.hypot(fpT.x - ox, fpT.z - oz) > 0.05 ? Math.atan2(fpT.x - ox, fpT.z - oz) : base0;
+  // (and from your own eyes it flies from your eye, the line you're looking down, not up from the bore below it: no
+  // height over the bore, so what the crosshair or the scope's on is what it hits, over the top of cover as well; the
+  // tracer still leaves the gun)
+  const eyeShot = fpOn() && !D.akimbo, M = muzzle(), eyeW = eyeShot ? FP_CAM.getWorldPosition(_eyeW) : null, ox = eyeShot ? eyeW.x : M.ox, oz = eyeShot ? eyeW.z : M.oz;
+  const base0 = eyeShot ? (Math.hypot(aimPt.x - ox, aimPt.z - oz) > 0.05 ? Math.atan2(aimPt.x - ox, aimPt.z - oz) : P.aim) : M.a, base = fpT && Math.hypot(fpT.x - ox, fpT.z - oz) > 0.05 ? Math.atan2(fpT.x - ox, fpT.z - oz) : base0;
   const mw = muzzleWorld().clone();
   // where its tracer starts: the muzzle from the hip; down the sights from your own eyes, your line of sight just out
   // past the front sight, so the round leaves from the middle of the screen, where you're aiming (TR_ADS)
@@ -384,7 +388,7 @@ export function gunFire(id, D, side) {
     // all if it passes over; what it misses doesn't use up a pierce
     // (in first person every zombie on its way is met at its height: a round over one's head goes over it, game/view-cam.js;
     // and the round flies the line you looked down, up into the sky or down into the ground, where it stops: gndT)
-    const fp = fpOn(), y0 = mw.y;
+    const fp = fpOn(), y0 = eyeShot ? eyeW.y : mw.y;
     let slope = tgt ? (tgt.y - y0) / Math.max(0.5, tgtT) : fpT ? (fpT.y - y0) / Math.max(0.05, Math.hypot(fpT.x - ox, fpT.z - oz)) : ((ANIM.aimY ?? GUN_Y) - y0) / Math.max(fp ? 0.05 : 1, Math.hypot(aimPt.x - ox, aimPt.z - oz));   // (from your own eyes through the very point the crosshair's on, however near)
     if (pv) slope += Math.tan(pv);   // (up or down: SG_FP, or a lone round's own spread)
     const reach = fp ? SHOT_REACH.fp : SHOT_REACH.top;

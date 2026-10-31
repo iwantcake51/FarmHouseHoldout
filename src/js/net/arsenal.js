@@ -150,6 +150,31 @@ function copyModel(o) {
   o.children.forEach(q => c.add(copyModel(q)));
   return c;
 }
+// a stowed copy of a built weapon: the one hand's gun of a pair, its hold put back on the middle
+function stowCopy(proto, hand) {
+  const copy = copyModel(proto), holds = {}; copy.scale.x = 1; copy.children.forEach(q => { if (q.userData.side) holds[q.userData.side] = q; });
+  if (holds.L && hand === 'R') copy.remove(holds.L); else if (holds.R && hand === 'L') copy.remove(holds.R);
+  Object.values(holds).forEach(hd => hd.position.set(0, 0, 0));
+  return copy;
+}
+// weapons built ahead of time (pvp/pvp.js: Showdown's next loadout, built a piece a frame while the last round's
+// winding down, so the next round doesn't start on a frame spent building everyone's guns at once): each one taken by
+// the first survivor whose loadout has that same weapon (buildArsenal), instead of being built there and then
+const ARS_POOL = new Map(), arsKey = (id, gl) => JSON.stringify([id, gl]);
+export function arsenalWarm(gl, id) {
+  if (!gl || !GUNS[id]) return;
+  const h = teamWeapon(gl, id), proto = copyModel(h.g); foldStatic(h.g, h.moving);
+  const stow = stowCopy(proto, 'R'); foldStatic(stow, []);
+  const k = arsKey(id, gl); if (!ARS_POOL.has(k)) ARS_POOL.set(k, []); ARS_POOL.get(k).push({ h, proto, stow });
+}
+function arsenalTake(id, gl) { const l = ARS_POOL.get(arsKey(id, gl)); return l && l.length ? l.pop() : null; }
+// and their shaders readied too, all at once, so the first frame they're drawn in isn't spent compiling them
+export function arsenalWarmCompile(R, scene, cam) {
+  const g = new THREE.Group(); for (const l of ARS_POOL.values()) l.forEach(e => { g.add(e.h.g); if (e.stow) g.add(e.stow); });
+  scene.add(g); try { R.compile(scene, cam); } finally { scene.remove(g); [...g.children].forEach(c => g.remove(c)); }
+}
+// (what wasn't taken, once the round's under way: let go)
+export function arsenalWarmClear() { for (const l of ARS_POOL.values()) l.forEach(e => { binModel(e.h.g); if (e.stow) binModel(e.stow); }); ARS_POOL.clear(); }
 // their arsenal, kept up to date with their loadout: only a weapon that's changed (a new attachment, mod or rounds, or a
 // weapon swapped in) is built again, once, and its stowed copies are copied from that one; a weapon that has only moved
 // where it rides on them is moved
@@ -173,14 +198,13 @@ export function buildArsenal(a, lo, lk) {
     a.armKey[s] = key;
     const holM = lam(lo.hol || 0x1d1d1f), hoodM = lam(shade(lo.hol || 0x1d1d1f, 0.72));
     // to hold: hidden until a pose says it's out
-    const h = teamWeapon(gl, id), proto = copyModel(h.g); foldStatic(h.g, h.moving); h.g.visible = false; a.g.add(h.g); a.held[s] = h;
+    const pre = arsenalTake(id, gl), h = pre ? pre.h : teamWeapon(gl, id), proto = pre ? pre.proto : copyModel(h.g); if (!pre) foldStatic(h.g, h.moving); h.g.visible = false; a.g.add(h.g); a.held[s] = h;
     h.lasers = []; h.g.traverse(o => { if (o.userData.isLaser) h.lasers.push(o); }); h.laserT = ((gl.gt || {}).laser | 0);   // its laser's lens, shining when it's out (weapons/laser.js)
     // and stowed: where it rides on them (the sender's own placing of it, pushed down onto the pack and all)
     const rig = s === 'side' && gl.ak;
     const place = (at, hand, pose) => {
-      const copy = copyModel(proto), holds = {}; copy.scale.x = 1; copy.children.forEach(q => { if (q.userData.side) holds[q.userData.side] = q; });
-      if (holds.L && hand === 'R') copy.remove(holds.L); else if (holds.R && hand === 'L') copy.remove(holds.R);
-      Object.values(holds).forEach(hd => hd.position.set(0, 0, 0));
+      const ready = hand === 'R' && pre && pre.stow; if (ready) pre.stow = null;   // (its stowed copy built ahead too, arsenalWarm)
+      const copy = ready || stowCopy(proto, hand);
       const outer = new THREE.Group(), inner = new THREE.Group(), pv = at.pivot(id, new THREE.Box3().setFromObject(copy));
       if (pose) { outer.position.fromArray(pose, 0); inner.quaternion.fromArray(pose, 3); copy.position.fromArray(pose, 7); }
       else { outer.position.set(...at.pos); if (at.q) inner.quaternion.copy(at.q); else inner.rotation.set(...at.rot); copy.position.set(-pv[0], -pv[1], -pv[2]); }
@@ -192,7 +216,7 @@ export function buildArsenal(a, lo, lk) {
         hol.traverse(o => { if (o.isMesh) { if (o.material === HOLSTER_M) o.material = holM; else if (o.material === HOOD_M) o.material = hoodM; } });
         foldStatic(hol, []);
       }
-      foldStatic(copy, []);
+      if (!ready) foldStatic(copy, []);
       return { outer, copy, hol };
     };
     const at = rig ? STOW_RIG.R : STOW_AT[s]; if (!at) continue;

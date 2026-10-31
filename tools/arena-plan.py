@@ -37,19 +37,18 @@ put('#', 0, 0, 20, 0); put('#', 0, 41, 20, 41); put('#', 0, 0, 0, 41)
 # the outer wall the fourth. Three wide exits, each with something standing a few metres out in front of it so nothing
 # outside sees in, and room to come out round it either way (no corridors)
 put('h', 1, 12, 7, 12); put('h', 1, 29, 7, 29); put('h', 7, 12, 7, 29)
-gap(3, 12, 5, 12)          # north exit, into the warehouse
-put('h', 2, 14, 6, 14)     # a short stub just inside it: round either end, nothing outside sees in
-gap(3, 29, 5, 29)          # south exit, onto the rail spur
-put('h', 2, 27, 6, 27)
-gap(7, 20, 7, 21)          # the gate east into the courtyard
-put('h', 8, 19); put('h', 8, 22)   # its posts, a step out either side
-put('A', 2, 16, 5, 25)     # where each side comes in
-put('C', 10, 18, 11, 23)   # a stack in front of the gate
+gap(4, 12, 6, 12)          # north exit, into the warehouse
+put('h', 3, 15, 6, 15)     # a stub two metres in from it, a two-metre way round its open end: nothing outside sees in
+gap(4, 29, 6, 29)          # south exit, onto the rail spur
+put('h', 3, 26, 6, 26)
+gap(7, 18, 7, 23)          # the gate east into the courtyard: wide open, six metres
+put('A', 2, 17, 3, 24)     # where each side comes in
+put('C', 4, 17, 5, 24)     # a container parked in the yard between them and the gate: nothing outside sees in
 
 # ---- NORTH LANE: the warehouse floor (rows 1-11; its south wall row 12 runs the width of the map): one big roofless
 # hall, broken up by islands rather than walls, so it's close fighting round corners, never a corridor
 put('h', 8, 12, 20, 12)
-gap(17, 12, 18, 12)        # the plaza door (the flag's north approach)
+gap(16, 12, 18, 12)        # the plaza door (the flag's north approach), three metres wide
 put('h', 9, 1, 9, 5)       # a wall stub off the north wall
 put('C', 12, 5, 13, 7)     # a container stack mid-hall
 put('C', 18, 1, 20, 3)     # and one stood against the north wall in the very middle (six wide with its mirror)
@@ -58,19 +57,24 @@ put('k', 2, 3); put('k', 6, 5, 7, 5); put('k', 10, 9, 10, 10)   # crate stacks (
 put('b', 16, 5, 17, 5); put('o', 1, 10); put('o', 19, 9)
 
 # ---- MIDDLE LANE: the courtyard (cols 8-14) and the plaza (cols 15-20 and its mirror)
-put('C', 11, 15, 13, 17); put('C', 11, 24, 13, 26)   # two container stacks framing the courtyard's way onto the plaza
-put('s', 12, 20, 12, 21)                     # sandbags across the courtyard's mouth
+put('C', 11, 15, 13, 17); put('C', 11, 24, 13, 26)
+put('C', 11, 20, 12, 21)                     # and one out in the courtyard, three metres off the gate, open all round   # two container stacks framing the courtyard's way onto the plaza
+put('s', 14, 20, 14, 21)                     # sandbags across the courtyard's mouth
 put('h', 16, 16, 17, 17); put('h', 16, 24, 17, 25)   # wall stubs at the flag ring's corners
 put('s', 19, 17, 20, 17); put('s', 19, 24, 20, 24); put('s', 18, 20, 18, 21)   # the flag's sandbag ring (open at its corners)
 put('o', 9, 15); put('o', 9, 26)
+# cover along the ways into the middle, so none of them is a bare run: crates and barriers along the strips under the
+# lane walls, drums and sandbags on the plaza's approaches
+put('k', 14, 13); put('k', 14, 28); put('b', 9, 13, 10, 13); put('b', 9, 28, 10, 28)
+put('o', 15, 18); put('o', 15, 23); put('s', 16, 20, 16, 21)
 
 # ---- SOUTH LANE: the rail spur (rows 30-40; the container wall along row 29 between it and the plaza)
-put('C', 8, 29, 20, 29)                      # containers along the lane's north side
-gap(8, 29, 9, 29)                            # a gap at their west end, by the courtyard (the middle's way south)
+put('C', 10, 29, 15, 30); put('C', 16, 29, 20, 30)   # two rows of containers along the lane's north side (two deep, as they stand)
+                                             # (a gap at their west end, cols 8-9, by the courtyard: the middle's way south)
 put('h', 19, 34, 20, 38)                     # the signal hut in the middle (four wide with its mirror)
 put('b', 7, 35, 10, 35)                      # the platform edge: barriers along the sidings (row 37: drawn on the floor, world/arena.js AR_YARD)
-put('s', 14, 33, 14, 35)                     # sandbags at the platform's end
-put('C', 12, 30, 13, 33)                     # a container stack part way along: the lane's long, but nothing sees end to end
+put('s', 15, 33, 15, 35)                     # sandbags at the platform's end
+put('C', 12, 32, 13, 34)                     # a container stack part way along: the lane's long, but nothing sees end to end
 put('C', 10, 39, 11, 40)                     # a container stood against the south wall: no run along it
 put('o', 2, 39); put('o', 16, 39); put('r', 6, 38); put('k', 16, 31)
 

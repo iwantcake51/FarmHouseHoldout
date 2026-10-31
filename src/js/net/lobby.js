@@ -22,6 +22,7 @@ import { BASE_HP } from '../ui/hud.js';
 import { frAdd, frAnnounce, friendsUp, frOf, frRender, invRender, PALS } from './friends.js';
 import { LOOK } from '../player/look.js';
 import { lookThumb } from '../ui/look-card.js';
+import { lookMenuOpen, openLookMenu } from '../ui/look-menu.js';
 import { chatRender } from './chat.js';
 import { PVP, pvpMate } from '../pvp/pvp.js';   // (and its settings' limits, above)
 import { BOT_SKILLS } from '../pvp/bots.js';
@@ -36,8 +37,9 @@ export function lobbyRender() {
   $('startBtn').hidden = on; $('titleView').hidden = on; $('titleMode').hidden = on;   // (your own view's for a run on your own: in co-op it's the lobby's)
   $('coopBtn').classList.toggle('inLobby', room);   // (the title's Co-op shows you're in one: styles/coop.css)
   $('coopMsg').textContent = NET.status || '';
-  // your look, if it's changed since the others were told (the Character menu, between visits to the lobby)
-  if (on) { const lk = JSON.stringify(LOOK.cur); if (lk !== lookSent) { lookSent = lk; netSend('look', { look: LOOK.cur }); } } else lookSent = '';
+  // your look, if it's changed since the others were told (the Character menu, between visits to the lobby or opened
+  // from your seat: they're told once it's closed, not at every change on the way)
+  if (on && !lookMenuOpen()) { const lk = JSON.stringify(LOOK.cur); if (lk !== lookSent) { lookSent = lk; netSend('look', { look: LOOK.cur }); } } else if (!on) lookSent = '';
   // the view everyone plays in: the host's to pick (net/net.js), shown to the rest
   for (const b of $('coopView').querySelectorAll('button')) { b.setAttribute('aria-checked', String(b.dataset.v === NET.view)); b.disabled = !host || NET.inGame; }
   $('coopViewNote').textContent = host ? 'Everyone plays in it' : 'The host picks it';
@@ -101,6 +103,8 @@ function renderSeats() {
       if (can) { tag.type = 'button'; tag.title = 'Move to ' + to + ' (swaps with someone there if it\'s full)'; tag.setAttribute('aria-label', 'Move ' + (me ? 'yourself' : p.name || 'them') + ' to ' + to); tag.onclick = () => netSwitchSide(p.id); }
       li.appendChild(tag);
     }
+    // your own: a button to change how you look, there and then (the Character menu over the lobby: ui/look-menu.js)
+    if (me && !NET.inGame) { const b = document.createElement('button'); b.type = 'button'; b.className = 'coopCopy sAdd sLook'; b.textContent = 'Change look'; b.title = 'Change how your survivor looks: the others see it once you click Done'; b.onclick = () => { openLookMenu(); SFX.click(); }; li.appendChild(b); }
     // someone you're playing with who isn't on your friends list yet: one click to add them (net/friends.js)
     if (!me && p.fid && p.fid !== PALS.me && !frOf(p.fid)) { const b = document.createElement('button'); b.type = 'button'; b.className = 'coopCopy sAdd'; b.textContent = 'Add friend'; b.onclick = () => frAdd(p.fid, p.name); li.appendChild(b); }
     if (NET.host && !me && !NET.inGame) { const b = document.createElement('button'); b.type = 'button'; b.className = 'sKick'; b.textContent = '\u00d7'; b.setAttribute('aria-label', 'Remove ' + (p.name || 'Survivor') + ' from the lobby'); b.onclick = () => p.bot ? netBotDrop(p.id) : netKick(p.id); li.appendChild(b); }

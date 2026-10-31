@@ -246,7 +246,7 @@ body.coopOn.coopLeaving #title .inner{opacity:1;visibility:visible;transition:op
    dot, at the edge on the line toward them with an arrow pointing their way (net/avatars.js) */
 #tags{position:fixed;inset:0;pointer-events:none;z-index:3;overflow:hidden}
 #tags .tag{position:absolute;left:0;top:0;display:grid;justify-items:center;gap:2px;translate:-50% -100%;font:600 11px var(--f-ui);color:var(--pc);white-space:nowrap;text-shadow:0 1px 2px #000,0 0 6px rgba(0,0,0,.8);transition:opacity .2s ease}
-#tags .tag .dot{position:relative;width:10px;height:10px;border-radius:50%;background:var(--pc);box-shadow:0 0 0 2px rgba(10,10,9,.75),0 0 10px var(--pc);transition:scale .25s ease}
+#tags .tag .dot{position:relative;width:10px;height:10px;border-radius:50%;background:var(--dc,var(--pc));box-shadow:0 0 0 2px rgba(10,10,9,.75),0 0 10px var(--dc,var(--pc));transition:scale .25s ease}
 #tags .tag s{display:block;width:34px;height:3px;background:rgba(0,0,0,.55);text-decoration:none}
 #tags .tag s u{display:block;height:100%;background:var(--pc);transform-origin:left;text-decoration:none}
 #tags .tag.down{opacity:.85;color:#c8402e}

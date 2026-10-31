@@ -4,8 +4,9 @@
 // so neither side's better off. Designed and checked in tools/arena-plan.py (reachability, spawn sightlines, lane
 // sightlines, edge runs, timings):
 //  - each spawn, a walled yard at its end with three exits: north into the warehouse and south onto the rail spur
-//    (each with a short wall stub just inside it, round either end), and east through a gate between two posts, a
-//    container stack in front of it. Nothing outside a spawn sees into it, and no spawn sees the other's
+//    (each with a short wall stub just inside it, round either end), and east through a wide gate into the courtyard,
+//    a container parked in the yard between the spawn spots and the gate. Nothing outside a spawn sees into it, and no
+//    spawn sees the other's
 //  - NORTH, the Warehouse floor: close quarters. One big roofless hall broken up by islands (container stacks, wall
 //    stubs, crates) rather than rooms and corridors. A door into the plaza is the flag's north approach
 //  - MIDDLE, the Plaza: medium range and the contest. The courtyard out of each spawn's gate, between container
@@ -23,7 +24,7 @@
 
 import { scene } from '../core/renderer.js';
 import { rand, rr, seeded, withSeed } from '../core/math.js';
-import { lam, LMU } from '../core/shaders.js';
+import { lam, lit, LMU } from '../core/shaders.js';
 import { box, mergeInto } from '../core/geometry.js';
 import { cell, ci, cxw, EMPTY, idx, OBST, openAt, WALL } from './grid.js';
 import { cellBox, syncBlock } from './collision.js';
@@ -32,7 +33,7 @@ import { THIN, wX, wZ } from './thin-walls.js';
 import { openings, WALL_FORMS } from './house.js';
 import { HOUSE_DOORS } from './interior.js';
 import { FARM_ROOTS } from './farm-set.js';
-import { STATIC_LIGHTS } from '../lighting/static-lights.js';
+import { LAMP_ON, STATIC_LIGHTS } from '../lighting/static-lights.js';
 import { lightField, los } from '../lighting/lightmap.js';
 import { setVisKey } from '../lighting/vision.js';
 import { stillShadowsReset } from '../core/still-shadows.js';
@@ -58,30 +59,30 @@ const AR_PLAN = [
   '#.........k....h...o..o...h....k.........#',
   '#o........k....h..........h....k........o#',
   '#..............h..........h..............#',
-  '#hh...hhhhhhhhhhh..hhhh..hhhhhhhhhhh...hh#',
-  '#......h..........................h......#',
-  '#.hhhhhh.......F..........F.......hhhhhh.#',
-  '#......h.o.CCC..............CCC.o.h......#',
-  '#.AAAA.h...CCC..hh......hh..CCC...h.BBBB.#',
-  '#.AAAA.h...CCC..hh.ssss.hh..CCC...h.BBBB.#',
-  '#.AAAA.h..CC..................CC..h.BBBB.#',
-  '#.AAAA.hh.CC..................CC.hh.BBBB.#',
-  '#.AAAA....CCs.....s....s.....sCC....BBBB.#',
-  '#.AAAA...FCCs.....s....s.....sCCF...BBBB.#',
-  '#.AAAA.hh.CC..................CC.hh.BBBB.#',
-  '#.AAAA.h..CC..................CC..h.BBBB.#',
-  '#.AAAA.h...CCC..hh.ssss.hh..CCC...h.BBBB.#',
-  '#.AAAA.h...CCC..hh......hh..CCC...h.BBBB.#',
-  '#......h.o.CCC..............CCC.o.h......#',
-  '#.hhhhhh.......F..........F.......hhhhhh.#',
-  '#......h..........................h......#',
-  '#hh...hh..CCCCCCCCCCCCCCCCCCCCCC..hh...hh#',
+  '#hhh...hhhhhhhhh...hhhh...hhhhhhhhh...hhh#',
+  '#......h.bb...k............k...bb.h......#',
+  '#......h.......F..........F.......h......#',
+  '#..hhhhh.o.CCC..............CCC.o.hhhhh..#',
+  '#......h...CCC..hh......hh..CCC...h......#',
+  '#.AACC.h...CCC..hh.ssss.hh..CCC...h.CCBB.#',
+  '#.AACC.........o..........o.........CCBB.#',
+  '#.AACC..............................CCBB.#',
+  '#.AACC.....CC.s.s.s....s.s.s.CC.....CCBB.#',
+  '#.AACC...F.CC.s.s.s....s.s.s.CC.F...CCBB.#',
+  '#.AACC..............................CCBB.#',
+  '#.AACC.........o..........o.........CCBB.#',
+  '#.AACC.h...CCC..hh.ssss.hh..CCC...h.CCBB.#',
+  '#......h...CCC..hh......hh..CCC...h......#',
+  '#..hhhhh.o.CCC..............CCC.o.hhhhh..#',
+  '#......h.......F..........F.......h......#',
+  '#......h.bb...k............k...bb.h......#',
+  '#hhh...h..CCCCCCCCCCCCCCCCCCCCCC..h...hhh#',
+  '#.........CCCCCCCCCCCCCCCCCCCCCC.........#',
+  '#...............k........k...............#',
   '#...........CC..............CC...........#',
-  '#...........CC..k........k..CC...........#',
-  '#...........CC..............CC...........#',
-  '#...........CCs............sCC...........#',
-  '#..........F..s....hhhh....s..F..........#',
-  '#......bbbb...s....hhhh....s...bbbb......#',
+  '#...........CC.s..........s.CC...........#',
+  '#..........FCC.s...hhhh...s.CCF..........#',
+  '#......bbbb....s...hhhh...s....bbbb......#',
   '#...F..............hhhh..............F...#',
   '#..................hhhh..................#',
   '#.....r..........F.hhhh.F..........r.....#',
@@ -110,6 +111,34 @@ AR_PLAN.forEach((r, jj) => [...r].forEach((ch, ii) => {
   const x = cxw(ARENA.x0 + ii), z = cxw(ARENA.z0 + jj), mid = (cxw(ARENA.x0) + cxw(ARENA.x1)) / 2;
   if (ch === 'A' || ch === 'B' || ch === 'F') AR_SPAWN[ch].push([x, z, Math.atan2(mid - x, cxw(22) - z)]);   // (facing the middle)
 }));
+// each side's whole spawn yard, not only its marked spots (AR_YARD_AT): every open cell reached from the spots without
+// going further out toward the middle than YARD_OUT cells past them, nor further across than YARD_WIDE either side
+const AR_YARD_AT = { A: [], B: [] }, YARD_OUT = 2, YARD_WIDE = 9;
+for (const sd of ['A', 'B']) {
+  const L = AR_SPAWN[sd]; if (!L.length) continue;
+  const cx = L.reduce((a, s) => a + s[0], 0) / L.length, cz = L.reduce((a, s) => a + s[1], 0) / L.length, mx = (cxw(ARENA.x0) + cxw(ARENA.x1)) / 2, mz = (cxw(ARENA.z0) + cxw(ARENA.z1)) / 2;
+  const alongX = Math.abs(cx - mx) > Math.abs(cz - mz), dir = alongX ? Math.sign(mx - cx) : Math.sign(mz - cz);
+  const front = Math.max(...L.map(s => (alongX ? s[0] : s[1]) * dir)) + YARD_OUT, open = c => c === '.' || c === sd;
+  const seen = new Set(), q = L.map(s => [ci(s[0]), ci(s[1])]);
+  q.forEach(([i, j]) => seen.add(i + ',' + j));
+  while (q.length) {
+    const [i, j] = q.shift(); AR_YARD_AT[sd].push([cxw(i), cxw(j)]);
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const ni = i + di, nj = j + dj, k = ni + ',' + nj, x = cxw(ni), z = cxw(nj);
+      if (seen.has(k) || !open(AR_KIND(ni, nj)) || (alongX ? x : z) * dir > front || Math.abs(alongX ? z - cz : x - cx) > YARD_WIDE) continue;
+      seen.add(k); q.push([ni, nj]);
+    }
+  }
+}
+// a side's spots this round, spread over its whole yard (Showdown: arenaSpawn): the first anywhere in it (drawn by the
+// round, the same on every screen), each after as far from all before it as the yard allows
+function yardSpots(sd, seed, n) {
+  const Y = AR_YARD_AT[sd]; if (!Y.length) return null;
+  let h = (seed * 2654435761 + (sd === 'B' ? 97 : 13)) >>> 0; const rnd = () => { h = (h ^ (h << 13)) >>> 0; h = (h ^ (h >>> 17)) >>> 0; h = (h ^ (h << 5)) >>> 0; return h / 4294967296; };
+  const out = [Y[Math.floor(rnd() * Y.length)]];
+  while (out.length <= n) { let best = null, bd = -1; for (const c of Y) { const d = Math.min(...out.map(o => Math.hypot(o[0] - c[0], o[1] - c[1]))) + rnd() * 1.5; if (d > bd) { bd = d; best = c; } } out.push(best); }
+  return out[n];
+}
 
 // the plan drawn small, for the lobby's preview (net/lobby.js): the floor, the walls and blocks dark, the containers in
 // their colours, the cover lighter, each side's spawn in its colour and the flag's spot in the middle
@@ -123,15 +152,18 @@ export function arenaMapDraw(cv) {
 }
 
 // ---- the look of it
+// (what stands taller than you, the walls, the hut and the containers, dithered away round you from above when it's
+// between you and the camera, as the trees are: core/shaders.js, world/cutaway.js)
+const arTall = c => lit(new THREE.MeshLambertMaterial({ color: c }), 'tree');
 const AR_M = {
-  wall: lam(0x8e8a81), wallDk: lam(0x6d6a63), cap: lam(0x9d998f), stain: lam(0x5d5a52),
-  hut: lam(0x9a9284), hutDk: lam(0x7a7266), rebar: lam(0x5b3a28),
+  wall: arTall(0x8e8a81), wallDk: arTall(0x6d6a63), cap: arTall(0x9d998f), stain: arTall(0x5d5a52),
+  hut: arTall(0x9a9284), hutDk: arTall(0x7a7266), rebar: lam(0x5b3a28),
   barrier: lam(0xb4ae9f), barrierDk: lam(0x8f897b), stripe: lam(0xc9a43a),
   bag: lam(0x8f7c55), bagDk: lam(0x75653f),
   crate: lam(0x7d5c38), crateDk: lam(0x5e432a),
   drumA: lam(0x2f4d68), drumB: lam(0x7a3b24), drumRim: lam(0x3a3a38),
   pole: lam(0x4a4b4c), lamp: new THREE.MeshBasicMaterial({ color: 0xfff1c8 }),
-  cont: [lam(0x8a3b2a), lam(0x355a78), lam(0x5d6643), lam(0x9b6a2c)], contDk: lam(0x2c2b29)
+  cont: [arTall(0x8a3b2a), arTall(0x355a78), arTall(0x5d6643), arTall(0x9b6a2c)], contDk: arTall(0x2c2b29)
 };
 // where the floor's yard markings go (plan rows and columns): the sidings' centre line and how far west each runs to (the
 // signal hut), the walkway's row, and the loading bays' west columns (at the plaza doors)
@@ -292,7 +324,9 @@ function arDrums(parts, x, z) {
 // a container: its run of C cells (along x or z) as one box, ribbed down its long sides, its doors at one end with
 // their locking bars, a coat of colour each
 function arContainer(parts, i, j, did) {
-  let i1 = i, j1 = j; while (AR_KIND(i1 + 1, j) === 'C') i1++; while (AR_KIND(i, j1 + 1) === 'C') j1++;
+  // (a true rectangle of C cells only, never more than a 12 m container long: a run any longer is two, end to end)
+  let i1 = i, j1 = j; while (AR_KIND(i1 + 1, j) === 'C' && !did.has(idx(i1 + 1, j)) && i1 - i < 11) i1++;
+  for (;;) { const nj = j1 + 1; let ok = j1 - j < 11; for (let a = i; a <= i1 && ok; a++) if (AR_KIND(a, nj) !== 'C' || did.has(idx(a, nj))) ok = false; if (!ok) break; j1 = nj; }
   for (let b = j; b <= j1; b++) for (let a = i; a <= i1; a++) did.add(idx(a, b));
   const x0 = cxw(i) - 0.5, x1 = cxw(i1) + 0.5, z0 = cxw(j) - 0.5, z1 = cxw(j1) + 0.5, H = AR_H.C, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
   const alongX = x1 - x0 > z1 - z0, L = alongX ? x1 - x0 : z1 - z0, Wd = alongX ? z1 - z0 : x1 - x0, mat = AR_M.cont[arContN++ % AR_M.cont.length];
@@ -389,10 +423,16 @@ function arOutside(parts, g) {
 // the terminal was moved out from where it stood round the old, smaller yard (m)
 const AR_OUT = 35, AR_SHIFT = 13;
 // where the floodlights stand: each corner and halfway along each wall (cells, just inside the wall)
-const AR_LAMPS = () => { const mi = Math.round((ARENA.x0 + ARENA.x1) / 2), mj = Math.round((ARENA.z0 + ARENA.z1) / 2); return [[ARENA.x0 + 1, ARENA.z0 + 1], [ARENA.x1 - 1, ARENA.z0 + 1], [ARENA.x0 + 1, ARENA.z1 - 1], [ARENA.x1 - 1, ARENA.z1 - 1], [mi, ARENA.z0 + 1], [mi, ARENA.z1 - 1], [ARENA.x0 + 1, mj], [ARENA.x1 - 1, mj]]; };
+// and four more round the middle, one up on each of the wall stubs at the flag ring's corners (AR_MID_LAMPS: their
+// cells in the plan), so the fight for the flag isn't in the dark between the walls' lights
+const AR_MID_LAMPS = [[17, 17], [24, 17], [17, 24], [24, 24]];
+const AR_LAMPS = () => { const mi = Math.round((ARENA.x0 + ARENA.x1) / 2), mj = Math.round((ARENA.z0 + ARENA.z1) / 2); return [[ARENA.x0 + 1, ARENA.z0 + 1], [ARENA.x1 - 1, ARENA.z0 + 1], [ARENA.x0 + 1, ARENA.z1 - 1], [ARENA.x1 - 1, ARENA.z1 - 1], [mi, ARENA.z0 + 1], [mi, ARENA.z1 - 1], [ARENA.x0 + 1, mj], [ARENA.x1 - 1, mj], ...AR_MID_LAMPS.map(([i, j]) => [ARENA.x0 + i, ARENA.z0 + j])]; };
 // a floodlight on its pole at each, its head tipped down into the yard; each one's flare (AR_FLARES, put up with the
 // arena: arenaUp) and its halo's look
 const AR_FLARES = [];
+// (the lamps' faces and halos lit only as far as they're on: dark grey glass by day, warm white at night)
+const _arOff = new THREE.Color(0x4a4c4e), _arOn = new THREE.Color(0xfff1c8);
+function arLampLit() { const k = LAMP_ON.k; AR_HALO.opacity = 0.8 * k; AR_M.lamp.color.copy(_arOff).lerp(_arOn, k); }
 const AR_HALO = new THREE.SpriteMaterial({ map: (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,240,205,0.9)'); g.addColorStop(0.25, 'rgba(255,226,170,0.35)'); g.addColorStop(1, 'rgba(255,220,160,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.8 });
 function arFlood(parts, g) {
   const mx = (cxw(ARENA.x0) + cxw(ARENA.x1)) / 2, mz = (cxw(ARENA.z0) + cxw(ARENA.z1)) / 2;
@@ -402,7 +442,7 @@ function arFlood(parts, g) {
     const hd = new THREE.Group(); hd.position.set(x, H, z); hd.rotation.y = Math.atan2(mx - x, mz - z); hd.rotation.x = 0.5; g.add(hd);
     box(hd, 0.55, 0.32, 0.18, AR_M.pole, 0, 0, 0); const face = box(hd, 0.48, 0.26, 0.02, AR_M.lamp, 0, 0, 0.1); face.layers.enable(GLOW_LAYER);   // (its face blooms: effects/post.js)
     // (a soft halo round it, and a lens flare off it when it's in sight and shining your way: effects/post.js FLARE_SRC)
-    const halo = new THREE.Sprite(AR_HALO); halo.scale.setScalar(1.6); halo.position.set(0, 0, 0.14); halo.layers.enable(GLOW_LAYER); halo.userData.isFlash = true; hd.add(halo);
+    const halo = new THREE.Sprite(AR_HALO); halo.scale.setScalar(1.6); halo.onBeforeRender = arLampLit; halo.position.set(0, 0, 0.14); halo.layers.enable(GLOW_LAYER); halo.userData.isFlash = true; hd.add(halo);
     hd.updateMatrixWorld(true); const fw = new THREE.Vector3(0, 0, 1).transformDirection(hd.matrixWorld), fp = new THREE.Vector3(0, 0, 0.12).applyMatrix4(hd.matrixWorld);
     AR_FLARES.push({ x: fp.x, y: fp.y, z: fp.z, dx: fw.x, dy: fw.y, dz: fw.z, col: [1, 0.88, 0.7] });
   }
@@ -476,10 +516,12 @@ export function arenaDown() {
   syncBlock(); setLightsDirty(true); setVisKey(''); stillShadowsReset();
 }
 // the spawn spot for a side (A, B or F) furthest from the enemies given ([x, z] each), a little off where it's marked
-export function arenaSpawn(side, foes, n) {
+export function arenaSpawn(side, foes, n, seed) {
   const L = AR_SPAWN[side] || AR_SPAWN.F;
   let best = L[0], bd = -1;
-  if (n !== undefined && side !== 'F') best = L[n % L.length];
+  const yd = n !== undefined && side !== 'F' && seed !== undefined ? yardSpots(side, seed, n) : null;
+  if (yd) { const mid = (cxw(ARENA.x0) + cxw(ARENA.x1)) / 2; best = [yd[0], yd[1], Math.atan2(mid - yd[0], cxw(22) - yd[1])]; }   // (Showdown: anywhere in the yard, yardSpots)
+  else if (n !== undefined && side !== 'F') best = L[n % L.length];
   // (the furthest from everyone, never one an enemy can see from where they stand: a spot in plain sight of one counts
   // for far less however far off it is)
   else for (const s of L) { let d = 1e9, seen = false; for (const f of foes) { d = Math.min(d, Math.hypot(f[0] - s[0], f[1] - s[1])); if (!seen && los(f[0], f[1], s[0], s[1])) seen = true; } if (!foes.length) d = rand(); if (seen) d -= 1000; if (d > bd) { bd = d; best = s; } }

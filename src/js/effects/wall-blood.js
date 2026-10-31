@@ -103,6 +103,35 @@ function drop(list, o) { scene.remove(o); o.material.dispose(); const k = list.f
 // little as it flies; the first wall cell it enters, or inside wall it crosses
 // (the arena's outer wall: blood on it no higher than its lowest panels stand, m)
 const WB_AR_EDGE = 1.0;
+// how tall a cell stands as a wall blood lands on (0: not one): the house's outer walls, or the arena's tall cover
+function wbTall(i, j) {
+  if (!inb(i, j)) return 0;
+  const c = cell[idx(i, j)];
+  if (c === WALL) return WALL_AT.has(idx(i, j)) ? 99 : 0;
+  if (!ARENA.on || c !== OBST || lowObst.has(idx(i, j))) return 0;
+  return i <= ARENA.x0 || i >= ARENA.x1 || j <= ARENA.z0 || j >= ARENA.z1 ? WB_AR_EDGE : obstTop.get(idx(i, j)) || 0;
+}
+// the face a hit landed on, from end to end: along the wall from the cell it struck, cell by cell, while the wall goes on
+// as high and open in front. At each end, what's there: a corner it turns round (wrap 1: the wall's side, going back
+// into it as deep as it's thick), a wall standing across it (wrap -1: an inside corner, its face coming out toward you),
+// or nothing it can go on to (wrap 0: the blood stops at the edge). Its top: as high as it stands (the house's: no limit)
+function faceOf(h, i, j) {
+  const t0 = wbTall(i, j), ax = h.nx ? 'z' : 'x', fi = i + h.nx, fj = j + h.nz;
+  const at = (k) => ax === 'z' ? [i, j + k] : [i + k, j], front = (k) => ax === 'z' ? [fi, j + k] : [i + k, fj];
+  const same = k => { const t = wbTall(...at(k)); return t && Math.abs(t - t0) < 0.05 && !wbTall(...front(k)); };
+  const end = sg => {
+    let k = 0; while (Math.abs(k) < 40 && same(k + sg)) k += sg;
+    const c = (ax === 'z' ? j : i) + k, edge = c + sg * HALF, nt = wbTall(...at(k + sg)), dt = wbTall(...front(k + sg));
+    if (!nt && !dt) {   // round the corner: the wall's side, as deep as the wall is
+      let dp = 1; const [ei, ej] = at(k); while (dp < 6 && wbTall(ei - h.nx * dp, ej - h.nz * dp)) dp++;
+      return { at: edge, wrap: 1, deep: dp, top: t0 };
+    }
+    if (nt && dt) return { at: edge, wrap: -1, top: dt };   // a wall across it, standing out toward you
+    return { at: edge, wrap: 0 };
+  };
+  h.lo = end(-1); h.hi = end(1); h.top = t0 >= 99 ? Infinity : t0;
+  return h;
+}
 function wallHit(x, y, z, dx, dz, r) {
   let i0 = ci(x), j0 = ci(z);
   if (!inb(i0, j0) || cell[idx(i0, j0)] === WALL) return null;
@@ -118,7 +147,7 @@ function wallHit(x, y, z, dx, dz, r) {
     if (cell[idx(i, j)] === WALL && !(ex && ez)) {
       const w = WALL_AT.get(idx(i, j)); if (!w || !w.cut) return null;
       const hx = ex ? bx + nx * WB.off : px, hz = ex ? pz : bz + nz * WB.off;
-      return { x: hx, y: Math.min(h, 2.2), z: hz, nx, nz, cut: w.cut, d };
+      return faceOf({ x: hx, y: Math.min(h, 2.2), z: hz, nx, nz, cut: w.cut, d }, i, j);
     }
     // (the arena's tall cover, its block walls, containers and outer wall: a face to land on as high as it stands, the
     // outer wall only as high as its panels, world/arena.js)
@@ -126,18 +155,47 @@ function wallHit(x, y, z, dx, dz, r) {
       const edge = i <= ARENA.x0 || i >= ARENA.x1 || j <= ARENA.z0 || j >= ARENA.z1, top = edge ? WB_AR_EDGE : obstTop.get(idx(i, j)) || 0;
       if (h > top - 0.05) return null;
       const hx = ex ? bx + nx * WB.off : px, hz = ex ? pz : bz + nz * WB.off;
-      return { x: hx, y: Math.min(h, top - 0.08), z: hz, nx, nz, cut: null, d };
+      return faceOf({ x: hx, y: Math.min(h, top - 0.08), z: hz, nx, nz, cut: null, d }, i, j);
     }
     if (cell[idx(i, j)] !== 0 && cell[idx(i, j)] !== WALL) return null;   // (a window, a door, a prop, a fence: not a wall it lands on)
     if (THIN.n && !(ex && ez) && wallBetween(i0, j0, i, j)) {
       const ax = ex ? 'x' : 'z', p = ex ? bx : bz, u = ex ? pz : px;
       const ln = IW_LINES.find(L => L.ax === ax && Math.abs(L.p - p) < 0.01 && u > L.lo - HALF - 0.6 && u < L.hi - HALF + 0.6) || IW_LINES.find(L => L.ax === ax && Math.abs(L.p - p) < 0.01);
       const hx = ex ? bx + nx * WB.offThin : px, hz = ex ? pz : bz + nz * WB.offThin;
-      return { x: hx, y: Math.min(h, 2.2), z: hz, nx, nz, cut: ln ? ln.cut : null, d };
+      return { x: hx, y: Math.min(h, 2.2), z: hz, nx, nz, cut: ln ? ln.cut : null, d, lo: ln ? { at: ln.lo, wrap: 0 } : null, hi: ln ? { at: ln.hi, wrap: 0 } : null, top: Infinity };
     }
     i0 = i; j0 = j;
   }
   return null;
+}
+// a splash kept to the face it landed on (fragments of it past the face's ends or over its top cut away), and where the
+// face turns a corner (faceOf), the rest of it folded round onto the next face: the same picture turned about the
+// corner's edge, kept to that face alone, so it runs on round the corner as one splash instead of hanging in the air
+const _wbF = new THREE.Matrix4(), _wbR = new THREE.Matrix4();
+const plane = (x, y, z, c) => new THREE.Plane(new THREE.Vector3(x, y, z), c);
+function wbWrap(h, o) {
+  if (!h.lo || !h.hi) return null;
+  const aX = h.nx ? 0 : 1, aZ = h.nx ? 1 : 0, fp = h.x * h.nx + h.z * h.nz, off = WB.off;
+  const lim = e => e.at + (e === h.hi ? 1 : -1) * e.wrap * off;   // (where the splash stops along: round a corner, its edge)
+  const clip = [plane(aX, 0, aZ, -lim(h.lo)), plane(-aX, 0, -aZ, lim(h.hi))];
+  if (Number.isFinite(h.top)) clip.push(plane(0, -1, 0, h.top - 0.02));
+  o.material.clippingPlanes = clip; o.material.needsUpdate = true;
+  for (const e of [h.lo, h.hi]) {
+    if (!e.wrap) continue;
+    const sg = e === h.hi ? 1 : -1, E = lim(e), cx = aX * E + h.nx * fp, cz = aZ * E + h.nz * fp;
+    // turn it about the corner's edge so what ran past the end goes on along the next face: round an outside corner,
+    // back into the wall; into an inside one, out along the wall standing across it
+    const dx = sg * aX, dz = sg * aZ, tx = -e.wrap * h.nx, tz = -e.wrap * h.nz, th = Math.atan2(dz * tx - dx * tz, dx * tx + dz * tz);
+    _wbF.makeTranslation(cx, 0, cz).multiply(_wbR.makeRotationY(th)).multiply(_wbM.makeTranslation(-cx, 0, -cz)).multiply(o.matrix);
+    const f = piece(QUAD, o.material.map, h.cut);
+    f.matrix.copy(_wbF); f.matrixWorldNeedsUpdate = true;
+    const fc = e.wrap > 0 ? [plane(-h.nx, 0, -h.nz, fp), plane(h.nx, 0, h.nz, -(fp - e.deep - off))] : [plane(h.nx, 0, h.nz, -fp)];
+    if (Number.isFinite(e.top)) fc.push(plane(0, -1, 0, e.top - 0.02));
+    f.material.clippingPlanes = fc;
+    const s = splashes.length >= WB.max ? splashes.shift() : null; if (s) drop(splashes, s.o);
+    splashes.push({ o: f, t: 0 });
+  }
+  return clip;
 }
 const _wbX = new THREE.Vector3(), _wbY = new THREE.Vector3(), _wbZ = new THREE.Vector3(), _wbM = new THREE.Matrix4();
 // a hit's blood thrown at whatever wall's there (zombies/damage.js): from (x, y, z) along (dx, dz), k how much of it
@@ -166,13 +224,14 @@ export function wallSpray(x, y, z, dx, dz, k = 1) {
   o.position.set(h.x + _wbX.x * shift, clamp(h.y + _wbX.y * shift, size * 0.3, 2.3), h.z + _wbX.z * shift);
   o.scale.set(size * (kind === 'spatter' ? 1 + glance * 0.6 : 1), size, 1); o.updateMatrix();
   splashes.push({ o, t: 0 });
+  const clip = wbWrap(h, o);
   // runs down from the heaviest of it, a heavier hit more of them
   const n = Math.min(RUN.n, 1 + Math.floor(rand() * (1 + k * 2.4)));
   for (let r = 0; r < n; r++) {
     const ro = runs.length >= WB.maxRuns ? runs.shift() : null; if (ro) drop(runs, ro.o);
     const u = rr(-0.18, 0.18) * size, top = h.y + rr(-0.06, 0.04) * size;
     const ox = h.x + (h.nx ? 0 : 1) * u + h.nx * 0.0012, oz = h.z + (h.nx ? 1 : 0) * u + h.nz * 0.0012;   // (a hair proud of its splash)
-    const q = piece(RUN_Q, WB_ART.run, h.cut);
+    const q = piece(RUN_Q, WB_ART.run, h.cut); q.material.clippingPlanes = clip;
     q.quaternion.setFromUnitVectors(_wbY.set(0, 0, 1), _wbZ.set(h.nx, 0, h.nz));
     q.position.set(ox, top, oz);
     const len = Math.min(top - 0.04, rr(RUN.len[0], RUN.len[1]) * (0.6 + 0.4 * k)), w = rr(RUN.w[0], RUN.w[1]);

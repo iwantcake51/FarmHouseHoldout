@@ -150,26 +150,26 @@ body.pvp #bandBox{display:none}
 
 /* a call under the crosshair (pvp/pvp.js pvpToast): a kill's mark swells in out of a flash, a line draws out either
    side of it, the name settles under it; a run of kills called as such; who got you; a quieter word */
-#pvpToast{position:fixed;left:50%;top:60%;transform:translateX(-50%);display:grid;justify-items:center;gap:3px;opacity:0;z-index:6;transition:opacity .35s ease}
-#pvpToast.on{opacity:1}
+#pvpToast{position:fixed;left:50%;top:60%;transform:translateX(-50%) scale(.72);display:grid;justify-items:center;gap:3px;opacity:0;z-index:6;transition:opacity .7s ease,transform 0s linear .7s}
+/* (in: from small up to its full size; out: faded away slowly where it is, its line drawn back in to nothing) */
+#pvpToast.on{opacity:1;transform:translateX(-50%) scale(1);transition:opacity .22s ease,transform .42s cubic-bezier(.2,1.25,.4,1)}
 #pvpToast .tIc{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:radial-gradient(circle,rgba(226,86,63,.32),rgba(226,86,63,0) 70%)}
 #pvpToast .tIc svg{width:30px;height:30px;fill:#f4efe4;filter:drop-shadow(0 2px 4px rgba(0,0,0,.7))}
 #pvpToast.head .tIc svg{fill:#ffcf4a}#pvpToast.dead .tIc svg{fill:#e2563f}
 #pvpToast small{font-family:var(--f-num);font-weight:800;font-size:13px;letter-spacing:.42em;text-transform:uppercase;color:#f4efe4;text-shadow:0 2px 8px rgba(0,0,0,.7)}
 #pvpToast.head small{color:#ffcf4a}#pvpToast.dead small{color:#e2563f}#pvpToast.info small{color:var(--dim);letter-spacing:.3em;font-size:11px}
 #pvpToast b{font-family:var(--f-num);font-weight:700;font-size:20px;letter-spacing:.04em;color:var(--ink);text-shadow:0 2px 8px rgba(0,0,0,.7)}
-#pvpToast .tLine{display:block;width:180px;height:2px;margin-top:2px;background:linear-gradient(90deg,transparent,rgba(244,239,228,.85),transparent);transform:scaleX(0)}
+#pvpToast .tLine{display:block;width:180px;height:2px;margin-top:2px;background:linear-gradient(90deg,transparent,rgba(244,239,228,.85),transparent);transform:scaleX(0);transition:transform .65s cubic-bezier(.5,0,.75,.6)}
 #pvpToast.head .tLine{background:linear-gradient(90deg,transparent,#ffcf4a,transparent)}#pvpToast.dead .tLine{background:linear-gradient(90deg,transparent,#e2563f,transparent)}
 #pvpToast .tCall{font-style:normal;font-family:var(--f-num);font-weight:800;font-size:15px;letter-spacing:.2em;text-transform:uppercase;color:#ffcf4a;text-shadow:0 0 12px rgba(255,190,60,.55)}
 #pvpToast.on .tIc{animation:tIcIn .5s cubic-bezier(.2,1.4,.35,1) both}
 #pvpToast.on small{animation:tTxIn .45s cubic-bezier(.2,.9,.3,1) .05s both}
 #pvpToast.on b{animation:tNmIn .4s ease-out .12s both}
-#pvpToast.on .tLine{animation:tLnIn .55s cubic-bezier(.2,.9,.3,1) .08s both}
+#pvpToast.on .tLine{transform:scaleX(1);transition:transform .55s cubic-bezier(.2,.9,.3,1) .08s}
 #pvpToast.on .tCall{animation:tIcIn .5s cubic-bezier(.2,1.5,.35,1) .2s both}
 @keyframes tIcIn{0%{opacity:0;scale:1.9;filter:blur(4px) brightness(2)}60%{opacity:1;scale:.94;filter:none}100%{scale:1}}
 @keyframes tTxIn{0%{opacity:0;letter-spacing:.9em}100%{opacity:1}}
 @keyframes tNmIn{0%{opacity:0;translate:0 6px}100%{opacity:1;translate:0}}
-@keyframes tLnIn{0%{transform:scaleX(0);opacity:0}100%{transform:scaleX(1);opacity:1}}
 
 /* a teammate down: slid in under the score, in red */
 #pvpMate{position:fixed;left:50%;top:calc(148px + env(safe-area-inset-top,0px));translate:-50% -8px;display:flex;align-items:center;gap:8px;padding:5px 14px 5px 10px;background:linear-gradient(90deg,rgba(120,26,18,.0),rgba(120,26,18,.82) 18%,rgba(120,26,18,.82) 82%,rgba(120,26,18,0));opacity:0;z-index:6;transition:opacity .3s,translate .35s cubic-bezier(.2,.9,.3,1.2)}
@@ -180,7 +180,10 @@ body.pvp #bandBox{display:none}
 #pvpMate em{font-style:normal;font:700 11px var(--f-num);letter-spacing:.14em;text-transform:uppercase;color:rgba(255,215,207,.75);padding-left:8px;border-left:1px solid rgba(255,215,207,.35)}
 
 /* your class and its perks, small down the left above your health */
-#pvpKit{position:fixed;left:calc(22px + env(safe-area-inset-left,0px));bottom:150px;display:flex;flex-wrap:wrap;align-items:center;gap:5px;max-width:300px;z-index:5;opacity:.82}
+#pvpKit{position:fixed;left:calc(22px + env(safe-area-inset-left,0px));bottom:124px;display:flex;flex-wrap:wrap;align-items:center;gap:5px;max-width:300px;z-index:5;opacity:.3;transition:opacity .4s}
+/* (bright for a couple of seconds as you come in, then faded back out of the way) */
+#pvpKit.fresh{animation:kitFresh 3.4s ease both}
+@keyframes kitFresh{0%,62%{opacity:.9}100%{opacity:.3}}
 #pvpKit b{font:800 12px var(--f-num);letter-spacing:.18em;text-transform:uppercase;color:var(--ink);margin-right:4px}
 #pvpKit i{font-style:normal;font-size:10px;letter-spacing:.03em;color:var(--orange);border:1px solid color-mix(in srgb,var(--orange) 40%,transparent);padding:1px 5px;background:rgba(14,15,16,.55)}
 
@@ -286,3 +289,6 @@ body.menu #pvpFlag{z-index:4!important}
 #pvpPick .ppCard.kit .ppGun{grid-template-columns:96px 1fr}
 #pvpPick .ppCard.kit .ppGun img{width:96px;height:36px}
 @media (prefers-reduced-motion:reduce){#pvpFlag.mine s,#pvpFlag.theirs s{animation:none}}
+/* (watching someone in the arena: who you're watching set down clear of the score along the top, not over it) */
+body.pvp #spec .spTop{top:calc(112px + env(safe-area-inset-top,0px))}
+body.pvp.pvpTeams #spec .spTop{top:calc(96px + env(safe-area-inset-top,0px))}

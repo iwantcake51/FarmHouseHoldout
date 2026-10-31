@@ -181,6 +181,21 @@ export const spawnLook = () => LOOK_SAVE.on && LOOK_SAVE.look ? JSON.parse(JSON.
 export function keepLook(on) { LOOK_SAVE.on = !!on; if (on && LOOK.cur) LOOK_SAVE.look = JSON.parse(JSON.stringify(LOOK.cur)); storeLook(); }
 // your look's just been changed by hand: kept, if you're keeping it
 export function lookChanged() { if (LOOK_SAVE.on && LOOK.cur) { LOOK_SAVE.look = JSON.parse(JSON.stringify(LOOK.cur)); storeLook(); } }
+// ---- your survivors, saved: up to LOOK_SLOTS.max looks of your own to swap between in the Character menu (ui/look-editor.js),
+// each with a name of its own that's only there to tell them apart (it isn't your name in co-op), and which of them
+// you last put on or saved (cur; -1, none: someone dealt fresh). Kept in this browser (localStorage, SLOTS_KEY); the one
+// look kept from before there were slots comes in as the first of them
+const SLOTS_KEY = 'fhh-looks';
+export const LOOK_SLOTS = { max: 8, name: 20, cur: -1, list: [] };
+try {
+  const k = JSON.parse(localStorage.getItem(SLOTS_KEY) || 'null');
+  if (k && Array.isArray(k.list)) {
+    LOOK_SLOTS.list = k.list.filter(o => o && o.look && typeof o.look === 'object' && !Array.isArray(o.look)).slice(0, LOOK_SLOTS.max).map((o, n) => ({ name: String(o.name || 'Survivor ' + (n + 1)).slice(0, LOOK_SLOTS.name), look: o.look }));
+    // (the one you were wearing, if you're still in it: kept, and it's the look you're in now)
+    const c = LOOK_SLOTS.list[k.cur | 0]; if (c && LOOK_SAVE.on && JSON.stringify(c.look) === JSON.stringify(LOOK_SAVE.look)) LOOK_SLOTS.cur = k.cur | 0;
+  } else if (LOOK_SAVE.look) { LOOK_SLOTS.list = [{ name: 'Survivor 1', look: JSON.parse(JSON.stringify(LOOK_SAVE.look)) }]; LOOK_SLOTS.cur = LOOK_SAVE.on ? 0 : -1; storeSlots(); }
+} catch (e) {}
+export function storeSlots() { try { localStorage.setItem(SLOTS_KEY, JSON.stringify({ cur: LOOK_SLOTS.cur, list: LOOK_SLOTS.list })); } catch (e) {} }
 // clear the old look and build a new one; attach is false only for the first build, before the x-ray rim exists
 export function rollLook(opt) {
   const L = LOOK.cur = dealLook(opt);
@@ -292,21 +307,29 @@ export function faceGaze(H, gx, gy, get) {
 }
 // which eye you aim with (1, or -1 with a patch over that one: faceMood, player/hold.js tips the head to it)
 export const aimEye = L => L && L.face && L.face.patch && L.face.side === 1 ? -1 : 1;
-// how far out the mouth goes: on the face, or just in front of whatever facial hair covers where it is (the stubble's
-// jaw, a goatee), the line and its corners hw either side of x and as far as h below it (the grim chin's crease)
+// how far out the mouth goes: on the face, or on the front of whatever facial hair is over the line of it (a full
+// beard, stubble's shadow): only hair that's actually across where it is (at its height, y, within hw either side of
+// x) counts, so a goatee or a soul patch under it, a moustache over it or a horseshoe's ends beside it leave it on the face
 const MOUTH_Z = { face: 0.1615, over: 0.0015 }, _mb = new THREE.Box3();
-function mouthOver(hair, x, y, hw, h) {
+function mouthOver(hair, x, y, hw) {
   let z = MOUTH_Z.face;
   for (const c of hair) {
     if (!c.geometry.boundingBox) c.geometry.computeBoundingBox();
     c.updateMatrix(); _mb.copy(c.geometry.boundingBox).applyMatrix4(c.matrix);
-    if (_mb.max.x > x - hw && _mb.min.x < x + hw && _mb.max.y > y - h && _mb.min.y < y + 0.012) z = Math.max(z, _mb.max.z + MOUTH_Z.over);
+    if (_mb.max.x > x - hw && _mb.min.x < x + hw && _mb.max.y > y && _mb.min.y < y) z = Math.max(z, _mb.max.z + MOUTH_Z.over);
   }
   return z;
 }
 // (lay: each kind of mark a hair further out than the last, so where two overlap, freckles on a smear of grime or a
 // scar across freckles, one's plainly over the other rather than the two flickering through each other)
-const SKIN_MARK = { t: 0.0012, in: 0.0004, lay: { freckle: 0.0002, grime: 0.0004, scar: 0.0006 } };
+// stubble's three layers go under all of them, a hair further in each (its feathered edge, its shadow, its bristles)
+const SKIN_MARK = { t: 0.0012, in: 0.0004, lay: { stubEdge: -0.0006, stub: -0.0004, bristle: -0.0002, freckle: 0.0002, grime: 0.0004, scar: 0.0006 } };
+// stubble: how far the shadow goes from the skin's colour to the hair's (k; its feathered edge half that) and how much
+// darker again (dk), the bristles' own (dot, dotDk: darker than the skin even when the hair's fair), and how close set
+// they are: one to every gap x gap of the jaw, keep of them there at all, each w across
+const STUB = { stubble: { k: 0.2, dk: 0.95, dot: 0.55, dotDk: 0.78, gap: 0.02, keep: 0.5, w: 0.0045 }, heavyStubble: { k: 0.36, dk: 0.9, dot: 0.72, dotDk: 0.72, gap: 0.015, keep: 0.66, w: 0.005 } };
+// (where each bristle goes: the same scatter every time the face is built, on everyone's screen, not dealt afresh)
+const stubHash = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
 // a round flat button (or eyelet) facing out the front: r across, h thick, at x, y, z
 const BTN_G = new THREE.CylinderGeometry(1, 1, 1, 10).rotateX(Math.PI / 2);
 function btn(g, r, h, m, x, y, z) { const b = new THREE.Mesh(BTN_G, m); b.scale.set(r, r, h); b.position.set(x, y, z); b.castShadow = true; g.add(b); return b; }
@@ -416,11 +439,35 @@ export function buildLook(L) {
     }
   }
   // ---- facial hair, then the mouth over it. Stubble is shadow, the skin and the hair mixed, not a solid block of hair
-  const nb = H.children.length, stub = k => lm(new THREE.Color(L.skin).lerp(new THREE.Color(L.beardCol), k).getHex());
+  const nb = H.children.length, stub = (k, dk = 1) => lm(new THREE.Color(L.skin).lerp(new THREE.Color(L.beardCol), k).multiplyScalar(dk).getHex());
   const bd = L.beard, jaw = (m, h) => { box(H, 0.3, h, 0.024, m, 0, -0.16 + h / 2, 0.166); [-1, 1].forEach(s => box(H, 0.014, 0.13, 0.12, m, s * 0.166, -0.08, 0.06)); };
   const tache = (w, y) => box(H, w, 0.026, 0.026, beard, 0, y ?? -0.072, 0.174);
   const chin = (w, h, y) => box(H, w, h, 0.032, beard, 0, y, 0.168);
-  if (bd === 'stubble' || bd === 'heavyStubble') { const m = stub(bd === 'stubble' ? 0.38 : 0.62); jaw(m, 0.085); box(H, 0.11, 0.022, 0.022, m, 0, -0.074, 0.168); }
+  if (bd === 'stubble' || bd === 'heavyStubble') {
+    // a few days' growth: no hair stood off the face at all, but a shadow in the skin over the jaw, the chin, the upper
+    // lip and up the sides of the face to below the ears, under the chin too, a paler band feathering it into the
+    // cheeks, and the bristles in it a scatter of fine darker flecks (STUB); heavy stubble darker and thicker set
+    const T = STUB[bd], sh = stub(T.k, T.dk), edge = stub(T.k * 0.5, (1 + T.dk) / 2), dot = stub(T.dot, T.dotDk), lay = SKIN_MARK.lay, t = SKIN_MARK.t, out = q => 0.16 + q + t / 2 - SKIN_MARK.in;
+    const side = (s, d, h, m, z, y, q) => box(H, t, h, d, m, s * out(q), y, z);
+    mark(0.32, 0.09, sh, 0, -0.115, 0, 0.16 + lay.stub); mark(0.1, 0.012, sh, 0, -0.064, 0, 0.16 + lay.stub);   // the jaw and chin up to the cheeks; the upper lip under the nose
+    mark(0.32, 0.014, edge, 0, -0.064, 0, 0.16 + lay.stubEdge);
+    [-1, 1].forEach(s => {
+      mark(0.07, 0.03, sh, s * 0.125, -0.055, 0, 0.16 + lay.stub); mark(0.08, 0.012, edge, s * 0.12, -0.036, 0, 0.16 + lay.stubEdge);   // up the jawline toward the sideburns
+      side(s, 0.16, 0.12, sh, 0.08, -0.1, lay.stub); side(s, 0.16, 0.014, edge, 0.08, -0.033, lay.stubEdge);
+    });
+    box(H, 0.3, t, 0.15, sh, 0, -out(lay.stub), 0.08);   // under the chin
+    // the bristles: on a jittered grid over all of it but the mouth itself
+    const front = (x, y) => (y < -0.07 || (Math.abs(x) < 0.05 && y < -0.058) || (Math.abs(x) > 0.09 && y < -0.042)) && !(Math.abs(x) < 0.036 && y > -0.106 && y < -0.09);
+    let n = 0;
+    for (let y = -0.155; y < -0.04; y += T.gap) for (let x = -0.152; x <= 0.152; x += T.gap, n++) {
+      const px = x + (stubHash(n) - 0.5) * T.gap * 0.8, py = y + (stubHash(n + 0.5) - 0.5) * T.gap * 0.8;
+      if (stubHash(n + 0.25) < T.keep && front(px, py)) mark(T.w * (0.8 + stubHash(n + 0.75) * 0.5), T.w * (0.8 + stubHash(n + 0.6) * 0.5), dot, px, py, 0, 0.16 + lay.bristle);
+    }
+    for (let y = -0.152; y < -0.045; y += T.gap * 1.3) for (let z = 0.01; z < 0.155; z += T.gap * 1.3, n++) [-1, 1].forEach((s, k) => {
+      const pz = z + (stubHash(n + k * 0.31) - 0.5) * T.gap, py = y + (stubHash(n + k * 0.53 + 0.1) - 0.5) * T.gap;
+      if (stubHash(n + k * 0.17 + 0.2) < T.keep) side(s, T.w, T.w, dot, pz, py, lay.bristle);
+    });
+  }
   else if (bd === 'full' || bd === 'longBeard') {
     jaw(beard, 0.13); tache(0.14);
     if (bd === 'longBeard') { box(H, 0.24, 0.1, 0.05, beard, 0, -0.205, 0.15); box(H, 0.16, 0.06, 0.045, beard, 0, -0.27, 0.14); }
@@ -438,11 +485,11 @@ export function buildLook(L) {
   // thin, turned down, a smirk up at one corner, or set grim with the chin creased under it
   const mY = -0.098, mouthM = lm(new THREE.Color(L.skin).multiplyScalar(0.48).lerp(new THREE.Color(0x4a1e18), 0.3).getHex());
   const mw = F.mouth === 'thin' ? 0.046 : 0.058, mh = F.mouth === 'thin' ? 0.005 : 0.008, mx = F.mouth === 'smirk' ? -F.side * 0.005 : 0, n2 = H.children.length;
-  const mZ = mouthOver(H.children.slice(nb, n2), mx, mY, mw / 2 + 0.02, 0.03);
+  const hairs = H.children.slice(nb, n2), mZ = mouthOver(hairs, mx, mY, mw / 2 + 0.012);   // (the line and its corners)
   box(H, mw, mh, 0.004, mouthM, mx, mY, mZ);
   if (F.mouth === 'frown') [-1, 1].forEach(s => box(H, 0.012, 0.006, 0.004, mouthM, s * (mw / 2 + 0.003), mY - 0.005, mZ).rotation.z = s * 0.6);
   else if (F.mouth === 'smirk') box(H, 0.016, 0.006, 0.004, mouthM, mx + F.side * (mw / 2 + 0.005), mY + 0.004, mZ).rotation.z = F.side * 0.55;
-  else if (F.mouth === 'grim') box(H, 0.034, 0.005, 0.004, PM.mats.skinDk, 0, mY - 0.026, mZ);   // the chin set under it
+  else if (F.mouth === 'grim') box(H, 0.034, 0.005, 0.004, PM.mats.skinDk, 0, mY - 0.026, mouthOver(hairs, 0, mY - 0.026, 0.017));   // the chin set under it (on whatever hair's there, a goatee's or a full beard's)
   face.mouth = facePart(H, n2, 0, mY, mZ, 0, F.mouth === 'grim' ? 1 : 3);   // (the line and its corners; the chin's crease stays put)
   if (F.scar === 'lip') scarLine(0.04, F.side * 0.02, mY + 0.004, F.side * 0.08, mZ + 0.002, 0.006);   // (over the mouth's line, down through both lips)
   // ---- hat

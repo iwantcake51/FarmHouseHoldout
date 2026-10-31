@@ -8,6 +8,7 @@
 // The camera's orthographic, so a point's place in view comes straight from where it is on screen and its depth:
 // that's what makes the occlusion cheap and exact here.
 
+import { LAMP_ON } from '../lighting/static-lights.js';
 import { lodFigures } from './lod.js';
 import { cullForests, stepSunShadows } from '../world/tree-cull.js';
 import { cam, hemi, OVER_LAYER, R, scene, sun, viewRect } from '../core/renderer.js';
@@ -230,9 +231,9 @@ const _flP = new THREE.Vector3();
 // same flare, shown while nothing nearer stands in front of the lamp itself (its own depth, not the sky's), stronger as
 // it gets dark and the more it shines at you, fading with distance; only the brightest FLARE_LAMP.n in view each frame
 export const FLARE_SRC = [];
-const FLARE_LAMP = { k: 0.75, n: 2, far: 45, face: [0.2, 0.9], day: 0.25 }, _flD = new THREE.Vector3(), _flC = new THREE.Color();
+const FLARE_LAMP = { k: 0.75, n: 2, far: 45, face: [0.2, 0.9] }, _flD = new THREE.Vector3(), _flC = new THREE.Color();
 function lampFlares(target, W, H) {
-  const ss = (a, b, x) => smooth(clamp((x - a) / (b - a), 0, 1)), dk = FLARE_LAMP.day + (1 - FLARE_LAMP.day) * clamp(curDark * 1.3, 0, 1), list = [];
+  const ss = (a, b, x) => smooth(clamp((x - a) / (b - a), 0, 1)), dk = LAMP_ON.k, list = []; if (dk < 0.01) return;   // (only once they're on: lighting/static-lights.js)
   for (const L of FLARE_SRC) {
     _flD.set(cam.position.x - L.x, cam.position.y - L.y, cam.position.z - L.z); const dist = _flD.length(); if (dist > FLARE_LAMP.far) continue;
     const face = ss(FLARE_LAMP.face[0], FLARE_LAMP.face[1], (_flD.x * L.dx + _flD.y * L.dy + _flD.z * L.dz) / dist);

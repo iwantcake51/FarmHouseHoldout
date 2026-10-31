@@ -58,7 +58,7 @@ import { launchGlob, spitWindFx } from '../zombies/spitter.js';
 import { unragYou } from '../player/player-ragdoll.js';
 import { ANIM } from '../player/animation.js';
 import { heardFrom, netDropAvatar, poseOut, updateAvatars } from './avatars.js';
-import { renderTeam } from './lobby.js';
+import { lobbyRender, renderTeam } from './lobby.js';
 import { renderSpec, SPEC } from './spectate.js';
 import { teamBonus } from './teamwork.js';
 import { frTick } from './friends.js';
@@ -394,7 +394,9 @@ function netRespawn() {
   netSend('look', { look: LOOK.cur });   // (your teammates rebuild you as you are now)
   feed('med', P.hp, 'back on your feet'); SFX.upgrade();
 }
-NET_ON.look = m => { const p = NET.peers.get(m.f); if (!p) return; p.look = m.look; netDropAvatar(p); p.av = null; };
+// someone's new look (back on their feet, or changed in the Character menu in the lobby): their survivor made again in
+// it, and their seat's picture with it
+NET_ON.look = m => { const p = NET.peers.get(m.f); if (!p || !m.look || typeof m.look !== 'object') return; p.look = m.look; netDropAvatar(p); p.av = null; if (!NET.inGame) lobbyRender(); };
 // everyone down: the run's over for all of you (the host calls it)
 NET_ON.over = () => { if (state === 'play' || state === 'paused') die(); };
 

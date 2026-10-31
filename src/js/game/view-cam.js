@@ -455,9 +455,9 @@ function viewMat(out) {
 // sprinting from your own eyes, the gun held low across you (player/hold.js: FP_SPRINT) is kept out of your face, whatever
 // its shape: the top of its back end (a long wooden stock, a buffer tube, a pistol's grip) never comes up past
 // SPRINT_CLEAR.ndc of the way down the view, nor nearer your eye than SPRINT_CLEAR.near; where it would, the whole gun
-// is let down (and eased out) by as much, by rd, how far into the sprint pose it is. Its shape's measured once
+// is let down by as much (too near: further down and off to the side, only SPRINT_CLEAR.outFwd of it forward), by rd, how far into the sprint pose it is. Its shape's measured once
 // (gg.userData.bb: its rear third's top corners, in its own frame)
-const SPRINT_CLEAR = { ndc: -0.72, near: 0.3 }, _spcM = new THREE.Matrix4(), _spcP = new V3(), _spcB = new THREE.Box3(), _spcX = new V3(), _spcU = new V3(), _spcF = new V3();
+const SPRINT_CLEAR = { ndc: -0.72, near: 0.3, outDown: 0.7, outSide: 0.35, outFwd: 0.04, maxDown: 0.32 }, _spcM = new THREE.Matrix4(), _spcP = new V3(), _spcB = new THREE.Box3(), _spcX = new V3(), _spcU = new V3(), _spcF = new V3();
 function gunBack(gg) {
   if (gg.userData.bb) return gg.userData.bb;
   gg.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(gg.matrixWorld).invert(), b = new THREE.Box3(), v = new V3();
@@ -477,7 +477,10 @@ export function fpSprintClear(gg, rd) {
   }
   if (down <= 0 && out <= 0) return;
   _rlM.extractBasis(_spcX, _spcU, _spcF);   // (the view's across, up and back)
-  _spcP.setFromMatrixPosition(gg.matrixWorld).addScaledVector(_spcU, -Math.max(0, down) * rd).addScaledVector(_spcF, -Math.max(0, out) * rd);
+  // (too near your eye: not pushed out ahead, which drew the arms out straight to hold it there, but taken down and off
+  // to the side the way a gun's carried low across you, only the last little of it forward)
+  out = Math.max(0, out); down = Math.min(SPRINT_CLEAR.maxDown, Math.max(0, down) + out * SPRINT_CLEAR.outDown);
+  _spcP.setFromMatrixPosition(gg.matrixWorld).addScaledVector(_spcU, -down * rd).addScaledVector(_spcX, out * SPRINT_CLEAR.outSide * rd).addScaledVector(_spcF, -Math.min(out, SPRINT_CLEAR.outFwd) * rd);
   gg.position.copy(gg.parent.worldToLocal(_spcP)); gg.updateMatrix(); gg.updateMatrixWorld(true);
 }
 // vmLock's move of the upper body as it'll be made this frame, and fpCarry's after it, undone (see vmLock: from where
@@ -990,16 +993,24 @@ function fpDeathCam(rdt, c) {
   const fov = DFP.fov + (DEATH_FP.fov - DFP.fov) * k; if (Math.abs(c.fov - fov) > 0.01) { c.fov = fov; c.updateProjectionMatrix(); }
 }
 const _dfV = new V3();
-const KILL_CAM = { at: 0.9, back: 3.4, up: 2.2, side: 0.9, follow: 3, fov: 62 }, _kcT = new V3(), _kcW = new V3();
+// (KILL_CAM: when it goes over; how far back, up and to the side of them it settles; how quick it follows them once
+// it's there; the field of view; and how long the move over takes, ease: the camera's carried there on one smooth curve
+// from where the fall left it, its aim swung round over the same time, not chased frame by frame. Where they stand and
+// where it sits are each smoothed first (lag), so their steps and the network's corrections never shake it)
+const KILL_CAM = { at: 0.9, back: 3.4, up: 2.2, side: 0.9, follow: 2.4, fov: 62, ease: 1.5, lag: 6 }, _kcT = new V3(), _kcW = new V3(), _kcA = new V3();
 function killCam(rdt, c, g) {
-  const dx = _dfT.x - g.x, dz = _dfT.z - g.z, L = Math.hypot(dx, dz) || 1, ux = dx / L, uz = dz / L;
-  let r = KILL_CAM.back; while (r > 0.9 && !los(g.x, g.z, g.x + ux * r - uz * KILL_CAM.side, g.z + uz * r + ux * KILL_CAM.side)) r -= 0.3;   // (short of a wall behind them)
-  _kcW.set(g.x + ux * r - uz * KILL_CAM.side, KILL_CAM.up, g.z + uz * r + ux * KILL_CAM.side); _kcT.set(g.x, 1.2, g.z);
-  if (!DFP.kc) { DFP.kc = true; DFP.kp.copy(c.position); }
-  const f = 1 - Math.exp(-rdt * KILL_CAM.follow);
-  DFP.kp.lerp(_kcW, f); c.position.copy(DFP.kp); PM.head.visible = true;
-  _dfM.lookAt(c.position, _kcT, _dfV.set(0, 1, 0)); _dfQ.setFromRotationMatrix(_dfM); c.quaternion.slerp(_dfQ, Math.min(1, f * 1.6));
-  const fov = c.fov + (KILL_CAM.fov - c.fov) * f; if (Math.abs(c.fov - fov) > 0.01) { c.fov = fov; c.updateProjectionMatrix(); }
+  if (!DFP.kc) { DFP.kc = true; DFP.kt0 = DFP.t; DFP.kp.copy(c.position); DFP.kq = c.quaternion.clone(); DFP.kg = g.clone(); DFP.kr = KILL_CAM.back; const dx = _dfT.x - g.x, dz = _dfT.z - g.z, L = Math.hypot(dx, dz) || 1; DFP.ku = [dx / L, dz / L]; DFP.kw = null; }
+  const lg = 1 - Math.exp(-rdt * KILL_CAM.lag); DFP.kg.lerp(g, lg);
+  const G = DFP.kg, [ux, uz] = DFP.ku;   // (from them back toward where you fell: the side it watches them from, fixed for the whole look)
+  let r = KILL_CAM.back; while (r > 0.9 && !los(G.x, G.z, G.x + ux * r - uz * KILL_CAM.side, G.z + uz * r + ux * KILL_CAM.side)) r -= 0.1;   // (short of a wall behind them)
+  DFP.kr += (r - DFP.kr) * lg;
+  _kcW.set(G.x + ux * DFP.kr - uz * KILL_CAM.side, KILL_CAM.up, G.z + uz * DFP.kr + ux * KILL_CAM.side); _kcT.set(G.x, 1.2, G.z);
+  if (!DFP.kw) DFP.kw = _kcW.clone(); else DFP.kw.lerp(_kcW, 1 - Math.exp(-rdt * KILL_CAM.follow));
+  const e = smooth(clamp((DFP.t - DFP.kt0) / KILL_CAM.ease, 0, 1));
+  // (over: from where it was to where it's going, on a curve that lifts a little in the middle)
+  c.position.lerpVectors(DFP.kp, DFP.kw, e); c.position.y += Math.sin(Math.PI * e) * 0.6; PM.head.visible = true;
+  _dfM.lookAt(c.position, _kcA.copy(_kcT), _dfV.set(0, 1, 0)); _dfQ.setFromRotationMatrix(_dfM); c.quaternion.copy(DFP.kq).slerp(_dfQ, smooth(clamp((DFP.t - DFP.kt0) / (KILL_CAM.ease * 0.8), 0, 1)));
+  const fov = c.fov + (KILL_CAM.fov - c.fov) * (1 - Math.exp(-rdt * 3)); if (Math.abs(c.fov - fov) > 0.01) { c.fov = fov; c.updateProjectionMatrix(); }
 }
 // each frame, from game/camera.js: the view in use, then the camera placed. roll: the springs' tip (a shot, a hit, a
 // vault), sh: the shake

@@ -88,7 +88,7 @@ export function renderSpec() {
 // and out with the watching
 const SPEC_XH = { ease: 12 }, _sxV = new V3();
 export function updateSpecXh(rdt) {
-  const el = $('specXh'), f = camFocus(), on = f !== P && (state === 'play' || state === 'paused') && !!f.ap;
+  const el = $('specXh'), f = camFocus(), on = f !== P && (state === 'play' || state === 'paused') && !!f.ap && !(PVP.on && pvpFoe(f));   // (never the crosshair of the one who got you: only a teammate's)
   if (el.classList.contains('on') !== on) el.classList.toggle('on', on);
   if (!on) { SPEC.xh = null; return; }
   _sxV.set(f.ap[0], GUN_Y, f.ap[1]).project(cam);   // (on the plane aims are taken on, input/keyboard-mouse.js)
