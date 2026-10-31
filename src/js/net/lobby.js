@@ -8,7 +8,7 @@ import { $ } from '../core/dom.js';
 import { GI, GI_VB } from '../ui/game-icons.js';
 import { cache, clamp } from '../core/math.js';
 import {
-  NET, NET_COL, NET_MAX, netAllReady, netHost, netJoin, netKick, netLeave, netLink, netName, netReady, netRoster, netSend, netSetMode, netSetView, netStart
+  NET, NET_COL, NET_MAX, netAllReady, netHost, netJoin, netKick, netLeave, netLink, netName, netReady, netRoster, netSend, netSetGame, netSetMode, netSetView, netStart
 } from './net.js';
 import { METAL } from '../barricades/planks.js';
 import { audioInit } from '../audio/audio.js';
@@ -20,6 +20,7 @@ import { frAdd, frAnnounce, friendsUp, frOf, frRender, invRender, PALS } from '.
 import { LOOK } from '../player/look.js';
 import { lookThumb } from '../ui/look-card.js';
 import { chatRender } from './chat.js';
+import { PVP, pvpMate } from '../pvp/pvp.js';
 
 const lobbySeen = new Set();   // who's been shown in the seats already (someone just in slides into their seat)
 let lookSent = '';
@@ -39,6 +40,12 @@ export function lobbyRender() {
   // and the run's mode, the same: normal or no perks
   for (const b of $('coopMode').querySelectorAll('button')) { b.setAttribute('aria-checked', String(b.dataset.m === NET.runMode)); b.disabled = !host || NET.inGame; }
   $('coopModeNote').textContent = host ? 'Everyone plays in it' : 'The host picks it';
+  // and the game: the farm, or the arena and its mode (pvp/pvp.js); no perks only means anything on the farm
+  for (const b of $('coopGame').querySelectorAll('button')) { b.setAttribute('aria-checked', String(b.dataset.g === NET.game)); b.disabled = !host || NET.inGame; }
+  for (const b of $('coopArena').querySelectorAll('button')) { b.setAttribute('aria-checked', String(b.dataset.a === NET.arena)); b.disabled = !host || NET.inGame; }
+  $('coopArena').hidden = NET.game !== 'arena'; $('coopMode').hidden = NET.game === 'arena';
+  $('coopGameNote').textContent = host ? 'Everyone plays it' : 'The host picks it';
+  $('coopArenaNote').textContent = ARENA_NOTE[NET.arena] || '';
   // what you can do: the host starts once everyone's ready; a joiner says they're ready (or not after all)
   const others = [...NET.peers.values()], waiting = others.filter(p => !p.ready).map(p => p.name);
   $('coopGo').hidden = !host; $('coopGo').classList.toggle('held', host && !netAllReady()); $('coopGo').disabled = NET.inGame;
@@ -107,6 +114,10 @@ $('coopReady').onclick = () => { netReady(!NET.ready); SFX.click(); };
 $('coopLeave').onclick = () => netLeave();
 $('coopView').onclick = e => { const b = e.target.closest('button'); if (b && !b.disabled) netSetView(b.dataset.v); };
 $('coopMode').onclick = e => { const b = e.target.closest('button'); if (b && !b.disabled) netSetMode(b.dataset.m); };
+$('coopGame').onclick = e => { const b = e.target.closest('button'); if (b && !b.disabled) netSetGame(b.dataset.g); };
+$('coopArena').onclick = e => { const b = e.target.closest('button'); if (b && !b.disabled) netSetGame('arena', b.dataset.a); };
+// what each of the arena's modes is, in a line under its name
+const ARENA_NOTE = { ffa: 'Everyone for themselves, first to 15 kills', tdm: 'Two sides, back in after you fall, first side to 20 kills', rounds: 'Two sides, one life a round, first to 5 rounds' };
 // a Copy button: says so only once the clipboard's really taken it (a browser that won't let the page at it says that)
 export function copyBtn(el, text) {
   const was = el.dataset.label || (el.dataset.label = el.textContent);
@@ -135,7 +146,7 @@ export function renderTeam() {
   const el = $('team'), on = netLink() && state !== 'title';
   if (el.hidden === on) { el.hidden = !on; liftFeed(); }
   if (!on) return;
-  const ps = [...NET.peers.values()].sort((a, b) => a.idx - b.idx);
+  const ps = [...NET.peers.values()].filter(p => !PVP.on || pvpMate(p)).sort((a, b) => a.idx - b.idx);   // (in the arena, only your own side: pvp/pvp.js)
   const key = ps.map(p => [p.id, p.name, Math.round(p.hp ?? 100), p.maxHp, p.heal || 0, p.dead ? 1 : 0, ...(p.stats || [])].join(':')).join('|');
   if (cache.team === key) return; cache.team = key;
   if (el.childElementCount !== ps.length || [...el.children].some((c, k) => c.dataset.id !== ps[k].id)) {

@@ -387,6 +387,109 @@ see, with their arms and weapon posed as they see them (their head hidden out of
 and their crosshair in the middle of your screen). If they're playing from above, you watch from above too. Clear a wave with nobody down and everyone gets a little
 scrap. When a co-op run ends you're back in its lobby, with the title's Co-op marked by a green dot while you're in one.
 
+**The arena.** In a co-op lobby the host can pick **Arena** under **Game** in place of **Survival**: players against
+each other on a map of its own, in either view (the lobby's **Isometric** or **First person**). There are no zombies,
+waves, scrap, stations or cards, and the farm's HUD that goes with them (the wave and clock, planks, scrap and kills,
+the pickups feed) is put away. The host picks one of three modes:
+
+- **Deathmatch.** Everyone for themselves, first to 15 kills. Go down and you're back in 4.5 seconds at the spawn
+  point furthest from everyone else, and you can change class while you wait.
+- **Team deathmatch.** Two sides, Blue and Red (players alternate between them in the order they joined). Each side
+  starts at its own end and respawns there. The first side to 20 kills wins.
+- **Showdown.** Two sides (1v1, 2v2, or 2v1 with three), one life a round, first side to 5 rounds. Go down and the
+  view dips to black and comes up on a teammate still standing. The last side standing takes the round. A round left
+  at 2:00 goes to the side with more players up, then the one with more health between them, otherwise it's a draw.
+  Between rounds everyone is back at their spawn, whole again, with a fresh loadout and the chance to change class.
+
+A match opens on the **class picker**: five cards, each with its two guns and its melee weapon (each pictured) and
+its bandages. Click one or press 1 to 5. Everyone stands frozen at their spawn while picking (10 seconds at the start, 6
+between rounds), then there's a three-second count-in and **Fight**. The classes, always two guns and a melee weapon
+with their attachments set:
+
+| Class | Guns | Melee | Bandages |
+|---|---|---|---|
+| Rifleman | Assault rifle with a red dot, handgun | Machete | 2 |
+| Marksman | Hunting rifle with a scope, revolver | Crowbar | 1 |
+| Rush | Submachine gun with a holo, sawn-off double barrel | Katana | 1 |
+| Breacher | Pump shotgun with a laser, machine pistol | Fire axe | 2 |
+| Gunner | Light machine gun with a red dot, handgun | Pipe wrench | 2 |
+
+Each gun starts with a full mag and three more (the LMG one more box; shotguns at least 14 shells). There are no
+pickups, and coming back in gives you a fresh loadout.
+
+**Damage between players** is its own table rather than the zombies', so no gun kills everything in one shot. To a
+100-health body, before range falloff:
+
+| Gun | Damage | Body shots to kill |
+|---|---|---|
+| Handgun | 24 | 5 |
+| Revolver | 46 | 3 |
+| Hand cannon | 58 | 2 |
+| Machine pistol | 14 | 8 |
+| Submachine gun | 16 | 7 |
+| Assault rifle | 25 | 4 |
+| Light machine gun | 23 | 5 |
+| Battle rifle | 40 | 3 |
+| Hunting rifle | 88 | 2 |
+
+- **Where it lands.** A head takes double (a shotgun pellet in the head 1.45×), and an arm or leg about three
+  quarters.
+- **Shotguns.** Each pellet counts: the pump's eight are 13 apiece and the double's 12 (the sawn-off's more, and
+  harder up close), the auto shotgun's seven 8 apiece. So a shotgun kills up close and falls away fast past a few
+  metres, as each gun's own falloff has it.
+- **Melee** hits for 38 (bat) to 92 (sledgehammer). A blow to the head does 1.4×, and so does an axe's chop more often.
+- **Bleeding.** A hit can open a bleed (more likely from a blade, or from three or more pellets at once) that drains
+  you down to 15 until a bandage stops it.
+- **Who decides a hit.** Whoever fires works out the hit against where the target stands on their screen, and the
+  target's game takes the damage.
+- **Spawn protection.** For 1.6 seconds after you come in, nothing hurts you.
+
+**Cover and sight.**
+
+- From your own eyes, a round fired below the top of a barrier stops on it, so someone crouched in behind one shows
+  only their head and shoulders.
+- From above, a hit on someone just behind low cover lands only on their head or an arm.
+- From above, the fog of war hides anyone on the other side you can't see, their name and all, until they come into
+  sight.
+- Nobody on the other side is outlined or shown through walls, from either view.
+- Their name shows only while you (or the teammate you're watching) can see them and they're on your screen: never
+  pinned to the edge of the screen pointing their way, and never with their health. Your own side keeps its
+  outlines, names and health bars, and every name is in its side's colour.
+
+**Gore.**
+
+- Every hit throws blood off where it struck, on everyone's screen, and drips on the ground behind.
+- When you're hit, the screen bloods from that side, your survivor stains, you flinch, and the hit indicator points
+  at the shooter.
+- A kill leaves a pool spreading under the body.
+- A headshot kill that hits hard enough (60 or more) bursts the head in a red mist with chips of skull, on every
+  screen, and the head stays gone until that player is back.
+
+**The HUD.**
+
+- **Up top.** Deathmatch shows the clock and everyone's kills as chips in their colour, the leader first. The team
+  modes show each side's score in its colour either side of the clock and the mode. Showdown adds five diamonds for
+  rounds won and a figure for each player, greyed out once they're down.
+- **The kill feed** runs down the top right: the killer, the weapon they used (its picture) with a skull for a
+  headshot, and who went down.
+- **Big calls** come up for the round, **Fight**, and the round won or lost with the score.
+- **The results** come up at the end: Victory, Defeat or Draw, with everyone's kills and deaths, and then everyone's
+  back in the lobby.
+
+**The map** is an old freight yard (Yard 4) in a clearing in the woods, where the farm stands: the farm is taken away
+for the match and put back after it.
+
+- **The layout.** A cast concrete pad (expansion joints, oil stains, tyre marks, cracks) is walled round with tall
+  precast panels. Two shipping containers stand down each side and two across the middle, ribbed, in rust red, faded
+  blue, olive and ochre. In the very middle is a roofless block hut with a doorway in each wall. There are jersey
+  barriers with a stripe of warning paint, sandbag walls, two-high crate stacks, drums, and a floodlight on a pole in
+  each corner.
+- **The two halves** mirror each other, so neither side is better off: west against east, each side's spawn a
+  hatched pad painted in its colour.
+- **The light.** It's always mid-afternoon there, the sun starting down and the shadows lengthening.
+- **What blocks what.** The walls, containers, hut and crates stop you, your rounds and your sight. The barriers,
+  sandbags and drums only stop you: you see and shoot over them, and they come up to about your chest.
+
 ## Controls
 
 These are the defaults. Every key except walking can be changed in **Settings → Controls**, either to another key or

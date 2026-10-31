@@ -19,11 +19,13 @@ import { SET } from '../ui/settings.js';
 import { setViewMode, VCAM } from '../game/view-cam.js';
 import { chatClear, chatSys } from './chat.js';
 import { frMet } from './friends.js';
+import { PVP_MODES, pvpTeams } from '../pvp/pvp.js';
 
 export const NET_V = 2, NET_MAX = 4, NET_PREFIX = 'fhh-coop-', NET_QUIET = 15;   // (NET_V: 2 since the lobby got ready-up, chat and removing someone, which a game before it doesn't know; NET_QUIET: seconds without a word before a player counts as gone; a slow machine can stall that long building its shaders)
 export const NET = { on: false, host: false, mode: /[?&]net=local/.test(location.search) ? 'local' : 'peer', id: '', hostId: '', code: '', name: '', inGame: false, status: '', idx: 0,
   runMode: 'normal',   // everyone's run mode, the host's pick in the lobby (normal or no perks: netSetMode)
   view: 'iso',   // everyone's view in the run, the host's pick in the lobby (isometric or first person: netSetView)
+  game: 'survival', arena: 'ffa', teams: null,   // the game everyone plays (the farm, or the arena: pvp/pvp.js), the arena's mode, and its sides (the host's, at the start)
   peers: new Map(),   // everyone else in the game, by id: { id, name, look, idx, heard, ... } (net/avatars.js adds their avatar)
   ready: false,   // a joiner's own word that they're set to go (the host's Start waits for everyone's: netAllReady)
   peer: null, conns: new Map(), conn: null, bc: null, beatT: 0 };
@@ -156,7 +158,7 @@ NET_ON.kick = m => { if (!NET.host && m.f === NET.hostId) netLost('The host remo
 export const netRoster = () => [{ id: NET.id, name: netName(), look: LOOK.cur, idx: 0, fid: PALS.me, ready: true }].concat([...NET.peers.values()].map(p => ({ id: p.id, name: p.name, look: p.look, idx: p.idx, fid: p.fid, ready: !!p.ready })));
 // everyone in the lobby set to go (the host always is): the run starts only then
 export const netAllReady = () => [...NET.peers.values()].every(p => p.ready);
-const rosterOut = () => { netOut({ t: 'roster', f: NET.id, list: netRoster(), view: NET.view, rm: NET.runMode }, null); frMet(netRoster()); };
+const rosterOut = () => { netOut({ t: 'roster', f: NET.id, list: netRoster(), view: NET.view, rm: NET.runMode, gm: NET.game, am: NET.arena }, null); frMet(netRoster()); };
 
 // ---- the handshake: a joiner says hello, the host takes them in (or turns them away) and tells everyone who's in
 NET_ON.hello = m => {
@@ -185,6 +187,7 @@ NET_ON.roster = m => {
   for (const id of [...NET.peers.keys()]) if (!keep.has(id)) netGone(id, 'left');
   if (m.view) NET.view = m.view;
   if (RUN_MODES.includes(m.rm)) NET.runMode = m.rm;
+  if (GAMES.includes(m.gm)) NET.game = m.gm; if (PVP_MODES[m.am]) NET.arena = m.am;
   NET.status = ''; frMet(m.list); lobbyRender();
 };
 // a joiner set to go, or not after all: the host keeps everyone's word and passes it round
@@ -201,6 +204,14 @@ export function netSetMode(v) {
   if (!NET.host || NET.inGame || !RUN_MODES.includes(v)) return;
   NET.runMode = v; netSend('rmode', { rm: v }); chatSys('Mode set to ' + modeName(v)); lobbyRender();
 }
+// and the game: the farm (survival) or the arena, and the arena's mode (pvp/pvp.js: PVP_MODES)
+const GAMES = ['survival', 'arena'];
+export function netSetGame(g, a) {
+  if (!NET.host || NET.inGame) return;
+  if (GAMES.includes(g)) NET.game = g; if (PVP_MODES[a]) NET.arena = a;
+  netSend('gm', { gm: NET.game, am: NET.arena }); chatSys(NET.game === 'arena' ? 'Game set to the arena: ' + PVP_MODES[NET.arena] : 'Game set to survival'); lobbyRender();
+}
+NET_ON.gm = m => { if (NET.host) return; if (GAMES.includes(m.gm)) NET.game = m.gm; if (PVP_MODES[m.am]) NET.arena = m.am; chatSys(NET.game === 'arena' ? 'The host set the game to the arena: ' + PVP_MODES[NET.arena] : 'The host set the game to survival'); lobbyRender(); };
 NET_ON.rmode = m => { if (NET.host || !RUN_MODES.includes(m.rm)) return; if (NET.runMode !== m.rm) chatSys('The host set the mode to ' + modeName(m.rm)); NET.runMode = m.rm; lobbyRender(); };
 NET_ON.view = m => { if (NET.host || (m.view !== 'iso' && m.view !== 'fp')) return; if (NET.view !== m.view) chatSys('The host set the view to ' + (m.view === 'fp' ? 'first person' : 'isometric')); NET.view = m.view; lobbyRender(); };
 NET_ON.bye = m => { if (m.f === NET.hostId && !NET.host) netLost('The host closed the game'); else netGone(m.f, 'left'); };
@@ -213,10 +224,11 @@ export function netStart() {
   if (!NET.host || NET.inGame) return false;
   if (!netAllReady()) { const w = [...NET.peers.values()].filter(p => !p.ready).map(p => p.name); NET.status = 'Waiting for ' + w.join(' and ') + ' to get ready'; SFX.deny(); lobbyRender(); return false; }
   NET.houseSeed = (Math.random() * 2147483647) | 0;   // everyone's farmhouse laid out alike (world/interior.js)
-  netSend('start', { roster: netRoster(), house: NET.houseSeed, view: NET.view, rm: NET.runMode }); netBegin();
+  NET.teams = NET.game === 'arena' ? pvpTeams(netRoster(), NET.arena) : null;   // (the arena's sides, everyone's the same)
+  netSend('start', { roster: netRoster(), house: NET.houseSeed, view: NET.view, rm: NET.runMode, gm: NET.game, am: NET.arena, tm: NET.teams }); netBegin();
   return true;
 }
-NET_ON.start = m => { if (NET.host) return; NET.houseSeed = m.house; if (m.view) NET.view = m.view; if (RUN_MODES.includes(m.rm)) NET.runMode = m.rm; for (const r of m.roster) { const p = NET.peers.get(r.id); if (p) p.look = r.look; } netBegin(); };
+NET_ON.start = m => { if (NET.host) return; NET.houseSeed = m.house; NET.game = GAMES.includes(m.gm) ? m.gm : 'survival'; NET.arena = PVP_MODES[m.am] ? m.am : 'ffa'; NET.teams = m.tm || null; if (m.view) NET.view = m.view; if (RUN_MODES.includes(m.rm)) NET.runMode = m.rm; for (const r of m.roster) { const p = NET.peers.get(r.id); if (p) p.look = r.look; } netBegin(); };
 function netBegin() { NET.inGame = true; NET.status = ''; if (VCAM.mode !== 'free') setViewMode(NET.view); lobbyRender(); toggleCoop(false); enterRun(); }   // (the co-op screen put away as the run comes up)   // (everyone in the host's view: ui/settings.js keeps it for the run)
 // every so often a word to say you're still there; anyone not heard from in NET_QUIET seconds is gone
 export function netBeat(rdt) {

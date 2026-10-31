@@ -334,6 +334,17 @@ const CRUSH_G = new THREE.BoxGeometry(0.06, 0.03, 0.05), CRUSH_M = [lam(0xd8cdb6
 CRUSH_M.forEach(m => { m.userData.mobile = true; });
 export const NECK_PUMP = 2.6;
 const HEAD_MIST = { n: 14, s0: [0.22, 0.34], s1: [0.8, 1.25], life: [1.3, 2.1] };
+// a survivor's head taken off by a headshot in the arena (pvp/pvp.js): the burst, the red mist where it was and the
+// chips of it flung off along the shot, as a zombie's goes (crushHead), at (x, y, hz)
+export function gorePop(x, y, hz, dx, dz) {
+  burst(x, y, hz, 22, 'blood', dx, dz, 3);
+  for (let k = 0; k < HEAD_MIST.n; k++) { const a = rand() * 6.28, sp = rr(0.2, 1.1), u = rand(); fx('redMist', x + Math.sin(a) * 0.1 * u, y + rr(-0.12, 0.12), hz + Math.cos(a) * 0.1 * u, Math.sin(a) * sp + dx * rr(0.4, 1.4), rr(-0.2, 0.7), Math.cos(a) * sp + dz * rr(0.4, 1.4), rr(HEAD_MIST.s0[0], HEAD_MIST.s0[1]), rr(HEAD_MIST.s1[0], HEAD_MIST.s1[1]), rr(HEAD_MIST.life[0], HEAD_MIST.life[1]), rr(0.7, 0.9)); }
+  for (let k = 0; k < 8; k++) { const a = rand() * 6.28, sp = rr(1.2, 3.2), c = new THREE.Mesh(CRUSH_G, CRUSH_M[k % 4]);
+    c.position.set(x, y, hz); c.rotation.set(rr(0, 6), rr(0, 6), rr(0, 6)); c.scale.setScalar(rr(0.5, 1.2)); c.castShadow = true; scene.add(c);
+    gibs.push({ m: c, vx: Math.sin(a) * sp + dx * rr(0.5, 1.5), vy: rr(1, 3.4), vz: Math.cos(a) * sp + dz * rr(0.5, 1.5), spin: rr(8, 16), life: 6, landed: false }); }
+  for (let k = 0; k < 4; k++) { const a = Math.atan2(dx, dz) + (k - 1.5) * 0.9; spray(x, hz, Math.sin(a), Math.cos(a), rr(0.9, 1.5), 1.6); }
+  soundAt(x, hz, () => SFX.crush());
+}
 export function crushHead(z, dx, dz) {
   const head = z.m.head; if (!head || !head.parent || !z.limbs.head) return false;
   z.limbs.head = false; netRec('c');

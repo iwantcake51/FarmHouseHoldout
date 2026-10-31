@@ -10,6 +10,7 @@ import { blockArr, bulletBlocked, bulletBlockedAt, inCellBox } from '../world/co
 import { P } from '../player/player.js';
 import { HEAVY_FIRE } from './gun-stats.js';
 import { falloff, headFade } from './ammo.js';
+import { pvpPellet, pvpRay, pvpShotEnd } from '../pvp/pvp.js';
 import { fireModeOf } from './mod-levels.js';
 import { curId, gunAtt, magSize, run, S, suppMul, suppressed, T, W, W8 } from '../game/run-state.js';
 import { AKX, BELT, BIPOD, MUZ, X } from './gun-materials.js';
@@ -401,9 +402,12 @@ export function gunFire(id, D, side) {
     const hits = [];
     for (const z of zombies) { const h = zRay(z, ox, oz, dx, dz, back); if (h && h.t <= endR) hits.push({ z, t: h.t, off: h.off, r: h.r, part: aimed && z === tgt.z ? tgt.part : null }); }
     if (aimed && !hits.some(h => h.z === tgt.z) && tgtT <= endR) hits.push({ z: tgt.z, t: tgtT, off: 0, r: 1, part: tgt.part });
+    pvpRay(ox, oz, dx, dz, endR, hits);   // (in the arena, the others on its way: pvp/pvp.js)
     hits.sort((a, b) => a.t - b.t);
     let m = 0;
     for (let k = 0; k < hits.length && m <= pierce; k++) {
+      // someone in the arena: what it did to them (pvp/pvp.js); a body stops it there
+      if (hits[k].pv) { if (pvpPellet(hits[k], fp, y0 + slope * hits[k].t, id, D, pellets, ox, oz, dx, dz)) { hits[m++] = hits[k]; break; } continue; }
       const { z, off, r } = hits[k];
       const hx = -off * dz, hz = off * dx, side = hx * Math.cos(z.face) - hz * Math.sin(z.face);
       // a pellet that lands close enough to where you aimed on that zombie hits the part you aimed at; the rest of the
@@ -459,6 +463,7 @@ export function gunFire(id, D, side) {
   const quiet = suppressed(D);
   SFX.fire(id, quiet, D.ammo === 'shells');
   shotOut(id, D, mw, ends, trSt, D.dragon ? trPw * 0.45 : trPw, quiet);
+  pvpShotEnd(id, D);   // (what it did to anyone in the arena, sent: pvp/pvp.js)
   const st = stocked(id) ? STOCK.kick : 1;
   const pw = gunPower(D, shots) * st * (1 + ((D.powK || 1) - 1) * POW_PUNCH);   // (a hotter powder kicks harder each shot: POWDER_KICK, half of it as a harder punch all round, its climb and swing aside by the gun's kickUp and kickSide, game/run-state.js)
   fireCam(pw, P.aim, fireRate(D) < 0.16); angerShot(fireRate(D)); setBloom(Math.min(18, bloom + D.shake * 34 * st));

@@ -15,6 +15,7 @@ import { SFX } from '../audio/sfx.js';
 import { camKick, camPunch, camRoll, setCamPunch, setCamRoll, setShake, shake } from '../game/state.js';
 import { bodyOf } from '../weapons/firing.js';
 import { meleeImpact } from './melee-anim.js';
+import { pvpMelee } from '../pvp/pvp.js';
 
 // you slow down while a swing comes through; heavier weapons more, and more again when you're winded
 export const swingSlow = () => { if (!(W8.swing > 0)) return 1; const D = W(curId()) || {}, p = 1 - W8.swing / W8.swingDur, k = Math.sin(Math.min(1, p * 1.15) * Math.PI); return 1 - Math.min(0.85, k * (D.style === 'chop' && D.two ? 0.6 : D.two ? 0.45 : 0.35) * (P.exh ? 1.55 : 1)); };
@@ -99,6 +100,7 @@ export function meleeHit() {
       else if (heavy && z.type !== 'brute') z.stagger = Math.max(z.stagger, HEAVY.stagger);
       hit = true; near = Math.min(near, d); nHit++;
     }
+    { const pn = pvpMelee(D, id); if (pn) { hit = true; nHit += pn; near = Math.min(near, D.range); } }   // (in the arena, anyone in reach: pvp/pvp.js)
     // nothing living in the way: a boarded opening in reach takes the blow instead, BOARD_MELEE of it, the boards
     // jumping and splintering as they do under fire
     const bo = !hit && boardInReach(D);

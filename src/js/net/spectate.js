@@ -14,14 +14,16 @@ import { DC } from '../ui/screens.js';
 import { paintBar } from './lobby.js';
 import { meleeArt } from '../ui/melee-art.js';
 import { specFpOn } from '../game/view-cam.js';
+import { PVP, pvpMate } from '../pvp/pvp.js';
 
 export const SPEC = { id: '', key: '' };
 // who the camera's on: you, or once you've fallen, the teammate you picked if they're still standing, else the first
 export function camFocus() {
   if (!netLink() || !P.dead || !DC.spec) return P;   // (once the death camera's dipped to black: ui/screens.js)
   let first = null;
+  if (PVP.on && PVP.mode !== 'rounds') return P;   // (in the arena you watch only your own side, and only in Showdown: pvp/pvp.js)
   for (const p of NET.peers.values()) {
-    if (p.dead || p.x === undefined) continue;
+    if (p.dead || p.x === undefined || (PVP.on && !pvpMate(p))) continue;
     if (p.id === SPEC.id) return p;
     if (!first || p.idx < first.idx) first = p;
   }
@@ -39,7 +41,7 @@ export function viewer() {
 }
 // step to the next teammate still standing (dir 1) or the one before (-1), round and round
 export function specStep(dir) {
-  const up = [...NET.peers.values()].filter(p => !p.dead && p.x !== undefined).sort((a, b) => a.idx - b.idx);
+  const up = [...NET.peers.values()].filter(p => !p.dead && p.x !== undefined && (!PVP.on || pvpMate(p))).sort((a, b) => a.idx - b.idx);
   if (up.length < 2) return;
   SPEC.id = up[(up.indexOf(camFocus()) + dir + up.length) % up.length].id; SPEC.key = '';
 }

@@ -27,6 +27,7 @@ import { tickBandage } from '../player/bandages.js';
 import { RUN_REST, SHOT_HOLD, SPRINT, sprintHolds } from '../player/sprint.js';
 import { fpGunPitch, fpOn, VCAM } from '../game/view-cam.js';
 import { ANIM, LOOK_DOWN } from '../player/animation.js';
+import { pvpFrozen } from '../pvp/pvp.js';
 
 const VAULT_BREATH = 1;   // seconds after a vault before stamina starts coming back
 const PITCH_MAX = 0.75;   // how far down (radians) the arms will point a gun
@@ -46,7 +47,7 @@ export function updateCombat(dt) {
     if (!W8.hitDone && p >= (heavy ? HEAVY.hit : 0.4)) { W8.hitDone = true; meleeHit(); }
   }
   resumeReload(); tickReload(dt); tickShut(dt); tickCycle(dt);
-  const canFire = !openSt && !P.dead && !(P.shockStun > 0) && !(P.bandT > 0) && !(ANIM.bandP > 0.25) && !sprintHolds();   // not till it's back in your hands after a bandage, nor sprinting (player/sprint.js)
+  const canFire = !openSt && !P.dead && !(P.shockStun > 0) && !pvpFrozen() && !(P.bandT > 0) && !(ANIM.bandP > 0.25) && !sprintHolds();   // not till it's back in your hands after a bandage, nor sprinting (player/sprint.js)
   // (a click made while the gun was down at a sprint goes off now it's up: P.fireQ, player/sprint.js; one made while the
   // double barrel was open goes off as it latches: W8.shutFire, weapons/reload.js)
   const stickFire = !!(tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.4), wantFire = (mouseDown || stickFire || !!P.fireQ || W8.shutFire > 0) && canFire;

@@ -9,6 +9,7 @@ import { P } from '../player/player.js';
 import { curId } from '../game/run-state.js';
 import { AC, master, SND_AT } from './audio.js';
 import { earFrom } from './spatial.js';
+import { ARENA } from '../world/arena.js';
 
 // how loud each plays, and (gap, s) the least time between two of it, so eight pellets into one zombie are one hit
 const SAMPLES = {
@@ -101,7 +102,7 @@ export function samplesInit() {
   }
 }
 // whether you're inside the farmhouse
-export const indoors = () => inHouseRect(P.x, P.z, 0);
+export const indoors = () => !ARENA.on && inHouseRect(P.x, P.z, 0);   // (none in the arena: world/arena.js)
 // plays a recorded sound (or one of a list, not the same one twice running). False if it isn't loaded, so the caller
 // plays its synthesized one. o: vol (times its own), rate, jit (the rate's varied by up to this either way, each
 // time), echo (how much goes to the farm's echo: FAR_ECHO), lp (a lowpass at this), hp (a highpass at this), dur (only its first this many seconds, faded out over the

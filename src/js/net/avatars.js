@@ -45,6 +45,9 @@ import { arsenalFrame, buildArsenal, weaponPose } from './arsenal.js';
 import { teamDown } from './lobby.js';
 import { camFocus, myDrops, updateSpecDrops, updateSpecXh } from './spectate.js';
 import { coverFromCam } from '../zombies/zombie-visuals.js';
+import { PVP, pvpCol, pvpFoe } from '../pvp/pvp.js';
+import { visAt } from '../lighting/vision.js';
+import { los } from '../lighting/lightmap.js';
 
 // the joints a pose carries, in order: where each is and how it's turned (and the arms how they're stretched)
 const POSE_K = ['g', 'upper', 'lower', 'torso', 'head', 'armL', 'armR', 'legL', 'legR', 'shinL', 'shinR'];
@@ -131,7 +134,7 @@ function fpView() {
 const _sfpA = new THREE.Matrix4(), _sfpB = new THREE.Matrix4(), _sfpP = new V3(), _sfpQ = new THREE.Quaternion(), _sfpS = new V3(1, 1, 1);
 function specFp(p, a, rdt) {
   const f = p.fv, on = !!f && !p.dead && specFpOn() && camFocus() === p;
-  if (a.head.visible !== !on) a.head.visible = !on;
+  const hv = !on && !a.headGone; if (a.head.visible !== hv) a.head.visible = hv;   // (gone to a headshot in the arena, till they're back: pvp/pvp.js)
   if (!on) { a.fvc = null; return; }
   const k = 1 - Math.exp(-rdt * 20), c = a.fvc && a.fvc.length === f.length ? a.fvc : (a.fvc = f.slice());
   for (let i = 0; i < f.length; i++) c[i] += (f[i] - c[i]) * k;
@@ -231,7 +234,7 @@ export function netDropAvatar(p) {
 // a pose in: kept as where they're headed; their survivor eases there over the next frames
 NET_ON.p = m => {
   const p = NET.peers.get(m.f); if (!p) return;
-  if (m.dead && !p.dead && p.x !== undefined && state !== 'title') { teamDown(p); turnedDown(p.id); }   // they've just gone down (net/lobby.js), and they'll be back next wave as one of them (net/sync.js)
+  if (m.dead && !p.dead && p.x !== undefined && state !== 'title' && !PVP.on) { teamDown(p); turnedDown(p.id); }   // they've just gone down (net/lobby.js), and they'll be back next wave as one of them (net/sync.js)
   Object.assign(p, { x: m.x, z: m.z, vx: m.vx || 0, vz: m.vz || 0, hp: m.hp, maxHp: m.mh, vw: m.vw || p.vw, dead: !!m.dead, vault: !!m.v, picking: !!m.pk, cw: m.cw | 0, wp: m.wp, sv: m.sv, ex: m.ex, stats: m.st, am: m.am, heal: m.hl || 0, fl: m.fl || 0, fc: m.fc || 0, ap: m.ap || 0, fv: m.fv || 0, loaded: true }); if (m.wn !== undefined) { p.wn = m.wn; p.wid = m.wid || ''; } if (m.dr) p.drops = m.dr;
   // a loadout we haven't got (or an old one): ask for it, once a second at most
   if (m.lk && m.lk !== (p.av ? p.av.lk : p.lk) && performance.now() - (p.loAsk || 0) > 1000) { p.loAsk = performance.now(); netTo(m.f, 'loq', {}); }
@@ -248,7 +251,10 @@ export function updateAvatars(rdt) {
     if (p.drop) { if (p.dead) stepDrop(p.drop, rdt); else dropGone(p); }   // (the weapon they let fall going down, till they're up: below)
     a.g.visible = true; if (a.blob) a.blob.visible = !p.dead;
     if ((a.mobT = (a.mobT || 0) - rdt) <= 0) { a.mobT = MOBILE_SWEEP; markMobile(a.g); }   // (nor anything of them: core/shaders.js)
-    if (a.ol) a.ol.visible = !p.dead; if (a.xr) { a.cvK = coverFromCam(a.g.position.x, a.g.position.z) ? 1 : Math.max(0, (a.cvK || 0) - rdt * 4); const xo = !p.dead && isoOn() && a.cvK > 0; a.xr.rim.visible = a.xr.fill.visible = xo; if (a.xr.sil) a.xr.sil.visible = xo; }   // (down, no outline round them or through walls; through walls only from above, as zombies are, and only with something in the way: coverFromCam)
+    // in the arena someone on the other side has no outline and never shows through a wall, and from above they're
+    // only there while you can see where they stand (the fog of war, lighting/vision.js: pvp/pvp.js)
+    const foe = pvpFoe(p); if (foe) { const vis = !isoOn() || p.dead || visAt(a.g.position.x, a.g.position.z) > 0.4; a.seen = vis; a.g.visible = vis; if (a.blob) a.blob.visible = vis && !p.dead; } else a.seen = true;
+    if (a.ol) a.ol.visible = !p.dead && !foe; if (a.xr) { a.cvK = coverFromCam(a.g.position.x, a.g.position.z) ? 1 : Math.max(0, (a.cvK || 0) - rdt * 4); const xo = !p.dead && (!foe || a.seen) && isoOn() && a.cvK > 0;   /* (someone on the other side only while you can see where they stand: hidden from the camera alone, not from you) */ a.xr.rim.visible = a.xr.fill.visible = xo; if (a.xr.sil) a.xr.sil.visible = xo; }   // (down, no outline round them or through walls; through walls only from above, as zombies are, and only with something in the way: coverFromCam)
     const k = 1 - Math.exp(-rdt * 16), first = !a.cur;
     if (first) a.cur = t.slice();
     const c = a.cur;
@@ -263,7 +269,7 @@ export function updateAvatars(rdt) {
     // down, they go down as a ragdoll here as they did on their own screen (player/player-ragdoll.js), thrown on the way
     // they were going and a little off their facing, and lie where they fell; up again, their pose takes over
     if (p.dead && !a.rag) { POSE_K.forEach((key, n) => set(a[key], n)); a.g.updateMatrixWorld(true); const f = c[4] || 0, s = rr(-0.6, 0.6); a.rag = survivorRagdoll(a, a.g.position.x, a.g.position.z, f, p.vx, p.vz, -Math.sin(f + s), -Math.cos(f + s), null); }
-    else if (!p.dead && a.rag) { endSurvivorRagdoll(a.rag); a.rag = null; }
+    else if (!p.dead && a.rag) { endSurvivorRagdoll(a.rag); a.rag = null; a.headGone = false; }
     if (a.rag) stepRagdoll(a.rag, rdt);
     else POSE_K.forEach((key, n) => set(a[key], n));
     arsenalFrame(p, a, rdt);   // their weapons (net/arsenal.js)
@@ -294,10 +300,15 @@ export function updateAvatars(rdt) {
     // over the body till the next wave (TAG_GONE: how long it stays, how long it takes to go)
     a.deadT = p.dead ? (a.deadT || 0) + rdt : 0;
     const tg = 1 - smooth(clamp((a.deadT - TAG_GONE.stay) / TAG_GONE.fade, 0, 1));
-    const tgo = a.fvc ? 0 : tg;   // (none over the one whose eyes you're watching from)
+    // (none over the one whose eyes you're watching from; and someone on the other side, only while you see them: in
+    // plain sight of you (or the teammate you're watching) and on your screen, never as an arrow at its edge)
+    const F = camFocus(), hideFoe = pvpFoe(p) && (!a.seen || !inView || (!p.dead && !los(F.x, F.z, a.g.position.x, a.g.position.z)));
+    const tgo = a.fvc || hideFoe ? 0 : tg;
     if (a.tagO !== tgo) { a.tagO = tgo; a.tag.style.opacity = tgo; }
     a.tag.style.transform = `translate(${tx.toFixed(1)}px,${ty.toFixed(1)}px)`;
     const hk = clamp((p.hp ?? 100) / (p.maxHp || 100), 0, 1); if (a.hk !== hk) { a.hk = hk; a.tagBar.style.transform = `scaleX(${hk.toFixed(3)})`; }
+    // in the arena a name in its side's colour, and nothing of how hurt someone on the other side is (pvp/pvp.js)
+    { const pc = PVP.on ? pvpCol(p.id) : NET_COL[p.idx] || '#888', foe = pvpFoe(p); if (a.pc !== pc) { a.pc = pc; a.tag.style.setProperty('--pc', pc); } if (a.foeTag !== foe) { a.foeTag = foe; a.tag.classList.toggle('foe', foe); } }
   }
 }
 // ---- their shots: what your own would show, from where they stand

@@ -37,6 +37,7 @@ import { SET, setOpen } from '../ui/settings.js';
 import { DC } from '../ui/screens.js';
 import { camFocus, spectating } from '../net/spectate.js';
 import { CEIL, inHouseRect } from '../world/house.js';
+import { pvpPicking } from '../pvp/pvp.js';
 
 // mode: the view picked; on: the one in use this frame (the isometric one on the menus and when you're down)
 export const VCAM = { mode: 'iso', on: 'iso', yaw: Math.PI, pitch: 0, aimY: GUN_Y, aimD: 26 };   // (aimD: how far down your line of sight it meets something, metres: ui/crosshair.js)
@@ -1093,7 +1094,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
   syncView();
   // a menu up (a station's, the cheats', the settings, the pause, the cards): the mouse's own pointer shows over the game
   // round it as well, not only over the menu (body.menuUp, styles/base.css), in either view
-  const menu = (state !== 'play' && state !== 'leaving') || P.dead || !!openSt || cheatOn || setOpen();
+  const menu = (state !== 'play' && state !== 'leaving') || P.dead || !!openSt || cheatOn || setOpen() || pvpPicking();   // (the arena's class picker: pvp/pvp.js)
   if (V.menuUp !== menu) { V.menuUp = menu; document.body.classList.toggle('menuUp', menu); }
   if (isoOn()) { EYE_R.on = false; SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0; selfClip(false); return; }
   // (and from your own eyes the mouse is let go for it; while it's free in play, a word that a click takes it back)

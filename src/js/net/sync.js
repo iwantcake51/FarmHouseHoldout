@@ -63,6 +63,7 @@ import { renderSpec, SPEC } from './spectate.js';
 import { teamBonus } from './teamwork.js';
 import { frTick } from './friends.js';
 import { chatTick } from './chat.js';
+import { PVP } from '../pvp/pvp.js';
 
 export let NREC = null, NREP = null;   // a hit of yours being written down to send; a teammate's being played out
 export const NZ = new Map();           // zombies by the id the host gave them
@@ -405,7 +406,7 @@ export function netTick(rdt) {
     poseOut(rdt);
     if (NET.host) {
       snapOut(rdt);
-      if ((state === 'play' || state === 'paused') && netAllDown()) { overT += rdt; if (overT > 3) { overT = 0; netSend('over', {}); die(); } } else overT = 0;
+      if ((state === 'play' || state === 'paused') && netAllDown() && !PVP.on) { overT += rdt; if (overT > 3) { overT = 0; netSend('over', {}); die(); } } else overT = 0;
     }
   }
   updateAvatars(rdt);

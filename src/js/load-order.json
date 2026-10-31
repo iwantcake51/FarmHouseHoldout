@@ -34,6 +34,7 @@
   "world/sky.js",
   "world/atmosphere.js",
   "world/yard.js",
+  "world/farm-set.js",
   "zombies/pathfinding.js",
   "characters/rig.js",
   "player/player.js",
@@ -135,6 +136,7 @@
   "lighting/static-lights.js",
   "lighting/day-night.js",
   "lighting/vision.js",
+  "world/arena.js",
   "weapons/laser.js",
   "game/update.js",
   "player/sprint.js",
@@ -195,5 +197,6 @@
   "net/chat.js",
   "ui/keyboard-map.js",
   "ui/settings.js",
+  "pvp/pvp.js",
   "game/loop.js"
 ]
