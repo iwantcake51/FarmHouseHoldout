@@ -147,7 +147,7 @@ function specFp(p, a, rdt) {
     o.parent.updateMatrixWorld(true); _sfpB.copy(o.parent.matrixWorld).invert().multiply(_sfpA);
     const sc = o.scale.clone(); _sfpB.decompose(o.position, o.quaternion, _sfpS); o.scale.copy(sc); o.updateMatrixWorld(true);
   };
-  FV_K.forEach((key, i) => place(a[key], 8 + i * 7));
+  if (f.length > 8) FV_K.forEach((key, i) => place(a[key], 8 + i * 7));   // (a bot's is its eyes alone: its arms and gun stay as its pose has them, pvp/bots.js botFv)
   const held = a.held && p.wp && p.wp[0] && a.held[SLOTS[p.wp[0][0]]];
   if (held && c.length >= 8 + FV_K.length * 7 + 7) place(held.g, 8 + FV_K.length * 7);
   _sfpQ.set(c[3], c[4], c[5], c[6]).normalize(); _sfpP.set(c[0], c[1], c[2]);

@@ -19,7 +19,7 @@ import { SET } from '../ui/settings.js';
 import { setViewMode, VCAM } from '../game/view-cam.js';
 import { chatClear, chatSys } from './chat.js';
 import { frMet } from './friends.js';
-import { PVP_MODES, pvpTeams } from '../pvp/pvp.js';
+import { PVP_MODES, pvpCfgFix, pvpTeams } from '../pvp/pvp.js';
 import { botName } from '../pvp/bots.js';
 
 export const NET_V = 3, NET_PREFIX = 'fhh-coop-', NET_QUIET = 15;   // (NET_V: 3 since the arena and its bots, which a game before them doesn't know; NET_QUIET: seconds without a word before a player counts as gone; a slow machine can stall that long building its shaders)
@@ -31,6 +31,8 @@ export const NET = { on: false, host: false, mode: /[?&]net=local/.test(location
   ready: false,   // a joiner's own word that they're set to go (the host's Start waits for everyone's: netAllReady)
   solo: false,   // the arena played on your own against bots: a lobby nobody can join, nothing sent anywhere
   botSkill: 1,   // how good the arena's bots are (pvp/bots.js: BOT_SKILLS), the host's pick in the lobby
+  acfg: null,   // the arena's settings (pvp/pvp.js: PVP_CFG_DEF), the host's in the lobby (kept between visits)
+  sides: {},   // who's on which side in the arena's team modes, by id: the host's to keep, anyone's to ask to change
   peer: null, conns: new Map(), conn: null, bc: null, beatT: 0 };
 // this build of the game (the hash on game.js the page loaded, tools/build.mjs): a game a build behind or ahead of the
 // host's (a page not refreshed since an update) is turned away, as the two would play different games
@@ -46,6 +48,7 @@ export const NET_COL = ['#e0a050', '#5fb4e8', '#7ad07a', '#d87ad0', '#66d1c1', '
 export const netLink = () => NET.on && NET.inGame;            // in a co-op run
 export const netClient = () => NET.on && NET.inGame && !NET.host;   // in one someone else hosts: their game runs the zombies
 try { NET.name = (localStorage.getItem('fhh-name') || '').slice(0, 16); } catch (e) {}
+try { NET.acfg = JSON.parse(localStorage.getItem('fhh-arena-cfg') || 'null'); } catch (e) {}   // (as saved: put right against the limits when it's first used, pvp/pvp.js pvpCfgFix)
 // PeerJS's own free server introduces the players by default; ?peer=host:port in the address uses another (one of
 // your own: npx peerjs --port 9000)
 export const PEER_OPTS = (() => {
@@ -178,7 +181,34 @@ NET_ON.kick = m => { if (!NET.host && m.f === NET.hostId) netLost('The host remo
 export const netRoster = () => [{ id: NET.id, name: netName(), look: LOOK.cur, idx: 0, fid: PALS.me, ready: true }].concat([...NET.peers.values()].map(p => ({ id: p.id, name: p.name, look: p.look, idx: p.idx, fid: p.fid, ready: !!p.ready, bot: p.bot ? 1 : 0 })));
 // everyone in the lobby set to go (the host always is): the run starts only then
 export const netAllReady = () => [...NET.peers.values()].every(p => p.ready);
-const rosterOut = () => { netOut({ t: 'roster', f: NET.id, list: netRoster(), view: NET.view, rm: NET.runMode, gm: NET.game, am: NET.arena, bs: NET.botSkill }, null); frMet(netRoster()); };
+const rosterOut = () => { sidesFill(); NET.acfg = pvpCfgFix(NET.acfg); netOut({ t: 'roster', f: NET.id, list: netRoster(), view: NET.view, rm: NET.runMode, gm: NET.game, am: NET.arena, bs: NET.botSkill, ac: NET.acfg, sd: NET.sides }, null); frMet(netRoster()); };
+// ---- the arena's sides in the lobby (the team modes): someone new goes to the side with fewer on it; anyone can switch
+// themselves (the host says yes, if there's room: SIDE_MAX), and the host can move a bot
+const SIDE_MAX = 3;
+function sidesFill() {
+  if (!NET.host) return;
+  const ids = netRoster().map(r => r.id), n = { A: 0, B: 0 };
+  for (const id of Object.keys(NET.sides)) if (!ids.includes(id)) delete NET.sides[id];
+  for (const id of ids) if (NET.sides[id]) n[NET.sides[id]]++;
+  for (const id of ids) if (!NET.sides[id]) { const s = n.A <= n.B ? 'A' : 'B'; NET.sides[id] = s; n[s]++; }
+}
+export const netSideOf = id => { sidesFill(); return NET.sides[id] || 'A'; };
+export function netSwitchSide(id) {
+  if (NET.inGame || NET.game !== 'arena') return;
+  if (!NET.host) { if (id === NET.id) netTo(NET.hostId, 'sw', {}); return; }
+  sidesFill(); const to = NET.sides[id] === 'A' ? 'B' : 'A';
+  if (Object.values(NET.sides).filter(s => s === to).length >= SIDE_MAX) { NET.status = 'That side is full'; SFX.deny(); lobbyRender(); return; }
+  NET.sides[id] = to; const p = id === NET.id ? { name: netName() } : NET.peers.get(id);
+  chatSys((p ? p.name : 'Someone') + ' moved to ' + (to === 'A' ? 'Blue' : 'Red')); SFX.click(); rosterOut(); lobbyRender();
+}
+NET_ON.sw = m => { if (NET.host && NET.peers.has(m.f)) netSwitchSide(m.f); };
+// the host's arena settings (pvp/pvp.js: PVP_CFG_DEF), one at a time, told to everyone
+export function netSetCfg(k, v) {
+  if (!NET.host || NET.inGame) return;
+  NET.acfg = pvpCfgFix(Object.assign({}, NET.acfg, { [k]: v })); try { localStorage.setItem('fhh-arena-cfg', JSON.stringify(NET.acfg)); } catch (e) {}
+  netSend('acfg', { c: NET.acfg }); lobbyRender();
+}
+NET_ON.acfg = m => { if (NET.host) return; NET.acfg = pvpCfgFix(m.c); lobbyRender(); };
 // ---- the arena's bots (pvp/bots.js), sat in the lobby by the host: each takes a seat as a player would (and gives it
 // up to someone joining), always ready, in a look of its own
 export function netBotAdd(quiet) {
@@ -222,6 +252,7 @@ NET_ON.roster = m => {
   if (m.view) NET.view = m.view;
   if (RUN_MODES.includes(m.rm)) NET.runMode = m.rm;
   if (GAMES.includes(m.gm)) NET.game = m.gm; if (PVP_MODES[m.am]) NET.arena = m.am; if (m.bs >= 0) NET.botSkill = m.bs;
+  if (m.ac) NET.acfg = pvpCfgFix(m.ac); if (m.sd && typeof m.sd === 'object') NET.sides = m.sd;
   NET.status = ''; frMet(m.list); lobbyRender();
 };
 // a joiner set to go, or not after all: the host keeps everyone's word and passes it round
@@ -261,11 +292,12 @@ export function netStart() {
   if (!NET.host || NET.inGame) return false;
   if (!netAllReady()) { const w = [...NET.peers.values()].filter(p => !p.ready).map(p => p.name); NET.status = 'Waiting for ' + w.join(' and ') + ' to get ready'; SFX.deny(); lobbyRender(); return false; }
   NET.houseSeed = (Math.random() * 2147483647) | 0;   // everyone's farmhouse laid out alike (world/interior.js)
-  NET.teams = NET.game === 'arena' ? pvpTeams(netRoster(), NET.arena) : null;   // (the arena's sides, everyone's the same)
-  netSend('start', { roster: netRoster(), house: NET.houseSeed, view: NET.view, rm: NET.runMode, gm: NET.game, am: NET.arena, tm: NET.teams }); netBegin();
+  sidesFill(); NET.acfg = pvpCfgFix(NET.acfg);
+  NET.teams = NET.game === 'arena' ? (NET.arena === 'ffa' ? pvpTeams(netRoster(), 'ffa') : Object.assign({}, NET.sides)) : null;   // (the arena's sides as the lobby has them, everyone's the same)
+  netSend('start', { roster: netRoster(), house: NET.houseSeed, view: NET.view, rm: NET.runMode, gm: NET.game, am: NET.arena, tm: NET.teams, ac: NET.acfg }); netBegin();
   return true;
 }
-NET_ON.start = m => { if (NET.host) return; NET.houseSeed = m.house; NET.game = GAMES.includes(m.gm) ? m.gm : 'survival'; NET.arena = PVP_MODES[m.am] ? m.am : 'ffa'; NET.teams = m.tm || null; if (m.view) NET.view = m.view; if (RUN_MODES.includes(m.rm)) NET.runMode = m.rm; for (const r of m.roster) { const p = NET.peers.get(r.id); if (p) p.look = r.look; } netBegin(); };
+NET_ON.start = m => { if (NET.host) return; NET.houseSeed = m.house; NET.acfg = pvpCfgFix(m.ac); NET.game = GAMES.includes(m.gm) ? m.gm : 'survival'; NET.arena = PVP_MODES[m.am] ? m.am : 'ffa'; NET.teams = m.tm || null; if (m.view) NET.view = m.view; if (RUN_MODES.includes(m.rm)) NET.runMode = m.rm; for (const r of m.roster) { const p = NET.peers.get(r.id); if (p) p.look = r.look; } netBegin(); };
 function netBegin() { NET.inGame = true; NET.status = ''; if (VCAM.mode !== 'free') setViewMode(NET.view); lobbyRender(); toggleCoop(false); enterRun(); }   // (the co-op screen put away as the run comes up)   // (everyone in the host's view: ui/settings.js keeps it for the run)
 // every so often a word to say you're still there; anyone not heard from in NET_QUIET seconds is gone
 export function netBeat(rdt) {

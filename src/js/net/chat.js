@@ -41,14 +41,19 @@ function lineEl(l) {
   return li;
 }
 let drawn = -1;
+let chatSeen = 0;   // (the last line drawn: anything after it's new)
 export function chatRender() {
   const key = lines.length ? lines.length + ':' + lines[lines.length - 1].t : 0;
   if (key === drawn) return; drawn = key;
   const log = $('coopChat');
   if (log) {
-    log.textContent = ''; lines.forEach(l => log.appendChild(lineEl(l)));
+    // (the lines come in one at a time, each sliding up and fading in, only the new ones: styles/coop.css; the log
+    // gliding down to them rather than jumping)
+    const fresh = lines.filter(l => l.t > chatSeen).slice(-3);
+    log.textContent = ''; lines.forEach(l => { const li = lineEl(l); if (fresh.includes(l)) li.classList.add('new'); log.appendChild(li); });
     if (!lines.length) { const li = document.createElement('li'); li.className = 'sys'; li.textContent = 'Nothing said yet.'; log.appendChild(li); }
-    log.scrollTop = log.scrollHeight;
+    if (lines.length) chatSeen = lines[lines.length - 1].t;
+    try { log.scrollTo({ top: log.scrollHeight, behavior: fresh.length ? 'smooth' : 'auto' }); } catch (e) { log.scrollTop = log.scrollHeight; }
   }
   runRender(true);
 }

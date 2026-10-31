@@ -14,7 +14,7 @@ import { DC } from '../ui/screens.js';
 import { paintBar } from './lobby.js';
 import { meleeArt } from '../ui/melee-art.js';
 import { specFpOn } from '../game/view-cam.js';
-import { PVP, pvpKiller, pvpMate } from '../pvp/pvp.js';
+import { PVP, pvpFoe, pvpKiller, pvpMate } from '../pvp/pvp.js';
 
 export const SPEC = { id: '', key: '' };
 // who the camera's on: you, or once you've fallen, the teammate you picked if they're still standing, else the first
@@ -55,10 +55,10 @@ export function renderSpec() {
   const lg = f.lo && f.lo.guns && f.lo.guns[f.wid], key = [f.id, f.name, hp, mx, f.heal || 0, f.wn, f.wid, lg ? JSON.stringify([lg.mods, lg.lv]) : '', JSON.stringify(am), st.join(), up].join('|');
   if (SPEC.key === key) return; SPEC.key = key;
   const q = s => el.querySelector(s);
-  el.style.setProperty('--pc', NET_COL[f.idx] || '#888');
+  el.style.setProperty('--pc', PVP.on && pvpFoe(f) ? '#e2563f' : NET_COL[f.idx] || '#888');   // (in the arena someone on the other side in red, as their name is: net/avatars.js)
   q('.spWho em').textContent = f.name || 'Survivor';
   q('.spHint').hidden = up < 2;
-  q('.spText small:not(.spHint)').textContent = PVP.on ? 'Back next round' : 'Back on your feet when the wave is cleared';
+  q('.spText small:not(.spHint)').textContent = PVP.on ? (PVP.mode === 'rounds' ? 'Back next round' : 'Who got you · back in a moment') : 'Back on your feet when the wave is cleared';
   // their health
   q('.spName b').textContent = f.name || 'Survivor';
   q('.spHp').textContent = hp; q('.spMax').textContent = '/ ' + mx;
@@ -97,7 +97,7 @@ export function updateSpecXh(rdt) {
   const c = SPEC.xh && SPEC.xh.id === f.id ? SPEC.xh : (SPEC.xh = { id: f.id, x: tx, y: ty }), k = 1 - Math.exp(-rdt * SPEC_XH.ease);
   c.x += (tx - c.x) * k; c.y += (ty - c.y) * k;
   el.style.transform = `translate(${c.x.toFixed(1)}px,${c.y.toFixed(1)}px)`;
-  el.style.setProperty('--pc', NET_COL[f.idx] || '#888');
+  el.style.setProperty('--pc', PVP.on && pvpFoe(f) ? '#e2563f' : NET_COL[f.idx] || '#888');   // (in the arena someone on the other side in red, as their name is: net/avatars.js)
   el.classList.toggle('ads', !!(f.fc && f.fc[3] > 0.5));
 }
 // the drops of the one you're watching (sent with their pose while anyone's down, dr: net/avatars.js), shown as ghosts

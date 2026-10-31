@@ -393,15 +393,45 @@ each other on a map of its own, in either view (the lobby's **Isometric** or **F
 waves, scrap, stations or cards, and the farm's HUD that goes with them (the wave and clock, planks, scrap and kills,
 the pickups feed) is put away. The host picks one of three modes:
 
-- **Deathmatch.** Everyone for themselves, first to 15 kills. Go down and you're back in 4.5 seconds at the spawn
+- **Deathmatch.** Everyone for themselves, first to 15 kills (the host can change it: Match settings, below). Go down and you're back in 4.5 seconds at the spawn
   point furthest from everyone else, and you can change class while you wait.
-- **Team deathmatch.** Two sides, Blue and Red (players alternate between them in the order they joined). Each side
+- **Team deathmatch.** Two sides, Blue and Red, as the lobby has them (Sides, below). Each side
   starts at its own end and respawns there. The first side to 20 kills wins.
 - **Showdown.** Two sides (1v1 up to 3v3), one life a round, first side to 5 rounds. Health doesn't come back:
   what you lose stays lost till the next round. Go down and the view dips to black and comes up on a teammate still
-  standing; you only ever watch your own side (no death camera on whoever got you), stepping between them with Q and E. The last side standing takes the round. A round left
-  at 1:00 goes to the side with more players up, then the one with more health between them, otherwise it's a draw.
-  Between rounds everyone is back at their spawn, whole again, with a fresh loadout and the chance to change class.
+  standing; you only ever watch your own side (no death camera on whoever got you), stepping between them with Q and E,
+  bots included, and from their own eyes in first person. The last side standing takes the round.
+  - **The flag.** Once the round's clock runs out (1:00 to start with), a flag goes up in the middle of the plaza, a
+    ring on the ground round it. Stand inside the ring with nobody from the other side in it and your side's share
+    builds; 15 seconds of it all told (the capture time) takes the round. With both sides in the ring it holds; while
+    your side's off it, what you had slips back at half the rate. A bar under the score shows each side's share
+    filling in from its own end, who's on it, and the flag's own clock: the capture time plus 15 seconds. If that runs
+    out first, the side with the most health left between them takes the round; level, it's a draw. The flag turns
+    your side's colour while you're taking it.
+  - **Random loadouts** (the default; the host can switch Showdown to the classes). Everyone carries the same: one
+    primary (any of the long guns or automatics) and one sidearm (handgun, revolver or hand cannon), each with
+    attachments and mods drawn at random (a scope, a laser, a can, a choke, a speed loader; Slam fire, the 10mm kit,
+    the AK conversion, a second pistol, burst and so on), and a melee weapon. The same set lasts two rounds, then a
+    whole new one is drawn. The picker shows it instead of the classes, with when it changes; there's no picking, and
+    no perks.
+  Between rounds everyone is back at their spawn, whole again, with a fresh loadout (and with the classes, the chance
+  to change class).
+
+**Match settings.** Under the mode in the lobby, beside a small map of the arena (the walls, the containers, the
+cover, each side's spawn in its colour and the flag in the middle), the host sets the match. Everyone else sees the
+settings as the host has them. They're kept between visits.
+
+| Mode | Settings (start, range) |
+|---|---|
+| Deathmatch, Team deathmatch | Kills to win (15 or 20, 5–50 or 10–100), match length (10 min, 3–20) |
+| Showdown | Rounds to win (5, 2–9), round time (60 s, 30–180), flag capture (15 s, 5–30), loadouts (Random or Classes) |
+
+**Sides.** In the team modes the lobby's seats are grouped Blue then Red, each marked with its side. Someone joining
+goes to the side with fewer on it. Anyone can move themselves to the other side (**To Red** / **To Blue** on their
+seat), and the host can move anyone, bots included, as long as that side has room (three at most). The match starts
+with the sides as the lobby has them.
+
+**The lobby's chat** slides each new line up into place and glides the log down to it.
 
 **Bots.** Not enough people? In an arena lobby the host can sit bots in the empty seats with **Add a bot**, and send
 one away with the cross on its seat. A bot gives up its seat when a person joins. **Play solo** on the co-op screen
@@ -455,6 +485,14 @@ What it does with that:
 - **Hunts** up its lane when it knows of nobody: north, middle or south, picked each round (each life in the
   respawn modes), so its route changes. In the team modes it heads toward the other side's half.
 - **Leans** out round its cover to peek or hold an angle, to whichever side sees round it.
+- **Aims somewhere on you**, picked for each new target and each burst: your head (likelier the better it is), now and
+  then your legs, otherwise your middle, and the hits land mostly there. It looks up and down to where it's aiming
+  (and a little down ahead of it otherwise), and its upper body tips with its look.
+- **Fires from the hip** within 6 m (9 m with a shotgun), a little looser than aimed.
+- **Goes for the flag** in Showdown once it's up, to take it or to stop you taking it, and holds it, fighting whoever
+  comes.
+- **Watched from its own eyes:** when you're down in first person and watching a bot teammate, the view is its eyes,
+  looking where it looks (up and down too), leaning as it leans.
 
 **Its side plans together** (the team modes, twice a second):
 
@@ -463,7 +501,7 @@ What it does with that:
   cover unless nearly dead. It lasts up to 12 seconds, or till the numbers even up.
 - **Holds.** Outnumbered, they sit back in cover where they are and wait, peeking now and then.
 - **Plays the clock.** In the last 15 seconds of a Showdown round, the side that would lose on time (fewer up, or less
-  health between them) pushes; the side ahead hides and waits it out.
+  health between them) pushes; the side ahead hides and waits it out. Once the flag's up they all go for it.
 
 **It learns** over a Showdown match: the lane it went down in, it takes less often in the next rounds, and going down
 in the first 20 seconds of a round on the attack makes it more careful (less keen to push and to rush), while making
@@ -632,6 +670,9 @@ falloff:
   modes show each side's score in its colour either side of the clock and the mode. Showdown adds five diamonds for
   rounds won and a figure for each player, greyed out once they're down, and under each side a bar of its health all
   told (everyone on it added up), white over dark grey, with the numbers. The clock flashes red in its last seconds.
+- **Watching someone** (whoever got you, or a teammate in Showdown) shows the strip saying who, under the score, and
+  their health and weapon along the bottom as your own would be, the damage card between them. Someone on the other
+  side is named in red.
 - **The kill feed** runs down the middle of the left side of the screen. Each line shows the killer, the weapon they
   used (its picture), a red headshot mark for a headshot, how far off they were in metres, and who went down. Your own
   kills and deaths are picked out in orange, and your name is dark on a light chip so it's never one of the players'

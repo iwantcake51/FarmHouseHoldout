@@ -99,6 +99,17 @@ AR_PLAN.forEach((r, jj) => [...r].forEach((ch, ii) => {
   if (ch === 'A' || ch === 'B' || ch === 'F') AR_SPAWN[ch].push([x, z, Math.atan2(mid - x, cxw(22) - z)]);   // (facing the middle)
 }));
 
+// the plan drawn small, for the lobby's preview (net/lobby.js): the floor, the walls and blocks dark, the containers in
+// their colours, the cover lighter, each side's spawn in its colour and the flag's spot in the middle
+const AR_MAP_COL = { '#': '#3a3632', h: '#6b655c', C: '#8a3b2a', k: '#7d5c38', b: '#b4ae9f', s: '#9a8659', o: '#5a6f86', r: '#8c7a5c', A: '#2f5d82', B: '#8e3a2f', F: '#cfc6b3', '.': '#cfc6b3' };
+export function arenaMapDraw(cv) {
+  const x = cv.getContext('2d'), n = AR_PLAN.length, c = cv.width / n;
+  x.fillStyle = '#cfc6b3'; x.fillRect(0, 0, cv.width, cv.height);
+  AR_PLAN.forEach((r, j) => [...r].forEach((ch, i) => { const col = AR_MAP_COL[ch]; if (!col || ch === '.' || ch === 'F') return; x.fillStyle = ch === 'C' ? ['#8a3b2a', '#355a78', '#5d6643', '#9b6a2c'][(i * 7 + j * 3) % 4] : col; x.fillRect(i * c, j * c, Math.ceil(c), Math.ceil(c)); }));
+  x.strokeStyle = '#f2efe6'; x.lineWidth = Math.max(1.5, c * 0.35); x.beginPath(); x.arc(cv.width / 2, cv.height / 2, c * 2.4, 0, Math.PI * 2); x.stroke();
+  x.fillStyle = '#f2efe6'; x.fillRect(cv.width / 2 - c * 0.2, cv.height / 2 - c * 1.6, c * 0.4, c * 1.6); x.fillRect(cv.width / 2, cv.height / 2 - c * 1.6, c * 1.1, c * 0.7);
+}
+
 // ---- the look of it
 const AR_M = {
   wall: lam(0x8e8a81), wallDk: lam(0x6d6a63), cap: lam(0x9d998f), stain: lam(0x5d5a52),
@@ -360,7 +371,7 @@ export function arenaUp() {
     if (!keep) { scene.remove(o); out.push(o); }
   }
   // and the house's outer wall pieces, built for each run's floor plan after all that (world/house.js WALL_FORMS)
-  for (const g of WALL_FORMS.values()) if (g.parent === scene) { scene.remove(g); out.push(g); }
+  for (const w of WALL_FORMS.values()) if (w.g.parent === scene) { scene.remove(w.g); out.push(w.g); }   // (each a form: its group, w.g)
   // what the farm had in the grid, kept to put back
   arSaved = { out, cell: cell.slice(), open: openAt.slice(), box: cellBox.slice(), low: new Set(lowObst), top: new Map(obstTop), wX: wX.slice(), wZ: wZ.slice(), thinN: THIN.n, thinBox: THIN.box.slice(),
     openings: openings.slice(), doors: HOUSE_DOORS.list.slice(), doorKey: HOUSE_DOORS.key, lights: STATIC_LIGHTS.slice(), house: LMU.uHouse.value.clone() };

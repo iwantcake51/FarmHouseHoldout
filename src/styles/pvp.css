@@ -226,7 +226,31 @@ body.pvpPicking #pvpDmgCard{opacity:0;translate:-50% 12px}
 #pvpRes .prHost{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
 #pvpRes .prWait{margin-left:auto;font:700 11px var(--f-num);letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
 @media (prefers-reduced-motion:reduce){#pvpToast.on *,#pvpRes.on .prBox,#pvpTop.low .ptClock{animation:none!important}}
-/* down in Deathmatch: the killer's view, without the co-op watcher's stamp and their health and ammo over it (the
-   damage card says it); in Showdown the watcher's strip sits under the score */
-body.pvp:not(.pvpRounds) #spec{display:none}
+/* watching someone in the arena (the killer, or a teammate in Showdown): the watcher's strip under the score, not
+   over it, their health and ammo along the bottom as ever (the damage card sits between them) */
 body.pvp #spec .spTop{top:calc(92px + env(safe-area-inset-top,0px))}
+body.pvp #spec .spStamp{font-size:18px}
+/* (Showdown's score is taller, its health bars under it; and the flag's bar under that, once it's up) */
+body.pvpRounds #spec .spTop{top:calc(122px + env(safe-area-inset-top,0px))}
+body.pvpRounds.flagOn #spec .spTop{top:calc(178px + env(safe-area-inset-top,0px))}
+/* Showdown's flag (pvp/pvp.js flagShow): a bar under the score, each side's share filling in from its own end, who's
+   on it and its clock; pulsing while a side's on it */
+#pvpFlag{position:fixed;left:50%;top:calc(120px + env(safe-area-inset-top,0px));translate:-50% -6px;width:min(420px,80vw);display:grid;justify-items:center;gap:4px;opacity:0;z-index:5;pointer-events:none;transition:opacity .3s,translate .35s cubic-bezier(.2,.9,.3,1)}
+#pvpFlag.on{opacity:1;translate:-50% 0}
+#pvpFlag b{font:800 12px var(--f-num);letter-spacing:.3em;text-transform:uppercase;color:#f2efe6;text-shadow:0 2px 8px rgba(0,0,0,.7)}
+#pvpFlag s{position:relative;display:block;width:100%;height:9px;background:rgba(20,20,22,.78);box-shadow:inset 0 0 0 1px rgba(236,230,216,.2);text-decoration:none}
+#pvpFlag s::after{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:2px;background:#f2efe6;translate:-50% 0}
+#pvpFlag u{position:absolute;top:0;bottom:0;text-decoration:none;transition:width .2s linear}
+#pvpFlag u.a{left:0;background:#5fb4e8}#pvpFlag u.b{right:0;background:#e2563f}
+#pvpFlag em{font:600 12px var(--f-ui);font-style:normal;color:var(--ink);text-shadow:0 1px 4px rgba(0,0,0,.8)}
+#pvpFlag.mine em{color:#9fe0a0}#pvpFlag.theirs em{color:#ff8a76}#pvpFlag.both em{color:#ffcf4a}
+#pvpFlag.mine s,#pvpFlag.theirs s{animation:flagPulse .8s ease-in-out infinite alternate}
+@keyframes flagPulse{to{box-shadow:inset 0 0 0 1px rgba(236,230,216,.2),0 0 12px rgba(242,239,230,.35)}}
+#pvpFlag[hidden]{display:none}
+body.menu #pvpFlag{z-index:4!important}
+/* Showdown's random loadout in the picker: one card, wider, not picked */
+#pvpPick .ppCard.kit{width:300px;cursor:default}
+#pvpPick .ppCard.kit:hover{transform:none}
+#pvpPick .ppCard.kit .ppGun{grid-template-columns:96px 1fr}
+#pvpPick .ppCard.kit .ppGun img{width:96px;height:36px}
+@media (prefers-reduced-motion:reduce){#pvpFlag.mine s,#pvpFlag.theirs s{animation:none}}

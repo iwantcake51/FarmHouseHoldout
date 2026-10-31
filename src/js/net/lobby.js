@@ -8,9 +8,11 @@ import { $ } from '../core/dom.js';
 import { GI, GI_VB } from '../ui/game-icons.js';
 import { cache, clamp } from '../core/math.js';
 import {
-  NET, NET_COL, netAllReady, netBotAdd, netBotDrop, netHost, netJoin, netKick, netLeave, netLink, netMax, netName, netReady, netRoster, netSend, netSetBotSkill, netSetGame, netSetMode,
-  netSetView, netStart
+  NET, NET_COL, netAllReady, netBotAdd, netBotDrop, netHost, netJoin, netKick, netLeave, netLink, netMax, netName, netReady, netRoster, netSend, netSetBotSkill, netSetCfg, netSetGame, netSetMode,
+  netSetView, netSideOf, netStart, netSwitchSide
 } from './net.js';
+import { PVP_CFG_LIM, pvpCfgFix } from '../pvp/pvp.js';
+import { arenaMapDraw } from '../world/arena.js';
 import { METAL } from '../barricades/planks.js';
 import { audioInit } from '../audio/audio.js';
 import { SFX } from '../audio/sfx.js';
@@ -21,7 +23,7 @@ import { frAdd, frAnnounce, friendsUp, frOf, frRender, invRender, PALS } from '.
 import { LOOK } from '../player/look.js';
 import { lookThumb } from '../ui/look-card.js';
 import { chatRender } from './chat.js';
-import { PVP, pvpMate } from '../pvp/pvp.js';
+import { PVP, pvpMate } from '../pvp/pvp.js';   // (and its settings' limits, above)
 import { BOT_SKILLS } from '../pvp/bots.js';
 
 const lobbySeen = new Set();   // who's been shown in the seats already (someone just in slides into their seat)
@@ -54,6 +56,7 @@ export function lobbyRender() {
   $('coopBotsNote').textContent = (BOT_SKILLS[NET.botSkill] || '') + (host ? '' : ' · the host picks');
   $('coopBotAdd').hidden = !host; $('coopBotAdd').disabled = NET.inGame || NET.peers.size >= netMax() - 1;
   $('coopCodeRow').hidden = NET.solo;
+  cfgRender(host);
   for (const b of $('coopGame').querySelectorAll('[data-g=survival]')) if (NET.solo) b.disabled = true;
   // what you can do: the host starts once everyone's ready; a joiner says they're ready (or not after all)
   const others = [...NET.peers.values()], waiting = others.filter(p => !p.ready).map(p => p.name);
@@ -73,8 +76,11 @@ export function lobbyRender() {
 function renderSeats() {
   const on = NET.on, list = on ? netRoster() : [];
   if (on && !NET.host) { list.length = 0; list.push({ id: NET.id, name: netName(), idx: NET.idx, look: LOOK.cur, ready: NET.ready }, ...[...NET.peers.values()]); }
-  list.sort((a, b) => a.idx - b.idx);
-  const ol = $('coopList'); ol.classList.toggle('six', netMax() > 4); const key = JSON.stringify([NET.host, NET.botSkill, netMax(), list.map(p => [p.id, p.name, p.idx, !!p.ready, !!p.bot, JSON.stringify(p.look || null), p.fid && !!frOf(p.fid)])]);
+  // (the arena's team modes: Blue's seats, then Red's, each with its side on it and a switch)
+  const teams = on && NET.game === 'arena' && NET.arena !== 'ffa', sideOf = id => teams ? netSideOf(id) : '';
+  list.sort((a, b) => (sideOf(a.id) > sideOf(b.id) ? 1 : sideOf(a.id) < sideOf(b.id) ? -1 : 0) || a.idx - b.idx);
+  const ol = $('coopList'); ol.classList.toggle('six', netMax() > 4); ol.classList.toggle('teams', teams);
+  const key = JSON.stringify([NET.host, NET.botSkill, netMax(), teams, list.map(p => [p.id, p.name, p.idx, !!p.ready, !!p.bot, JSON.stringify(p.look || null), p.fid && !!frOf(p.fid), sideOf(p.id)])]);
   if (ol.dataset.key === key) return; ol.dataset.key = key;
   ol.textContent = '';
   for (const p of list) {
@@ -87,6 +93,11 @@ function renderSeats() {
     li.querySelector('.sNum').textContent = p.idx + 1; li.querySelector('.sName').textContent = p.name || 'Survivor';
     li.querySelector('.sTag').textContent = p.bot ? 'Bot · ' + (BOT_SKILLS[NET.botSkill] || '') : [isHost ? 'Host' : p.ready ? '' : 'Not ready yet', me ? 'You' : ''].filter(Boolean).join(', ');
     if (p.bot) li.classList.add('bot');
+    if (teams) {
+      const sd = sideOf(p.id); li.classList.add('side' + sd); li.style.setProperty('--sc', sd === 'B' ? '#e2563f' : '#5fb4e8');
+      const tag = document.createElement('span'); tag.className = 'sSide'; tag.textContent = sd === 'B' ? 'Red' : 'Blue'; li.appendChild(tag);
+      if ((me || NET.host) && !NET.inGame) { const b = document.createElement('button'); b.type = 'button'; b.className = 'coopCopy sSw'; b.textContent = 'To ' + (sd === 'B' ? 'Blue' : 'Red'); b.setAttribute('aria-label', 'Move ' + (me ? 'yourself' : p.name || 'them') + ' to ' + (sd === 'B' ? 'Blue' : 'Red')); b.onclick = () => netSwitchSide(p.id); li.appendChild(b); }
+    }
     // someone you're playing with who isn't on your friends list yet: one click to add them (net/friends.js)
     if (!me && p.fid && p.fid !== PALS.me && !frOf(p.fid)) { const b = document.createElement('button'); b.type = 'button'; b.className = 'coopCopy sAdd'; b.textContent = 'Add friend'; b.onclick = () => frAdd(p.fid, p.name); li.appendChild(b); }
     if (NET.host && !me && !NET.inGame) { const b = document.createElement('button'); b.type = 'button'; b.className = 'sKick'; b.textContent = '\u00d7'; b.setAttribute('aria-label', 'Remove ' + (p.name || 'Survivor') + ' from the lobby'); b.onclick = () => p.bot ? netBotDrop(p.id) : netKick(p.id); li.appendChild(b); }
@@ -129,8 +140,34 @@ $('coopView').onclick = e => { const b = e.target.closest('button'); if (b && !b
 $('coopMode').onclick = e => { const b = e.target.closest('button'); if (b && !b.disabled) netSetMode(b.dataset.m); };
 $('coopGame').onclick = e => { const b = e.target.closest('button'); if (b && !b.disabled) netSetGame(b.dataset.g); };
 $('coopArena').onclick = e => { const b = e.target.closest('button'); if (b && !b.disabled) netSetGame('arena', b.dataset.a); };
+// the arena's settings and its map, under the mode: the host's to change (a step down or up at a time), everyone else's
+// to see as the host has them
+const CFG_ROWS = {
+  ffa: [['ffa', 'Kills to win', ''], ['match', 'Match length', ' min']],
+  tdm: [['tdm', 'Kills to win', ''], ['match', 'Match length', ' min']],
+  rounds: [['rounds', 'Rounds to win', ''], ['round', 'Round time', ' s'], ['cap', 'Flag capture', ' s'], ['kit', 'Loadouts', '']]
+};
+let mapDrawn = false;
+function cfgRender(host) {
+  const on = NET.game === 'arena' && NET.on, box = $('coopArenaRow'); box.hidden = !on; if (!on) return;
+  if (!mapDrawn) { arenaMapDraw($('coopMap')); mapDrawn = true; }
+  const C = NET.acfg = pvpCfgFix(NET.acfg), rows = CFG_ROWS[NET.arena] || [], el = $('coopCfgRows'), key = JSON.stringify([NET.arena, C, host, NET.inGame]);
+  $('coopCfgNote').textContent = host ? 'Yours to set' : 'The host sets it';
+  if (el.dataset.key === key) return; el.dataset.key = key;
+  el.innerHTML = rows.map(([k, name, unit]) => {
+    const v = k === 'kit' ? (C.kit === 'class' ? 'Classes' : 'Random') : C[k] + unit, L = PVP_CFG_LIM[k], dis = !host || NET.inGame;
+    const ctl = k === 'kit' ? `<button type="button" class="cfgBtn wide" data-k="kit" ${dis ? 'disabled' : ''}>${v}</button>` :
+      `<button type="button" class="cfgBtn" data-k="${k}" data-d="-1" aria-label="Less" ${dis || C[k] <= L[0] ? 'disabled' : ''}>−</button><b>${v}</b><button type="button" class="cfgBtn" data-k="${k}" data-d="1" aria-label="More" ${dis || C[k] >= L[1] ? 'disabled' : ''}>+</button>`;
+    return `<div class="cfgRow"><span>${name}</span><span class="cfgCtl">${ctl}</span></div>`;
+  }).join('');
+}
+$('coopCfgRows').addEventListener('click', e => {
+  const b = e.target.closest('.cfgBtn'); if (!b || b.disabled) return; const k = b.dataset.k, C = NET.acfg || {};
+  if (k === 'kit') netSetCfg('kit', C.kit === 'class' ? 'random' : 'class'); else netSetCfg(k, C[k] + PVP_CFG_LIM[k][2] * +b.dataset.d);
+  SFX.click();
+});
 // what each of the arena's modes is, in a line under its name
-const ARENA_NOTE = { ffa: 'Everyone for themselves, first to 15 kills', tdm: 'Two sides, back in after you fall, first side to 20 kills', rounds: 'Two sides, one life a round, first to 5 rounds' };
+const ARENA_NOTE = { ffa: 'Everyone for themselves, back in after you fall', tdm: 'Two sides, back in after you fall', rounds: 'Two sides, one life a round, then a flag in the middle' };
 // a Copy button: says so only once the clipboard's really taken it (a browser that won't let the page at it says that)
 export function copyBtn(el, text) {
   const was = el.dataset.label || (el.dataset.label = el.textContent);
