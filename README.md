@@ -46,7 +46,7 @@ the lobby; the others see your new look once you click Done (or close it any oth
 back of the pack against its canvas, an automatic weapon over it, rather than hanging off its side in the air. In a
 run they're carried as before.
 
-**Beards.** The mouth sits on your face with every beard; it's only lifted onto the beard where a beard covers it
+**Beards.** A beard that goes round the face (a full beard, a long beard, a chinstrap, mutton chops) wraps round it: its front reaches out over the corners of the head, its sides run back from there to the ears, and a full beard or a chinstrap carries on under the jaw, so from the side or from below there's no bare corner and no edge standing off in the air (the front used to stop short of the corners and the sides short of the front). The mouth sits on your face with every beard; it's only lifted onto the beard where a beard covers it
 (a full beard, a long beard), so a goatee, a Van Dyke, a soul patch, a horseshoe, mutton chops or a moustache no
 longer leaves it floating out in front of you. **Stubble** and **heavy stubble** are stubble: a flat shadow in the
 skin over the jaw, chin, upper lip, the sides of the face and under the chin, with a paler edge and a scatter of fine
@@ -888,26 +888,32 @@ checked by a script (tools/arena-plan.py) for reachability, spawn safety, sightl
 - **The size.** 40 by 40 metres inside the walls, almost the whole of the farm's ground.
 - **Each spawn** is a walled yard at its end with three wide exits: north into the warehouse and south onto the rail
   spur (each three metres wide, with a wall stub two metres in from it and a two-metre way round its open end: it used
-  to be a one-metre squeeze between the stub and the wall), and east through a six-metre gate, a container parked in
-  the yard in front of it. **No spot outside a spawn can see into it, and no spot in one spawn can see any spot in the
-  other.** In Showdown everyone starts spread over the whole of their yard (each round its own spread, the same on
-  every screen), not side by side in one corner of it.
+  to be a one-metre squeeze between the stub and the wall), and east through a four-metre gate. **Nothing stands in the yard**: no container, no crates,
+  just the painted pad. What keeps eyes out is the architecture: the stubs inside the side exits, and a container
+  out in the courtyard two metres off the gate and twice as long as it is wide. **Where you start** is worked out by
+  the plan script: every open spot in the yard that no spot outside it can see (20 of them a side, over the back half
+  of the yard). So the spawns are safe by the walls alone, never by a prop parked in the spawn. Everyone in a team mode
+  starts spread over those spots (in Showdown, a fresh spread each round, the same on every screen), never off in a
+  corner by a stub wall. **No spot outside a spawn can see a spawn spot, and no spot in one spawn can see any spot in
+  the other.**
 - **The plaza door** (the flag's north approach) is three metres wide.
 - **North, the Warehouse floor: close quarters** (most sightlines 14 m or under). One big roofless hall, no rooms:
-  container stacks, wall stubs and crates standing in it so nothing sees far, a loading bay painted inside the door
+  container stacks, wall stubs, two crate stacks of stock and a barrier across its middle, so nothing sees far, a loading bay painted inside the door
   into the plaza (the flag's north approach).
 - **Middle, the Plaza: medium range and the contest.** Out of each spawn's gate into a courtyard between container
   stacks, onto the open plaza and the flag in its sandbag ring, wall stubs at the ring's corners. The quickest way to
   the flag (about 5 seconds at a sprint from the spawn; the outer lanes about 8 to 9). The way in is wide, not a
-  corridor: the gate opens six metres onto the courtyard, a single container stands out in the middle of it with room
-  all round, and sandbags lie across its mouth. On the open approaches to the plaza there's cover to move between:
-  crates and barriers by each spawn's side of the warehouse and rail doors, drums at the courtyard's corners and
-  sandbags in front of the ring, so no stretch on the way in is bare.
+  corridor: out of the gate onto the courtyard, round either end of the container standing out in it, two metres of
+  room all the way round. **Less clutter.** The middle was a field of props (three parallel strips of sandbags, a drum
+  on every corner): now it's the containers framing it, the wall stubs at the ring's corners and the flag's own
+  sandbag ring, with a barrier in each strip under the lane walls. Each lane keeps its own few props rather than the
+  same ones everywhere: crates and a barrier in the warehouse, the platform's barriers, sandbags, a spool and one drum
+  on the rail spur.
 - **Containers are whole containers.** Each is built as a true box of cells (up to 12 long), so a stack never comes
   out as an odd thin slab where two rows met; the rail spur's container wall is two containers deep, as they'd stand.
 - **South, the Rail spur: long range** (most sightlines 20 to 26 m, at most about 28), the one place for a rifle: two
   rail sidings sunk in the concrete along it, sleepers and all, each ending at a yellow buffer stop by the signal hut
-  in the very middle, the platform's edge of barriers beside them, sandbags, drums and a container stack part way
+  in the very middle, the platform's edge of barriers beside them, sandbags, a cable spool, a drum and a container stack part way
   along. A gap at the west end of the container wall, by the courtyard, is the middle's way south.
 - **The lanes stay apart.** No spot in the north lane sees any in the south. Rotating between the outer lanes goes
   back through your spawn (safe, slow) or across the plaza (quick, exposed).

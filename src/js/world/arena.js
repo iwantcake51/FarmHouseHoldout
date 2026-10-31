@@ -50,35 +50,35 @@ const AR_PLAN = [
   '##########################################',
   '#........h........CCCCCC........h........#',
   '#........h.F......CCCCCC......F.h........#',
-  '#.k......h........CCCCCC........h......k.#',
+  '#........h........CCCCCC........h........#',
   '#..F.....h......................h.....F..#',
   '#.....kk.h..CC..bb......bb..CC..h.kk.....#',
   '#...........CC..............CC...........#',
   '#...........CC..F........F..CC...........#',
   '#..............h..........h..............#',
-  '#.........k....h...o..o...h....k.........#',
-  '#o........k....h..........h....k........o#',
+  '#.........k....h..........h....k.........#',
+  '#.........k....h..........h....k.........#',
   '#..............h..........h..............#',
   '#hhh...hhhhhhhhh...hhhh...hhhhhhhhh...hhh#',
-  '#......h.bb...k............k...bb.h......#',
+  '#......h.bb....................bb.h......#',
   '#......h.......F..........F.......h......#',
-  '#..hhhhh.o.CCC..............CCC.o.hhhhh..#',
-  '#......h...CCC..hh......hh..CCC...h......#',
-  '#.AACC.h...CCC..hh.ssss.hh..CCC...h.CCBB.#',
-  '#.AACC.........o..........o.........CCBB.#',
-  '#.AACC..............................CCBB.#',
-  '#.AACC.....CC.s.s.s....s.s.s.CC.....CCBB.#',
-  '#.AACC...F.CC.s.s.s....s.s.s.CC.F...CCBB.#',
-  '#.AACC..............................CCBB.#',
-  '#.AACC.........o..........o.........CCBB.#',
-  '#.AACC.h...CCC..hh.ssss.hh..CCC...h.CCBB.#',
-  '#......h...CCC..hh......hh..CCC...h......#',
-  '#..hhhhh.o.CCC..............CCC.o.hhhhh..#',
+  '#..hhhhh...CCC..............CCC...hhhhh..#',
+  '#.....Ah...CCC..hh......hh..CCC...hB.....#',
+  '#......h..CCCC..hh.ssss.hh..CCCC..h......#',
+  '#AA....h..CC..................CC..h....BB#',
+  '#AAA......CC..................CC......BBB#',
+  '#AAAA.....CC......s....s......CC.....BBBB#',
+  '#AAAA....FCC......s....s......CCF....BBBB#',
+  '#AAA......CC..................CC......BBB#',
+  '#AA....h..CC..................CC..h....BB#',
+  '#......h..CCCC..hh.ssss.hh..CCCC..h......#',
+  '#.....Ah...CCC..hh......hh..CCC...hB.....#',
+  '#..hhhhh...CCC..............CCC...hhhhh..#',
   '#......h.......F..........F.......h......#',
-  '#......h.bb...k............k...bb.h......#',
+  '#......h.bb....................bb.h......#',
   '#hhh...h..CCCCCCCCCCCCCCCCCCCCCC..h...hhh#',
   '#.........CCCCCCCCCCCCCCCCCCCCCC.........#',
-  '#...............k........k...............#',
+  '#........................................#',
   '#...........CC..............CC...........#',
   '#...........CC.s..........s.CC...........#',
   '#..........FCC.s...hhhh...s.CCF..........#',
@@ -86,7 +86,7 @@ const AR_PLAN = [
   '#...F..............hhhh..............F...#',
   '#..................hhhh..................#',
   '#.....r..........F.hhhh.F..........r.....#',
-  '#.o.......CC....o........o....CC.......o.#',
+  '#.........CC....o........o....CC.........#',
   '#.........CC..................CC.........#',
   '##########################################'
 ];
@@ -111,25 +111,11 @@ AR_PLAN.forEach((r, jj) => [...r].forEach((ch, ii) => {
   const x = cxw(ARENA.x0 + ii), z = cxw(ARENA.z0 + jj), mid = (cxw(ARENA.x0) + cxw(ARENA.x1)) / 2;
   if (ch === 'A' || ch === 'B' || ch === 'F') AR_SPAWN[ch].push([x, z, Math.atan2(mid - x, cxw(22) - z)]);   // (facing the middle)
 }));
-// each side's whole spawn yard, not only its marked spots (AR_YARD_AT): every open cell reached from the spots without
-// going further out toward the middle than YARD_OUT cells past them, nor further across than YARD_WIDE either side
-const AR_YARD_AT = { A: [], B: [] }, YARD_OUT = 2, YARD_WIDE = 9;
-for (const sd of ['A', 'B']) {
-  const L = AR_SPAWN[sd]; if (!L.length) continue;
-  const cx = L.reduce((a, s) => a + s[0], 0) / L.length, cz = L.reduce((a, s) => a + s[1], 0) / L.length, mx = (cxw(ARENA.x0) + cxw(ARENA.x1)) / 2, mz = (cxw(ARENA.z0) + cxw(ARENA.z1)) / 2;
-  const alongX = Math.abs(cx - mx) > Math.abs(cz - mz), dir = alongX ? Math.sign(mx - cx) : Math.sign(mz - cz);
-  const front = Math.max(...L.map(s => (alongX ? s[0] : s[1]) * dir)) + YARD_OUT, open = c => c === '.' || c === sd;
-  const seen = new Set(), q = L.map(s => [ci(s[0]), ci(s[1])]);
-  q.forEach(([i, j]) => seen.add(i + ',' + j));
-  while (q.length) {
-    const [i, j] = q.shift(); AR_YARD_AT[sd].push([cxw(i), cxw(j)]);
-    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const ni = i + di, nj = j + dj, k = ni + ',' + nj, x = cxw(ni), z = cxw(nj);
-      if (seen.has(k) || !open(AR_KIND(ni, nj)) || (alongX ? x : z) * dir > front || Math.abs(alongX ? z - cz : x - cx) > YARD_WIDE) continue;
-      seen.add(k); q.push([ni, nj]);
-    }
-  }
-}
+// each side's spawn spots in its yard (AR_YARD_AT): every spot the plan marks for it, which is every open spot in the
+// yard that nothing outside can see (tools/arena-plan.py), so spawns spread over the yard and are safe by its walls
+// (only the main run of them: not a lone spot tucked into a corner by a stub wall, where nobody would start)
+const arYardMain = sd => AR_SPAWN[sd].filter(s => AR_SPAWN[sd].some(o => o !== s && Math.abs(o[1] - s[1]) < 0.1 && Math.abs(o[0] - s[0]) < 1.1)).map(s => [s[0], s[1]]);
+const AR_YARD_AT = { A: arYardMain('A'), B: arYardMain('B') };
 // a side's spots this round, spread over its whole yard (Showdown: arenaSpawn): the first anywhere in it (drawn by the
 // round, the same on every screen), each after as far from all before it as the yard allows
 function yardSpots(sd, seed, n) {
@@ -204,7 +190,7 @@ function arFloorTex() {
   // each side's pad: a hatched box in its colour, worn
   // (in plain white, the same at both ends: in Showdown the sides swap ends as the loadouts change)
   [['A', 'rgba(226,220,204,0.42)'], ['B', 'rgba(226,220,204,0.42)']].forEach(([s, col]) => {
-    const cs = [...AR_PLAN].flatMap((r, j) => [...r].map((q, i) => q === s ? [i, j] : null)).filter(Boolean);
+    const cs = [...AR_PLAN].flatMap((r, j) => [...r].map((q, i) => q === s && (r[i - 1] === s || r[i + 1] === s) ? [i, j] : null)).filter(Boolean);   // (the main run of them, not a lone spot tucked in a corner)
     const i0 = Math.min(...cs.map(c => c[0])) - 0.4, i1 = Math.max(...cs.map(c => c[0])) + 1.4, j0 = Math.min(...cs.map(c => c[1])) - 0.4, j1 = Math.max(...cs.map(c => c[1])) + 1.4;
     x.strokeStyle = col; x.lineWidth = 7; x.strokeRect(i0 * px, j0 * pz, (i1 - i0) * px, (j1 - j0) * pz);
     x.save(); x.beginPath(); x.rect(i0 * px, j0 * pz, (i1 - i0) * px, (j1 - j0) * pz); x.clip(); x.lineWidth = 4;
@@ -519,7 +505,7 @@ export function arenaDown() {
 export function arenaSpawn(side, foes, n, seed) {
   const L = AR_SPAWN[side] || AR_SPAWN.F;
   let best = L[0], bd = -1;
-  const yd = n !== undefined && side !== 'F' && seed !== undefined ? yardSpots(side, seed, n) : null;
+  const yd = n !== undefined && side !== 'F' ? yardSpots(side, seed ?? 0, n) : null;
   if (yd) { const mid = (cxw(ARENA.x0) + cxw(ARENA.x1)) / 2; best = [yd[0], yd[1], Math.atan2(mid - yd[0], cxw(22) - yd[1])]; }   // (Showdown: anywhere in the yard, yardSpots)
   else if (n !== undefined && side !== 'F') best = L[n % L.length];
   // (the furthest from everyone, never one an enemy can see from where they stand: a spot in plain sight of one counts

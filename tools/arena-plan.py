@@ -41,9 +41,9 @@ gap(4, 12, 6, 12)          # north exit, into the warehouse
 put('h', 3, 15, 6, 15)     # a stub two metres in from it, a two-metre way round its open end: nothing outside sees in
 gap(4, 29, 6, 29)          # south exit, onto the rail spur
 put('h', 3, 26, 6, 26)
-gap(7, 18, 7, 23)          # the gate east into the courtyard: wide open, six metres
-put('A', 2, 17, 3, 24)     # where each side comes in
-put('C', 4, 17, 5, 24)     # a container parked in the yard between them and the gate: nothing outside sees in
+gap(7, 19, 7, 22)          # the gate east into the courtyard, four metres
+# (nothing stood in the yard itself: where each side comes in is worked out below, every spot in it that nothing
+# outside can see, so the spawns are spread over the yard and safe by the walls alone, not by a prop parked in it)
 
 # ---- NORTH LANE: the warehouse floor (rows 1-11; its south wall row 12 runs the width of the map): one big roofless
 # hall, broken up by islands rather than walls, so it's close fighting round corners, never a corridor
@@ -53,20 +53,17 @@ put('h', 9, 1, 9, 5)       # a wall stub off the north wall
 put('C', 12, 5, 13, 7)     # a container stack mid-hall
 put('C', 18, 1, 20, 3)     # and one stood against the north wall in the very middle (six wide with its mirror)
 put('h', 15, 8, 15, 11)    # a wall off the warehouse's south wall by the plaza door
-put('k', 2, 3); put('k', 6, 5, 7, 5); put('k', 10, 9, 10, 10)   # crate stacks (vaulted)
-put('b', 16, 5, 17, 5); put('o', 1, 10); put('o', 19, 9)
+put('k', 6, 5, 7, 5); put('k', 10, 9, 10, 10)   # two crate stacks (vaulted): the warehouse's own cover, pallets of stock
+put('b', 16, 5, 17, 5)     # a barrier across the hall's middle by the plaza door
 
 # ---- MIDDLE LANE: the courtyard (cols 8-14) and the plaza (cols 15-20 and its mirror)
 put('C', 11, 15, 13, 17); put('C', 11, 24, 13, 26)
-put('C', 11, 20, 12, 21)                     # and one out in the courtyard, three metres off the gate, open all round   # two container stacks framing the courtyard's way onto the plaza
-put('s', 14, 20, 14, 21)                     # sandbags across the courtyard's mouth
+put('C', 10, 17, 11, 24)                     # a container out in the courtyard, two metres off the gate and twice as long as it's wide, open all round: what keeps eyes out of the yard
 put('h', 16, 16, 17, 17); put('h', 16, 24, 17, 25)   # wall stubs at the flag ring's corners
 put('s', 19, 17, 20, 17); put('s', 19, 24, 20, 24); put('s', 18, 20, 18, 21)   # the flag's sandbag ring (open at its corners)
-put('o', 9, 15); put('o', 9, 26)
 # cover along the ways into the middle, so none of them is a bare run: crates and barriers along the strips under the
 # lane walls, drums and sandbags on the plaza's approaches
-put('k', 14, 13); put('k', 14, 28); put('b', 9, 13, 10, 13); put('b', 9, 28, 10, 28)
-put('o', 15, 18); put('o', 15, 23); put('s', 16, 20, 16, 21)
+put('b', 9, 13, 10, 13); put('b', 9, 28, 10, 28)   # a barrier in each strip under the lane walls
 
 # ---- SOUTH LANE: the rail spur (rows 30-40; the container wall along row 29 between it and the plaza)
 put('C', 10, 29, 15, 30); put('C', 16, 29, 20, 30)   # two rows of containers along the lane's north side (two deep, as they stand)
@@ -76,11 +73,27 @@ put('b', 7, 35, 10, 35)                      # the platform edge: barriers along
 put('s', 15, 33, 15, 35)                     # sandbags at the platform's end
 put('C', 12, 32, 13, 34)                     # a container stack part way along: the lane's long, but nothing sees end to end
 put('C', 10, 39, 11, 40)                     # a container stood against the south wall: no run along it
-put('o', 2, 39); put('o', 16, 39); put('r', 6, 38); put('k', 16, 31)
+put('r', 6, 38); put('o', 16, 39)   # a cable spool and a drum: the rail yard's own clutter, once each
 
 # ---- free-for-all spawns, spread round all three lanes (and their mirrors)
 for f in [(3, 4), (11, 2), (16, 7), (9, 21), (15, 14), (15, 27), (4, 36), (11, 34), (17, 38)]: L[f[1]][f[0]] = 'F'
 
+# where each side comes in: every open spot in its yard that no spot outside the yard can see (the gate's own cells
+# aside), so the spawns cover the yard and are safe by its walls
+_sw = {'A': 'B', 'B': 'A'}
+_rows = [''.join(r) + ''.join(_sw.get(c, c) for c in reversed(r)) for r in L]
+def _sees(a, b):
+    (x0, z0), (x1, z1) = a, b; n = int(max(abs(x1 - x0), abs(z1 - z0)) * 4) + 1
+    for k in range(1, n):
+        t = k / n; x, z = x0 + (x1 - x0) * t, z0 + (z1 - z0) * t
+        if _rows[int(math.floor(z + 0.5))][int(math.floor(x + 0.5))] in '#Ch': return False
+    return True
+_yard = lambda c: 1 <= c[0] <= 6 and 13 <= c[1] <= 28
+_open = [(i, j) for j in range(H) for i in range(W) if _rows[j][i] in '.F']
+_vest = lambda c: c[0] <= 9 and 17 <= c[1] <= 24   # (the gate's doorway, between it and the container out in front)
+_out = [c for c in _open if not _yard(c) and c[0] != 7 and not _vest(c)]
+for c in [c for c in _open if _yard(c)]:
+    if not any(_sees(o, c) for o in _out): L[c[1]][c[0]] = 'A'
 sw = {'A': 'B', 'B': 'A'}
 rows = [''.join(r) + ''.join(sw.get(c, c) for c in reversed(r)) for r in L]
 TALL = set('#Ch')
@@ -114,8 +127,9 @@ def sees(a, b):
     return True
 A = [(i, j) for (i, j) in floor if rows[j][i] == 'A']; B = [(i, j) for (i, j) in floor if rows[j][i] == 'B']
 yard = lambda c: c[0] <= 6 and 13 <= c[1] <= 28
+print('spawn spots per side', len(A), file=sys.stderr)
 print('spawn to spawn sight', sum(1 for a in A for b in B if sees(a, b)), file=sys.stderr)
-outside = [c for c in floor if not yard(c) and not (c[0] <= 9 and 17 <= c[1] <= 24) and not (c[0] <= 7 and 13 <= c[1] <= 28)]   # (anywhere past the yard's wall but its gate's doorway, behind the stack in front of it)   # (anywhere past the yard's wall and its gate's vestibule, enemy-reachable)
+outside = [c for c in floor if not yard(c) and not (c[0] <= 7 and 13 <= c[1] <= 28) and not (c[0] <= 9 and 17 <= c[1] <= 24)]   # (anywhere past the yard's walls but the gate's own doorway)
 peek = [(o, a) for o in outside for a in A if sees(o, a)]
 print('spots outside that see into the west spawn cells', len(set(o for o, a in peek)), sorted(set(o for o, a in peek))[:12], file=sys.stderr)
 lane = lambda c: 'N' if c[1] <= 11 else 'S' if c[1] >= 30 else 'M'

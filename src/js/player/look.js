@@ -311,6 +311,11 @@ export const aimEye = L => L && L.face && L.face.patch && L.face.side === 1 ? -1
 // beard, stubble's shadow): only hair that's actually across where it is (at its height, y, within hw either side of
 // x) counts, so a goatee or a soul patch under it, a moustache over it or a horseshoe's ends beside it leave it on the face
 const MOUTH_Z = { face: 0.1615, over: 0.0015 }, _mb = new THREE.Box3();
+// a beard that goes round the face (jaw, the chinstrap, mutton chops): how thick its front is (m) and how far out from
+// the face it starts (z), how wide it is (out past the head's corners by the sides' thickness, so it covers them), how
+// thick on the sides and how far into the head they sit (in: no hairline gap at the skin), how deep under the jaw and
+// how far back under it it reaches (to neck, short of the neck itself), and a chop's width
+const BEARD_WRAP = { front: 0.024, z: 0.154, w: 0.346, side: 0.014, in: 0.001, under: 0.014, neck: 0.05, chop: 0.09 };
 function mouthOver(hair, x, y, hw) {
   let z = MOUTH_Z.face;
   for (const c of hair) {
@@ -440,7 +445,12 @@ export function buildLook(L) {
   }
   // ---- facial hair, then the mouth over it. Stubble is shadow, the skin and the hair mixed, not a solid block of hair
   const nb = H.children.length, stub = (k, dk = 1) => lm(new THREE.Color(L.skin).lerp(new THREE.Color(L.beardCol), k).multiplyScalar(dk).getHex());
-  const bd = L.beard, jaw = (m, h) => { box(H, 0.3, h, 0.024, m, 0, -0.16 + h / 2, 0.166); [-1, 1].forEach(s => box(H, 0.014, 0.13, 0.12, m, s * 0.166, -0.08, 0.06)); };
+  // (hair that runs round the face, BW: its front out to the head's corners and over them, its sides back from where the
+  // front's back face is, so the two meet at each corner rather than leaving the corner bare and each edge in the air;
+  // and under the jaw, so from the side or below there's no gap between the beard and the chin)
+  const BW = BEARD_WRAP, side = (m, y0, y1, z0 = 0) => [-1, 1].forEach(s => box(H, BW.side, y1 - y0, BW.z - z0, m, s * (0.16 + BW.side / 2 - BW.in), (y0 + y1) / 2, (z0 + BW.z) / 2));
+  const front = (m, w, y0, y1, x = 0) => box(H, w, y1 - y0, BW.front, m, x, (y0 + y1) / 2, BW.z + BW.front / 2);
+  const bd = L.beard, jaw = (m, h) => { front(m, BW.w, -0.16, -0.16 + h); side(m, -0.16, -0.015); box(H, BW.w, BW.under, BW.z + BW.front - BW.neck, m, 0, -0.16 - BW.under / 2 + BW.in, (BW.neck + BW.z + BW.front) / 2); };
   const tache = (w, y) => box(H, w, 0.026, 0.026, beard, 0, y ?? -0.072, 0.174);
   const chin = (w, h, y) => box(H, w, h, 0.032, beard, 0, y, 0.168);
   if (bd === 'stubble' || bd === 'heavyStubble') {
@@ -478,8 +488,8 @@ export function buildLook(L) {
   else if (bd === 'goatee') { chin(0.1, 0.07, -0.135); tache(0.12); }
   else if (bd === 'vandyke') { chin(0.07, 0.06, -0.14); tache(0.12, -0.07); }
   else if (bd === 'soulPatch') chin(0.03, 0.03, -0.122);
-  else if (bd === 'chinstrap') { [-1, 1].forEach(s => box(H, 0.014, 0.15, 0.11, beard, s * 0.166, -0.085, 0.06)); box(H, 0.3, 0.026, 0.026, beard, 0, -0.152, 0.168); }
-  else if (bd === 'muttonChops') { [-1, 1].forEach(s => { box(H, 0.014, 0.16, 0.13, beard, s * 0.166, -0.06, 0.055); box(H, 0.07, 0.1, 0.024, beard, s * 0.12, -0.075, 0.166); }); tache(0.1, -0.074); }   // the chin left bare
+  else if (bd === 'chinstrap') { side(beard, -0.16, -0.01); front(beard, BW.w, -0.16, -0.134); box(H, BW.w, BW.under, BW.z + BW.front - BW.neck, beard, 0, -0.16 - BW.under / 2 + BW.in, (BW.neck + BW.z + BW.front) / 2); }   // a strap of it along the jaw and round under the chin
+  else if (bd === 'muttonChops') { side(beard, -0.14, 0.02); [-1, 1].forEach(s => front(beard, BW.chop, -0.125, -0.025, s * (BW.w - BW.chop) / 2)); tache(0.1, -0.074); }   // the chin left bare, each chop round the corner of the jaw
   else if (bd === 'sideburns') [-1, 1].forEach(s => box(H, 0.014, 0.1, 0.06, beard, s * 0.166, -0.02, 0.07));
   // the mouth: no lips, just the line of it, dark and all but flush with the face (in front of a full beard): plain,
   // thin, turned down, a smirk up at one corner, or set grim with the chin creased under it
