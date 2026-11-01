@@ -56,7 +56,8 @@ const ROUND_ORDER = ['std', 'slug', 'flech', 'fire', 'hollow', 'pierce', 'boom']
 const ROUND_HUE = { flech: '#e2ded4', fire: '#e8742e', slug: '#5a8ee0', hollow: '#cdd2d8', pierce: '#a9b0ba', boom: '#e0503a' };
 export const roundHue = (id, D) => ROUND_HUE[roundOn(id)] || '';
 export const roundOn = id => (id && W8.rounds && W8.rounds[id] && W8.rounds[id].on) || 'std';
-export const roundOwned = (id, k) => k === 'std' || !!(W8.rounds[id] && W8.rounds[id].own.includes(k));
+// (an arena loadout's shells are the only kind it carries, only: no buckshot to fall back on, pvp/pvp.js pvpLoadout)
+export const roundOwned = (id, k) => (k === 'std' && !(W8.rounds[id] && W8.rounds[id].only)) || !!(W8.rounds[id] && W8.rounds[id].own.includes(k));
 export const roundFits = (id, k) => { const D = WEAP[id]; return !!D && !D.melee && !!D.ammo && (k === 'std' || ROUNDS[k].fits(D, id)); };
 export const roundTypes = id => ROUND_ORDER.filter(k => roundFits(id, k));
 export const roundName = (id, k) => { const R = ROUNDS[k], D = WEAP[id]; return (R.as && (R.as[id] || R.as[D.ammo])) || R.name; };

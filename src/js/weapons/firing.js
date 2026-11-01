@@ -11,6 +11,7 @@ import { P } from '../player/player.js';
 import { HEAVY_FIRE } from './gun-stats.js';
 import { falloff, headFade } from './ammo.js';
 import { PVP, pvpPellet, pvpRay, pvpShotEnd } from '../pvp/pvp.js';
+import { arBoxShot } from '../world/arena-boxes.js';
 import { fireModeOf } from './mod-levels.js';
 import { curId, gunAtt, magSize, run, S, suppMul, suppressed, T, W, W8 } from '../game/run-state.js';
 import { AKX, BELT, BIPOD, MUZ, X } from './gun-materials.js';
@@ -51,7 +52,8 @@ import { HOLD, HOLD_DEF, holdOf } from '../player/hold.js';
 import { gunKick, recoilFeel } from '../player/hold-kick.js';
 import { beltKick, bipodKick } from '../player/hold-sway.js';
 import { shotOut } from '../net/avatars.js';
-import { crouchSpread } from '../player/crouch.js';
+import { crouchKick, crouchSpread } from '../player/crouch.js';
+import { hitAt } from '../ui/crosshair.js';
 
 // how hard a shot hits back, from what it does to a zombie: 9mm about 0.1-0.2, rifle rounds and magnums 0.3-0.8,
 // the hunting rifle and shotguns up to about 1.2 (a double barrel firing both)
@@ -415,12 +417,12 @@ export function gunFire(id, D, side) {
     const hits = [];
     for (const z of zombies) { const h = zRay(z, ox, oz, dx, dz, back); if (h && h.t <= endR) hits.push({ z, t: h.t, off: h.off, r: h.r, part: aimed && z === tgt.z ? tgt.part : null }); }
     if (aimed && !hits.some(h => h.z === tgt.z) && tgtT <= endR) hits.push({ z: tgt.z, t: tgtT, off: 0, r: 1, part: tgt.part });
-    pvpRay(ox, oz, dx, dz, endR, hits);   // (in the arena, the others on its way: pvp/pvp.js)
+    pvpRay(ox, oz, dx, dz, endR, hits, fp ? [y0, slope] : null);   // (in the arena, the others on its way, from your own eyes met as they're drawn: pvp/pvp.js)
     hits.sort((a, b) => a.t - b.t);
     let m = 0;
     for (let k = 0; k < hits.length && m <= pierce; k++) {
       // someone in the arena: what it did to them (pvp/pvp.js); a body stops it there
-      if (hits[k].pv) { if (pvpPellet(hits[k], fp, y0 + slope * hits[k].t, id, D, pellets, ox, oz, dx, dz)) { hits[m++] = hits[k]; break; } continue; }
+      if (hits[k].pv) { if (pvpPellet(hits[k], fp, y0 + slope * hits[k].t, id, D, pellets, ox, oz, dx, dz)) { hitAt(ox + dx * hits[k].t, y0 + slope * hits[k].t, oz + dz * hits[k].t); hits[m++] = hits[k]; break; } continue; }   // (hitAt: where it went in, for the hitmarker, ui/crosshair.js)
       const { z, off, r } = hits[k];
       const hx = -off * dz, hz = off * dx, side = hx * Math.cos(z.face) - hz * Math.sin(z.face);
       // a pellet that lands close enough to where you aimed on that zombie hits the part you aimed at; the rest of the
@@ -440,6 +442,7 @@ export function gunFire(id, D, side) {
       // revolver's aimed Dead-eye (D.aimCrit), or a Sure shot
       const crit = sure || (scopeOn && D.headCrit && part === 'head') || (critC > 0 && rand() < critC); setCritNext(crit); setHeadNext(headFade(id, hits[k].t));
       setHitY(aimed && z === tgt.z ? tgt.y : fp ? y0 + slope * hits[k].t : null);   // (how high it struck: a helmet only guards the top of the head, zombies/damage.js)
+      hitAt(ox + dx * hits[k].t, aimed && z === tgt.z ? tgt.y : y0 + slope * hits[k].t, oz + dz * hits[k].t);   // (where it went in, for the hitmarker: ui/crosshair.js)
       hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * Math.pow(D.pierceKeep ?? PIERCE_KEEP, m - 1) * falloff(id, hits[k].t) * (crit ? critX : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
       setHitY(null);
     }
@@ -462,8 +465,10 @@ export function gunFire(id, D, side) {
     // (dragon's breath: its own burning pellets show the shot, so just a couple of faint tracers through them)
     if (D.dragon ? p < 2 : p < 4 || rand() < 0.5) { tracer(trO.x, trO.y, trO.z, ox + dx * flyT, fy, oz + dz * flyT, D.dragon ? trPw * 0.45 : trPw, trSt, sky); if (ends.length < 5) ends.push([ox + dx * flyT, fy, oz + dz * flyT, fK, hole]); }
     if (p === 0) { const sT = Math.min(flyT, FLY.smoke); smokeTrail(trO.x, trO.y, trO.z, ox + dx * sT, free && fp ? y0 + slope * sT : ey, oz + dz * sT, smokeOf(D, id, quietR, pellets === shots)); }   // big calibres leave smoke in the air, and every suppressed round a thicker, longer-lasting trail of it
+    // (in the arena: a box on the shelving it stopped in, or one on its way, knocked off, instead of a hole in the shelving: world/arena-boxes.js)
+    const mbx = !n && !D.explode && arBoxShot(ox, y0, oz, dx, slope, dz, endR, wallT < reach && wallT <= endR, fp);
     if (D.explode && (n || wallT < reach)) explode(ox + dx * endT, oz + dz * endT, D.explode, 45, true, false, true);
-    else if (!n && wallT < reach && wallT <= endR) {   // sparks and a little dust puff where it hits the wall
+    else if (!n && !mbx && wallT < reach && wallT <= endR) {   // sparks and a little dust puff where it hits the wall
       const ix = ox + dx * (wallT - 0.05), iz = oz + dz * (wallT - 0.05);
       if (p < 4 || rand() < 0.4) impactFx(ix, ey, iz, -dx, -dz, 'wood');   // a flash, splinters, a puff off the surface (effects/puffs.js)
       bulletHole(ox, oz, dx, dz, wallT, ey, hole);   // and a hole in it (effects/bullet-holes.js)
@@ -501,11 +506,11 @@ export function gunFire(id, D, side) {
   W8.burst = burstN() + 1;   // (this string's count: ADS_FIRST)
   W8.spray = Math.min(1, (W8.spray || 0) + clamp(0.04 + D.shake * 0.6, 0.06, 0.3) * (D.sprayK || 1) * (stocked(id) ? STOCK.spray : 1) * (unshouldered(D, id) ? HANDGUN.spray : 1)); W8.sprayT = 0;   // a steadier gun opens up slower (D.sprayK)
   if (D.heavy) { W8.heavyF = D.heavy.fire; W8.heavyK = Math.min(1, (W8.heavyK || 0) + HEAVY_FIRE.build); }   // a heavy gun bogs you down as you fire it
-  { const sd = fireSide(D); ANIM.slideT[sd] = 0; const kind = (HOLD[id] || HOLD_DEF).kind, auto = fireRate(D) < 0.16; gunKick(sd, pw, kind, auto, EJECT[id], recoilFeel(D, kind, auto)); xhKick(D, id, pw, auto); }   // (the crosshair kicks too: player/shaky-hands.js)
+  { const sd = fireSide(D); ANIM.slideT[sd] = 0; const kind = (HOLD[id] || HOLD_DEF).kind, auto = fireRate(D) < 0.16; gunKick(sd, pw * crouchKick(), kind, auto, EJECT[id], recoilFeel(D, kind, auto)); xhKick(D, id, pw, auto); }   // (the crosshair kicks too: player/shaky-hands.js)
   const ej = EJECT[id];
   if (ej === 'fire') { ejectCasing(D.ammo, shots, 'fire', W8.akSide); if (BELT[W8.cur]) { ejectLinks(shots, 0.535); beltKick(); } if (BIPOD[W8.cur]) bipodKick(); }   // a belt gun throws its links too
   // (a case the gun keeps till it's racked or reloaded stays in the HUD, fired, till then: ui/rounds.js)
-  else if (ej === 'pump' || ej === 'bolt') { W8.hudSpent[id] = (W8.hudSpent[id] || 0) + 1; startCycle(id); }
+  else if (ej === 'pump' || ej === 'bolt') { W8.hudSpent[id] = (W8.hudSpent[id] || 0) + 1; startCycle(id, true); }
   else if (ej === 'breach') { W8.spent[id] = Math.min(magSize(id), (W8.spent[id] || 0) + shots); W8.hudSpent[id] = Math.min(magSize(id), (W8.hudSpent[id] || 0) + shots); }
   if (S.luck && !anyHit && rand() < S.luck) luckyKeep(id, D);
   }

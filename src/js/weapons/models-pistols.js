@@ -174,7 +174,7 @@ export const PISTOL_MODELS = {
     box(g, 0.012, 0.003, 0.013, S2, X, 1.189, 0.9005);
     profile(g, shp([[0.895, 1.1885], [0.906, 1.1885], [0.906, 1.1905], [0.8985, 1.1975], [0.895, 1.1975]]), 0.0034, GM.rubber, X);
     cyl(g, 0.0013, 0.0008, GM.dot, X, 1.1945, 0.8946, 12);
-    cyl(g, 0.0062, 0.004, GM.rubber, X, 1.16, 0.9165, 14);
+    cyl(g, 0.0062, 0.003, GM.rubber, X, 1.16, 0.9195, 18);   // the bore (out at the face as its bevel brings it forward, 3 mm past its line: further in, the bevelled face hid its top half)
     // ---- frame: the lip under the barrel, takedown buttons, slide stop, the guard and trigger, the hammer
     box(g, 0.03, 0.008, 0.22, S2, X, 1.122, 0.782);
     [[0.708, 1.111], [0.705, 1.1235]].forEach(([z, yy]) => cyl(g, 0.0042, 0.034, D, X, yy, z, 12).rotation.set(0, 0, Math.PI / 2));

@@ -14,7 +14,7 @@
 #    x a stall's partition, Y a hay mow (big bales stacked high), O a grain silo, R a tractor, W a hay wagon (in the
 #    corral, a stock trailer), e the hedgerow, u the farmhouse's shell and the wind pumps' houses, S a shed's racks,
 #    T a diesel tank, C the corn crib; low (seen and shot over; vaulted): y a big bale, f a rail fence, t a water
-#    trough, p culvert pipes.
+#    trough, p culvert pipes, k a workbench, w a woodpile.
 #
 # The layout: three lanes west to east, joined at the spawns and the middle.
 #  - NORTH, the Barn: close quarters. A long roofless barn (its roof burnt off) taking the whole north side: stalls
@@ -31,7 +31,7 @@
 #  - Each spawn is a machine shed with three exits: north into its corral (a rack just inside, round its far end),
 #    south into the field (the same, a diesel tank outside it so nothing far down the field watches it) and wide doors
 #    east onto the yard with the tractor and wagon out in front.
-import sys, math
+import sys, math, os
 W, H = 42, 38
 HW = W // 2
 L = [['.'] * HW for _ in range(H)]
@@ -51,6 +51,7 @@ put('S', 3, 14, 6, 14)     # a rack of parts three metres in from it, against th
 gap(4, 26, 6, 26)          # south exit, into the field
 put('S', 3, 23, 6, 23)
 gap(7, 17, 7, 20)          # the big doors east onto the yard, four metres
+put('k', 1, 12, 2, 12); put('k', 1, 25, 2, 25)   # workbenches along its north and south walls, in its corners
 
 # ---- NORTH LANE: the corral (cols 1-7) and the barn (cols 9-20 and its mirror), rows 1-10
 put('h', 8, 0, 8, 11); put('h', 8, 11, HW - 1, 11)   # the barn's west and south walls
@@ -70,7 +71,7 @@ put('W', 10, 19, 11, 22)   # and its hay wagon hitched behind it: what keeps eye
 put('O', 15, 13, 16, 14)   # the grain silo, in front of the barn door
 put('u', 15, 21, 16, 22)   # the pump house, north of the gate: nothing through the barn door sees through the gate
 put('t', 19, 17, 20, 17); put('t', 19, 20, 20, 20)   # the troughs, north and south of the flag (open east and west)
-put('y', 13, 20)           # bales
+put('w', 13, 20)           # a woodpile
 
 # ---- SOUTH LANE: the field (rows 27-36)
 put('e', 8, 26, HW - 1, 26)   # the hedgerow along the field's north side
@@ -88,6 +89,13 @@ put('y', 3, 34); put('y', 15, 36)
 # ---- free-for-all spawns, spread round all three lanes (and their mirrors)
 for f in [(3, 2), (12, 3), (17, 8), (9, 13), (14, 16), (9, 24), (3, 28), (9, 33), (17, 34)]: L[f[1]][f[0]] = 'F'
 
+# ---- then a few columns of the west half left out (and their mirrors), drawn above at the old width: the two spawns
+# brought closer together without redrawing the rest (m: where a column drawn above ends up)
+DEL = [int(c) for c in os.environ.get('DEL', '12,17,18').split(',') if c]
+KEEP = [i for i in range(HW) if i not in DEL]
+m = lambda c: sum(1 for k in KEEP if k <= c) - 1
+L = [[r[i] for i in KEEP] for r in L]; HW = len(KEEP); W = 2 * HW
+
 TALL = set('#hmxYORWeuSTC')
 _sw = {'A': 'B', 'B': 'A'}
 _rows = [''.join(r) + ''.join(_sw.get(c, c) for c in reversed(r)) for r in L]
@@ -97,10 +105,10 @@ def _sees(rows, a, b):
         t = k / n; x, z = x0 + (x1 - x0) * t, z0 + (z1 - z0) * t
         if rows[int(math.floor(z + 0.5))][int(math.floor(x + 0.5))] in TALL: return False
     return True
-store = lambda c: 1 <= c[0] <= 6 and 12 <= c[1] <= 25
+store = lambda c: 1 <= c[0] <= m(6) and 12 <= c[1] <= 25
 _open = [(i, j) for j in range(H) for i in range(W) if _rows[j][i] in '.F']
-_vest = lambda c: c[0] <= 9 and 15 <= c[1] <= 22   # (the doors' own doorway, between them and the tractor)
-_out = [c for c in _open if not store(c) and c[0] != 7 and not _vest(c) and not (c[1] in (11, 26) and c[0] <= 6)]
+_vest = lambda c: c[0] <= m(9) and 15 <= c[1] <= 22   # (the doors' own doorway, between them and the tractor)
+_out = [c for c in _open if not store(c) and c[0] != m(7) and not _vest(c) and not (c[1] in (11, 26) and c[0] <= m(6))]
 for c in [c for c in _open if store(c)]:
     if not any(_sees(_rows, o, c) for o in _out): L[c[1]][c[0]] = 'A'
 rows = [''.join(r) + ''.join(_sw.get(c, c) for c in reversed(r)) for r in L]
@@ -124,13 +132,13 @@ def bfs(src):
     return d
 sees = lambda a, b: _sees(rows, a, b)
 floor = [(i, j) for j in range(H) for i in range(W) if walk(rows[j][i])]
-SP = (3, 18)
+SP = (m(3), 18)
 seen = bfs(SP)
 print('unreachable', [c for c in floor if c not in seen], file=sys.stderr)
 A = [c for c in floor if rows[c[1]][c[0]] == 'A']; B = [c for c in floor if rows[c[1]][c[0]] == 'B']
 print('spawn spots per side', len(A), file=sys.stderr)
 print('spawn to spawn sight', sum(1 for a in A for b in B if sees(a, b)), file=sys.stderr)
-outside = [c for c in floor if not store(c) and not (c[0] <= 7 and 11 <= c[1] <= 26) and not _vest(c)]
+outside = [c for c in floor if not store(c) and not (c[0] <= m(7) and 11 <= c[1] <= 26) and not _vest(c)]
 peek = set(o for o in outside for a in A if sees(o, a))
 print('spots outside that see into the west spawn cells', len(peek), sorted(peek)[:12], file=sys.stderr)
 lane = lambda c: 'N' if c[1] <= 10 else 'S' if c[1] >= 27 else 'M'
@@ -165,7 +173,7 @@ print('corner pinches', len(pinch), pinch[:10], file=sys.stderr)
 FL = (HW - 1, H // 2)
 def via(w):
     d1 = bfs(SP); d2 = bfs(w); return d1[w] + d2[FL]
-for nm, w in [('north', (12, 5)), ('middle', (9, 14)), ('south', (12, 30))]:
+for nm, w in [('north', (m(10), 5)), ('middle', (m(9), 14)), ('south', (m(10), 30))]:
     m = via(w); print('spawn to flag via %s: %.0f m, %.1f s sprinting' % (nm, m, m / 5.25), file=sys.stderr)
 for r in rows: print(r)
 import os

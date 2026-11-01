@@ -19,6 +19,7 @@ import { updateDarkEyes, updateDayNight } from '../lighting/day-night.js';
 import { updateLaser } from '../weapons/laser.js';
 import { updateDropMarker } from '../stations/supply-drop.js';
 import { updateCamera } from './camera.js';
+import { stepBelt } from '../player/hold-sway.js';
 import { poseSnap } from '../net/avatars.js';
 import { updateCutaway } from '../world/cutaway.js';
 import { updateCrosshair } from '../ui/crosshair.js';
@@ -38,6 +39,7 @@ export function visuals(dt, rdt) {
   poseSnap();   // (your pose for your teammates, before the first-person view holds your arms on it: net/avatars.js)
   const D = W(curId()) || W('pistol');   // after the player's pose, which can take out a different weapon (a weapon key during a bandage)
   updateCamera(rdt);
+  stepBelt(rdt);   // (the belt of a belt-fed gun in your hands, once the view's put the gun where it's drawn: player/hold-sway.js)
   updateDayNight(rdt); updateDarkEyes(dt);
   updateLightmap(rdt);
   updateZombieVisuals(dt, rdt); updateEyes(dt);

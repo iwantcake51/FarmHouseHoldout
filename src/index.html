@@ -412,7 +412,7 @@
   <div class="aloBack"></div>
   <div class="aloPanel" role="dialog" aria-modal="true" aria-labelledby="aloTitle">
     <header class="aloTop">
-      <div class="aloHead"><h3 id="aloTitle">Loadouts</h3><small>Arena classes · two guns on 10 points, a melee weapon free</small></div>
+      <div class="aloHead"><h3 id="aloTitle">Loadouts</h3><small>Your two guns share 10 points. Melee weapons are free.</small></div>
       <div class="aloPts" id="aloPts" role="meter" aria-label="Points used" aria-valuemin="0" aria-valuemax="10"></div>
       <button class="setX" id="aloX" type="button" aria-label="Close"><svg data-gi="crossMark" aria-hidden="true"></svg></button>
     </header>
@@ -425,11 +425,12 @@
         <div class="aloEmpty" id="aloEmpty" hidden><i aria-hidden="true"></i><span>No secondary</span><small>Its point is free for the primary</small></div>
         <div class="aloHint">Drag to turn · Scroll to zoom</div>
       </div>
-      <div class="aloAtts" id="aloAtts" aria-label="Attachments"></div>
+      <div class="aloSlots"><div class="aloAttsHead aloGroup" id="aloAttsHead"></div><div class="aloAtts" id="aloAtts" aria-label="Attachments"></div></div>
+      <div class="aloInfo" id="aloInfo" role="tooltip" aria-live="polite"></div>
     </section>
-    <aside class="aloSide"><div class="aloPickHead" id="aloPickHead"></div><div class="aloPick" id="aloPick"></div><div class="aloPerks" id="aloPerks"></div></aside>
+    <aside class="aloSide"><div class="aloPickHead aloGroup" id="aloPickHead"></div><div class="aloPick" id="aloPick"></div><div class="aloPerks" id="aloPerks"></div></aside>
     <footer class="aloFoot">
-      <span class="aloKeys"><kbd>1</kbd>–<kbd>8</kbd> Class <kbd>Q</kbd><kbd>E</kbd> Slot <span class="aloKeyMore">Click a slot to add a step · right-click to take one off</span></span>
+      <span class="aloKeys"><kbd>1</kbd>–<kbd>8</kbd> Class <kbd>Q</kbd><kbd>E</kbd> Slot <kbd>F2</kbd> Rename <span class="aloKeyMore">Click a tile to add a step, right-click to take one off</span></span>
       <span class="aloGap"></span>
       <button class="setLink" id="aloReset" type="button">Reset to default <kbd>R</kbd></button>
       <button class="btn sm" id="aloDone" type="button">Done</button>

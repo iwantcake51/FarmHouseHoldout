@@ -178,13 +178,13 @@ export const MAG_SEAT = 0.84, CH_MAG = 0.76, CH_PULL = 0.845, CH_SLAM = 0.875;
 export const CH_REACH = [0.645, 0.775], CH_DRAW = 0.765, CH_BACK = [0.89, 1], CH_BOUNCE = 0.06;
 // The M4's flick (player/hold-flick.js). With its own 30-round box in it, and a 30 to go in (nothing bigger bought for
 // it: the stock box is the mag that's thrown, and the one the hand brings up), the old mag isn't stripped out by hand:
-// the wrist whips the gun out to the side and the mag's flung out of the well mid-flick, FLK.rel of the way through the
-// mag change. Gated on the mag itself (its tier), not on how many it holds: a perk that packs a few more rounds into it
+// the wrist snaps the gun over and the mag's flung out of the well mid-flick, FLK.rel of the way through the mag
+// change. Gated on the mag itself (its tier), not on how many it holds: a perk that packs a few more rounds into it
 // leaves it the same box. A flick reload's as long as any other mag change, so nothing's quicker for it, and it's run
 // dry just as it was (EMPTY_MUL longer, the gun only fires once the bolt's home), but the bolt goes home off the bolt
 // catch rather than the charging handle: the mag change takes FLK.mag of the reload, and the heel of the support hand
 // slaps the catch, just over the well, at FLK.slap
-export const FLK = { rel: 0.12, mag: 0.86, slap: 0.84 };
+export const FLK = { rel: 0.12, mag: 0.86, slap: 0.84 };   // (rel's put where the flick's quickest by player/hold-flick.js, from its own curve)
 const flickReload = (id, D) => id === 'ar' && !D.akimbo && !D.perShell && magTierIn(id) === 0 && gunTier(id, 'mag') === 0 && (D.magX || 1) <= 1.01;
 // a magazine gun run dry takes EMPTY_MUL longer to reload than one with rounds left (it's fumbled out of an empty gun,
 // and the gun's charged or its slide dropped at the end). Pistols whose slide locks back on the last round

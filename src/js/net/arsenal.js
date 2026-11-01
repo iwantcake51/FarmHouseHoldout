@@ -25,7 +25,9 @@ import { buildWeapon, weaponRec } from '../weapons/build-weapons.js';
 import { placeMag } from '../weapons/casings.js';
 import { state } from '../game/state.js';
 import { SNAP_GUN } from './avatars.js';
+import { camFocus } from './spectate.js';
 import { HSH, placeLoader, SL_RND, SLM } from '../player/hold-loaders.js';
+import { HOLD, HOLD_DEF } from '../player/hold.js';
 import {
   BELT_M, BUCKLE_M, buildHolster, HOLSTER_M, HOOD_M, packBack, STOW, STOW_AK, STOW_AT, STOW_RIG
 } from '../player/stow.js';
@@ -64,11 +66,44 @@ function loadoutTick() {
 }
 NET_ON.loq = m => { if (loNow) netTo(m.f, 'lo', loNow); };
 // (and the gear they've earned on them, built again only when it's changed: gearOnAvatar, player/gear.js)
+// Built on them a survivor at a time, not all at once (LO_Q): a Showdown round's next loadout arrives for every bot
+// in the same frame, and building all their guns there and then stalled it for seconds. A survivor with nothing in
+// their hands yet who's in view, the one you're watching, or one whose guns are all built ahead already
+// (ARS_POOL: cheap, only taken) gets theirs at once; the rest wait their turn (arsenalQueueStep), the latest loadout
+// of each replacing whatever was waiting
+const LO_Q = new Map(), LO_BUDGET = 6;
 NET_ON.lo = m => {
   const p = NET.peers.get(m.f); if (!p) return; p.lo = m.lo; p.lk = m.lk; if (!p.av) return;
-  buildArsenal(p.av, m.lo, m.lk);
-  const gk = JSON.stringify([m.lo.gear, m.lo.slots]); if (gk !== p.av.gearKey) { p.av.gearKey = gk; gearOnAvatar(p.av, m.lo.gear, m.lo.slots, p.av.look); }
+  LO_Q.delete(p.id);
+  const a = p.av, bare = !a.held || !Object.keys(a.held).length;
+  if ((bare && a.g.visible) || camFocus() === p || loCheap(a, m.lo)) loApply(p); else LO_Q.set(p.id, p);
 };
+function loApply(p) {
+  const a = p.av; if (!a || !p.lo) return;
+  buildArsenal(a, p.lo, p.lk);
+  const gk = JSON.stringify([p.lo.gear, p.lo.slots]); if (gk !== a.gearKey) { a.gearKey = gk; gearOnAvatar(a, p.lo.gear, p.lo.slots, a.look); }
+}
+// (everything in it either on them already or built ahead and waiting to be taken)
+function loCheap(a, lo) {
+  for (const s of SLOTS) {
+    const id = lo.slots[s], gl = id && lo.guns[id]; if (!gl || !GUNS[id]) continue;
+    if (a.armKey && a.armKey[s] === loKeyOf(lo, s, id, gl) && a.held && a.held[s]) continue;
+    const l = ARS_POOL.get(arsKey(id, gl)); if (!l || !l.length) return false;
+  }
+  return true;
+}
+// every frame (net/avatars.js): the survivors waiting for theirs, the cheap ones first, as many as fit in LO_BUDGET ms
+// (always one)
+export function arsenalQueueStep() {
+  if (!LO_Q.size) return;
+  const t0 = performance.now();
+  while (LO_Q.size) {
+    let p = null; for (const q of LO_Q.values()) { if (!q.av || camFocus() === q || loCheap(q.av, q.lo)) { p = q; break; } }
+    if (!p) p = LO_Q.values().next().value;
+    LO_Q.delete(p.id); if (p.av && NET.peers.get(p.id) === p) loApply(p);
+    if (performance.now() - t0 > LO_BUDGET) break;
+  }
+}
 
 // your weapons this pose: each one out (in the body's own frame), with its moving parts whenever they've changed (and
 // every second regardless, for anyone who's just built your weapons); what's stowed and showing; what's in your hand
@@ -174,6 +209,7 @@ export function arsenalWarmCompile(R, scene, cam) {
   scene.add(g); try { R.compile(scene, cam); } finally { scene.remove(g); [...g.children].forEach(c => g.remove(c)); }
 }
 // (what wasn't taken, once the round's under way: let go)
+const loKeyOf = (lo, s, id, gl) => JSON.stringify([id, gl, s === 'side' ? lo.hol || 0 : 0]);
 export function arsenalWarmClear() { for (const l of ARS_POOL.values()) l.forEach(e => { binModel(e.h.g); if (e.stow) binModel(e.stow); }); ARS_POOL.clear(); }
 // their arsenal, kept up to date with their loadout: only a weapon that's changed (a new attachment, mod or rounds, or a
 // weapon swapped in) is built again, once, and its stowed copies are copied from that one; a weapon that has only moved
@@ -185,7 +221,7 @@ export function buildArsenal(a, lo, lk) {
     const st = a.stowed[s]; if (st) { [st.outer, st.twin && st.twin.outer].forEach(q => { if (q) binModel(q); }); (st.belt || []).forEach(o => o.parent && o.parent.remove(o)); }
     delete a.held[s]; delete a.stowed[s]; delete a.armKey[s];
   };
-  const keyOf = (s, id, gl) => JSON.stringify([id, gl, s === 'side' ? lo.hol || 0 : 0]);
+  const keyOf = (s, id, gl) => loKeyOf(lo, s, id, gl);
   for (const s of SLOTS) {
     const id = lo.slots[s], gl = id && lo.guns[id], ok = !!gl && !!GUNS[id], key = ok ? keyOf(s, id, gl) : '';
     if (a.armKey[s] === key && a.held[s]) {
@@ -198,7 +234,7 @@ export function buildArsenal(a, lo, lk) {
     a.armKey[s] = key;
     const holM = lam(lo.hol || 0x1d1d1f), hoodM = lam(shade(lo.hol || 0x1d1d1f, 0.72));
     // to hold: hidden until a pose says it's out
-    const pre = arsenalTake(id, gl), h = pre ? pre.h : teamWeapon(gl, id), proto = pre ? pre.proto : copyModel(h.g); if (!pre) foldStatic(h.g, h.moving); h.g.visible = false; a.g.add(h.g); a.held[s] = h;
+    const pre = arsenalTake(id, gl), h = pre ? pre.h : teamWeapon(gl, id), proto = pre ? pre.proto : copyModel(h.g); if (!pre) foldStatic(h.g, h.moving); h.g.visible = false; a.g.add(h.g); a.held[s] = h; h.id = id;
     h.lasers = []; h.g.traverse(o => { if (o.userData.isLaser) h.lasers.push(o); }); h.laserT = ((gl.gt || {}).laser | 0);   // its laser's lens, shining when it's out (weapons/laser.js)
     // and stowed: where it rides on them (the sender's own placing of it, pushed down onto the pack and all)
     const rig = s === 'side' && gl.ak;
@@ -231,7 +267,9 @@ export function buildArsenal(a, lo, lk) {
 }
 // a shot's kick on their gun (m: back along it, up), and a pump's or bolt's working after it: when it starts (s after the
 // shot), how long it takes, and when the whole of a shot's moving is done
-const ARS_KICK = { back: 0.045, up: 0.012 }, ARS_RACK = { at: 0.22, len: 0.42, end: 0.7 };
+// (and its muzzle flipped up about where it's gripped, flip rad: by its kick, net/avatars.js avShot)
+const ARS_KICK = { back: 0.045, up: 0.012, flip: 0.09 };
+export const ARS_RACK = { at: 0.22, len: 0.42, end: 0.7 };
 // every frame: their weapons out where they hold them (eased), the moving parts as they last said, what's stowed
 const _aQ = new THREE.Quaternion();
 export function arsenalFrame(p, a, rdt) {
@@ -252,6 +290,7 @@ export function arsenalFrame(p, a, rdt) {
     const F = a.fire; if (F && F.s === s && F.t < ARS_RACK.end) {
       F.t += rdt; const st = F.t, kk = F.k * Math.min(1, st / 0.012) * Math.exp(-st * 16);
       g.translateZ(-ARS_KICK.back * kk); g.position.y += ARS_KICK.up * kk;
+      { const gp = (HOLD[h.id || F.id] || HOLD_DEF).grip; g.translateY(gp[1]); g.translateZ(gp[2]); g.rotateX(-ARS_KICK.flip * kk); g.translateZ(-gp[2]); g.translateY(-gp[1]); }
       const off = st < 0.02 ? st / 0.02 : st < 0.032 ? 1 : Math.max(0, 1 - (st - 0.032) / 0.06);
       const R = ARS_RACK, u = (st - R.at) / R.len, rk = u <= 0 || u >= 1 ? 0 : u < 0.45 ? Math.sin(u / 0.45 * Math.PI / 2) : Math.cos((u - 0.45) / 0.55 * Math.PI / 2), lift = u <= 0 || u >= 1 ? 0 : Math.min(1, Math.min(u, 1 - u) * 6);
       for (const q of h.rec.slides) { if (q.m.userData.clip !== undefined) continue; if (!q.cyc) q.m.position.z = q.z0 - q.travel * off; else { q.m.position.z = q.z0 - q.travel * rk; if (h.D && h.D.ammo === 'rifle' && h.D.slot === 'long') q.m.rotation.z = -BOLT_TURN * lift; } }

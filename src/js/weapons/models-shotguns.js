@@ -117,7 +117,7 @@ export const SHOTGUN_MODELS = {
     box(g, 0.006, 0.05, 0.024 * n + 0.01, GM.poly, X + 0.025, 1.132, 0.51 + n * 0.012);
     for (let k = 0; k < n; k++) { const z = 0.522 + k * 0.024; cyl(g, 0.0105, 0.054, sm, X + 0.039, 1.14, z, 10).rotation.set(0, 0, 0); cyl(g, 0.0112, 0.014, GM.brass, X + 0.039, 1.106, z, 10).rotation.set(0, 0, 0); }   // stood upright in it
     // (mount: where a laser or a light clamps on, round the barrel and the tube just ahead of the forend's travel, fitAttachments)
-    return { front: 1.39, y: 1.15, slide: fe, bolts: [bolt], travel: 0.15, cyc: true, top: PUMP_RAIL.top, sz: 0.6, mount: { z: 1.2 } };
+    return { front: 1.39, y: 1.15, slide: fe, bolts: [bolt], travel: 0.15, cyc: true, top: PUMP_RAIL.top, sz: 0.6, mount: { z: 1.2 }, choke: { r: 0.0095, xs: [0] } };   // (choke: the barrel's radius, and where across each barrel is: weapons/attachments.js)
   },
   // double barrel: a side-by-side, traced off side-on photos: a hammerless sidelock (the lock plates with their
   // engraved border, the top lever and the safety on the tang, the action bar running forward under the barrels to the
@@ -186,7 +186,7 @@ export const SHOTGUN_MODELS = {
     else profile(brk, shp([[0.72, 1.12], [0.939, 1.121], [0.934, 1.112], [0.92, 1.104], [0.85, 1.096], [0.78, 1.088], [0.72, 1.09]].map(([z, yy]) => [z - 0.705, yy - 1.096])), 0.046, W, 0, 0.006);
     // the brass heads of the shells in the chambers, shown while loaded
     const rims = [-1, 1].map(sd => cyl(brk, 0.0125, 0.003, GM.brass, ...bx(sd * 0.0155, 1.14, z0 - 0.0015), 16));
-    return { front: z1, y: 1.14, top: 1.155, sz: 0.66, brk, rims };
+    return { front: z1, y: 1.14, top: 1.155, sz: 0.66, brk, rims, choke: { r: 0.0145, xs: [-0.0155, 0.0155] } };
   },
   // automatic shotgun: an AA-12, traced off a level side-on photo. One long slab is receiver and stock together (square
   // at the front round the barrel's shoulder with a cross pin through it, the textured panel and the latch on its left,
@@ -256,6 +256,6 @@ export const SHOTGUN_MODELS = {
       box(bm, 0.05, 0.215, 0.095, K, 0, -0.1075, 0); box(bm, 0.056, 0.016, 0.103, GM.poly, 0, -0.218, 0.002);
       [-1, 1].forEach(sd => { box(bm, 0.003, 0.16, 0.012, GM.metal2, sd * 0.026, -0.105, 0.022); box(bm, 0.003, 0.16, 0.012, GM.metal2, sd * 0.026, -0.105, -0.022); });
     }
-    return { front: 1.3025, y: 1.13, slide: bc, bolts: [], travel: 0.115, lock: true, mz: dz, magY: 1.05, top: opt ? AA_RAIL.top : 1.1985, sz: opt ? (AA_RAIL.z0 + AA_RAIL.z1) / 2 + 0.01 : 0.62, laser: { y: 1.105, z: 1.1 }, charge: ch, chargeAt: [X, 1.215, 0.85], chargeTravel: 0.1 };
+    return { front: 1.3025, y: 1.13, slide: bc, bolts: [], travel: 0.115, lock: true, mz: dz, magY: 1.05, top: opt ? AA_RAIL.top : 1.1985, sz: opt ? (AA_RAIL.z0 + AA_RAIL.z1) / 2 + 0.01 : 0.62, laser: { y: 1.105, z: 1.1 }, charge: ch, chargeAt: [X, 1.215, 0.85], chargeTravel: 0.1, choke: { r: 0.0163, xs: [0] } };
   },
 };

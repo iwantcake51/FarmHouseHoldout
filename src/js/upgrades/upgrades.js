@@ -98,16 +98,22 @@ const SMITH_SCRAP = 14, smithScrap = g => g ? ['ammo', 'trigger', 'mag'].filter(
 // (never a drum), the assault rifle up to its drum (no casket), the revolver none (it's a cylinder), the pump none (its
 // tube is what it holds; the tube extension mod is how it takes more), the auto shotgun one: from its box straight to the drum,
 // the double barrel none (two barrels are two shells), the hunting rifle two: its fixed magazine extended, then a
-// detachable box (game/run-state.js: DETACH), the SCAR one: its 20-round box
-export const MAG_STEPS = { deagle: 2, ar: 2, revolver: 0, pump: 0, auto12: 1, dbl: 0, sub: 2, hunting: 2, scar: 1 };
+// detachable box (game/run-state.js: DETACH), the SCAR one: its 20-round box, the machine pistol two: an extended stick,
+// then its drum (no casket)
+export const MAG_STEPS = { smg: 2, deagle: 2, ar: 2, revolver: 0, pump: 0, auto12: 1, dbl: 0, sub: 2, hunting: 2, scar: 1 };
+// and in the arena (pvp/pvp.js, ui/arena-loadouts.js) the LMG keeps the belt it comes with: no longer belt there
+// (ARENA_NO_MAG), its hundred rounds already a lane's worth. arenaMagSteps: how far the mag line goes on a gun there
+const ARENA_NO_MAG = new Set(['lmg']);
+export const arenaMagSteps = id => ARENA_NO_MAG.has(id) ? 0 : MAG_STEPS[id] ?? TIERS.mag.t.length;
 // the guns whose rate is their action's, not their trigger's: a pump fires as fast as you work it, a bolt rifle as fast
 // as the bolt, so a lighter trigger does nothing for them. Their own mods (Slam fire, the greased bolt) do that.
 // The double barrel fires as fast as you can pull its triggers, so it has nothing to gain either
 export const NO_TRIGGER = new Set(['pump', 'hunting', 'dbl']);
 // the guns that take no can: the double barrel's twin muzzles
 export const NO_SUPP = new Set(['dbl']);
-// and the ones that take no sight at all, iron sights only: the LMG, a gun for hosing from the hip
-export const NO_SIGHT = new Set(['lmg']);
+// and the ones that take no sight at all, iron sights only: none now (the LMG takes them on its feed cover's rail, as
+// far as the ACOG: game/run-state.js SCOPE_TOP); kept for any gun that comes without anywhere to put one
+export const NO_SIGHT = new Set();
 export function tierFits(k, id) {
   const D = WEAP[id], n = ownTier(id, k);   // what you've bought, whether or not it's fitted right now
   if (n >= TIERS[k].t.length) return false;

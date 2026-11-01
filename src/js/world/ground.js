@@ -8,6 +8,7 @@ import { flat, tightCyl } from '../core/geometry.js';
 import { cxw } from './grid.js';
 import { M } from './materials.js';
 import { GROUND_ART } from './ground-art.js';
+import { NOISE_GLSL } from './floors.js';
 
 export const HX0 = 16, HX1 = 27, HZ0 = 17, HZ1 = 26;
 // the power line past the road (world/ground.js): how far apart the poles stand, how far out from the road's middle, how
@@ -49,19 +50,13 @@ for (const k of [...Object.keys(GROUND_TILE), 'rock', 'rock2']) {
   const t = GROUND_TEX[k] = new THREE.TextureLoader().load(GROUND_ART[k]);
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = R.capabilities.getMaxAnisotropy();
 }
-// Perlin (gradient) noise, and a texture tiled with no repeat to see: the tiling noise picks an offset and a turn for
+// Perlin (gradient) noise (world/floors.js), and a texture tiled with no repeat to see: the tiling noise picks an offset and a turn for
 // each patch of ground (gPick), and where two patches meet their copies of the texture fade into each other (the
 // darker one wins first, so the seams follow its shapes), drawn with the gradients the plain tiling would have, turned
 // with it, so its mip level never jumps
 const GROUND_NOISE = `
 #define G_TEX(s, x, dx, dy) textureGrad(s, x, dx, dy)
-vec2 gHash(vec2 p) { p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3))); return fract(sin(p) * 43758.5453) * 2.0 - 1.0; }
-float gNoise(vec2 p) {
-  vec2 i = floor(p), f = fract(p), u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
-  return mix(mix(dot(gHash(i), f), dot(gHash(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0)), u.x),
-             mix(dot(gHash(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0)), dot(gHash(i + 1.0), f - 1.0), u.x), u.y);
-}
-float gFbm(vec2 p) { return gNoise(p) * 0.6 + gNoise(p * 2.03 + 7.1) * 0.28 + gNoise(p * 4.07 + 3.7) * 0.12; }
+` + NOISE_GLSL + `
 vec3 gPick(sampler2D s, vec2 x, vec2 dx, vec2 dy, float i) {
   float r = fract(sin(i * 12.9898 + 4.1) * 43758.5453) * 6.2832; mat2 m = mat2(cos(r), sin(r), -sin(r), cos(r));
   return G_TEX(s, m * x + sin(vec2(3.0, 7.0) * i), m * dx, m * dy).rgb;

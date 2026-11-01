@@ -79,7 +79,7 @@ const ADS_T = { in: 15, out: 17, dip: 0.028, cant: 0.21 };
 // what that costs your pace it costs the aim too) and quickened a little by a laser (laser, a tier: you're already on
 // target as it comes up)
 const ADS_SPEED = { pistol: 1.3, smg: 1.3, revolver: 1.2, deagle: 1.1, sub: 1.18, ar: 1, scar: 0.88, pump: 0.9, dbl: 0.9, auto12: 0.84, hunting: 0.82, lmg: 0.74, dblSawn: 1.08, other: 1, weight: 0.8, laser: 0.05 };
-function adsSpeed(id) {
+export function adsSpeed(id) {
   const k = ADS_SPEED[id === 'dbl' && hasMod('sawn') ? 'dblSawn' : id] ?? ADS_SPEED.other;
   return k * (1 - ADS_SPEED.weight * (1 - carryMul(id))) * (1 + ADS_SPEED.laser * (T('laser') || 0));
 }
@@ -161,6 +161,10 @@ const MELEE_CAM = { roll: 0.012, pitch: 0.005, max: 0.07, k: 70, d: 12, hitP: 0.
 // from its side; back: the eye's jolt), and the spring that brings it home (k, d: stiff, a touch under its damping,
 // so it settles with the faintest give past)
 const FLINCH = { pitch: 1.2, behind: 0.35, yaw: 0.7, roll: 1.1, back: 0.55, k: 150, d: 17, max: 1.8 };
+// down the sights the flinch is the same jolt but smaller (ads of it), the view and the gun on your eye moving as one,
+// with less roll (adsRoll of what's left: a tilted sight picture reads as the gun knocked off your eye) and no jolt of
+// the eye back off the sight (that pulled the optic away from your eye and threw the picture about)
+const FLINCH_ADS = { k: 0.45, roll: 0.35 };
 // free look (held: input/keybinds.js, freeLook): the view turns on its own while the aim and the gun stay where they
 // are, as far round as yaw and pitch (radians), easing back onto the aim (back) once it's let go or the sights come up
 const FREE_LOOK = { yaw: 1.9, pitch: 1.1, ease: 16, back: 9, top: Math.PI / 2 - 0.03 };   // (top: the most the view goes up or down all told, aim and free look together: straight up or down, never over onto its back)
@@ -682,7 +686,12 @@ export function viewBasis() {
 const SIGHT_SHOT = [0.35, 0.85];
 export function fpAim(out) {
   let cp = Math.cos(VCAM.pitch), sp = Math.sin(VCAM.pitch), dx = Math.sin(VCAM.yaw), dz = Math.cos(VCAM.yaw);
-  const ex = V.x, ey = V.y, ez = V.z, sw = smooth(clamp((V.sdW - SIGHT_SHOT[0]) / (SIGHT_SHOT[1] - SIGHT_SHOT[0]), 0, 1));
+  // (from the eye as the view was last drawn, where the round leaves (weapons/firing.js) and where the sight's reticle is
+  // seen from, not the eye on your head before it's brought down onto the sights (V): from there the line ran parallel
+  // to the sight's a few centimetres off it, and the round crossed it to meet it out at the aim point, low at a nearer
+  // target or high at one past it)
+  const cam = FP_CAM.position, far = Math.hypot(cam.x - V.x, cam.y - V.y, cam.z - V.z) > 1;
+  const ex = far ? V.x : cam.x, ey = far ? V.y : cam.y, ez = far ? V.z : cam.z, sw = smooth(clamp((V.sdW - SIGHT_SHOT[0]) / (SIGHT_SHOT[1] - SIGHT_SHOT[0]), 0, 1));
   if (sw > 0) {
     const d = V.sd, x = dx * cp + (d.x - dx * cp) * sw, y = sp + (d.y - sp) * sw, z = dz * cp + (d.z - dz * cp) * sw, n = Math.hypot(x, y, z) || 1, h = Math.hypot(x, z) || 1e-6;
     cp = h / n; sp = y / n; dx = x / h; dz = z / h;
@@ -1056,8 +1065,8 @@ export function fpFlinch(x, z, amount) {
   const C = FLINCH, k = clamp(amount || 1, 0.5, C.max) * SET.shake / 100, [F, Rt] = viewBasis(), rx = x - P.x, rz = z - P.z, L = Math.hypot(rx, rz);
   const fwd = L > 0.05 ? (rx * F.x + rz * F.z) / L : 1, side = L > 0.05 ? (rx * Rt.x + rz * Rt.z) / L : (rand() < 0.5 ? -0.5 : 0.5);
   const j = rr(0.85, 1.15);   // (no two quite alike)
-  FL.vp += (fwd >= 0 ? C.pitch * (0.45 + 0.55 * fwd) : -C.behind * -fwd) * k * j;
-  FL.vy += side * C.yaw * k * j; FL.vr += side * C.roll * k * rr(0.8, 1.2); FL.vz += C.back * Math.max(0.3, fwd) * k;
+  const ak = adsW(), ka = 1 - (1 - FLINCH_ADS.k) * ak;   // (down the sights: FLINCH_ADS)
+  FL.vp += (fwd >= 0 ? C.pitch * (0.45 + 0.55 * fwd) : -C.behind * -fwd) * k * j * ka; FL.vy += side * C.yaw * k * j * ka; FL.vr += side * C.roll * k * rr(0.8, 1.2) * ka * (1 - (1 - FLINCH_ADS.roll) * ak); FL.vz += C.back * Math.max(0.3, fwd) * k * (1 - ak);
 }
 export function fpMeleeHit(heavy, hard) {
   if (!fpOn()) return;
@@ -1145,8 +1154,9 @@ export function viewFrame(rdt, roll, sh, jolt) {
     const e = h.a * (1 - u) * (1 - u), tt = h.t * Math.PI * 2;
     V.shp += Math.sin(tt * h.f[0] + h.ph[0]) * e; V.shy += Math.sin(tt * h.f[1] + h.ph[1]) * e * 0.8; V.shr += Math.sin(tt * h.f[2] + h.ph[2]) * e * 1.4;
   }
-  // (from a teammate's eyes, the camera's already where theirs is: net/avatars.js, specFp)
-  if (specFpOn()) { SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0; selfClip(false); return; }
+  // (from a teammate's eyes, the camera's already where theirs is: net/avatars.js, specFp; their sights' glass clear to
+  // look through, as yours is from your own eyes)
+  if (specFpOn()) { SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(true); SPRITE_AIM.w = 0; selfClip(false); return; }
   if (fpOn() && (P.dead || QUIT_CAM.on)) { fpDeathCam(rdt, c); SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0; selfClip(false); c.updateMatrixWorld(true); return; }
   if (fpOn()) {
     // the eyes: on the head, the way it faces. Your own movement's taken as it comes; the head's sway about you (each

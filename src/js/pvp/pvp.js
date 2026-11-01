@@ -2,7 +2,7 @@
 // arena map (world/arena.js), and three ways to play it. Deathmatch, everyone for themselves, back in a few seconds
 // after going down, first to PVP_LIM.ffa kills; Team deathmatch the same in two sides, first side to PVP_LIM.tdm; and
 // Showdown, one life a round in two sides (1v1, 2v2), first side to PVP_LIM.rounds rounds: go down and you watch a
-// teammate still up (net/spectate.js), the last side standing takes the round and everyone's back at their spawn.
+// teammate still up (net/spectate.js), or once your whole side's down the enemy who finished it off, the last side standing takes the round and everyone's back at their spawn.
 //
 // Everyone picks a class (PVP_CLASSES) before the first round and between rounds, or while waiting to come back in
 // Deathmatch: two guns and a melee weapon with their attachments set, and a bandage or two. Rounds hurt a person as they
@@ -19,7 +19,7 @@ import { kbd } from '../input/keybinds.js';
 import { P, PM } from '../player/player.js';
 import { freshStats, magSize, recomputeEff, S, SCOPE_TOP, stamMax, W, W8 } from '../game/run-state.js';
 import { TIERS } from '../upgrades/tier-table.js';
-import { MAG_STEPS, NO_SIGHT, NO_SUPP, NO_TRIGGER, UPG } from '../upgrades/upgrades.js';
+import { arenaMagSteps, NO_SIGHT, NO_SUPP, NO_TRIGGER, UPG } from '../upgrades/upgrades.js';
 import { fireModeOf, fireModes, MOD_CAP, MOD_MAX, MOD_UP } from '../weapons/mod-levels.js';
 import { GUN_MODS } from '../weapons/gun-mods.js';
 import { WEAP } from '../weapons/gun-stats.js';
@@ -37,20 +37,20 @@ import { BLOOD_KEEP, bloodMapClear, splatLater, spray } from '../effects/blood-m
 import { wallBloodClear, wallSpray } from '../effects/wall-blood.js';
 import { addBlood, BODY_BLOOD, bloodWipe } from '../effects/body-blood.js';
 import { avatarHit } from '../net/avatars.js';
-import { goreAt } from '../ui/screen-blood.js';
+import { goreAt, goreEye } from '../ui/screen-blood.js';
 import { SFX } from '../audio/sfx.js';
 import { ANIM } from '../player/animation.js';
 import { aimHeld, startAim } from '../player/aiming.js';
 import { agReset } from '../player/anim-graph.js';
 import { leanReset } from '../player/lean.js';
-import { CROUCH, crouchReset } from '../player/crouch.js';
+import { crouchReset } from '../player/crouch.js';
 import { unragYou } from '../player/player-ragdoll.js';
 import { deathCineEnd, deathCineSkip, END_GAME, leaveToMenu, resumeRun } from '../ui/screens.js';
 import { gunArt, meleeArt } from '../ui/melee-art.js';
 import { gorePop, halveHead } from '../zombies/damage.js';
 import { fpOn, VCAM, wantLock } from '../game/view-cam.js';
 import { mouseX, mouseY } from '../input/keyboard-mouse.js';
-import { SPEC } from '../net/spectate.js';
+import { camFocus, SPEC } from '../net/spectate.js';
 import { GI, GI_VB } from '../ui/game-icons.js';
 import { los } from '../lighting/lightmap.js';
 import { botHit, botIds, botKilled, botKitGl, botShoved, botStats, botsBegin, botsEnd, botsPhase, botsUpdate } from './bots.js';
@@ -109,7 +109,7 @@ function kitGun(id) {
   else if (!muzzle && D.ammo === 'shells' && rand() < KIT_ODDS.choke) gt.choke = lvl(2);
   if ((id === 'revolver' || id === 'scar' || D.breakOpen) && !locks.has('loader') && rand() < KIT_ODDS.loader) gt.loader = 1;
   if (!NO_TRIGGER.has(id) && rand() < KIT_ODDS.trigger) gt.trigger = lvl(3);
-  if ((MAG_STEPS[id] ?? 3) > 0 && rand() < KIT_ODDS.mag) gt.mag = lvl(MAG_STEPS[id] ?? 3);
+  if (arenaMagSteps(id) > 0 && rand() < KIT_ODDS.mag) gt.mag = lvl(arenaMagSteps(id));   // (never on the LMG here: upgrades/upgrades.js)
   const lv = {}; mods.forEach(m => { if (MOD_UP[m]) lv[m] = lvl(MOD_CAP[m] || MOD_MAX); });
   return [id, gt, mods, lv];
 }
@@ -138,7 +138,7 @@ const REGEN = { wait: 3.75, full: 8.5 };
 // what's still to come back (the health bar's blue part, ui/hud.js): all of it, once it's begun to
 export const pvpRegenAhead = () => PVP.on && !P.dead && PVP.mode !== 'rounds' && (PVP.calm || 0) > REGEN.wait && !(P.bleed > 0) ? Math.max(0, S.maxHp - P.hp) : 0;
 // tagging: a hit slows you (P.slow, worn off over about a second), the harder the more: base, plus per point of damage, to most
-const PVP_TAG = { base: 0.35, per: 0.006, most: 0.62 };
+const PVP_TAG = { base: 0.6, per: 0.008, most: 0.95 };   // (a hit leaves you at about half pace, a heavy one about a third: sprint broken, worn off over a second and a half or two)
 // how bloody a body is at nothing left (0..1): blood on everyone as much as they're hurt, kept while their health is
 // (all of a Showdown round) and fading off as it comes back (net/avatars.js does the others)
 export const PVP_BLOOD = 0.75;
@@ -168,6 +168,12 @@ const pvpAtts = (id, gt) => Object.keys(gt).map(k => { const st = TIERS[k].t[gt[
 // (and all of it by PVP_TTK: the whole table scaled together; at 1, as the table has it, every gun hitting with its
 // full weight)
 export const PVP_TTK = 1;
+// what one round or pellet of a gun does to a body before its falloff and where it lands (D: the gun as it is now).
+// Nothing fitted makes a gun hit harder here, a burst conversion, an auto sear or anything else, for the balance: only
+// less, a can's or a load's. A slug is one pellet that hits as PVP_SLUG of the whole load of shot it stands in for
+// (the Loadouts screen's shells, ui/arena-loadouts.js, works its numbers out by this too)
+const PVP_SLUG = 0.6;
+export const pvpRoundDmg = (id, D) => (PVP_DMG[id] || 20) * PVP_TTK * clamp(D.dmg / (WEAP[id].dmg || 1), 0.5, 1) * (D.ammo === 'shells' && D.pellets === 1 ? (WEAP[id].pellets || 1) * PVP_SLUG : 1);
 export const PVP_DMG = { pistol: 26, revolver: 46, deagle: 58, smg: 15, sub: 18, ar: 22, lmg: 19, scar: 40, hunting: 90, pump: 14, dbl: 12, auto12: 14 };
 const PVP_MELEE = { bat: 38, crowbar: 44, wrench: 52, katana: 58, sledge: 92, machete: 48, axe: 72 };
 // the arena's own drop-off for a gun whose zombie one is too harsh for a fight between players ([full damage out to,
@@ -190,9 +196,8 @@ export const pvpPartK = (id, part, t) => {
 };
 const PVP_HEAD_MELEE = 1.25;
 export const PVP_BLEED = { gun: 0.22, shells: 0.35, blade: 0.45, s: [2, 4] };
-// a body's reach as a round sees it (m round its middle), and where its parts are by height (m off the ground)
+// a body's reach as a round sees it from above (m round its middle)
 export const PVP_R = 0.32;
-const PVP_Y = { top: 1.86, head: 1.47, torso: 0.86 };
 
 export const PVP = { on: false, mode: 'ffa', teams: {}, side: 'A', cls: 'rifle', ph: 'idle', t: 0, rd: 1, wins: [0, 0], sc: {}, ts: [0, 0], prot: 0, respawn: 0, last: null, sent: 0, picked: false, resultKey: '' };
 const pvSideOf = id => PVP.teams[id];
@@ -205,11 +210,17 @@ export const pvpFrozen = () => PVP.on && PVP.ph !== 'live';
 // or shoot, pvpFrozen)
 export const pvpLocked = () => PVP.on && (PVP.ph === 'pick' || PVP.ph === 'count' || PVP.ph === 'idle');
 // who killed you, for the death camera to follow (net/spectate.js camFocus, game/view-cam.js): till you're back in,
-// while they're still up. Not in Showdown: there you only ever watch your own side
+// while they're still up. In Showdown you watch your own side while any of it's still standing; once the whole of it's
+// down, the one on the other side who took the last of you down (PVP.wipeK: you, if you were the last, or the teammate
+// who outlasted you), and that from their own eyes once the death camera's done (net/spectate.js)
 export function pvpKiller() {
-  if (!PVP.on || !P.dead || !PVP.killer || PVP.mode === 'rounds') return null;   // (in Showdown you watch only your own side: net/spectate.js)
+  if (!PVP.on || !P.dead) return null;
+  if (PVP.mode === 'rounds') { if (!pvpSideOut() || !PVP.wipeK) return null; const p = NET.peers.get(PVP.wipeK); return p && p.x !== undefined ? p : null; }
+  if (!PVP.killer) return null;
   const p = NET.peers.get(PVP.killer); return p && p.x !== undefined ? p : null;   // (down themselves since, traded: still them it looks at, where they lie)
 }
+// your whole side down (you and every teammate), in the team modes
+export const pvpSideOut = () => PVP.on && PVP.mode !== 'ffa' && P.dead && ![...NET.peers.values()].some(p => !p.dead && p.x !== undefined && pvpMate(p));
 // how grey the screen is (0 none, 1 all): grey while you pick and through the count in, the colour coming back over its
 // last PVP_GREY seconds (ui/hud.js)
 const PVP_GREY = 2;
@@ -256,7 +267,7 @@ function pvpPhase(ph, t) {
   const was = PVP.ph; PVP.ph = ph; PVP.t = t;
   if (ph !== 'live') hudEls.card.classList.remove('on');
   if (ph === 'pick' && (was === 'roundEnd' || was === 'idle')) {
-    flagDown();
+    flagDown(); PVP.wipeK = '';
     // (Showdown: a round's blood stays down all round, none of it soaking away, and a new round starts clean at once)
     BLOOD_KEEP.on = PVP.mode === 'rounds'; if (PVP.mode === 'rounds') { bloodMapClear(); wallBloodClear(); }
     // (Showdown's random loadout, drawn again every kitRounds(): the host's draw, sent with the clock)
@@ -287,12 +298,17 @@ function pvpLoadout() {
   const C = pvpMine(PVP.cls); PVP.loKey = pvpLoKey();
   Object.assign(S, freshStats()); S.planks = 0; C.perks.forEach(k => pvpPerkOf(k).ap());   // only this class's perks (and nothing in your pack to board up with)
   W8.slot = { melee: C.melee, side: null, long: null, auto: null }; W8.owned = [C.melee];
-  W8.mods = {}; W8.gt = {}; W8.own = {}; W8.att = {}; W8.rounds = {}; W8.mag = {}; W8.pin = {}; W8.relSave = {}; W8.fm = {};
+  W8.mods = {}; W8.gt = {}; W8.own = {}; W8.att = {}; W8.rounds = {}; W8.mag = {}; W8.pin = {}; W8.relSave = {}; W8.fm = {}; W8.load = {};
   ['akMag', 'spent', 'hudSpent', 'open', 'held'].forEach(k => { if (W8[k]) W8[k] = {}; });
   for (const k in W8.reserve) W8.reserve[k] = 0;
   W8.reloading = null; W8.akRel = null; W8.burstLeft = 0; W8.cd = 0; W8.swing = 0;
   let first = null;
   for (const [id, gt, mods, lv] of C.guns) { const s = WEAP[id].slot; W8.slot[s] = id; W8.owned.push(id); W8.gt[id] = Object.assign({}, gt); W8.own[id] = Object.assign({}, gt); if (mods) W8.mods[id] = mods.slice(); if (lv) { W8.modLv = W8.modLv || {}; Object.assign(W8.modLv, lv); } if (!first) first = s; }   // (lv: each mod's level, a random loadout's)
+  for (const [id] of C.guns) if (!arenaMagSteps(id)) { delete W8.gt[id].mag; delete W8.own[id].mag; }   // (no longer belt for the LMG here, whatever a loadout kept from before says: upgrades/upgrades.js arenaMagSteps)
+  // (a loadout made on the title's Loadouts screen, ui/arena-loadouts.js, can say which shells a shotgun's loaded with,
+  // the only kind it carries (only: no buckshot to swap back to, weapons/rounds.js), and how many shells the pump takes
+  // a go: W8.load, game/run-state.js)
+  for (const [id, , , , ex] of C.guns) { if (!ex) continue; if (ex.rd && ex.rd !== 'std') W8.rounds[id] = { own: [ex.rd], on: ex.rd, only: true }; if (ex.ld) W8.load[id] = ex.ld; }
   recomputeEff();
   // (a gun that can fire full auto or in bursts starts set to it, the fullest it has: full auto over a burst over single
   // shots, rather than on what it does out of the box)
@@ -324,19 +340,34 @@ function pvpSpawnMe(fresh) {
 // ---- shots and blows on the others: from firing.js and melee.js
 // the survivors a round's line (from ox, oz along dx, dz) passes through before endR, as hits for firing.js to sort
 // with the zombies' ({ pv: their player, t, off, r })
-// a head's own hit (PVP_HEAD_HIT): how far across from the line through it (m), how far up or down from the middle of
-// it (m), and that middle above the head's own place (its pivot's at the neck)
-const PVP_HEAD_HIT = { r: 0.15, h: 0.15, up: 0.1 }, _prH = new V3();
-export function pvpRay(ox, oz, dx, dz, endR, hits) {
+// From your own eyes (ray: the round's height where it starts and how it climbs, [y0, slope]) it's met against them as
+// they're drawn, the very blocks of their body, their head and what's on it (PVP_RAY): the first of them the line
+// goes into is what it hits, at its own height, crouched, leaned out or however they stand, so the reticle on their head
+// is a headshot and just over it a miss (the parts used to be bands of height off the ground for a taller figure than
+// theirs, their head 1.47-1.86 m: a round at the middle of the head, 1.37 m, went into the chest and one over the top
+// of it was a headshot). Not their weapon in their hands, nor their outlines
+const PVP_RAY = { r: 0.75 }, _prR = new THREE.Raycaster(), _prO = new V3(), _prD = new V3(), _prL = [];
+const PVP_PART_OF = [['head', 'head'], ['torso', 'torso'], ['armL', 'armL'], ['armR', 'armR'], ['legL', 'legL'], ['shinL', 'legL'], ['legR', 'legR'], ['shinR', 'legR'], ['upper', 'torso'], ['lower', 'torso']];
+function pvpMeshHit(a, ox, oz, dx, dz, endR, ray) {
+  const k = Math.hypot(1, ray[1]);
+  _prO.set(ox, ray[0], oz); _prD.set(dx, ray[1], dz).divideScalar(k); _prR.set(_prO, _prD); _prR.near = 0.2 * k; _prR.far = endR * k;
+  const skip = new Set(Object.values(a.held || {}).map(h => h && h.g).filter(Boolean));
+  _prL.length = 0; (function walk(o) { for (const c of o.children) { if (!c.visible || skip.has(c) || c.userData.isOutline) continue; if (c.isMesh) _prL.push(c); walk(c); } })(a.g);
+  const hit = _prR.intersectObjects(_prL, false)[0]; if (!hit) return null;
+  let part = null; for (let o = hit.object; o && o !== a.g && !part; o = o.parent) for (const [j, pt] of PVP_PART_OF) if (a[j] === o) { part = pt; break; }
+  return { t: hit.distance / k, y: hit.point.y, part: part || 'torso' };
+}
+export function pvpRay(ox, oz, dx, dz, endR, hits, ray) {
   if (!PVP.on || PVP.ph !== 'live') return;
   for (const p of NET.peers.values()) {
     if (p.dead || !pvpFoe(p) || !p.av) continue;
     const g = p.av.g.position, vx = g.x - ox, vz = g.z - oz, t = vx * dx + vz * dz, off = vx * dz - vz * dx;
-    // (their head where it really is, leaned out round a corner or not: a hit of its own, so a head over the crosshair
-    // past the edge of the cover their body's behind is a headshot, PVP_HEAD_HIT)
-    p.av.head.getWorldPosition(_prH); const hx = _prH.x - ox, hz = _prH.z - oz, ht = hx * dx + hz * dz, hoff = hx * dz - hz * dx, lean = Math.hypot(_prH.x - g.x, _prH.z - g.z);
-    if (ht > 0.2 && ht <= endR && Math.abs(hoff) < PVP_HEAD_HIT.r) hits.push({ pv: p, t: ht, off: hoff, r: PVP_HEAD_HIT.r, hy: _prH.y + PVP_HEAD_HIT.up });
-    if (t > 0.2 && t <= endR && off * off < PVP_R * PVP_R) hits.push({ pv: p, t, off, r: PVP_R, lean });
+    if (ray) {   // (from your own eyes: what of them the line goes into, PVP_RAY)
+      if (t < -PVP_RAY.r || t > endR + PVP_RAY.r || Math.abs(off) > PVP_RAY.r) continue;
+      const m = pvpMeshHit(p.av, ox, oz, dx, dz, endR, ray); if (m) hits.push({ pv: p, t: m.t, off, r: PVP_R, part: m.part, y: m.y });
+      continue;
+    }
+    if (t > 0.2 && t <= endR && off * off < PVP_R * PVP_R) hits.push({ pv: p, t, off, r: PVP_R });
   }
 }
 // what one round (or pellet) did to someone it met: which part (from your own eyes by the height it meets them at;
@@ -347,24 +378,20 @@ const shotOn = new Map();
 export function pvpPellet(h, fp, y, id, D, pellets, ox, oz, dx, dz) {
   const p = h.pv, rel = clamp(h.off / h.r, -1, 1);
   let part;
-  if (h.hy !== undefined) { if (!fp || Math.abs(y - h.hy) > PVP_HEAD_HIT.h) return false; part = 'head'; }   // (its head, where it is: pvpRay)
-  else if (fp) {
-    const dn = (p.cr || 0) * CROUCH.drop * 1.15;   // (crouched, everything on them lower: player/crouch.js)
-    if (y > PVP_Y.top - dn || y < 0.02) return false;
-    if (y > PVP_Y.head - dn && h.lean > PVP_HEAD_HIT.r) return false;   // (leaned well over, their head's not over their middle: missed it, pvpRay)
-    part = y > PVP_Y.head - dn ? 'head' : y > PVP_Y.torso - dn * 0.7 ? (Math.abs(rel) > 0.62 ? (rel > 0 ? 'armR' : 'armL') : 'torso') : (rel > 0 ? 'legR' : 'legL');
-  } else {
+  if (h.part) part = h.part;   // (from your own eyes: the part of them the line went into, pvpRay)
+  else if (fp) return false;
+  else {
     const r = rand(), covered = pvpCovered(p.av.g.position.x, p.av.g.position.z, ox, oz, dx, dz, h.t);
     part = r < 0.13 ? 'head' : r < 0.6 ? 'torso' : r < 0.78 ? (rel > 0 ? 'armR' : 'armL') : (rel > 0 ? 'legR' : 'legL');
     if (covered && part !== 'head' && !part.startsWith('arm')) return false;
     if (covered && (p.cr || 0) > 0.6) return false;   // (crouched down behind it, nothing of them shows over it)
   }
-  const shells = D.ammo === 'shells', base = (PVP_DMG[id] || 20) * PVP_TTK * clamp(D.dmg / (WEAP[id].dmg || 1), 0.5, 1);   // (nothing fitted makes a gun hit harder here, a burst conversion, an auto sear or anything else, for the balance: only less, a can's or a load's)
+  const shells = D.ammo === 'shells', base = pvpRoundDmg(id, D);
   const d = base * pvpFalloff(id, h.t) * pvpPartK(id, part, h.t);
   const s = shotOn.get(p) || { d: 0, head: false, part, n: 0, t: h.t }; s.d += d; s.n++; if (part === 'head') s.head = true; if (d > (s.top || 0)) { s.top = d; s.part = part; }
   shotOn.set(p, s);
   // on your screen at once: blood off them where it struck, and down on the ground behind
-  const g = p.av.g.position, hy = part === 'head' ? 1.62 : part.startsWith('leg') ? 0.5 : 1.15;
+  const g = p.av.g.position, hy = h.y ?? (part === 'head' ? 1.62 : part.startsWith('leg') ? 0.5 : 1.15);   // (from your own eyes, where it went in)
   if (s.n <= 3) hitBleed(g.x, hy, g.z, dx, dz, d, part === 'head', s.n === 1);
   return true;
 }
@@ -445,7 +472,7 @@ NET_ON.ph = m => {
   PVP.regen0 = null; PVP.last = { id: m.f, w: m.w, head, d: m.d, at: performance.now(), x: m.x, z: m.z, pt: m.p, g: m.g || 0 };
   P.hitFrom = Math.atan2(dx, dz); hitFromAt(m.x, m.z, m.d / 22);
   addBlood(Math.min(0.12, 0.02 + m.d / 900)); ANIM.flinch = 1; ANIM.flinchSide = rand() < 0.5 ? -1 : 1; SFX.hurt();
-  setShake(Math.max(shake, 0.18 + Math.min(0.4, m.d / 160)));
+  setShake(Math.max(shake, (0.18 + Math.min(0.4, m.d / 160)) * (1 - 0.55 * clamp(ANIM.ads || 0, 0, 1))));   // (down the sights, a smaller shake: the flinch moves the sight picture as one, game/view-cam.js FLINCH_ADS)
   goreAt(P.x - dx / L * 0.3, P.z - dz / L * 0.3, head ? 1.6 : 1.2, Math.min(1, (head ? 0.5 : 0.25) + m.d / 120));
   hitBleed(P.x, head ? 1.6 : 1.15, P.z, dx / L, dz / L, m.d, head, true);
   netSend('pb', { x: Math.round(P.x * 100) / 100, z: Math.round(P.z * 100) / 100, dx: Math.round(dx / L * 100) / 100, dz: Math.round(dz / L * 100) / 100, h: head ? 1 : 0, sh: m.f, d: m.d });
@@ -456,7 +483,8 @@ NET_ON.ph = m => {
 function hitBleed(x, hy, z, dx, dz, d, head, floor) {
   const k = clamp(d / 40, 0.4, 1.6);
   // (close enough to you, some of it on your view and on you: ui/screen-blood.js, nothing past a few metres)
-  if (floor && Math.hypot(x - P.x, z - P.z) > 0.3) goreAt(x, z, hy, clamp((head ? 0.35 : 0.18) + d / 150, 0, 1));   // (your own being hit has its own: NET_ON.ph)
+  // (or watching someone from their own eyes, close enough to them: on their view, which is yours: ui/screen-blood.js goreEye)
+  const E = floor && goreEye(); if (E && Math.hypot(x - E.x, z - E.z) > 0.3) goreAt(x, z, hy, clamp((head ? 0.35 : 0.18) + d / 150, 0, 1));   // (your own being hit has its own: NET_ON.ph; theirs, NET_ON.pb)
   hitMist(x, hy, z, dx, dz, head, d); bloodSpurt(x, hy, z, dx, dz, Math.round((head ? 9 : 6) * k), 1.15);
   burst(x + dx * 0.15, hy, z + dz * 0.15, Math.round(5 + 6 * k), 'blood', dx, dz, 2.6);
   if (!floor) return;
@@ -467,17 +495,28 @@ function hitBleed(x, hy, z, dx, dz, d, head, floor) {
 // someone else bleeding where they were hit (not on the shooter's screen: they've drawn it already)
 NET_ON.pb = m => {
   if (!PVP.on || m.sh === NET.id || state === 'title') return;
+  // (the one you're watching from their own eyes hit: their own blood across their view, which is yours, as yours is
+  // across yours when you're hit, NET_ON.ph: thrown back toward whoever shot them, net/spectate.js)
+  if (m.f && P.dead && camFocus().id === m.f && goreEye()) goreAt(m.x - m.dx * 0.3, m.z - m.dz * 0.3, m.h ? 1.6 : 1.2, Math.min(1, (m.h ? 0.5 : 0.25) + (m.d || 25) / 120));
   hitBleed(m.x, m.h ? 1.62 : 1.15, m.z, m.dx, m.dz, m.d || 25, !!m.h, true);
 };
-// shot through the head: the screen black at once, held a moment, then coming up again as the death camera turns to
-// whoever did it (game/view-cam.js KILL_CAM: it starts round at about 0.9 s), lifted by the time it's on them (hold,
-// fade: seconds)
-const HEAD_BLACK = { hold: 0.55, fade: 1.3 };
-let headBlackEl = null;
+// shot through the head: not just black, a beat of its own. A white crack of a flash going red on the instant (the
+// round going in), the screen crushed dark from its edges in a red-black vignette with a faint red heart to it, a high
+// ringing in the ears; then the dark draws back off the
+// middle outwards while the world stays drained of colour and a touch out of focus, the colour seeping back as the
+// death camera turns to whoever did it (game/view-cam.js KILL_CAM: round at about 0.9 s) and all of it gone by the time
+// it's on them (HEAD_FX: seconds, styles/pvp.css #pvpHead for the layers' own curves)
+const HEAD_FX = { len: 2.6, ring: 0.55 };
+let headFxEl = null, headFxT = 0;
 function headBlack() {
-  if (!headBlackEl) { headBlackEl = document.createElement('div'); headBlackEl.style.cssText = 'position:fixed;inset:0;z-index:59;pointer-events:none;background:#000;opacity:0'; document.body.appendChild(headBlackEl); }
-  const el = headBlackEl; el.style.transition = 'none'; el.style.opacity = '1'; void el.offsetWidth;
-  setTimeout(() => { el.style.transition = `opacity ${HEAD_BLACK.fade}s cubic-bezier(.4,0,.6,1)`; el.style.opacity = '0'; }, HEAD_BLACK.hold * 1000);
+  if (!headFxEl) {
+    headFxEl = document.createElement('div'); headFxEl.id = 'pvpHead'; headFxEl.setAttribute('aria-hidden', 'true');
+    headFxEl.innerHTML = '<i class="hfDrain"></i><i class="hfDark"></i><i class="hfFlash"></i>';
+    document.body.appendChild(headFxEl);
+  }
+  const el = headFxEl; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+  clearTimeout(headFxT); headFxT = setTimeout(() => el.classList.remove('on'), HEAD_FX.len * 1000);
+  SFX.tinnitus(HEAD_FX.ring);   // (the ears ringing, and the world dulled under it for a moment: audio/sfx.js)
 }
 // what's on a gun as the kill feed draws it: its attachments and tiers, its mods and their levels ([gt, mods, lv]; 0
 // for a melee weapon); and its picture from that, the attachments in gold as your own slots have them (pvpGunArt)
@@ -513,6 +552,8 @@ export function pvpKilled(m) {
   if (m.k === NET.id && m.v !== NET.id) PVP.my.long = Math.max(PVP.my.long, m.dm || 0);
   if (m.k !== NET.id && (m.as || []).includes(NET.id)) { PVP.my.as = (PVP.my.as || 0) + 1; pvpToast('Assist', nameOf(m.v), 'assist'); }   // (you helped: called under the crosshair)
   if (PVP.mode !== 'ffa' && m.v !== NET.id && pvSideOf(m.v) === PVP.side) pvpMateDown(m.v);
+  // (the last of your side to go down's killer, for who you watch once all of you are: pvpKiller)
+  if (PVP.mode !== 'ffa' && pvSideOf(m.v) === PVP.side && m.k && m.k !== m.v && pvSideOf(m.k) !== PVP.side) PVP.wipeK = m.k;
   // its head gone: split in two by a blade (as a zombie's is), or a cloud of red where it was
   const Wk = WEAP[m.w] || {}, split = m.hs && Wk.melee && !Wk.blunt;
   if (m.hb || split) {
@@ -520,7 +561,7 @@ export function pvpKilled(m) {
     if (at) {
       const w = new V3(); at.getWorldPosition(w); const k = NET.peers.get(m.k) || (m.k === NET.id ? P : null), dx = k ? w.x - k.x : 0, dz = k ? w.z - k.z : 1, L = Math.hypot(dx, dz) || 1;
       if (split) headSplit(at, w, dx / L, dz / L, m.w); else { gorePop(w.x, w.y, w.z, dx / L, dz / L); SFX.headPop(m.k === NET.id || m.v === NET.id ? 1 : 0.6); }
-      if (m.v !== NET.id) goreAt(w.x, w.z, w.y, 1.3, 4.5);   // (a head going up near you: a lot of it on your view)
+      if (m.v !== NET.id && !(P.dead && camFocus().id === m.v)) goreAt(w.x, w.z, w.y, 1.3, 4.5);   // (a head going up near you, or near whoever you're watching from their eyes: a lot of it on your view)
       // (and the walls round it: a burst of it thrown on whatever stands near, behind and either side, effects/wall-blood.js)
       for (const o of [0, -0.6, 0.6, -1.2, 1.2]) { const c = Math.cos(o), sn = Math.sin(o), ux = dx / L * c - dz / L * sn, uz = dz / L * c + dx / L * sn; wallSpray(w.x, w.y, w.z, ux, uz, 1.6); }
       at.visible = false;
@@ -924,7 +965,7 @@ function pvpChoose(id) {
   // picked mid-match (pvpChangeClass): yours now if you've only just come in and haven't fired, else next time you do
   if (PVP.swap) {
     PVP.swap = false; pvpPickOpen(false);
-    const C = PVP_CLASSES.find(c => c.id === id);
+    const C = pvpMine(id);   // (by your name for it: ui/arena-loadouts.js)
     if (!P.dead && (PVP.prot > 0 || PVP.ph !== 'live')) { pvpLoadout(); pvpToast('Class', C.name, 'info'); }
     else if (!P.dead) pvpToast('Next life', C.name, 'info');
   }
@@ -980,7 +1021,7 @@ function pvpResults() {
   if (PVP.mode === 'ffa') { win = byK[0] && byK[0].k > (byK[1] ? byK[1].k : -1) ? byK[0].id : ''; me = win === NET.id; }
   else { const a = PVP.mode === 'rounds' ? PVP.wins[0] : PVP.ts[0], b = PVP.mode === 'rounds' ? PVP.wins[1] : PVP.ts[1]; win = a === b ? '' : a > b ? 'A' : 'B'; me = win === PVP.side; }
   const head = !win ? 'Draw' : me ? 'Victory' : 'Defeat', mvp = list.slice().sort((a, b) => b.m - a.m)[0], t = pvpTable(), el = hudEls.res;
-  const score = PVP.mode === 'ffa' ? '' : `<div class="prScore"><span style="--c:${PVP_SIDE.A.col}">${PVP.mode === 'rounds' ? PVP.wins[0] : PVP.ts[0]}</span><i></i><span style="--c:${PVP_SIDE.B.col}">${PVP.mode === 'rounds' ? PVP.wins[1] : PVP.ts[1]}</span></div>`;
+  const score = PVP.mode === 'ffa' ? '' : `<div class="prScore"><span style="--c:${PVP_SIDE.A.col}" data-n="${PVP_SIDE.A.name}">${PVP.mode === 'rounds' ? PVP.wins[0] : PVP.ts[0]}</span><i></i><span style="--c:${PVP_SIDE.B.col}" data-n="${PVP_SIDE.B.name}">${PVP.mode === 'rounds' ? PVP.wins[1] : PVP.ts[1]}</span></div>`;
   const pic = mvp && mvp.look ? lookThumb(mvp.look) : '', acc = mvp && mvp.st[2] ? Math.round(mvp.st[1] / mvp.st[2] * 100) + '%' : '–';
   const stat = (v, l) => `<div><dd>${v}</dd><dt>${l}</dt></div>`;
   el.innerHTML = `<div class="prBox ${!win ? 'draw' : me ? 'win' : 'lose'}"><header class="prHead"><div><small>${PVP_MODES[PVP.mode]} · Yard 4</small><b>${head}</b><em></em></div>${score}</header>` +

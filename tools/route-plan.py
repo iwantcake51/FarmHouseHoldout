@@ -14,12 +14,12 @@
 #  - Cells 1 m; tall (stop sight and rounds): # the perimeter (the army's T-walls, the store's back wall, the
 #    garage's front, the fence along the highway), h block walls (the store's, the cooler's, the spawn lots'), W blast
 #    walls (the line of T-walls between the forecourt and the highway; HESCO at the checkpoint's corners and the sentry
-#    posts), S the store's gondolas, G a pump island (its two pumps and the canopy's column), R a truck (the army's, a
-#    box van), T a tanker trailer, X its tractor; low (seen and shot over): c a wrecked car (two metres through: not vaulted, gone round),
-#    b a jersey barrier, n a counter, s sandbags (gone round), k crates or pallets, d a dumpster (those three vaulted).
+#    bunkers), S the store's gondolas, G a pump island (its two pumps and the canopy's column), R the army's truck,
+#    U a bus on its side, X a semi's tractor; low (seen and shot over): c a wrecked car (two metres through: not vaulted, gone round),
+#    b a jersey barrier, n a counter, s sandbags, k crates or pallets, d a dumpster (those five vaulted).
 #
 # The layout: three lanes west to east, joined at the spawns, at the middle and by one slip road each side.
-#  - NORTH, the Travel stop: close quarters. The burnt-out store (its roof gone), entered from the side lot by its
+#  - NORTH, the Travel stop: close quarters. The fire-gutted store (its roof on), entered from the side lot by its
 #    side door or round through the storeroom; gondolas either side of its front doors (a dog-leg: the side door never
 #    lines up with them), the checkout, the walk-in cooler and restrooms in the very middle off the back wall so it's
 #    never seen end to end; its front doors open onto the forecourt behind a pump island.
@@ -27,14 +27,17 @@
 #    across it, between the pump islands (one in front of the store's doors, one in front of the slip road, so no line
 #    runs from the store to the highway), onto the checkpoint under the canopy: HESCO at its corners, a sandbag ring
 #    round the flag.
-#  - SOUTH, the Highway: long range, low cover. The pile-up: wrecked cars across both carriageways, the median's
-#    jersey barriers, a box van against the fence, a sentry post off the blast walls at each end, and in the very
-#    middle two tankers jackknifed, their tractors wedged together across the median, so nothing sees the highway end
-#    to end (the longest lines, about 31 m, run along the westbound's shoulder under the blast walls). A slip road off
-#    the forecourt each side, through the line of blast walls, is the middle's way south.
+#  - SOUTH, the Highway: the long lane, three real ways along it, none of them the only one: the westbound's shoulder
+#    under the blast walls (each slip road comes out behind the army's HESCO bunker), the median along its jersey
+#    barriers (vaulted: cross between the carriageways anywhere) into the two semis' tractors wedged together in the
+#    very middle, and the eastbound along the guardrail past a bus on its side. Each at least three metres across, its
+#    own cover, broken once and staggered, so nothing sees the highway end to end (its longest lines about 28 m,
+#    corner to corner). A slip road off the forecourt each side, through the line of blast walls, is the middle's way
+#    south.
 #  - Each spawn is a lot behind its building at the end of the map (the garage and car wash west, the motel east: the
 #    same walls, dressed differently) with three exits: north into the side lot, south onto the highway (a stub just
-#    inside each, round either end) and a wide gate east onto the forecourt, the army truck out in front of it.
+#    inside each, round either end) and a wide gate east onto the forecourt, the army truck out in front of it. Its
+#    spawn spots only between the two stubs: the team together, out of every sightline (world/arena.js picks them).
 import sys, math
 W, H = 42, 40
 HW = W // 2
@@ -77,19 +80,22 @@ put('k', 13, 19, 13, 20)   # crates of the army's stores on the forecourt
 put('W', 8, 28, HW - 1, 28)
 gap(12, 28, 13, 28)
 # ---- SOUTH LANE: the highway (rows 29-38): the westbound carriageway rows 29-32, the median 33-34, eastbound 35-38
-put('b', 1, 34, 6, 34); put('b', 11, 34, 15, 34)    # the median's jersey barriers (gaps where the cars went through)
-put('W', 7, 29, 8, 30)     # the army's sentry post, off the blast walls by the spawn's south exit
-put('T', 13, 31, 18, 32)   # a semi's tanker, on its side along the westbound
-put('X', 19, 32, HW - 1, 36)   # its cab, jackknifed across the median into the other's (four wide with its mirror)
-put('R', 10, 37, 13, 38)   # a box van against the sound wall
+# (three ways along it, each with its own cover and each broken once so it's never seen end to end, staggered so no
+# route is the only one: the westbound's shoulder under the blast walls, behind the sentry bunker; the median, along
+# its barriers into the wedged cabs in the middle; the eastbound along the guardrail, past the bus on its side. Each
+# three metres wide or more, with the median's barriers vaulted to cross between them anywhere)
+put('b', 1, 34, 5, 34); put('b', 9, 34, 14, 34)   # the median's jersey barriers (vaulted), gaps where the cars went through
+put('W', 15, 29, 16, 31)   # the army's sentry bunker, HESCO off the blast walls: the slip road comes out behind it
+put('X', 19, 32, HW - 1, 35)   # two semis' tractors wedged together across the median, in the very middle (four wide with its mirror)
+put('U', 8, 36, 12, 38)    # a bus on its side against the guardrail
 put('c', 2, 31, 5, 32)     # the wrecks: a sedan in the westbound, in front of the spawn's south exit
-put('c', 7, 33, 8, 36)     # one spun through the median
-put('c', 14, 35, 17, 36)   # one against the median in the eastbound, by the cab
+put('c', 8, 31, 11, 32)    # one by the slip road
+put('c', 15, 37, 18, 38)   # one against the guardrail past the bus
 
 # ---- free-for-all spawns, spread round all three lanes (and their mirrors)
-for f in [(3, 5), (11, 2), (16, 6), (9, 13), (15, 17), (9, 26), (3, 30), (11, 35), (20, 38)]: L[f[1]][f[0]] = 'F'
+for f in [(3, 5), (11, 2), (16, 6), (9, 13), (15, 17), (9, 26), (3, 30), (11, 35), (20, 37)]: L[f[1]][f[0]] = 'F'
 
-TALL = set('#hWSGRTX')
+TALL = set('#hWSGRTXU')
 _sw = {'A': 'B', 'B': 'A'}
 _rows = [''.join(r) + ''.join(_sw.get(c, c) for c in reversed(r)) for r in L]
 def _sees(rows, a, b):
@@ -102,7 +108,10 @@ lot = lambda c: 1 <= c[0] <= 6 and 12 <= c[1] <= 27
 _open = [(i, j) for j in range(H) for i in range(W) if _rows[j][i] in '.F']
 _vest = lambda c: c[0] <= 9 and 16 <= c[1] <= 23   # (the gate's doorway, between it and the truck)
 _out = [c for c in _open if not lot(c) and c[0] != 7 and not _vest(c) and not (c[1] in (11, 28) and c[0] <= 6)]
-for c in [c for c in _open if lot(c)]:
+# (only in the lot's middle, between its two stubs, facing its gate: the team comes in together, a few
+# metres apart, the shortest way out to the fight; arena.js spreads each round's spawns over these)
+pad = lambda c: 15 <= c[1] <= 24
+for c in [c for c in _open if lot(c) and pad(c)]:
     if not any(_sees(_rows, o, c) for o in _out): L[c[1]][c[0]] = 'A'
 rows = [''.join(r) + ''.join(_sw.get(c, c) for c in reversed(r)) for r in L]
 walk = lambda c: c in '.AFB'

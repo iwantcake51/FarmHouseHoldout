@@ -26,8 +26,8 @@ import { groundHit } from '../weapons/firing.js';
 import { stepRagdoll } from '../zombies/deaths.js';
 import { xray } from '../effects/outlines.js';
 import { fpOn, FPV, isoOn, specFpOn } from '../game/view-cam.js';
-import { SET } from '../ui/settings.js';
 import { FP_PIV, lookTurn } from '../player/hold.js';
+import { avatarAction, specKick, specVm, specVmFov } from './spec-vm.js';
 import { flipOf, gunMeshes, X } from '../weapons/gun-materials.js';
 import { EJECT, ejectFrom } from '../weapons/casings.js';
 import { flashes } from '../weapons/explosives.js';
@@ -43,7 +43,7 @@ import { hudMag } from '../ui/rounds.js';
 import { endSurvivorRagdoll, survivorRagdoll } from '../player/player-ragdoll.js';
 import { ANIM } from '../player/animation.js';
 import { turnedDown } from './sync.js';
-import { arsenalFrame, buildArsenal, weaponPose } from './arsenal.js';
+import { arsenalFrame, arsenalQueueStep, buildArsenal, weaponPose } from './arsenal.js';
 import { teamDown } from './lobby.js';
 import { camFocus, myDrops, updateSpecDrops, updateSpecXh } from './spectate.js';
 import { coverFromCam } from '../zombies/zombie-visuals.js';
@@ -149,8 +149,6 @@ function specJoltStep(a, rdt) {
   const J = a.sj; if (!J) return;
   for (let n = Math.ceil(rdt / (1 / 120)), h = rdt / Math.max(1, n), i = 0; i < n; i++) for (const k of ['p', 'r', 'y']) { const v = 'v' + k; J[v] += (-SPEC_JOLT.k * J[k] - SPEC_JOLT.d * J[v]) * h; J[k] += J[v] * h; }
 }
-// how far a bot's arms and gun are set from its pose to sit as yours do from your own eyes (m: right, down, back)
-const SPEC_VM = { right: 0.09, down: 0.07, back: 0.02 }, _sfpR = new V3(), _sfpU = new V3(), _sfpF = new V3(), _sfpO = new V3(), _sfpW = new V3();
 const _sfpA = new THREE.Matrix4(), _sfpB = new THREE.Matrix4(), _sfpP = new V3(), _sfpQ = new THREE.Quaternion(), _sfpS = new V3(1, 1, 1);
 function specFp(p, a, rdt) {
   const f = p.fv, on = !!f && !p.dead && specFpOn() && camFocus() === p;
@@ -174,22 +172,17 @@ function specFp(p, a, rdt) {
   // (a bot's eyes, pvp/bots.js botFv, which sends only where it looks: put where your own first-person eye sits on a
   // body, game/view-cam.js FPV, on its head as it's posed, and as wide as you see yourself)
   const bot = f.length <= 8; if (bot) { a.head.parent.updateWorldMatrix(true, false); FP_CAM.position.set(FPV.side, FPV.eye[0], FPV.eye[1]).add(a.head.position).applyMatrix4(a.head.parent.matrixWorld); }
-  // (a bot's arms and gun are its pose's, aimed for everyone else to see: from its eyes that holds the gun dead in the
-  // middle of the view, so the arms and the gun are set where yours sit from your own eyes, a little right and down:
-  // SPEC_VM, along the view's own right and up, unless it's down the sights)
-  if (bot && p.fc && p.fc[0] > 0 && p.fc[0] < 0.5) {   // (its aimed pose without a target in its sights; at a run or from the hip its gun's low already, and on a target it's down the sights)
-    _sfpR.set(1, 0, 0).applyQuaternion(FP_CAM.quaternion); _sfpU.set(0, 1, 0).applyQuaternion(FP_CAM.quaternion); _sfpF.set(0, 0, -1).applyQuaternion(FP_CAM.quaternion);
-    _sfpO.copy(_sfpR).multiplyScalar(SPEC_VM.right).addScaledVector(_sfpU, -SPEC_VM.down).addScaledVector(_sfpF, -SPEC_VM.back);
-    const e = p.wp && p.wp[0], h = a.held && e && a.held[SLOTS[e[0]]];
-    for (const o of [a.upper, h && h.g]) { if (!o || !o.parent) continue; o.parent.updateWorldMatrix(true, false); o.getWorldPosition(_sfpW).add(_sfpO); o.position.copy(o.parent.worldToLocal(_sfpW)); o.updateMatrixWorld(true); }
-  }
   // (the jolts: a bot's own view has none in it, so its kick, flinch and stride go on here; a player's has their own
   // already, so only the hits they take, which their sent view eases over)
   specJoltStep(a, rdt); const J = a.sj;
   if (J) { FP_CAM.rotateY(J.y * (bot ? 1 : 0.5)); FP_CAM.rotateX(J.p * (bot ? 1 : 0.5)); FP_CAM.rotateZ(J.r * (bot ? 1 : 0.5)); }
   if (bot) { const sp = Math.hypot(p.vx || 0, p.vz || 0), k = clamp(sp / 3, 0, 1.4), B = SPEC_JOLT.bob; a.bobPh = ((a.bobPh || 0) + rdt * sp * 2.1) % (Math.PI * 4); FP_CAM.rotateX(Math.sin(a.bobPh * 2) * B[0] * k); FP_CAM.rotateZ(Math.sin(a.bobPh) * B[1] * k); FP_CAM.position.y -= Math.abs(Math.sin(a.bobPh)) * B[2] * k; }
-  const fov = bot ? SET.fov : c[7]; if (Math.abs(FP_CAM.fov - fov) > 0.01) { FP_CAM.fov = fov; FP_CAM.updateProjectionMatrix(); }
+  const fov = bot ? specVmFov(a) : c[7]; if (Math.abs(FP_CAM.fov - fov) > 0.01) { FP_CAM.fov = fov; FP_CAM.updateProjectionMatrix(); }
   FP_CAM.updateMatrixWorld(true);
+  // (a bot's arms and gun are its pose's, aimed for everyone else to see: from its eyes they're put where yours sit from
+  // your own eyes with that weapon, aiming, running, reloading, kicking and working its action as yours do; a player's
+  // are as their view sent them, each shot's kick put on top: net/spec-vm.js)
+  if (bot) specVm(p, a, rdt); else specKick(p, a, rdt);
 }
 
 // ---- their survivors
@@ -298,6 +291,7 @@ export function avatarHit(p, head, dx, dz, k) {
 }
 export function updateAvatars(rdt) {
   updateSpecXh(rdt); updateSpecDrops();   // (the crosshair and the drops of whoever you're watching: net/spectate.js)
+  arsenalQueueStep();   // (a new loadout's guns built on them a survivor at a time: net/arsenal.js)
   const show = netLink() && (state === 'play' || state === 'paused' || state === 'upgrade' || state === 'leaving' || state === 'dead');
   for (const p of NET.peers.values()) {
     if (!show || !p.tgt) { if (p.av) { p.av.g.visible = false; p.av.tag.style.opacity = 0; p.av.tagO = 0; if (p.av.blob) p.av.blob.visible = false; } continue; }
@@ -351,13 +345,14 @@ export function updateAvatars(rdt) {
       a.upper.rotation.x += fw * j; a.upper.rotation.z -= sd * j;
       if (a.hitHead) { a.head.rotation.x += fw * HIT_FX.head * u * u; a.head.rotation.z -= sd * HIT_FX.head * u * u; }
     }
+    { const sb = POSE_N * 6; a.armL.scale.set(c[sb], c[sb], c[sb + 1]); a.armR.scale.set(c[sb + 2], c[sb + 2], c[sb + 3]); }   // (before what's in their hands: from their eyes the arms are reached out to it, specFp)
     arsenalFrame(p, a, rdt);   // their weapons (net/arsenal.js)
     specFp(p, a, rdt);   // (and from their own eyes, if you're down and watching through them)
+    if (p.bot && !a.fvc && !a.rag && !p.dead) avatarAction(p, a);   // (a bot's hands working its pump or bolt, seen by anyone: net/spec-vm.js)
     { const f = p.fc || [0, 0, 0, 0], e = (key, i) => { a[key] = (a[key] || 0) + ((f[i] || 0) - (a[key] || 0)) * k; return a[key] < 0.002 ? 0 : a[key]; };
       faceMood(a.faceH, e('fa', 0), e('fw', 1), e('fh', 2), e('fk', 3), p.dead ? 0 : blinkStep(a.blink || (a.blink = {}), rdt));   // their face, angry, startled, wincing or aiming as they are
       const gz = gazeStep(a.gaze || (a.gaze = {}), rdt, p.dead ? 0 : (1 - (a.fk || 0)) * (1 - Math.min(1, (a.fa || 0) * 1.5)) * (1 - Math.min(1, a.fh || 0)), a.blink); faceGaze(a.faceH, gz[0], gz[1]); }   // (their eyes wandering on their own: player/look.js)
     if (a.rolls) { const nb = (p.am && p.am[4]) | 0; a.rolls.forEach((m, k) => { m.visible = k < nb; }); }
-    const sb = POSE_N * 6; a.armL.scale.set(c[sb], c[sb], c[sb + 1]); a.armR.scale.set(c[sb + 2], c[sb + 2], c[sb + 3]);
     if (a.blob) { a.blob.position.set(a.g.position.x, 0.02, a.g.position.z); }
     // their footsteps, from their feet: a step every stride's length they cover, a run's when they're moving fast
     { const gx = a.g.position.x, gz = a.g.position.z, d = a.lx === undefined ? 0 : Math.hypot(gx - a.lx, gz - a.lz); a.lx = gx; a.lz = gz;
@@ -404,7 +399,7 @@ const _avM = new V3();
 function avShot(m) {
   const p = NET.peers.get(m.f), a = p && p.av, e = p && p.wp && p.wp[0], h = a && a.held && e && a.held[SLOTS[e[0]]];
   if (!h || !h.g.visible || !h.holds || !h.holds.R || p.dead) return;
-  const D = WEAP[m.w] || {}; a.fire = { t: 0, s: SLOTS[e[0]], k: Math.min(2, (D.kick || 3) / 3) };
+  const D = WEAP[m.w] || {}; a.fire = { t: 0, s: SLOTS[e[0]], id: m.w, k: Math.min(2, (D.kick || 3) / 3) };
   const hold = h.holds.R; hold.updateWorldMatrix(true, false);
   if (p.bot) { _avM.set(X, GUN_Y + 0.03, (h.muz || 0.9) + 0.02); hold.localToWorld(_avM); m.x = _avM.x; m.y = _avM.y; m.z = _avM.z; }   // (a bot's said only roughly where: from its gun's muzzle)
   const ej = EJECT[m.w]; if (ej === 'fire') ejectFrom(m.w, flipOf(hold) || hold, p.vx, p.vz, p.vw ? p.vw[0] : 0); else if (ej === 'pump' || ej === 'bolt') a.ejT = { t: 0.4, id: m.w };   // (as the action comes back: net/arsenal.js ARS_RACK)

@@ -31,18 +31,41 @@ export const projV = new V3();
 // (down the sights in first person, where the sights are what you aim with): a hit there never marks it, so nothing's
 // left over to show as you come off the sights, however long after
 const xhMark = $('xhHit');
+// it shows where the round went in, within the crosshair: where the last thing hit (weapons/firing.js hitAt, a world
+// point) lies on the screen, the marker drawn that way off the crosshair's middle, never further out than the
+// crosshair's own ring (HM_R: px from the hip and down the sights). A kill told a moment later (the arena's, over the
+// net) still goes by the hit just before it (HM_KEEP, ms); with nothing hit lately it's in the middle
+const HM_R = { hip: 22, ads: 16 }, HM_KEEP = 650, HM_AT = new V3(), _hmV = new V3();
+let hitAtT = -1e9;
+export function hitAt(x, y, z) { HM_AT.set(x, y, z); hitAtT = performance.now(); }
+const SVGNS = 'http://www.w3.org/2000/svg';
+const hmWrap = el => { const w = document.createElementNS(SVGNS, 'g'); el.parentNode.insertBefore(w, el); w.appendChild(el); return w; };
+const xhMarkW = hmWrap(xhMark);
+function hmPlace(w, cx, cy, R) {
+  let dx = 0, dy = 0;
+  if (performance.now() - hitAtT < HM_KEEP) {
+    _hmV.copy(HM_AT).project(fpOn() ? FP_CAM : cam);
+    if (_hmV.z < 1) { dx = (_hmV.x * 0.5 + 0.5) * innerWidth - cx; dy = (-_hmV.y * 0.5 + 0.5) * innerHeight - cy; const L = Math.hypot(dx, dy); if (L > R) { dx *= R / L; dy *= R / L; } }
+  }
+  w.setAttribute('transform', `translate(${dx.toFixed(1)} ${dy.toFixed(1)})`);
+}
 export function hitMark(kind, head) {
   // down the sights, where the crosshair's put away: a marker of its own over the sight, and a kick through it (ADS_HIT)
-  if (fpSighted()) { adsHit.classList.remove('hit', 'head', 'kill'); replay(adsHit, kind === 'kill' ? 'kill' : 'hit', ...(head || kind === 'head' ? ['head'] : [])); return; }
+  if (fpSighted()) { hmPlace(adsHitW, innerWidth / 2, innerHeight / 2, HM_R.ads); adsHit.classList.remove('hit', 'head', 'kill'); replay(adsHit, kind === 'kill' ? 'kill' : 'hit', ...(head || kind === 'head' ? ['head'] : [])); return; }
   if (xh.hidden) return;
+  { const b = xh.getBoundingClientRect(); hmPlace(xhMarkW, b.left + b.width / 2, b.top + b.height / 2, HM_R.hip); }
   xhMark.classList.remove('hit', 'head', 'kill');
   replay(xhMark, kind === 'kill' ? 'kill' : 'hit', ...(head || kind === 'head' ? ['head'] : []));
 }
 // and taken off once it's played: left on, it played again every time the crosshair was shown (coming back off the
 // sights), a kill's red marker with nothing hit
 const hitMarkOff = () => xhMark.classList.remove('hit', 'head', 'kill');
-// the down-the-sights marker: four short ticks round the middle of the screen
-const adsHit = (() => { const d = document.createElement('div'); d.id = 'adsHit'; d.innerHTML = '<i></i><i></i><i></i><i></i>'; document.body.appendChild(d); d.addEventListener('animationend', () => d.classList.remove('hit', 'head', 'kill')); return d; })();
+// the down-the-sights marker: the crosshair's own (its four strokes on the diagonals, the same size, colours and pop),
+// over the middle of the screen where the sight is, since the crosshair itself is put away there
+const adsHit = (() => { const d = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); d.id = 'adsHit'; d.setAttribute('viewBox', '-80 -80 160 160'); d.setAttribute('aria-hidden', 'true');
+  d.innerHTML = '<g class="hm"><path d="M4.5 4.5 L10 10 M-4.5 4.5 L-10 10 M4.5 -4.5 L10 -10 M-4.5 -4.5 L-10 -10"></path></g>'; document.body.appendChild(d);
+  const g = d.firstChild; g.addEventListener('animationend', () => g.classList.remove('hit', 'head', 'kill')); return g; })();
+const adsHitW = hmWrap(adsHit);   // (moved toward where the round went in: hmPlace)
 xhMark.addEventListener('animationend', hitMarkOff);
 const xh = $('xh'), xhRing = $('xhReload'), xhAmmo = $('xhAmmo'), xhAmmoBg = $('xhAmmoBg'), xhGl = $('xhGl'), xhSpread = $('xhSpread');
 // an akimbo pair's left gun: its own arc and reload ring, mirrored on the left

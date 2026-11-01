@@ -10,6 +10,7 @@ import {
   ribTube, ring, rrect, shp, solid, stipple, taper, taperX, tapeWrap, xsec, zAt
 } from './gun-parts.js';
 import { BOLT_KNOB } from './gun-models.js';
+import { BELT_SIM, BELT_TRAY, beltRest } from './belt.js';
 
 // the SCAR 17S's outlines, traced off a side-on photo of the FDE one (trace-photo: .claude/skills/trace-photo) at its true
 // length, 953 mm with the stock out, on the assault rifle's scale (z along the gun, y up; each within half a pixel of
@@ -364,22 +365,29 @@ export const RIFLE_MODELS = {
     const ch = new THREE.Group(); g.add(ch);
     profile(ch, shp([[0.4545, 1.1585], [0.4705, 1.1585], [0.4705, 1.177], [0.4585, 1.177], [0.4548, 1.172]]), 0.058, GM.metal2, X, 0.0015);
     box(ch, 0.006, 0.006, 0.012, GM.metal2, X + 0.031, 1.1715, 0.468);                                       // its latch
-    // ---- without an optic: the carry handle clamped on the rail, the A2 rear sight in its back end (the aperture between
-    // its ears, the windage knob, the elevation drum), the clamp's screws; the handle's top ahead of the sight kept down below
-    // the line through the hole, so looking through it you see the front post over it, not the handle's back
+    // ---- without an optic: the carry handle clamped on the rail, one bridge off its base: a thin upright at the front, a
+    // wide block at the back holding the A2 rear sight, and the bar between them over a long window, its top running
+    // level off the back block and sloping gently down to the front (CH_TOP: [z, y] along its top, the window under it
+    // CH_WIN). The sight sits down in the block, the aperture in a notch in its top between two low rounded wings (the
+    // notch's floor well under the aperture, so the ring stands clear in it, sky all round it, as you look through it),
+    // the windage knob on the right, the elevation drum under the aperture; the clamp's screws. The bar's top is kept
+    // just under what you see through the aperture (about IRON.peep's cone round the line to the front post:
+    // game/view-cam.js), so looking through it you see the front post over it, not the handle; and the block's back face
+    // slopes forward, so it doesn't reach back toward your eye past where the wings did (IRON_CLEAR there)
     if (!sight) {
-      profile(g, shp(inset([[0.4798, 1.1795], [0.4914, 1.2045], [0.5464, 1.2045], [0.5464, 1.2275], [0.5875, 1.2272], [0.7197, 1.224], [0.7272, 1.2221], [0.7443, 1.2194], [0.7494, 1.2148], [0.7518, 1.2099], [0.7521, 1.1795]], 0.0025),
-        [shp(inset([[0.5756, 1.1873], [0.7156, 1.1869], [0.7233, 1.1944], [0.7356, 1.196], [0.7356, 1.2063], [0.7301, 1.2126], [0.7216, 1.2141], [0.5755, 1.2141], [0.5685, 1.2109], [0.5661, 1.2077], [0.565, 1.2027], [0.5655, 1.1953]], -0.0025))]), 0.025, A, X, 0.0025, 2);
+      const CH_TOP = [[0.4798, 1.1795], [0.4955, 1.2195], [0.4995, 1.222], [0.548, 1.222], [0.553, 1.2265], [0.558, 1.2303], [0.565, 1.2315], [0.65, 1.2278], [0.73, 1.2238], [0.742, 1.2224], [0.749, 1.219], [0.7518, 1.214], [0.7521, 1.1795]];
+      const CH_WIN = [[0.568, 1.1905], [0.723, 1.1905], [0.728, 1.1955], [0.728, 1.2105], [0.7245, 1.2145], [0.718, 1.2158], [0.574, 1.2242], [0.569, 1.2222], [0.5665, 1.2187], [0.566, 1.195]];
+      profile(g, shp(inset(CH_TOP, 0.0025), [shp(inset(CH_WIN, -0.0025))]), 0.025, A, X, 0.0025, 2);
       solid(g, [[0.479, 1.1765], [0.7525, 1.1765], [0.7525, 1.1885], [0.479, 1.1885]], 0.04, A, X, 0.002);    // its base round the rail
-      [-1, 1].forEach(sd => apPart(profile(g, shp([[0.4983, 1.2045], [0.546, 1.2045], [0.5464, 1.2418], [0.5396, 1.2444], [0.5125, 1.2458], [0.5054, 1.2422], [0.4983, 1.2352]]), 0.004, A, X + sd * 0.0125, 0.001)));   // the ears, wide apart
-      // the aperture up between them: a thin ring round a big hole on a slim stem, open all round it to the ears, so
+      [-1, 1].forEach(sd => apPart(profile(g, shp([[0.4983, 1.221], [0.548, 1.221], [0.548, 1.233], [0.544, 1.24], [0.538, 1.2435], [0.526, 1.245], [0.511, 1.245], [0.504, 1.242], [0.4995, 1.237], [0.4983, 1.232]]), 0.004, A, X + sd * 0.0125, 0.001)));   // the wings, low and rounded either side of the aperture
+      // the aperture up between the wings: a thin ring round a big hole on a slim stem, open all round it to the ears, so
       // looking through it the ring frames the front post with the world round it (AP_RING: the hole's radius, the
       // ring's), in line with the front post's tip (looked through in first person: game/view-cam.js)
       { const [hr, or] = AP_RING, ring = new THREE.Shape(), hole = new THREE.Path(); ring.absarc(X, 1.2393, or, 0, Math.PI * 2, false); hole.absarc(X, 1.2393, hr, 0, Math.PI * 2, true); ring.holes.push(hole);
         apPart(xsec(g, ring, 0.518, 0.522, A)); apPart(xsec(g, shp([[X - 0.002, 1.2045], [X + 0.002, 1.2045], [X + 0.002, 1.2393 - or + 0.0008], [X - 0.002, 1.2393 - or + 0.0008]]), 0.518, 0.522, A)); }
       irons(g, { kind: 'ap', yr: 1.2393, rz: 0.52, r: AP_RING[0], yf: 1.2305, fz: 1.0967 });
       cyl(g, 0.0108, 0.008, GM.metal2, X - 0.0165, 1.2255, 0.517, 18).rotation.set(0, 0, Math.PI / 2);        // windage knob
-      ribTube(g, 0.0085, 0.033, GM.metal2, X, 1.1985, 0.5235, 12, 0.0012).rotation.set(0, Math.PI / 2, 0);    // the elevation drum
+      ribTube(g, 0.0085, 0.033, GM.metal2, X, 1.209, 0.506, 12, 0.0012).rotation.set(0, Math.PI / 2, 0);    // the elevation drum, under the aperture at the back
       [0.533, 0.735].forEach(z => { cyl(g, 0.0068, 0.042, GM.metal2, X, 1.1835, z, 14).rotation.set(0, 0, Math.PI / 2); cyl(g, 0.009, 0.007, GM.metal2, X + 0.0235, 1.1835, z, 14).rotation.set(0, 0, Math.PI / 2); });   // the clamp's screws and thumb nuts
     } else {
       // with an optic, a folded backup sight at the back of the rail
@@ -511,12 +519,11 @@ export const RIFLE_MODELS = {
   // (down on its legs with the bipod mod); the ammo box hanging on the left, its lid propped open and the belt rising
   // out of it into the feed tray
   lmg(g, m) {
-    // (the belt into its box: it leaves the feed tray flat (out: how far out across it goes before it turns down, sag: how
-    // far it dips there), and drops straight down into the box near its inner side (into: how far in from the box's
-    // inner wall), the rest of it folded away inside, down to floor over the box's bottom; the links' pitch; how deep
-    // the dark inside is)
-    const LMG_BELT = { out: 0.1, sag: 0.008, into: 0.05, floor: 0.02, pitch: 0.0165, dark: 0.03 };
+    // (the belt: how many of its rounds show, out of the tray and down into the box, lying on the stack folded away in
+    // it; the links' pitch; how deep the dark inside the box is, the top of that stack: weapons/belt.js)
+    const LMG_BELT = { n: 11, pitch: BELT_SIM.pitch, dark: 0.03 };
     const LMG_AP = { hw: 0.0078, r: 0.0042, y: 1.236 };   // (the rear aperture: half its plate's width, the hole's radius and height, level with the post's tip)
+    const LMG_RAIL = { z0: 0.448, z1: 0.642, b0: 1.196, sz: 0.54 };   // (the optic rail on the feed cover: where it runs, its base's top, and where an optic's middle sits on it)
     const K = GM.metal, P = GM.furn, y0 = 1.13, mg = g.userData.magG || g, sight = T('sight');
     // ---- the stock: ribs down both sides, the steel butt plate with the shoulder rest folded on top
     const ST = [[0.0605, 0.9989], [0.0632, 1.0294], [0.0634, 1.0782], [0.0598, 1.1458], [0.0558, 1.1806], [0.0573, 1.1859], [0.0647, 1.1899], [0.0638, 1.1962], [0.0724, 1.1979], [0.0742, 1.2005], [0.0883, 1.1992], [0.1095, 1.1864], [0.1182, 1.1849], [0.1237, 1.1872], [0.1304, 1.1862], [0.1357, 1.1801], [0.1735, 1.17], [0.179, 1.1655], [0.1848, 1.1654], [0.1875, 1.1688], [0.1928, 1.1701], [0.258, 1.1695], [0.258, 1.0495], [0.2384, 1.0492], [0.2281, 1.0458], [0.141, 0.9888], [0.1257, 0.9821], [0.0981, 0.9767], [0.0837, 0.9773], [0.0674, 0.9835]];
@@ -605,27 +612,46 @@ export const RIFLE_MODELS = {
       const lid = new THREE.Group(); lid.position.set(bx1 - 0.002, bt + 0.003, 0); lid.rotation.z = -1.95; mg.add(lid);   // flipped back past upright
       solid(lid, [[bz0 + 0.004, -0.0015], [bz1 - 0.004, -0.0015], [bz1 - 0.004, 0.0015], [bz0 + 0.004, 0.0015]], bx1 - bx0 - 0.004, GM.olive, -(bx1 - bx0 - 0.004) / 2, 0.0012);
     }
-    // the belt: rounds pointing forward, each held in its link, as a real one hangs off the gun into its box: out of the
-    // feed tray flat, on out over the box and turning down in a short S, and straight down into the box near its inner
-    // side, the rest of it folded away inside (LMG_BELT). It shows what's left: the rounds in the box go first, from
-    // the bottom up, then the hanging loop from the box end, and an empty gun shows none (player/hold.js); only the
-    // loop swings (player/hold-sway.js: beltJiggle), the rounds in the box stay put (inBox)
+    // the feed tray the belt rides into the gun on, jutting out of the receiver's left side under it, and the feed
+    // cover's lip over it holding the rounds down on it (weapons/belt.js: BELT_TRAY, where the belt meets them)
+    const TR = BELT_TRAY, ty = 1.146;
+    box(g, TR.edge + 0.003, 0.0022, 0.082, K, X + 0.032 + (TR.edge + 0.003) / 2 - 0.001, ty - TR.rl - 0.0011, 0.54);
+    box(g, 0.004, 0.012, 0.082, K, X + 0.03 + TR.edge + 0.0005, ty - TR.rl - 0.006, 0.54);   // (its edge turned down)
+    box(g, TR.cover + 0.002, 0.0022, 0.07, GM.metal2, X + 0.032 + (TR.cover + 0.002) / 2 - 0.001, ty + TR.rl + 0.0011, 0.54);
+    // the belt: a chain of rounds pointing forward, each held in its link, the links hooked into each other (two loops
+    // round each case, bridged across to the next round's on the belt's upper face), simulated (weapons/belt.js,
+    // player/hold-sway.js: stepBelt): out of the feed tray flat, over its edge and down into the box, the rest of it
+    // lying on the stack folded away in there and going down into it at the box's far side (geo.pin). Here it's laid
+    // out where it settles (beltRest), as a copy of the gun (on your back, in a teammate's hands) shows it. It shows
+    // what's left: the far end goes first once fewer are left than it has rounds, and an empty gun shows none
+    // (player/hold.js); each round's group sits on its own middle, turned along the belt (rotation.z), so the
+    // simulation (and a teammate's copy, net/arsenal.js) moves and turns each one whole
     const belt = [];
     {
-      const B = LMG_BELT, mx = bx0 + B.into, P0 = [X + 0.03, 1.146], C1 = [X + 0.03 + B.out, 1.146 + B.sag * 0.3], C2 = [mx, 1.146 - B.sag], P3 = [mx, bt - 0.004];
-      const bez = t => [0, 1].map(c => (1 - t) ** 3 * P0[c] + 3 * (1 - t) ** 2 * t * C1[c] + 3 * (1 - t) * t * t * C2[c] + t ** 3 * P3[c]);
-      let prev = bez(0), run = 0; const pts = [prev];
-      for (let i = 1; i <= 600; i++) { const q = bez(i / 600); run += Math.hypot(q[0] - prev[0], q[1] - prev[1]); prev = q; if (run >= B.pitch) { pts.push(q); run = 0; } }
-      const loop = pts.length;
-      for (let y = P3[1] - B.pitch; y >= bt - bh + B.floor; y -= B.pitch) pts.push([mx, y]);   // (on down into the box)
-      pts.forEach(([x, yy], k) => {
-        const rd = new THREE.Group(); mg.add(rd);
-        cyl(rd, 0.0072, 0.072, GM.brass, x, yy, 0.535, 14); taper(rd, 0.0062, 0.0018, 0.026, GM.copper, x, yy, 0.584);
-        [-0.021, 0.021].forEach(o => ring(rd, 0.0099, 0.007, GM.metal2, x, yy, 0.535 + o));   // its link's loops, hooked into the next
-        rd.userData.beltK = belt.length; if (k >= loop) rd.userData.inBox = true; belt.push(rd);
+      const B = LMG_BELT, geo = { x0: X + 0.03, y: ty, z: 0.535, side: X + 0.032, bx0, bx1, bt, bb: bt - bh, floor: bt - B.dark + 0.0101, pin: [bx1 - BELT_SIM.wall - BELT_SIM.r - 0.004, bt - B.dark + 0.0101] };
+      geo.rest = beltRest(geo, B.n, false); geo.loose = beltRest(geo, B.n, true); belt.geo = geo;
+      geo.rest.forEach(([x, yy, z], k) => {
+        const rd = new THREE.Group(); rd.position.set(x, yy, z); mg.add(rd);
+        const a = geo.rest[Math.max(0, k - 1)], b = geo.rest[Math.min(B.n - 1, k + 1)]; rd.rotation.z = Math.atan2(b[1] - a[1], b[0] - a[0]);
+        cyl(rd, 0.0072, 0.072, GM.brass, 0, 0, 0, 14); taper(rd, 0.0062, 0.0018, 0.026, GM.copper, 0, 0, 0.049);
+        [-0.021, 0.021].forEach(o => { ring(rd, 0.0099, 0.007, GM.metal2, 0, 0, o); box(rd, B.pitch, 0.0016, 0.006, GM.metal2, 0, 0.0092, o); });   // its link's loops, and their bridge over to the next round's
+        rd.userData.beltK = belt.length; belt.push(rd);
       });
     }
-    // ---- optics sit on the feed cover
-    return { front: 1.535, y: y0, slide: bolt, bolts: [], travel: 0.11, lock: true, mz: 0.535, top: 1.194, sz: 0.515, belt, legs };
+    // ---- any optic off the bench (as far as the ACOG: game/run-state.js SCOPE_TOP) goes on a picatinny rail along the
+    // feed cover, as the M60E4's: its base saddled down onto the cover's humps (z0 to z1, clear of the ladder in front
+    // and the cover's latch behind), the rail on that with its cross slots, a screw through the base each side. The
+    // red dot, the holo and the ACOG sit straight on it, the scope in its rings (weapons/attachments.js), all of them
+    // over the bore and well up off the belt and the tray on the left
+    let top = 1.194;
+    if (sight) fitted(g, () => {
+      const R = LMG_RAIL, b0 = R.b0, RT = b0 + 0.0105;
+      solid(g, [[R.z0, 1.178], [R.z1, 1.178], [R.z1, b0 + 0.001], [R.z0 + 0.006, b0 + 0.001], [R.z0, b0 - 0.004]], 0.03, K, X, 0.0015);
+      xsec(g, shp([[X - 0.0125, b0], [X + 0.0125, b0], [X + 0.0168, b0 + 0.003], [X + 0.0168, b0 + 0.005], [X + 0.0148, RT], [X - 0.0148, RT], [X - 0.0168, b0 + 0.005], [X - 0.0168, b0 + 0.003]]), R.z0 + 0.004, R.z1, GM.rail, 0.0006);
+      for (let z = R.z0 + 0.014; z < R.z1 - 0.008; z += 0.0172) box(g, 0.0338, 0.0034, 0.0065, GM.rubber, X, RT - 0.0015, z);   // its cross slots
+      [R.z0 + 0.03, R.z1 - 0.03].forEach(z => [-1, 1].forEach(sd => cyl(g, 0.0028, 0.003, GM.steelDk, X + sd * 0.0152, 1.188, z, 10).rotation.set(0, 0, Math.PI / 2)));   // the base's screws
+      top = RT;
+    });
+    return { front: 1.535, y: y0, slide: bolt, bolts: [], travel: 0.11, lock: true, mz: 0.535, top, sz: LMG_RAIL.sz, belt, legs };
   },
 };

@@ -1,188 +1,231 @@
 /* The title's Loadouts screen (ui/arena-loadouts.js): a wide dark sheet over the dimmed title, popping up like the
-   Character menu. The points meter along its top, ten slanted pips (the primary's lit orange, the secondary's pale, what a
-   hover would cost striped in, what it'd give back hollowed out); the classes down the left; in the middle the slot tabs
-   with an ink that slides to the one on show, the weapon turning in the studio on a warm floor light over a faint grid,
-   its numbers in the corner (what the attachments add green, what they cost red), and its attachment tiles under it,
-   each with a pip a step; the weapons for the slot down the right, and the class's perks under them. */
-#alo{--alLine:rgba(236,230,216,.08);--alCard:rgba(236,230,216,.035);--alSec:#d9cfbb;--r-c:#c4bcad;--r-u:#6fd07a;--r-r:#5f9ee8;--r-e:#a586f4;--r-l:#f0a050;
-  position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:20px}
+   Character menu, in four plain groups. Along the top the title and the points meter (ten slanted pips: the primary's
+   lit orange, the secondary's pale, what a hover would cost striped in, what it'd give back hollowed out). Down the
+   left the classes. In the middle the weapon: its slot tabs, the weapon turning in the studio with its name over it and
+   its numbers under it, then its attachments, a tile each under a heading of their own (and scrolling there, never
+   over the foot, when the window's small). Down the right the weapons for the slot, grouped by kind, and the class's
+   perks. The card over a tile says what a step or an option gives and costs.
+   Words are set in Archivo (as the co-op screen's are), names and numbers in the game's condensed Saira, keys in mono:
+   every size here is a size that reads, and only the pick, the points and the weapon's name are bright. */
+#alo{--alLine:rgba(236,230,216,.085);--alCard:rgba(236,230,216,.035);--alCard2:rgba(236,230,216,.06);--alSec:#ddd3bf;--alDim:#b0aa9b;--alFaint:#8a8477;
+  --alPro:#93dd9b;--alCon:#f0907f;--f-body:"Archivo","Helvetica Neue",Arial,sans-serif;
+  position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:20px;font-family:var(--f-body)}
 #alo[hidden]{display:none}
-#alo .aloBack{position:absolute;inset:0;background:rgba(8,7,6,.62);backdrop-filter:blur(6px) saturate(.8);-webkit-backdrop-filter:blur(6px) saturate(.8);opacity:0;transition:opacity .32s ease}
+#alo .aloBack{position:absolute;inset:0;background:rgba(8,7,6,.66);backdrop-filter:blur(6px) saturate(.8);-webkit-backdrop-filter:blur(6px) saturate(.8);opacity:0;transition:opacity .32s ease}
 #alo.on .aloBack{opacity:1}
-.aloPanel{position:relative;width:min(1480px,100%);height:min(900px,calc(100vh - 40px));display:grid;overflow:hidden;
-  grid-template-columns:minmax(190px,232px) minmax(0,1fr) minmax(250px,312px);grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"top top top" "cls mid side" "foot foot foot";
-  background:var(--tex-specks),linear-gradient(170deg,rgba(30,25,21,.97),rgba(16,14,12,.97) 60%,rgba(22,17,14,.97));background-size:240px,auto;
+.aloPanel{position:relative;width:min(1440px,100%);height:min(880px,calc(100vh - 40px));display:grid;overflow:hidden;
+  grid-template-columns:minmax(180px,224px) minmax(0,1fr) minmax(232px,300px);grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"top top top" "cls mid side" "foot foot foot";
+  background:var(--tex-specks),linear-gradient(170deg,rgba(29,25,21,.98),rgba(17,15,13,.98) 60%,rgba(21,17,14,.98));background-size:240px,auto;
   border:1px solid rgba(236,230,216,.1);border-radius:8px;box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 1px rgba(0,0,0,.4),inset 0 1px 0 rgba(236,230,216,.06);
-  opacity:0;transform:translateY(18px) scale(.95);transition:opacity .26s ease,transform .34s cubic-bezier(.2,.9,.3,1.12)}
+  opacity:0;transform:translateY(18px) scale(.96);transition:opacity .26s ease,transform .34s cubic-bezier(.2,.9,.3,1.1)}
 #alo.on .aloPanel{opacity:1;transform:none}
 #alo:not(.on) .aloPanel{transition:opacity .22s ease,transform .3s cubic-bezier(.55,0,.8,.3)}
-#alo button{font-family:var(--f-ui)}
-#alo kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 4px;border:1px solid rgba(236,230,216,.22);border-radius:3px;font:600 10px/1 var(--f-ui);color:var(--dim)}
+#alo button{font-family:var(--f-body)}
+#alo kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;border:1px solid rgba(236,230,216,.24);border-bottom-width:2px;border-radius:4px;font:600 10.5px/1 var(--f-ui);color:var(--alDim)}
+/* a group's own heading: small, quiet, over what it heads */
+.aloGroup{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font:600 12px/1 var(--f-body);color:var(--alDim)}
+.aloGroup b{font:800 15px/1 var(--f-num);letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
 
 /* ---- the top: the title, the meter, the cross */
-.aloTop{grid-area:top;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;padding:16px 20px 14px;border-bottom:1px solid var(--alLine)}
-.aloHead h3{margin:0;font:800 30px/1 var(--f-num);text-transform:uppercase;letter-spacing:.01em;color:var(--ink)}
-.aloHead small{display:block;margin-top:6px;color:var(--dim);font-size:11.5px}
+.aloTop{grid-area:top;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;padding:14px 18px 13px 22px;border-bottom:1px solid var(--alLine)}
+.aloHead h3{margin:0;font:800 32px/1 var(--f-num);text-transform:uppercase;letter-spacing:.01em;color:var(--ink)}
+.aloHead small{display:block;margin-top:5px;color:var(--alDim);font:500 12.5px/1.3 var(--f-body)}
 .aloTop .setX{justify-self:end}
-.aloPts{display:flex;align-items:center;gap:14px;padding:8px 16px;border:1px solid var(--alLine);border-radius:999px;background:rgba(10,9,8,.45);box-shadow:inset 0 1px 0 rgba(236,230,216,.04)}
-.aloPtsL{font:600 10px/1 var(--f-ui);letter-spacing:.22em;text-transform:uppercase;color:var(--dim)}
+.aloPts{display:flex;align-items:center;gap:14px;padding:8px 18px;border:1px solid var(--alLine);border-radius:999px;background:rgba(10,9,8,.5)}
+.aloPtsL{font:600 12.5px/1 var(--f-body);color:var(--alDim)}
 .aloPtsBar{display:flex;gap:4px}
-.aloPtsBar i{width:20px;height:14px;transform:skewX(-18deg);border-radius:2px;background:rgba(236,230,216,.09);box-shadow:inset 0 0 0 1px rgba(236,230,216,.06);transition:background .25s ease,box-shadow .25s ease,transform .3s cubic-bezier(.3,1.5,.5,1)}
-.aloPtsBar i.p{background:linear-gradient(180deg,color-mix(in srgb,var(--orange) 80%,#fff),var(--orange));box-shadow:0 0 10px rgba(var(--acc),.35)}
-.aloPtsBar i.s{background:linear-gradient(180deg,#f4eee0,var(--alSec));box-shadow:0 0 8px rgba(236,230,216,.18)}
-.aloPtsBar i.ghost{background:repeating-linear-gradient(90deg,rgba(var(--acc),.75) 0 3px,rgba(var(--acc),.2) 3px 6px);transform:skewX(-18deg) translateY(-2px)}
-.aloPtsBar i.free{background:transparent;box-shadow:inset 0 0 0 1.5px rgba(236,230,216,.4)}
-.aloPtsN{display:flex;align-items:baseline;gap:5px;min-width:86px;font-variant-numeric:tabular-nums}
+.aloPtsBar i{width:20px;height:15px;transform:skewX(-16deg);border-radius:2px;background:rgba(236,230,216,.1);transition:background .25s ease,box-shadow .25s ease,transform .3s cubic-bezier(.3,1.5,.5,1)}
+.aloPtsBar i.p{background:var(--orange);box-shadow:0 0 10px rgba(var(--acc),.3)}
+.aloPtsBar i.s{background:var(--alSec)}
+.aloPtsBar i.ghost{background:repeating-linear-gradient(90deg,rgba(var(--acc),.8) 0 3px,rgba(var(--acc),.22) 3px 6px);transform:skewX(-16deg) translateY(-2px)}
+.aloPtsBar i.free{background:transparent;box-shadow:inset 0 0 0 1.5px rgba(236,230,216,.45)}
+.aloPtsN{display:flex;align-items:baseline;gap:5px;min-width:82px;font-variant-numeric:tabular-nums}
 .aloPtsN b{font:800 30px/1 var(--f-num);color:var(--ink);transition:color .2s}
-.aloPtsN small{font:600 13px/1 var(--f-ui);color:var(--dim)}
-.aloPtsN em{font:600 12px/1 var(--f-ui);font-style:normal;color:var(--orange)}
+.aloPtsN small{font:600 14px/1 var(--f-num);color:var(--alDim)}
+.aloPtsN em{font:700 14px/1 var(--f-num);font-style:normal;color:var(--orange)}
 .aloPtsN.full b{color:var(--orange)}
-.aloPtsN.over em{color:#e2563f}
+.aloPtsN.over em{color:#ef6a55}
 .aloPts.deny{animation:aloDeny .42s cubic-bezier(.3,.7,.4,1)}
-.aloPts.deny .aloPtsN b{color:#e2563f}
+.aloPts.deny .aloPtsN b{color:#ef6a55}
 @keyframes aloDeny{0%,100%{translate:0}20%{translate:-7px}40%{translate:6px}60%{translate:-4px}80%{translate:2px}}
 
-/* ---- the classes */
-.aloCls{grid-area:cls;display:flex;flex-direction:column;gap:3px;padding:12px 10px;overflow-y:auto;border-right:1px solid var(--alLine);scrollbar-width:thin;scrollbar-color:rgba(236,230,216,.2) transparent}
-.aloC{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;padding:9px 10px 9px 12px;border:1px solid transparent;border-radius:5px;background:transparent;color:var(--dim);text-align:left;cursor:pointer;
-  transition:background .2s,border-color .2s,color .2s,translate .25s cubic-bezier(.2,.9,.3,1)}
-.aloC::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:2px;background:var(--orange);scale:1 0;transition:scale .3s cubic-bezier(.2,.9,.3,1)}
-.aloC:hover{background:var(--alCard);color:var(--ink);translate:2px 0}
-.aloC.on{background:linear-gradient(90deg,rgba(var(--acc),.16),rgba(var(--acc),.03));border-color:rgba(var(--acc),.28);color:var(--ink)}
+/* ---- the classes: a number, the name, its guns under it, its points; the one picked lit along its left edge */
+.aloCls{grid-area:cls;display:flex;flex-direction:column;gap:2px;padding:12px 10px;overflow-y:auto;border-right:1px solid var(--alLine);scrollbar-width:thin;scrollbar-color:rgba(236,230,216,.2) transparent}
+.aloC{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;padding:9px 10px 9px 12px;border:0;border-radius:6px;background:transparent;color:var(--alDim);text-align:left;cursor:pointer;transition:background .18s,color .18s}
+.aloC::before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:2px;background:var(--orange);scale:1 0;transition:scale .28s cubic-bezier(.2,.9,.3,1)}
+.aloC:hover{background:var(--alCard);color:var(--ink)}
+.aloC.on{background:rgba(var(--acc),.12);color:var(--ink)}
 .aloC.on::before{scale:1 1}
-.aloC.on kbd{border-color:var(--orange);color:var(--orange)}
-.aloC span{display:grid;gap:3px;min-width:0}
-.aloC b{font:800 18px/1 var(--f-num);text-transform:uppercase;letter-spacing:.02em;overflow-wrap:anywhere}
-.aloC small{font-size:10.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.aloC em{font:700 13px/1 var(--f-ui);font-style:normal;color:var(--dim);font-variant-numeric:tabular-nums}
-.aloC.mine em::before{content:"";display:inline-block;width:6px;height:6px;margin-right:6px;border-radius:50%;background:var(--orange);vertical-align:2px;box-shadow:0 0 6px rgba(var(--acc),.7)}
+.aloC.on kbd{border-color:rgba(var(--acc),.8);color:var(--orange)}
+.aloC span{display:grid;gap:4px;min-width:0}
+.aloC b{font:800 18px/1 var(--f-num);text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aloC small{font:500 12px/1.2 var(--f-body);color:var(--alFaint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aloC.on small{color:var(--alDim)}
+.aloC em{min-width:20px;font:800 16px/1 var(--f-num);font-style:normal;text-align:right;color:var(--alFaint);font-variant-numeric:tabular-nums}
+.aloC.on em{color:var(--ink)}
+.aloC.mine em::before{content:"";display:inline-block;width:6px;height:6px;margin-right:6px;border-radius:50%;background:var(--orange);vertical-align:3px}
 .aloC.saved em{animation:aloSaved .5s ease}
-@keyframes aloSaved{40%{color:var(--orange);scale:1.25}}
+@keyframes aloSaved{40%{color:var(--orange);scale:1.2}}
+/* renaming: Rename on the row under the pointer; the name box over the name as it's typed */
+.aloCW{position:relative}
+.aloRen{position:absolute;right:36px;top:8px;padding:4px 8px;border:1px solid rgba(236,230,216,.18);border-radius:4px;background:rgba(18,15,13,.95);color:var(--alDim);font:600 11px/1 var(--f-body)!important;cursor:pointer;
+  opacity:0;pointer-events:none;transition:opacity .16s,color .15s,border-color .15s}
+.aloCW:hover .aloRen,.aloRen:focus-visible{opacity:1;pointer-events:auto}
+.aloRen:hover{color:var(--ink);border-color:var(--orange)}
+.aloCW.ren .aloRen{display:none}
+.aloRenIn{position:absolute;left:44px;right:30px;top:6px;height:26px;padding:0 8px;border:1px solid var(--orange);border-radius:4px;background:rgba(10,9,8,.97);color:var(--ink);font:800 17px/1 var(--f-num);text-transform:uppercase;letter-spacing:.02em;outline:0;box-shadow:0 0 0 3px rgba(var(--acc),.2)}
 
-/* ---- the middle: the slot tabs, the studio, the tiles */
-.aloMid{grid-area:mid;display:grid;grid-template-rows:auto minmax(0,1fr) auto;min-width:0;min-height:0}
+/* ---- the middle: the slot tabs, the studio, the attachments */
+.aloMid{grid-area:mid;position:relative;display:grid;grid-template-rows:auto minmax(150px,1fr) auto;min-width:0;min-height:0}
 .aloTabs{position:relative;display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--alLine)}
-.aloTab{display:grid;gap:4px;padding:11px 18px 12px;border:0;background:transparent;color:var(--dim);text-align:left;cursor:pointer;transition:background .2s,color .2s}
-.aloTab small{font:600 10px/1 var(--f-ui);letter-spacing:.2em;text-transform:uppercase}
+.aloTab{display:grid;gap:5px;padding:11px 18px 12px;border:0;background:transparent;color:var(--alDim);text-align:left;cursor:pointer;transition:background .18s,color .18s}
+.aloTab small{font:600 12px/1 var(--f-body);color:var(--alFaint)}
 .aloTab b{font:800 19px/1 var(--f-num);text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .aloTab:hover{background:var(--alCard);color:var(--ink)}
 .aloTab.on{color:var(--ink)}
 .aloTab.on small{color:var(--orange)}
-.aloTab.empty b{color:rgba(163,158,144,.6)}
-.aloInk{position:absolute;left:0;bottom:-1px;height:2px;background:var(--orange);box-shadow:0 0 10px rgba(var(--acc),.6);transition:translate .38s cubic-bezier(.2,.9,.3,1),width .38s cubic-bezier(.2,.9,.3,1)}
-.aloStage{position:relative;min-height:0;overflow:hidden;
-  background:radial-gradient(ellipse 55% 60% at 50% 60%,rgba(255,196,140,.15),transparent 70%),
-    linear-gradient(rgba(236,230,216,.025) 1px,transparent 1px) 0 0/44px 44px,linear-gradient(90deg,rgba(236,230,216,.025) 1px,transparent 1px) 0 0/44px 44px,
-    linear-gradient(180deg,rgba(40,34,28,.5),rgba(10,10,10,.72))}
-.aloStage::after{content:"";position:absolute;left:24%;right:24%;bottom:22%;height:26px;border-radius:50%;background:radial-gradient(ellipse at center,rgba(0,0,0,.5),transparent 70%);pointer-events:none}
+.aloTab.empty b{color:var(--alFaint)}
+.aloInk{position:absolute;left:0;bottom:-1px;height:2px;background:var(--orange);transition:translate .36s cubic-bezier(.2,.9,.3,1),width .36s cubic-bezier(.2,.9,.3,1)}
+.aloStage{position:relative;min-height:0;overflow:hidden;background:radial-gradient(ellipse 55% 62% at 50% 56%,rgba(255,196,140,.13),transparent 70%),linear-gradient(180deg,rgba(36,31,26,.45),rgba(10,10,10,.6))}
+.aloStage::after{content:"";position:absolute;left:26%;right:26%;bottom:22%;height:24px;border-radius:50%;background:radial-gradient(ellipse at center,rgba(0,0,0,.45),transparent 70%);pointer-events:none}
 /* (the whole of the studio: a less letterboxed view keeps the camera back, so a long gun turned toward it isn't cut off) */
 .aloStage .chView{position:absolute;inset:0;width:100%;height:100%;z-index:1;cursor:grab}
 .aloStage .chView:active{cursor:grabbing}
 .aloStage .chView[hidden]{display:none}
-.aloName{position:absolute;left:22px;top:18px;z-index:2;pointer-events:none;max-width:52%}
-.aloName small{display:block;margin-bottom:6px;font:600 10.5px/1 var(--f-ui);letter-spacing:.2em;text-transform:uppercase;color:var(--orange)}
-.aloName b{display:block;font:800 clamp(30px,3.4vw,52px)/.92 var(--f-num);text-transform:uppercase;letter-spacing:.01em;color:var(--ink);text-shadow:0 2px 18px rgba(0,0,0,.6)}
-/* (its numbers in a row along the foot of the studio, under the weapon) */
-.aloStats{position:absolute;left:22px;right:22px;bottom:18px;z-index:2;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px;pointer-events:none}
+.aloName{position:absolute;left:22px;top:16px;z-index:2;pointer-events:none;max-width:60%}
+.aloName small{display:block;margin-bottom:5px;font:600 12.5px/1 var(--f-body);color:var(--orange)}
+.aloName b{display:block;font:800 clamp(30px,3.2vw,48px)/.95 var(--f-num);text-transform:uppercase;letter-spacing:.01em;color:var(--ink);text-shadow:0 2px 16px rgba(0,0,0,.6)}
+/* its numbers in a row along the foot of the studio */
+.aloStats{position:absolute;left:22px;right:22px;bottom:14px;z-index:2;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px;pointer-events:none}
 .aloStats[hidden]{display:none}
-.aloS span{display:flex;justify-content:space-between;margin-bottom:5px;font:600 10px/1 var(--f-ui);letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
-.aloS span b{letter-spacing:0;color:var(--ink);font-variant-numeric:tabular-nums;transition:color .25s}
-.aloS.up span b{color:var(--r-u)}
-.aloS.down span b{color:#e2766a}
-.aloS i{position:relative;display:block;height:4px;border-radius:2px;background:rgba(236,230,216,.09);overflow:hidden}
+.aloS span{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;font:600 12px/1 var(--f-body);color:var(--alDim)}
+.aloS span b{font:800 16px/1 var(--f-num);color:var(--ink);font-variant-numeric:tabular-nums;transition:color .25s}
+.aloS.up span b{color:var(--alPro)}
+.aloS.down span b{color:var(--alCon)}
+.aloS i{position:relative;display:block;height:4px;border-radius:2px;background:rgba(236,230,216,.1);overflow:hidden}
 .aloS i::before,.aloS i::after{content:"";position:absolute;top:0;bottom:0;transition:width .4s cubic-bezier(.2,.9,.3,1),left .4s cubic-bezier(.2,.9,.3,1)}
 .aloS i::before{left:0;width:calc(min(var(--b),var(--v)) * 100%);background:var(--ink)}
-.aloS i::after{left:calc(min(var(--b),var(--v)) * 100%);width:calc(max(var(--v) - var(--b),var(--b) - var(--v)) * 100%);background:var(--r-u)}
+.aloS i::after{left:calc(min(var(--b),var(--v)) * 100%);width:calc(max(var(--v) - var(--b),var(--b) - var(--v)) * 100%);background:#6fd07a}
 .aloS.down i::after{background:#e2563f}
-.aloEmpty{position:absolute;inset:0;z-index:1;display:grid;place-content:center;justify-items:center;gap:10px;color:rgba(163,158,144,.55);font:800 26px/1 var(--f-num);text-transform:uppercase;letter-spacing:.04em}
+.aloEmpty{position:absolute;inset:0;z-index:1;display:grid;place-content:center;justify-items:center;gap:10px;color:var(--alFaint);font:800 26px/1 var(--f-num);text-transform:uppercase;letter-spacing:.04em}
 .aloEmpty[hidden]{display:none}
-.aloEmpty i{position:relative;width:54px;height:54px;border:2px dashed rgba(163,158,144,.35);border-radius:50%}
-.aloEmpty i::before{content:"";position:absolute;left:50%;top:50%;width:26px;height:2px;background:rgba(163,158,144,.45);translate:-50% -50%;rotate:-45deg}
-.aloEmpty small{font:500 11px var(--f-ui);letter-spacing:.02em;text-transform:none;color:var(--dim)}
-.aloHint{position:absolute;right:20px;top:22px;z-index:2;text-align:right;color:rgba(236,230,216,.34);font:500 10.5px var(--f-ui);letter-spacing:.04em;pointer-events:none}
-/* the attachment tiles: the slot, what's on it (its name in its step's colour), a pip a step; the cross once it's on */
-.aloAtts{display:grid;grid-template-columns:repeat(auto-fill,minmax(146px,1fr));gap:8px;padding:12px 14px 14px;border-top:1px solid var(--alLine);background:rgba(8,7,6,.25)}
+.aloEmpty i{position:relative;width:52px;height:52px;border:2px dashed rgba(163,158,144,.35);border-radius:50%}
+.aloEmpty i::before{content:"";position:absolute;left:50%;top:50%;width:24px;height:2px;background:rgba(163,158,144,.45);translate:-50% -50%;rotate:-45deg}
+.aloEmpty small{font:500 13px var(--f-body);text-transform:none;letter-spacing:0;color:var(--alDim)}
+.aloHint{position:absolute;right:20px;top:20px;z-index:2;text-align:right;color:var(--alFaint);font:500 12px var(--f-body);pointer-events:none}
+
+/* the attachments: their heading (and what's spent on this gun), then a tile each; a small window scrolls them here */
+.aloSlots{display:grid;grid-template-rows:auto minmax(0,1fr);max-height:min(46vh,330px);min-height:0;border-top:1px solid var(--alLine);background:rgba(8,7,6,.28)}
+.aloAttsHead{padding:11px 16px 0}
+.aloAtts{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));align-content:start;gap:8px;padding:10px 16px 14px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(236,230,216,.2) transparent}
 .aloAtts.empty{display:block}
-.aloNone{margin:0;padding:12px 6px;color:var(--dim);font-size:12px}
-.aloA{position:relative;display:grid;grid-template-rows:auto auto;border:1px solid rgba(236,230,216,.1);border-radius:5px;background:var(--alCard);transition:border-color .2s,background .2s,box-shadow .25s,translate .2s cubic-bezier(.2,.9,.3,1)}
-.aloA:hover{border-color:rgba(var(--acc),.55);background:rgba(var(--acc),.06);translate:0 -2px;box-shadow:0 8px 18px rgba(0,0,0,.35)}
-.aloA.on{border-color:rgba(var(--acc),.4);background:linear-gradient(180deg,rgba(var(--acc),.1),rgba(var(--acc),.03))}
+.aloNone{margin:0;padding:6px 0 4px;color:var(--alDim);font:500 13px/1.45 var(--f-body)}
+.aloA{position:relative;display:grid;grid-template-rows:auto auto;border:1px solid rgba(236,230,216,.1);border-radius:6px;background:var(--alCard);transition:border-color .18s,background .18s}
+.aloA:hover{border-color:rgba(var(--acc),.5);background:var(--alCard2)}
+.aloA.on{border-color:rgba(var(--acc),.45);background:rgba(var(--acc),.08)}
 .aloA.stuck .aloAMain,.aloA.max .aloAMain{cursor:default}
-.aloAMain{display:grid;gap:5px;padding:10px 30px 6px 12px;border:0;background:transparent;color:var(--ink);text-align:left;cursor:pointer}
-.aloAMain small{display:flex;align-items:center;gap:6px;font:600 9.5px/1 var(--f-ui);letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
-.aloAMain small i{font-style:normal;letter-spacing:.08em;padding:2px 4px;border-radius:2px;background:rgba(236,230,216,.07);color:rgba(163,158,144,.8)}
-.aloAMain b{font:600 12px/1.2 var(--f-ui);color:rgba(163,158,144,.65);transition:color .2s}
+.aloAMain{display:grid;gap:5px;padding:9px 30px 6px 12px;border:0;background:transparent;color:var(--ink);text-align:left;cursor:pointer}
+.aloAMain small{display:flex;align-items:center;gap:6px;font:600 12px/1 var(--f-body);color:var(--alDim)}
+.aloAMain small i{font:500 10.5px/1 var(--f-body);font-style:normal;padding:2px 5px;border-radius:3px;background:rgba(236,230,216,.08);color:var(--alFaint)}
+.aloAMain b{font:600 13.5px/1.2 var(--f-body);color:var(--alFaint);transition:color .18s}
 .aloA.on .aloAMain b{color:var(--ink)}
-.aloAMain b[data-r="u"]{color:var(--r-u)!important}
-.aloAMain b[data-r="r"]{color:var(--r-r)!important}
-.aloAMain b[data-r="e"]{color:var(--r-e)!important}
-.aloAMain b[data-r="l"]{color:var(--r-l)!important}
 .aloPips{display:flex;gap:4px;padding:0 12px 10px}
 .aloPip{flex:1;max-width:30px;height:16px;padding:0;border:0;background:transparent;cursor:pointer;position:relative}
-.aloPip::before{content:"";position:absolute;left:0;right:0;top:5px;height:6px;transform:skewX(-18deg);border-radius:1px;background:rgba(236,230,216,.14);transition:background .22s ease,box-shadow .22s ease,top .2s,height .2s}
-.aloPip:hover::before{background:rgba(var(--acc),.55);top:4px;height:8px}
-.aloPip.lit::before{background:var(--orange);box-shadow:0 0 8px rgba(var(--acc),.45)}
+.aloPip::before{content:"";position:absolute;left:0;right:0;top:5px;height:6px;transform:skewX(-16deg);border-radius:1px;background:rgba(236,230,216,.15);transition:background .2s ease,top .18s,height .18s}
+.aloPip:hover::before{background:rgba(var(--acc),.6);top:4px;height:8px}
+.aloPip.lit::before{background:var(--orange)}
 .aloPip.lit:hover::before{background:color-mix(in srgb,var(--orange) 70%,#fff)}
 .aloPip.over{cursor:not-allowed}
-.aloPip.over::before{background:repeating-linear-gradient(90deg,rgba(236,230,216,.1) 0 2px,transparent 2px 4px)}
-.aloPip.over:hover::before{background:repeating-linear-gradient(90deg,rgba(226,86,63,.5) 0 2px,transparent 2px 4px)}
-.aloAX{position:absolute;right:6px;top:6px;display:grid;place-items:center;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:rgba(236,230,216,.08);color:var(--dim);cursor:pointer;opacity:0;scale:.6;pointer-events:none;transition:opacity .2s,scale .25s cubic-bezier(.3,1.5,.5,1),background .2s,color .2s}
+.aloPip.over::before{background:repeating-linear-gradient(90deg,rgba(236,230,216,.12) 0 2px,transparent 2px 4px)}
+.aloPip.over:hover::before{background:repeating-linear-gradient(90deg,rgba(239,106,85,.6) 0 2px,transparent 2px 4px)}
+.aloAX{position:absolute;right:6px;top:6px;display:grid;place-items:center;width:22px;height:22px;padding:0;border:0;border-radius:50%;background:rgba(236,230,216,.08);color:var(--alDim);cursor:pointer;opacity:0;pointer-events:none;transition:opacity .18s,background .18s,color .18s}
 .aloAX::before,.aloAX::after{content:"";position:absolute;left:50%;top:50%;width:9px;height:1.6px;border-radius:1px;background:currentColor;translate:-50% -50%;rotate:45deg}
 .aloAX::after{rotate:-45deg}
-.aloA.on .aloAX{opacity:1;scale:1;pointer-events:auto}
+.aloA.on .aloAX{opacity:1;pointer-events:auto}
 .aloAX:hover{background:#c2412e;color:#fff}
-.aloA :focus-visible,.aloW:focus-visible,.aloC:focus-visible,.aloTab:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
+.aloA :focus-visible,.aloW:focus-visible,.aloC:focus-visible,.aloTab:focus-visible,.aloRen:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
+/* the choices (conversion, shells, loading): twice a tile's width, a row of options under the name, the one on lit;
+   each says what it costs under it */
+.aloA.ch{grid-column:span 2}
+.aloSeg{display:flex;gap:4px;padding:0 10px 10px}
+.aloSeg button{position:relative;flex:1;min-width:0;padding:6px 3px 16px;border:1px solid rgba(236,230,216,.13);border-radius:4px;background:rgba(236,230,216,.03);color:var(--alDim);font:600 11.5px/1.15 var(--f-body);cursor:pointer;transition:background .18s,border-color .18s,color .18s}
+.aloSeg button::after{content:attr(data-c);position:absolute;left:0;right:0;bottom:4px;font:500 10px/1 var(--f-body);color:var(--alFaint)}
+.aloSeg button:hover{border-color:rgba(var(--acc),.6);color:var(--ink)}
+.aloSeg button.lit{border-color:var(--orange);background:rgba(var(--acc),.2);color:var(--ink)}
+.aloSeg button.lit::after{color:var(--alDim)}
+.aloSeg button.over{opacity:.4;cursor:not-allowed}
+.aloSeg button:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
+/* a line a conversion kit's taken the place of: shut */
+.aloA.locked{opacity:.55;border-style:dashed;background:transparent}
+.aloA.locked .aloAMain,.aloA.locked .aloPip{cursor:not-allowed}
+.aloA.locked .aloAMain b{font-size:12px;color:var(--alDim)}
 
-/* ---- the right: the weapons for the slot, and the perks */
+/* ---- the card over a tile: its name, then its slot, step and cost, then what it gives and what it costs, a line
+   each, under a heading each */
+.aloInfo{position:absolute;z-index:6;width:330px;padding:12px 14px 13px;border:1px solid rgba(236,230,216,.16);border-radius:8px;background:rgba(19,17,14,.98);box-shadow:0 18px 40px rgba(0,0,0,.6);pointer-events:none;
+  opacity:0;translate:0 6px;transition:opacity .15s ease,translate .18s cubic-bezier(.2,.9,.3,1),left .16s cubic-bezier(.2,.9,.3,1),bottom .16s cubic-bezier(.2,.9,.3,1)}
+.aloInfo.on{opacity:1;translate:0}
+.aloIHead{display:grid;gap:4px;margin-bottom:10px}
+.aloIHead b{font:800 20px/1 var(--f-num);text-transform:uppercase;letter-spacing:.02em;color:var(--ink)}
+.aloIHead em{font:500 12px/1 var(--f-body);font-style:normal;color:var(--alDim)}
+.aloICols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.aloICol h5{margin:0 0 5px;font:600 12px/1 var(--f-body)}
+.aloICol.pro h5{color:var(--alPro)}
+.aloICol.con h5{color:var(--alCon)}
+.aloICol ul{margin:0;padding:0;list-style:none;display:grid;gap:4px}
+.aloICol li{position:relative;padding-left:12px;font:500 12.5px/1.3 var(--f-body);color:var(--ink)}
+.aloICol li::before{content:"";position:absolute;left:0;top:6px;width:6px;height:6px;border-radius:50%}
+.aloICol.pro li::before{background:#6fd07a}
+.aloICol.con li::before{background:#e2563f}
+.aloICol li.nil{padding-left:0;color:var(--alFaint)}
+.aloICol li.nil::before{display:none}
+.aloINote{margin:0;font:500 12.5px/1.4 var(--f-body);color:var(--alDim)}
+
+/* ---- the right: the weapons for the slot, grouped, and the perks */
 .aloSide{grid-area:side;display:grid;grid-template-rows:auto minmax(0,1fr) auto;min-height:0;border-left:1px solid var(--alLine)}
-.aloPickHead{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:14px 16px 10px}
-.aloPickHead b{font:600 10px/1 var(--f-ui);letter-spacing:.22em;text-transform:uppercase;color:var(--orange-d)}
-.aloPickHead small{font-size:10.5px;color:var(--dim)}
+.aloPickHead{padding:14px 16px 8px}
 .aloPick{display:flex;flex-direction:column;gap:4px;padding:0 10px 12px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(236,230,216,.2) transparent}
-.aloW{display:grid;grid-template-columns:86px minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;padding:7px 10px 7px 8px;border:1px solid rgba(236,230,216,.07);border-radius:5px;background:var(--alCard);color:var(--dim);text-align:left;cursor:pointer;
-  transition:background .2s,border-color .2s,color .2s,opacity .2s,translate .22s cubic-bezier(.2,.9,.3,1)}
-.aloW:hover{border-color:rgba(var(--acc),.5);color:var(--ink);translate:-2px 0}
-.aloW.on{border-color:var(--orange);background:linear-gradient(90deg,rgba(var(--acc),.18),rgba(var(--acc),.05));color:var(--ink);box-shadow:inset 3px 0 0 var(--orange)}
+.aloCat{margin:10px 6px 3px;font:600 12px/1 var(--f-body);color:var(--alFaint)}
+.aloCat:first-child{margin-top:2px}
+.aloW{display:grid;grid-template-columns:78px minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;padding:7px 10px 7px 8px;border:1px solid transparent;border-radius:6px;background:var(--alCard);color:var(--alDim);text-align:left;cursor:pointer;transition:background .18s,border-color .18s,color .18s,opacity .18s}
+.aloW:hover{border-color:rgba(var(--acc),.45);color:var(--ink)}
+.aloW.on{border-color:rgba(var(--acc),.8);background:rgba(var(--acc),.12);color:var(--ink)}
 .aloW.over{opacity:.38;cursor:not-allowed}
-.aloW.over:hover{translate:0;border-color:rgba(226,86,63,.5)}
-.aloWArt{display:grid;place-items:center;height:36px}
-.aloWArt img{max-width:100%;max-height:36px;object-fit:contain;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5));transition:scale .25s cubic-bezier(.2,.9,.3,1)}
-.aloW:hover .aloWArt img,.aloW.on .aloWArt img{scale:1.06}
+.aloW.over:hover{border-color:rgba(239,106,85,.5)}
+.aloWArt{display:grid;place-items:center;height:34px}
+.aloWArt img{max-width:100%;max-height:34px;object-fit:contain;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
 .aloWArt.nil::before{content:"";width:22px;height:22px;border:1.5px dashed rgba(163,158,144,.45);border-radius:50%}
 .aloWTx{display:grid;gap:4px;min-width:0}
-.aloWTx b{font:800 16px/1 var(--f-num);text-transform:uppercase;letter-spacing:.02em;overflow-wrap:anywhere}
-.aloWTx small{font-size:10px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.aloW em{min-width:18px;font:700 11px/1 var(--f-ui);font-style:normal;text-align:right;color:var(--dim)}
-.aloW em:not(:empty)::after{content:" pt";font-weight:500;opacity:.7}
-.aloPerks{display:flex;flex-wrap:wrap;gap:5px;padding:12px 16px 14px;border-top:1px solid var(--alLine);background:rgba(8,7,6,.25)}
-.aloPerkHead{display:flex;align-items:baseline;justify-content:space-between;width:100%;margin-bottom:4px}
-.aloPerkHead b{font:600 10px/1 var(--f-ui);letter-spacing:.22em;text-transform:uppercase;color:var(--orange-d)}
-.aloPerkHead small{font-size:10.5px;color:var(--dim)}
-.aloPerk{padding:5px 9px;border:1px solid rgba(236,230,216,.12);border-radius:999px;font:600 11px/1 var(--f-ui);color:var(--ink);cursor:help}
-.aloRole{width:100%;margin:6px 0 0;font-size:11px;line-height:1.4;color:var(--dim)}
-
-/* ---- the foot */
-.aloFoot{grid-area:foot;display:flex;align-items:center;gap:18px;padding:11px 20px;border-top:1px solid var(--alLine)}
-.aloKeys{display:flex;align-items:center;gap:5px;color:var(--dim);font-size:11px;white-space:nowrap}
-.aloKeys kbd+kbd{margin-left:1px}
-.aloKeyMore{display:inline-flex;align-items:center;gap:4px;margin-left:10px;padding-left:12px;border-left:1px solid var(--alLine)}
-.aloGap{flex:1}
-.aloNote{width:100%;margin:6px 0 0;padding:7px 9px;border-left:2px solid rgba(var(--acc),.5);background:rgba(236,230,216,.03);color:var(--dim);font-size:10.5px;line-height:1.45}
+.aloWTx b{font:800 16px/1.05 var(--f-num);text-transform:uppercase;letter-spacing:.02em}
+.aloWTx small{font:500 11.5px/1.2 var(--f-body);color:var(--alFaint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aloW em{min-width:18px;font:800 14px/1 var(--f-num);font-style:normal;text-align:right;color:var(--alFaint)}
+.aloW em:not(:empty)::after{content:" pt";font:500 11px var(--f-body)}
+.aloPerks{display:flex;flex-wrap:wrap;gap:6px;padding:12px 16px 14px;border-top:1px solid var(--alLine)}
+.aloPerkHead{width:100%;margin-bottom:3px}
+.aloPerk{padding:5px 10px;border:1px solid rgba(236,230,216,.14);border-radius:999px;font:600 12px/1 var(--f-body);color:var(--ink);cursor:help}
+.aloRole{width:100%;margin:6px 0 0;font:500 12.5px/1.45 var(--f-body);color:var(--alDim)}
+.aloNote{width:100%;margin:6px 0 0;padding:8px 10px;border-left:2px solid rgba(var(--acc),.55);background:rgba(236,230,216,.035);color:var(--alDim);font:500 12px/1.45 var(--f-body)}
 .aloNote b{color:var(--ink);font-weight:600}
-#aloReset{display:inline-flex;align-items:center;gap:6px}
+
+/* ---- the foot: the keys, Reset, Done */
+.aloFoot{grid-area:foot;display:flex;align-items:center;gap:16px;padding:10px 18px 10px 22px;border-top:1px solid var(--alLine)}
+.aloKeys{display:flex;align-items:center;gap:6px;color:var(--alDim);font:500 12.5px var(--f-body);white-space:nowrap;min-width:0;overflow:hidden}
+.aloKeys kbd+kbd{margin-left:1px}
+.aloKeyMore{margin-left:8px;padding-left:12px;border-left:1px solid var(--alLine);overflow:hidden;text-overflow:ellipsis}
+.aloGap{flex:1}
+#aloReset{display:inline-flex;align-items:center;gap:7px;font:500 13px var(--f-body)}
 #aloReset.ask{color:var(--orange);text-decoration-color:rgba(var(--acc),.5)}
 #aloReset:disabled{opacity:.35;cursor:default;text-decoration:none}
-#aloReset kbd{height:16px;min-width:16px;font-size:9px}
+#aloReset kbd{height:18px;min-width:18px;font-size:10px}
 
-/* a new class or slot: its pieces ease in */
-.aloStage.swap,.aloAtts.swap,.aloPick.swap{animation:aloSwap .34s cubic-bezier(.2,.9,.3,1)}
-.aloAtts.swap .aloA{animation:aloSwap .36s cubic-bezier(.2,.9,.3,1) backwards}
-.aloAtts.swap .aloA:nth-child(2){animation-delay:.03s}.aloAtts.swap .aloA:nth-child(3){animation-delay:.06s}.aloAtts.swap .aloA:nth-child(4){animation-delay:.09s}
-.aloAtts.swap .aloA:nth-child(5){animation-delay:.12s}.aloAtts.swap .aloA:nth-child(6){animation-delay:.15s}.aloAtts.swap .aloA:nth-child(n+7){animation-delay:.18s}
-@keyframes aloSwap{from{opacity:0;translate:0 8px}}
+/* a new class or slot: its pieces ease in, once */
+.aloStage.swap,.aloAtts.swap,.aloPick.swap{animation:aloSwap .3s cubic-bezier(.2,.9,.3,1)}
+@keyframes aloSwap{from{opacity:0;translate:0 6px}}
 
-/* smaller screens: the side narrower, the key hints and the note go first */
-@media (max-width:1180px){.aloKeyMore{display:none}}
-@media (max-width:1000px){.aloPanel{grid-template-columns:170px minmax(0,1fr) 230px}.aloW{grid-template-columns:64px minmax(0,1fr) auto}.aloStats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 18px}}
-@media (max-height:760px){.aloTop{padding:12px 18px 10px}.aloHead h3{font-size:26px}.aloC{padding:7px 10px 7px 12px}.aloTab{padding:9px 16px 10px}.aloAMain{padding-top:8px}.aloPips{padding-bottom:8px}}
+/* smaller windows: the key hints go first, then the class list and the side narrow, the numbers fold to two rows,
+   and the attachments scroll in their own space */
+@media (max-width:1240px){.aloKeyMore{display:none}}
+@media (max-width:1000px){.aloPanel{grid-template-columns:158px minmax(0,1fr) 226px}.aloC{gap:8px;padding:8px 8px 8px 10px}.aloC b{font-size:16px}.aloC em{min-width:14px;font-size:14px}.aloC small{font-size:11px}.aloW{grid-template-columns:60px minmax(0,1fr) auto}.aloKeys{display:none}.aloHead small{display:none}.aloStats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px}.aloHint{display:none}.aloAtts{grid-template-columns:repeat(auto-fill,minmax(118px,1fr))}}
+@media (max-height:760px){.aloTop{padding:10px 16px 9px 20px}.aloHead h3{font-size:27px}.aloC{padding:7px 10px 7px 12px}.aloTab{padding:9px 16px 10px}.aloAMain{padding-top:8px}.aloPips{padding-bottom:8px}.aloSlots{max-height:44vh}}
+@media (max-height:600px){.aloHead small{display:none}.aloPtsN b{font-size:24px}.aloPtsBar i{width:15px;height:12px}.aloName b{font-size:28px}.aloStats{bottom:10px}.aloPerks{display:none}.aloFoot{padding:8px 16px}.aloSlots{max-height:42vh}}
 @media (prefers-reduced-motion:reduce){#alo *,#alo *::before,#alo *::after{animation:none!important;transition:none!important}}

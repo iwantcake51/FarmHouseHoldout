@@ -9,7 +9,7 @@ import { surfaceY } from '../world/house.js';
 import { bulletBlocked } from '../world/collision.js';
 import { P, PM } from '../player/player.js';
 import { roundOn } from './rounds.js';
-import { curId, S, T, W, W8 } from '../game/run-state.js';
+import { curId, hasMod, S, T, W, W8 } from '../game/run-state.js';
 import { BRK, CRANE, flipOf, GM, gunMeshes, HOLDS, MAGG, MAGPOS, MUZ, X } from './gun-materials.js';
 import { REV_CYL } from './gun-models.js';
 import { partTex } from '../effects/textures.js';
@@ -508,7 +508,12 @@ export function cyclePose(c, q) {
 export const racked = id => EJECT[id] === 'pump' || EJECT[id] === 'bolt';
 export const needsRack = id => racked(id) && !!W8.open[id];
 const rackLast = {};
-export function startCycle(id) {
+// the trigger still held after a shot (the mouse, or the touch stick pushed out to fire)
+const trigHeld = () => mouseDown || !!(tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.4);
+// held: started by a shot (weapons/firing.js), so the action waits while the trigger's still held and is worked when
+// it's let go, as you'd ride a pump or keep a bolt shut on your cheek after the shot (a slam-fire pump doesn't: it fires
+// as you work it, trigger down)
+export function startCycle(id, held) {
   if (W8.cyc && !W8.cyc.done) ejectCasing(W(W8.cyc.id).ammo, 1, EJECT[W8.cyc.id]);
   const bolt = EJECT[id] === 'bolt', kind = bolt ? 'bolt' : 'pump', list = RACKS[kind];
   // a different way from last time
@@ -516,7 +521,7 @@ export function startCycle(id) {
   rackLast[kind] = v;
   // the cycle fits inside the gun's fire rate, so a fast bolt or a slam-firing pump still racks fully between shots
   const r = W(id).rate / S.rateMul, k = Math.min(1, r / (v.dur + v.delay) * 0.92);
-  W8.cyc = { id, t: 0, dur: v.dur * k, delay: v.delay * k, done: false, beat: 0, bolt, v, fx: cycleFx(v, bolt) }; W8.open[id] = true;
+  W8.cyc = { id, t: 0, dur: v.dur * k, delay: v.delay * k, done: false, beat: 0, bolt, v, fx: cycleFx(v, bolt), hold: !!held && !(id === 'pump' && hasMod('slam')) }; W8.open[id] = true;
 }
 // on each beat: the sound, a knock to the gun's loose spring and to the camera's. [where, what]
 function cycleFx(v, bolt) {
@@ -558,6 +563,7 @@ export function tickCycle(dt) {
   const c = W8.cyc; if (!c) return;
   if (curId() !== c.id) { if (!c.done) ejectCasing(W(c.id).ammo, 1, EJECT[c.id]); W8.cyc = null; W8.relAfterCyc = null; return; }
   if (P.vault) return;   // never worked mid-vault (your hands are on the sill or the rail): it waits where it is till you're over
+  if (c.hold) { if (trigHeld() && c.t <= c.delay) return; c.hold = false; }   // (the trigger held after the shot: it waits till it's let go)
   c.t += dt; const p = (c.t - c.delay) / c.dur, B = c.v.beat;
   // the case flies out as the action hits its rear stop
   if (!c.done && p >= B.back) { c.done = true; ejectCasing(W(c.id).ammo, 1, EJECT[c.id]); }

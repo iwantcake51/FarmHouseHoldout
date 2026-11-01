@@ -5,18 +5,42 @@ import { gunAtt, SCOPE_GUNS, suppressed, T, tierCtx, W8 } from '../game/run-stat
 import { heatAll } from '../effects/supp-heat.js';
 import { lensOn, reticleOn } from '../effects/scope-view.js';
 import { GM, X } from './gun-materials.js';
-import { cyl, lathe, profile, ring, rrect, shp, solid, taper, tapeWrap, xsec } from './gun-parts.js';
+import { cyl, knurl, lathe, profile, ring, rrect, shp, solid, taper, tapeWrap, xsec } from './gun-parts.js';
 
 // the handgun's heavy-duty can (an Osprey, eccentric: its bore near the top): across, tall, its top over the bore (under
 // the slide's own top, 1.9 cm over it), long, how round its corners are (metres)
 const OSPREY = { w: 0.032, h: 0.056, over: 0.017, L: 0.2, r: 0.007 };
+// a choke: a tube screwed into the muzzle, the barrel's own width (its radius r, one in each barrel at xs across), not a
+// can over it (CHOKE: its look, in metres and shares of the barrel's radius). The modified (tier I) is the flush kind,
+// blued black, standing just proud of the muzzle with the notches for its key round its rim; the full (tier II) the
+// extended kind, bright steel, a plain band out past the muzzle and a knurled grip on the end a touch wider (the photo's
+// two). Each open at the end, the bore dark inside
+const CHOKE = { flush: 0.012, slot: 0.0035, slots: 4, ext: 0.022, grip: 0.024, gripR: 1.12, wall: 0.72 };
+function chokeTubes(g, tier, front, y, C) {
+  const K = CHOKE, r = C.r;
+  C.xs.forEach(dx => {
+    const x = X + dx;
+    if (tier < 2) {
+      cyl(g, r * 1.004, K.flush, GM.metal2, x, y, front + K.flush / 2, 24);   // the flush tube, just out of the muzzle
+      // its notches for the key, round the rim: the rim in K.slots pieces with gaps between them
+      for (let i = 0; i < K.slots; i++) {
+        const a0 = i / K.slots * Math.PI * 2 + 0.25, a1 = a0 + Math.PI * 2 / K.slots - 0.55, sh = new THREE.Shape();
+        sh.absarc(0, 0, r * 1.004, a0, a1, false); sh.absarc(0, 0, r * K.wall, a1, a0, true);
+        const m = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: K.slot, bevelEnabled: false, curveSegments: 6 }), GM.metal2); m.position.set(x, y, front + K.flush); m.castShadow = true; g.add(m);
+      }
+      cyl(g, r * K.wall, 0.002, GM.rubber, x, y, front + K.flush - 0.002, 18);   // the bore, dark
+    } else {
+      cyl(g, r * 1.01, K.ext, GM.steel, x, y, front + K.ext / 2, 24);   // the plain band out past the muzzle
+      knurl(g, r * K.gripR, K.grip, GM.steel, x, y, front + K.ext + K.grip / 2, 22, 7, 0.0009);   // the knurled grip
+      cyl(g, r * K.wall, 0.002, GM.rubber, x, y, front + K.ext + K.grip + 0.0005, 18);   // the bore, dark
+    }
+  });
+  return tier < 2 ? K.flush + K.slot : K.ext + K.grip;
+}
 export function fitAttachments(g, D, front, y, info) {
   const isShell = D.ammo === 'shells', side = D.slot === 'side', k = side ? 0.8 : 1, muzzle = front;
   // muzzle devices: a choked shotgun has no room for a can
-  if (isShell && T('choke')) {
-    const L = T('choke') === 2 ? 0.13 : 0.07; cyl(g, 0.031, L + 0.008, GM.metal2, X, y, front + L / 2 - 0.004); ring(g, 0.034, 0.012, GM.steel, X, y, front + L - 0.006);   // threaded over the muzzle
-    for (let i = 0; i < (T('choke') === 2 ? 3 : 1); i++) ring(g, 0.033, 0.006, GM.poly, X, y, front + 0.02 + i * 0.03); front += L;
-  } else if (suppressed(D) && !D.quiet && !D.intSupp) {   // (the SMG's can is built into its barrel: weapons/gun-models.js)
+  if (isShell && T('choke')) { front += chokeTubes(g, T('choke'), front, y, (info && info.choke) || { r: 0.012, xs: [0] }); } else if (suppressed(D) && !D.quiet && !D.intSupp) {   // (the SMG's can is built into its barrel: weapons/gun-models.js)
     const s = T('supp'), n0 = g.children.length;   // (every piece of the can from here, its bands and clamp too, glows as it heats: heatAll)
     if (s === 1) {   // a blue spin-on oil filter screwed onto a threaded adapter: a smooth can with a rolled lip, a printed band, and a hose clamp
       const r = 0.056 * k, L = 0.15, c = front + 0.03 + L / 2;

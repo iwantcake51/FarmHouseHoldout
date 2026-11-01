@@ -59,7 +59,7 @@ export function recomputeEff() {
     if (loader && id === 'revolver') { D.perShell = 0; D.reload = REV_LOAD; D.speedload = true; }   // six at once
     else if (loader && id === 'scar') D.reload *= MAGWELL;   // a flared magwell: the new mag funnelled in, a quicker change
     else if (loader && D.breakOpen) { D.loadN = 2; D.perShell *= SOH.shell; D.shutMul = SOH.shut; }  // Sleight of Hand: both at once, quicker
-    else if (id === 'pump' && (S.tier.quick | 0) >= 2) { const q = S.tier.quick >= 3 ? TRIPLE : PAIR_LOAD; D.loadN = q.n; D.perShell *= q.t; }   // Quick hands II: two shells a go; III, Triple Load: three
+    else if (id === 'pump' && pumpLoad(id) >= 2) { const q = pumpLoad(id) >= 3 ? TRIPLE : PAIR_LOAD; D.loadN = q.n; D.perShell *= q.t; }   // Quick hands II: two shells a go; III, Triple Load: three (or an arena loadout's own loading, pumpLoad)
     if (W8.tune && W8.tune[id]) tuneUp(D);   // a workbench tune-up, per weapon
     reachCleave(D);   // long enough and it sweeps through more than one (melee/melee-stats.js)
     // a bigger headshot multiplier (zombies/zombie-types.js): match-grade rounds on any gun, a sight only on a sniper
@@ -140,9 +140,10 @@ function tuneUp(D) {
 export const GUN_TIERS = new Set(['ammo', 'trigger', 'mag', 'supp', 'sight', 'laser', 'light', 'choke', 'loader']);
 // the guns a real scope (the third sight step and up) goes on, and the last step each takes: the revolver its handgun
 // scope (on the rail it gets with any optic: weapons/gun-models.js), the hand cannon as far as an ACOG (on the rail
-// along its barrel: weapons/models-pistols.js optRail), the assault rifle the ACOG, the hunting rifle and
-// the SCAR the high-power scope (the SCAR every sight there is, on its long top rail)
-export const SCOPE_TOP = { revolver: 3, deagle: 4, ar: 4, hunting: 5, scar: 5 }, SCOPE_GUNS = new Set(Object.keys(SCOPE_TOP));
+// along its barrel: weapons/models-pistols.js optRail), the assault rifle and the LMG the ACOG (the LMG's on the rail
+// along its feed cover: weapons/models-rifles.js), the hunting rifle and the SCAR the high-power scope (the SCAR every
+// sight there is, on its long top rail)
+export const SCOPE_TOP = { revolver: 3, deagle: 4, ar: 4, lmg: 4, hunting: 5, scar: 5 }, SCOPE_GUNS = new Set(Object.keys(SCOPE_TOP));
 // each scope, by its sight step: how much it pulls the view in and out toward the aim while you aim (game/camera.js;
 // zoom is the old hold-to-scope view's, player/aiming.js), its power from your own eyes (mag: times; the ACOG's own,
 // SCOPE_ACOG), and how hard a sniper's headshots crit through it. Kept low enough to keep your bearings through them
@@ -158,6 +159,9 @@ export const REV_LOAD = 1.75, REV_OPEN_T = 0.38, REV_QUICK = 0.75, TRIPLE = { n:
 // own, and the barrels are closed after in SOH.shut of the time (weapons/reload.js: tickShut). From empty that's about
 // 0.7 s against 1.3 s without it
 const SOH = { shell: 0.8, shut: 0.75 };
+// how the pump's loaded, as a Quick hands step would have it: Quick hands' own, or an arena loadout's pair (1) or triple
+// (2) loading (W8.load, set by pvp/pvp.js from the title's Loadouts screen), whichever's further along
+const pumpLoad = id => Math.max(S.tier.quick | 0, W8.load && W8.load[id] ? W8.load[id] + 1 : 0);
 // the battle rifle's flared magwell (its loader step, upgrades/tier-table.js): what's left of a mag change with it
 export const MAGWELL = 0.75;
 export let tierCtx = null;

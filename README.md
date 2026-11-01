@@ -197,19 +197,49 @@ something to stand against; by day the haze out over the woods is a cool blue-gr
 out from the distance. Each hour has its own grade (a lavender dawn, a violet dusk), eased between like the rest of
 the light.
 
+**The ground and the floors** are drawn from Screaming Brain Studios' Tiny Texture Packs: the farm's grasses, bare
+earth and drive, the house's floorboards (four to the metre, their joints staggered), and every arena map's floor (the
+concrete, asphalt, tiles, carpet, packed dirt, ploughed soil and barn straw: see each map below). They're laid in
+metres across the world rather than stretched over a mesh, and never repeat where you'd see it: the loose ones
+(concrete, asphalt, dirt) are copies turned and shifted patch by patch and faded into each other, the tiles shifted
+a whole tile at a time so the grout still lines up, each board slid along its length its own way; a finer copy over
+the loose ones keeps them crisp up close, and a slow drift of light and dark over all of it breaks up what's left.
+Each is a small 128-pixel texture, mipmapped and filtered as finely as the graphics card allows, so they stay sharp
+without shimmering from above and don't blur or go blocky from your own eyes. On a map they bring only their grain,
+joints and grout: its colours, paint, oil and stains stay its own, and its lights, the dark, the flashlights and the
+blood land on them as before. (tools/pack-ground.py packs them; world/floors.js lays them.)
+
 **Guns.** A 9mm handgun, a .357 revolver, a .50 hand cannon, pump, double-barrel and auto shotguns, a hunting rifle, a
 battle rifle, a machine pistol, a submachine gun, an assault rifle and a light machine gun. Each one has its own
-reload: mags in and out, shells one at a time, speed loaders and belts. The LMG's belt hangs off the gun as a real one
-does: out of the feed tray flat, on out over its box and turning down in a short S, and straight down into the box near
-its inner side, the rest of it folded away inside. The loop swings softly as the gun moves and nudges with each shot,
-eased off toward the ends of its travel rather than snapping against them, while what's in the box stays put; the
-rounds in the box go first as the belt runs down, then the loop from the box end. At the workbench you can add sights, lasers,
+reload: mags in and out, shells one at a time, speed loaders and belts. The LMG's belt is a real chain of linked
+rounds, simulated: each round hinged to the next by its link (two loops round each case, bridged over to the next
+round's) at the belt's pitch, bending freely in its own plane up to where the rounds would touch, a little stiff, with
+only a little give fore and aft. It comes out of the feed port flat along a short feed tray under the cover's lip, over
+the tray's edge and down into the box, the rest of it lying on the stack folded away in there. It's stepped at a fixed
+240 steps a second whatever the frame rate (drawn between its last two steps), in the gun's frame, feeling the gun's
+motion through space as its own inertia: it swings and settles as you walk, turn, sprint, aim and reload, never
+stretches, and keeps off the box's walls, lip and floor, the tray and the receiver's side. Every shot pulls it a link
+on into the gun, the next round taking the port and the rest following over the tray's edge and up out of the box, so
+a burst visibly runs the belt in. Once fewer rounds are left than the belt shows, its end comes up out of the box and
+hangs off the tray, shorter with every shot. In a reload the cover's opened as the old box comes off (the belt let go),
+the fresh box comes up with its end lying loose in it, and once the box is on the end's laid over the lip onto the tray
+and drawn into the port. A teammate sees each round where yours are. At the workbench you can add sights, lasers,
 suppressors, stocks, grips and underbarrel grenades (a laser's beam is a fine line of light from its lens to its dot, the same width on screen however you look along it, never a flat strip), and change calibres with conversion kits such as AK mags for the
 battle rifle (rocked in front lug first, the AK way) or 10mm for the SMG. The double barrel's sawn-off kit cuts it to a coach gun: more pellets in a wider spread, each hitting 30% harder up close, but its short barrels drop it off hard (full damage only to 2.5 m, down to a fifth of it by 7 m, where the full-length gun holds to 4 m and keeps half past 11). Down the sights it's quicker on its feet than the full-length gun too (76% of your pace against 66%). Every slug, out of any shotgun, holds its damage far further than shot but still tails off: full damage to 10 m, easing down to 60% by 26 m and never below that. Out of the sawn-off a slug drops off hard instead, as its buckshot does: full damage to 3 m and down to a fifth by 8 m. The double barrel itself was too strong early on: it's now eight pellets of 16 a barrel (from nine of 19: 256 for both barrels, from 342), its second barrel follows a touch slower (0.12 s) and each shell takes 0.5 s to load (from 0.42); still the biggest burst up close, not by so much. You can also load special rounds (hollow points, slugs, flechettes and more) and
-tune damage, fire rate, recoil and magazine size. On the hunting rifle every optic goes on a picatinny rail along the
+tune damage, fire rate, recoil and magazine size. The hand cannon's longest mag is a straight stick, no curve at all,
+carrying on down out of the grip on the grip's own rake (leaning back as the grip does), a pressed panel down each
+side and the floor plate square to its foot with a lip out front; the
+machine pistol's magazine steps go from its stick to an extended stick and then straight to a drum (no casket). The
+shotguns' chokes are real choke tubes, as wide as the muzzle they thread into: the **Modified choke** (tier 1) a black
+tube sitting almost flush with a castellated rim, the **Full choke** (tier 2) an extended steel tube standing out past
+the muzzle with a knurled grip band, each with its dark bore (the double barrel's in both barrels). The hand cannon's
+bore is a full round hole out past its bevelled muzzle face, and the MP5's butt pad is closed at its foot. The LMG
+takes optics now (it took none): a red dot, a holo, the scope or the ACOG, nothing bigger, on a picatinny rail along its
+feed cover as an M60E4's, over the bore and well clear of the belt and tray, its ladder sight folded flat under it; the
+workbench, the arena's loadouts and its random kits all offer them. On the hunting rifle every optic goes on a picatinny rail along the
 receiver, like the other guns: the red dot, the holo and the ACOG straight on it, the scopes in picatinny rings clamped
 to it, both rings on the front of the receiver ahead of the ejection port, so nothing stands over the bolt (the barrel's
-rear notch comes off for the rail). The hand cannon takes sights up to the ACOG: the red dot and the holo on its slide,
+rear notch comes off for the rail). An optic on a handgun's slide (the handgun's red dot or holo, the hand cannon's) rides back with the slide only a quarter as far while you're down the sights, so each shot no longer throws the sight back into your eye (the kick still rocks the whole gun). The hand cannon takes sights up to the ACOG: the red dot and the holo on its slide,
 and a handgun scope or the ACOG on the rail along its barrel (which stays put while the slide works), held out at arm's
 length with a handgun's long eye relief rather than up against your eye. An optic on the auto shotgun goes up on its rear
 sight, as the real AA-12's does: a short picatinny rail across the top of the tall A-frame rear sight, running on
@@ -427,7 +457,9 @@ like an old camera feed, with faint scan lines and a brighter band rolling slowl
 their weapon as your own HUD does: a melee weapon shows its picture where a gun's round count would be, with the upgrades they've put on it (nails in the bat, and so on, at their levels). In a
 first-person game you watch from their own eyes: the camera is where theirs is, looking where they look, as wide as they
 see, with their arms and weapon posed as they see them (their head hidden out of the lens's way, their name tag gone,
-and their crosshair in the middle of your screen). If they're playing from above, you watch from above too. Clear a wave with nobody down and everyone gets a little
+and their crosshair in the middle of your screen). Blood that would land on their screen lands on yours: a hit they
+take, someone they shoot or cut close up, a head bursting near them, thrown in from the side it happened on against the
+way they're looking, just as it would be on your own (nothing gets on your own survivor or weapon while you watch). If they're playing from above, you watch from above too. Clear a wave with nobody down and everyone gets a little
 scrap. When a co-op run ends you're back in its lobby, with the title's Co-op marked by a green dot while you're in one.
 
 **The arena.** In a co-op lobby the host can pick **Arena** under **Game** in place of **Survival**: players against
@@ -441,8 +473,13 @@ the pickups feed) is put away. The host picks one of three modes:
   starts at its own end and respawns there. The first side to 20 kills wins.
 - **Showdown.** Two sides (1v1 up to 3v3), one life a round, first side to 5 rounds. Health doesn't come back:
   what you lose stays lost till the next round. Go down and the view dips to black and comes up on a teammate still
-  standing; you only ever watch your own side (no death camera on whoever got you), stepping between them with Q and E,
-  bots included, and from their own eyes in first person. The last side standing takes the round.
+  standing, stepping between them with Q and E, bots included, and from their own eyes in first person. Once your
+  whole side is down, the camera goes to the enemy who took the last of you down (whoever killed your last teammate,
+  or whoever killed you if you were the last): the death camera follows them as in the other modes, then you watch from
+  their eyes in first person (from above if that's your view). The strip at the top says so plainly: an **Enemy** stamp
+  in place of **Down**, "Watching the enemy" and their name in red, on a red-tinted strip. If they've gone down too
+  (a trade), you watch whichever of their side still standing is nearest where they fell; Q and E step through the rest
+  of their side. The last side standing takes the round.
   - **The flag.** Once the round's clock runs out (1:00 to start with), a flag goes up in the middle of the plaza, a
     ring on the ground round it. Stand inside the ring with nobody from the other side in it and your side's share
     builds; 5 seconds of it all told (the capture time) takes the round. The more of your side on it, the faster it
@@ -457,7 +494,8 @@ the pickups feed) is put away. The host picks one of three modes:
     attachments and mods drawn at random (a scope, a laser, a can, a choke, a speed loader, a lighter trigger, bigger
     mags; Slam fire, the 10mm kit, the AK conversion, a second pistol, burst and so on), and a melee weapon. Each is
     drawn at any of its levels, 1 up to as far as that line goes on the gun (a level II or III can, a scope up to the
-    gun's strongest, a mod at level I to III), but never the powder and never a tune-up. The same set lasts two rounds
+    gun's strongest, a mod at level I to III), but never the powder, never a tune-up and never a longer belt on the
+    LMG (a loadout kept from before with one goes in with the stock belt). The same set lasts two rounds
     (the host can make it 1, 2 or 3: Match settings), then a whole new one is drawn. A round with a new set shows it
     on a card for 3 seconds, the round's number on it; a round that keeps last round's skips the card and goes straight
     to the count-in, and your guns aren't drawn again for it. There's no picking, and no perks. **With each new
@@ -516,7 +554,7 @@ A bot has no wall hacks:
 
 - It sees you only when you're in front of it (or right beside it), within its range, with nothing in the way. Low
   cover like sandbags doesn't hide you.
-- It hears gunfire up to 28 m away (45 m in Deathmatch and Team deathmatch), or 9 m for a suppressed gun, and someone sprinting within 7 m. It only gets a
+- It hears gunfire up to 34 m away (45 m in Deathmatch and Team deathmatch), or 9 m for a suppressed gun, and footsteps (a sprint to 16 m, a walk to 8 m, crouched about a third of that). It only gets a
   rough idea of where the sound came from, rougher the further off it was.
 - A round that goes by it (within about 2 m) it takes as being shot at, and knows just where it came from.
 - It sees a laser's beam: if any of the beam (up to 24 m, stopping at the first wall) is in front of it and in plain
@@ -556,18 +594,45 @@ their aim faster, and their first two rounds after a breath spread 40% less.
 - **Crouching works on them**: someone crouched behind low cover is unseen past 4 m and their shots meet the cover.
 - Their hits and kills carry what's on their guns and their assists, for the kill feed.
 
+**Veterans, and playing like people (this batch).**
+- **Veterans are genuinely hard now** (Recruit and Regular play as before): reactions 0.10–0.17 s, a tighter first aim
+  that settles faster, about half the spread, a steadier hand on a held trigger, and they lead someone strafing rather
+  than trailing them. In a fight they cut back and forth unevenly, bob in a crouch, go for whoever's out in the open
+  over whoever's behind cover, press someone they've just slowed with a hit, and get out of the open when they're
+  tagged themselves.
+- **Hits slow bots as they slow you**: about half pace from a hit, a third from a heavy one, sprint broken, worn off over
+  a second and a half or two.
+- **Footsteps.** A bot hears a sprint out to 16 m and a walk to 8 m; crouch-walking is about a third as loud. Hearing
+  you coming round a corner, it gets ready: it waits crouched with its gun on the corner and leaned the way it'd see
+  you, or comes out at you first.
+- **Leans, quick peeks, new angles.** Peeking, bots lean out round their cover (head and shoulder, not the whole body;
+  veterans nearly always), fire a burst and pull back in rather than holding the angle, and come again from somewhere
+  else (a wide swing, the other side, or round another way) rather than peeking the same spot twice.
+- **Crouch to shoot straighter** far off (or with a gun in each hand some way off), as you do: crouching steadies a bot
+  just as it steadies you, and a crouched bot's harder to hit, behind low cover hidden from other bots.
+- **Down the sights they look it**: the head tips over onto the stock and the face screws up to aim, from outside and
+  from their own eyes when you spectate.
+- **Top off in a lull**: nobody seen or shooting at them for a couple of seconds, they reload a part-empty mag
+  (veterans almost any time, recruits only when it's half gone), a veteran stepping into cover first; topping off with
+  rounds still in it, they drop the reload to fight anyone who turns up.
+- **Use the whole map.** Each bot takes a lane (the two sides as often as the middle) worked out from the map itself, on
+  every map, and on a side lane it keeps out of the middle on long walks; more of them work the outer edges.
+- **Showing off.** Now and then (the cockier the bot, the likelier) a bot that's made a kill with nobody else about walks
+  over the body and crouches on it a few times. Counting in, and walking about after a round, some look their gun over
+  as you can (your own inspect moves), letting it go part way to get moving.
+
 - **Fights.** It strafes side to side, holds still behind low cover, backs off if its gun wants more range, or pushes
   in. In the open with low cover a few steps off that still has you in sight, it goes over to it and fights from
   behind it. Out from a peek or from cover onto you, it stays leaned out round it and fights from there for a second or
   two rather than stepping out into the open.
 - **Breaks standoffs.** Able to see you but with only the cover you're behind to shoot at, after 2 to 3.5 seconds it
   goes round to you (more often) or straight in, rather than the two of you sitting there.
-- **Gets out of a beating.** Taking 35 or more inside a second and a half, it breaks off at a sprint to cover out of
+- **Gets out of a beating.** Taking 45 or more inside a second and a half, it breaks off at a sprint to cover out of
   their sight and fights on from there, rather than standing in it. Hit in cover by someone it can't see from there,
-  it swings out at them straight away; and with nobody about it holds a corner 6 seconds at most before going on.
+  it swings out at them straight away; and with nobody about it holds a corner 3.5 seconds at most before going on.
 - **Goes where the fight is** (Deathmatch and Team deathmatch). With nobody in mind it heads for wherever shots were
-  fired in the last 8 seconds, at a run, rather than wandering; it backs off to heal only under 30 health (and only
-  till 70); it sprints more of the time; and it always shoots back at someone it can see.
+  fired in the last 8 seconds, at a run, rather than wandering; it backs off to heal only under 22 health (and only
+  till 55); it sprints more of the time; and it always shoots back at someone it can see.
 - **Doesn't sit and wait to be found.** In Showdown a bot that's badly hurt lies low for only 3.5 to 6 seconds before
   it gets on with it, carefully; and a side that's outnumbered no longer digs in to wait, it goes on, quieter and more
   often round the side. So the last one standing isn't a hunt for someone stood in a corner.
@@ -627,10 +692,27 @@ their aim faster, and their first two rounds after a breath spread 40% less.
   stopping for cover, and goes straight at whoever's on it.
 - **Watched from its own eyes:** when you're down in first person and watching a bot teammate, the view is its eyes,
   set where your own eye sits on a body (not out in front of its face), as wide as your own view, looking where it
-  looks (up and down too), leaning as it leans. Its arms and gun sit where yours do from your own eyes (a little right
-  and down, not dead in the middle of the view), and there's no teammate outline round them. Its gun and arms tip up and down with its look, so they point where it
-  does. The view moves as yours would: each of its shots kicks it up, each hit it takes makes it flinch, and its
-  stride bobs it. Watching a player, their own view already has all that; a hit they take flinches it too.
+  looks (up and down too), leaning as it leans. Its arms and gun are shown exactly as your own first-person view shows
+  yours for that weapon: the same hold, offset right and low, for every gun (handguns, machine pistols, sub guns,
+  rifles, the battle and hunting rifles, the machine gun, every shotgun including the auto shotgun) and its melee weapon,
+  recorded from your own view in the game for each weapon from the hip, down the sights, at a sprint and mid-reload. It
+  eases between them as the bot aims, sprints and reloads, breathes and bobs with its stride, and a weapon it switches
+  to comes up into view from below. Down the sights the sight it actually has (an optic or its iron sights) is brought
+  onto the middle of the view, and the view draws in as yours does; sights' glass is clear to look through. Each shot
+  kicks the gun up and back in its hands (as your own does, a shotgun hardest), the hands carried with it; a pump's
+  support hand rides the forend back and forward as it's racked, and a bolt gun's trigger hand goes up to the knob and
+  works the bolt. There's no teammate outline round it. The view moves as yours would: each of its shots kicks it up,
+  each hit it takes makes it flinch, and its stride bobs it. Watching a player, their own view already has all that
+  (their arms and gun as their view sent them); each of their shots also kicks the gun in their hands, and a hit they
+  take flinches the view.
+- **Seen from outside**, a bot's support hand rides its pump's forend as it's racked and its trigger hand works its
+  bolt, and anyone's gun flips up about the grip with each shot as well as kicking back.
+- **The poses were recorded again** after the first set caught the long guns, the sub guns and the hand cannon
+  mid-draw, still slung on the back, so from a bot's eyes the gun sat off the bottom of the view; now every gun is held
+  from the hip and down the sights exactly as your own is.
+- **No stall as a round starts.** A Showdown round's new loadouts used to build every bot's guns in the very frame the
+  round began (seconds on a slow machine); now each survivor's guns are built a few milliseconds' worth at a time over
+  the next frames, the one you're watching and anyone in view first, so the round starts smoothly.
 
 **Its side plans together** (the team modes, twice a second):
 
@@ -732,29 +814,61 @@ own, and every class carries more of its attachments and a mod than it did. The 
 the picker.
 
 **Loadouts.** The title screen's **Loadouts** button opens a gunsmith for the eight classes (ui/arena-loadouts.js),
-laid out like a shooter's: the classes down the left (1 to 8, or the up and down arrows), the slot tabs along the top
+in four plain groups: the points along the top, the classes down the left, the weapon and its attachments in the
+middle, and the weapons for the slot (with the class's perks) down the right. Words are set in Archivo, as on the
+co-op screen, at sizes that read; names and numbers in the game's condensed face. The attachments sit under a heading
+that says how many of the ten points that gun is using, and scroll in their own space in a small window (they never
+run over the foot). It is laid out like a shooter's: the classes down the left (1 to 8, or the up and down arrows), the slot tabs along the top
 (**Primary**, **Secondary**, **Melee**; Q and E step through them), the weapon itself in the middle, turning slowly in
 the same studio as the Character menu's (drag to turn it, scroll to zoom), with its arena damage, fire
 rate, capacity and reload under it (what the attachments add in green, what they cost in red), and a tile for each
 attachment slot it takes under that. Down the right, every weapon that can go in the slot, each pictured, and the
-class's perks, which stay as the class has them.
+class's perks, which stay as the class has them. The weapon lists are grouped under headings by kind (assault rifles, submachine guns, shotguns, DMRs, bolt action,
+light machine guns, handguns; a secondary's list puts the handguns first). The weapon in the middle turns slowly and can be
+turned with a drag and zoomed with the wheel, but not moved about (the right or middle button does nothing there). The
+points meter holds what something would cost while the pointer moves from one row to the next, rather than blinking off
+and on between them.
 
-- **Pick 10.** The two guns share 10 points. Each gun costs 1, and each step of an attachment 1 more (a scope at step
-  3 costs 3, a heavy-duty suppressor 3); the melee weapon is free. The meter along the top shows ten pips, the
+- **Pick 10.** The two guns share 10 points. Each gun costs 1, each step of an attachment 1 more (a scope at step
+  3 costs 3, a heavy-duty suppressor 3), a conversion kit 1 a step, the pump's pair loading 1 and triple loading 2;
+  a kind of shell is free (each is a sidegrade), and so is the melee weapon. The meter along the top shows ten pips, the
   primary's lit orange and the secondary's pale, and hovering anything shows what it would add (striped in) or give
   back (hollowed out). Anything that would go past 10 is dimmed and can't be picked; trying anyway shakes the meter.
 - **Attachments.** Click a tile for its next step, click a pip for that exact step (its own pip again takes that step
   off), and the cross or a right click takes it off. Only real attachments for that gun, as far as each goes on it
-  (the workbench's own limits): sights up to the gun's strongest scope, a can, a choke on the shotguns (it shares the
-  muzzle with the can: fitting one takes the other off), laser, light, the speed loader where there is one, the
-  trigger, the magazine. Never the powder, never a tune-up, never a mod.
+  (the workbench's own limits): sights up to the gun's strongest scope (the LMG's the ACOG), a can, a choke on the
+  shotguns (it shares the muzzle with the can: fitting one takes the other off), laser, light, the speed loader where
+  there is one, the trigger, the magazine (not on the LMG: in the arena it keeps its 100-round belt, no longer one). Never the powder, never a tune-up, and no mod but the conversion kits.
+- **Conversion kits.** A gun that has one gets a **Conversion** tile, one kit at a time, picked off a row of choices
+  with **Stock** first (the cross or a right click puts it back): the handgun's burst conversion (I or II, 1 or 2
+  points), full auto (the auto sear, the third step of that line: 3) or a second pistol (1); a second machine pistol
+  (1); the submachine gun's 10mm kit (1); the double barrel's sawn-off (I to III, 1 to 3); the battle rifle's AK kit
+  (1). They go on as the workbench's do, levels and all. A kit that takes a line's place (the AK kit the magazine and
+  magwell, the 10mm kit the magazine) shuts that tile while it's on, and gives back what was on it.
+- **Shells and loading.** A shotgun's **Shells** tile picks what it's loaded with: buckshot, slugs, flechettes or
+  dragon's breath, all free. It's the only kind it carries in the match (X has nothing to swap to). A slug hits as 60%
+  of a whole load of buckshot, in one, and carries far further. The pump's **Loading** tile picks how many shells go in
+  a go: one at a time (stock), pair loading (1 point) or triple loading (2), as Quick hands II and III load it (a class
+  whose perks already load it faster keeps the faster). The double barrel's Sleight of Hand stays its loader tile.
+- **Pros and cons.** Hover (or tab onto) any pip, tile or choice and a card over it says what that step or option does, in
+  two columns, **Gives** and **Costs**, a line each,
+  worked out from the gun with it against the gun without it: damage against a body (the arena's own), pellets, fire
+  rate, hip and aimed spread, recoil, rounds, reload, ADS speed, move speed and range, green where it helps and red
+  where it hurts, with what numbers can't say written in (muffled shots, zoom, bursts, full auto, no aiming down the
+  sights with a gun in each hand, a light for the night, fire that burns out past 8 m).
+- **Names.** Rename a class with its **Rename** button (on the row under the pointer), a double click on its name, or
+  F2: Enter or clicking away keeps it, Esc leaves it as it was, up to 18 characters, and an empty name puts its own back.
+  Your name for it is on the list, the class picker's cards, the class shown down the left in the match and its toasts;
+  the bots and everyone else's classes keep the stock names. **Reset to default** puts the name back too.
 - **Guns.** A primary is any long gun or automatic; the secondary a sidearm or any gun that rides in a different slot
   from the primary (the Rusher's double barrel behind an SMG), or **None** to put that point into the primary. A new
   gun starts bare. Picking a primary that rides where the secondary does takes the secondary off.
 - **Kept.** Every change is saved at once, per class, in this browser. A class you haven't touched carries its stock
-  kit, mods and all; change anything and it's yours, without the mods (the note under the perks says which it is). A
+  kit, mods and all (a stock conversion, the Scout's 10mm kit or the Rusher's sawn-off, shows on its tile and is
+  counted); change anything and it's yours, its conversion kept and its other mods left off (the note under the perks
+  says which it is). A
   dot by a class in the list marks one you've changed; **Reset to default** (or R) puts it back. Every stock class
-  already fits in 10 points (6 to 9), so none is trimmed. A kit carrying the LMG gets one spare belt, as the Gunner
+  already fits in 10 points (6 to 9, its conversion counted), so none is trimmed. A kit carrying the LMG gets one spare belt, as the Gunner
   does; anything else three mags.
 - **In the match.** Pick the class as ever and you carry your version of it, solo or online; the class picker's cards
   show it. Everyone else sees your guns as they are on you, attachments and all. The bots always carry the stock
@@ -827,6 +941,12 @@ like pea-shooters). To a 100-health body, before range falloff:
   stray pellets in the head from far off never nearly kill.
 - **Your head where it is.** A head leaned out round a corner is hit where it is, not over the middle of the body
   behind the cover: with your crosshair on it from your own eyes, it's a headshot.
+- **Where the reticle is, the round goes.** From your own eyes a shot leaves from your eye where it is as the view's
+  drawn (down the sights, on the sight's own line), not from the head above it, so there's no height over bore: the
+  reticle or the front post on someone's head is a headshot at any range, and just over their head is a miss. What a
+  round hits is whatever part of their body it actually goes into (their head, chest, arms or legs as they stand,
+  crouch or lean), not a band of height off the ground (those were set for a taller figure: a round at the middle of
+  the head went into the chest, and one just over the top of it counted as a headshot).
 - **Nothing fitted hits harder here.** A burst conversion, an auto sear, a match barrel or any other mod that adds
   damage against zombies adds none between players, for the balance (anything that lowers it still does).
 - **Fire modes.** A gun that can fire full auto or in bursts starts on the fullest it has (full auto over a burst over
@@ -861,11 +981,17 @@ like pea-shooters). To a 100-health body, before range falloff:
   it on a headshot), easing back.
 - **The sound:** a crisp, dry tick over the wet sound of it going in, with a thump through their body under it,
   heavier the harder it hit, and a bright ping on top through the head.
-- **Tagging.** A hit slows whoever takes it for a moment, as in Counter-Strike (a 22-damage rifle hit about 48%, a
-  heavy one up to 62%), wearing off over a second or two. Bots are slowed the same way.
+- **Tagging.** A hit slows whoever takes it hard, as in Counter-Strike but more so: any hit takes you down to about
+  half pace (a 22-damage rifle hit to about 45%), a heavy one to about a third, and breaks a sprint; it wears off over
+  a second and a half to two. Bots are slowed the same way.
 - Each hit makes the wet sound of it going in, a duller one to the head, and a burst head pops.
-- Down the sights, where the crosshair's put away, a hit shows its own marker over the sight: four short ticks that
-  pop out and fade, gold for the head, red for a kill.
+- Down the sights, where the crosshair's put away, a hit shows the crosshair's own hitmarker over the middle of the
+  sight: the same four strokes on the diagonals, the same size and the same quick pop and fade as from the hip, white for
+  a hit, gold for the head, red and bigger for a kill. It's drawn the same way as the hip one (the same strokes and
+  the same eased pop), so down the sights it's as smooth as from the hip.
+- **The hitmarker shows where you hit.** From the hip or down the sights, the marker sits over the point the round
+  struck (worked out from where it landed on them, seen from your own eyes), kept inside the crosshair's circle, so a
+  hit high on the shoulder shows up and right of the middle, a leg low; it holds there for its pop and fade.
 
 **Cover and sight.**
 
@@ -883,16 +1009,24 @@ like pea-shooters). To a 100-health body, before range falloff:
   zombies of a wave get (just their outline, not their gun or pack filled in through the wall), from above as a
   see-through shape. The line shows however close you're standing to the wall between you (anything within 1.2 m of
   your eyes used to hide it, so up against cover it went).
-- **Spawns** in Deathmatch and when you come back in a team game go to the spot furthest from everyone on the other
-  side, and never one any of them can see from where they stand, if there's any other choice.
+- **Spawns** in Deathmatch and when you come back in a team game go far from everyone on the other side, and never to
+  a spot any of them can see from where they stand, if there's any other choice; not always the very furthest, so
+  they can't be learned: any unseen spot at least three quarters as far as the furthest, picked at random.
 
 **Gore.**
 
 - Every hit throws blood off where it struck, on everyone's screen, and drips on the ground behind.
 - **Blood on your screen** when it's close: shoot someone within a few metres (the closer and the harder, the more), cut
   them with a blade, or burst a head right in front of you, and blood spatters your screen as zombie gore does.
+- **Where it comes from.** The blood comes in from where the hit was against where you're facing: someone shot in
+  front of you sprays the middle of the screen and out across most of it; shot off to your left or right, it comes
+  from that side of the screen, as if it flew in from there; anyone hit behind you puts nothing on your screen. Each
+  drop flies in from off its side and lands with a small splat (a quick swell and settle), the haze rising in behind.
 - When you're hit, the screen bloods from that side, your survivor stains, you flinch, and the hit indicator points
   at the shooter.
+- **Watching someone from their eyes** (down, in first person), their screen's blood is yours: a hit they take bloods
+  it from the shooter's side, and anyone they shoot or cut close up, or a head bursting near them, spatters it from
+  where it happened against the way they're looking.
 - A hit puts a fine red mist in the air where it went in, and blood out of their back the way the round was going:
   a spray behind them and drops splashing on the floor a metre or two back (more for a heavy round or the head).
 - A kill leaves a pool spreading under the body.
@@ -917,9 +1051,9 @@ like pea-shooters). To a 100-health body, before range falloff:
   **A round won** lights that side's panel up in its colour with a glint sweeping across it, its score pops, and its
   new diamond lands, scaling up past its size and settling, with a little burst of sparks off it when it's your side's.
   It's over in under two seconds, stays within the panel, and is left out with reduced motion.
-- **Watching someone** (whoever got you, or a teammate in Showdown) shows the strip saying who, under the score, and
-  their health and weapon along the bottom as your own would be, the damage card between them. Someone on the other
-  side is named in red.
+- **Watching someone** (whoever got you, a teammate in Showdown, or once your side's out the enemy who finished it)
+  shows the strip saying who, under the score, and their health and weapon along the bottom as your own would be, the
+  damage card between them. Someone on the other side is named in red, the strip stamped **Enemy** and tinted red.
 - **The kill feed** runs down the middle of the left side of the screen. Each line shows the killer and, after a +,
   anyone who assisted (did 30 or more to them that life; up to two, smaller), the weapon they used (its picture, drawn
   with the attachments that were on it in gold as your own weapon slots draw them, not plainly or with whatever you
@@ -930,10 +1064,14 @@ like pea-shooters). To a 100-health body, before range falloff:
 - **Big calls** come up for the round, **Fight**, and the round won or lost with the score.
 - **The scoreboard.** Hold Tab for everyone in the lobby, by side in the team modes: kills, deaths, K/D, damage done,
   accuracy, headshots, longest kill and ping (a bot's says BOT, the host's HOST).
-- **The results** come up at the end, even if you're down: a plain dark panel with Victory, Defeat or Draw, the final
-  score in each side's colour, the **MVP** (their picture, side, kills, deaths, damage, headshots and accuracy; picked
-  by kills first, then damage, headshots and accuracy, less a little for each death, and tagged in the table), and the
-  same table. **Rematch** (the host's) starts the same mode again with the same sides, back in the afternoon light;
+- **The results** come up at the end, even if you're down, on a sheet in the menus' own style (styles/pvp-results.css)
+  with a stripe of the outcome's colour along its top: **Victory** (green), **Defeat** (red) or **Draw** (grey) big
+  on the left, who won under it, and the final score on the right with each side's name over its number. Under that
+  the **MVP** on a gold-edged card of their own (their picture, side, and kills, deaths, damage, headshots and accuracy
+  in large numbers with plain labels; picked by kills first, then damage, headshots and accuracy, less a little for
+  each death), then the whole table: names in a plain readable face, numbers in the game's condensed one, each side
+  under its own coloured heading with its score, your row lit and the MVP tagged. The buttons sit at the foot on the
+  right. **Rematch** (the host's) starts the same mode again with the same sides, back in the afternoon light;
   **Lobby** goes back to the lobby.
 - **Going down.** Nothing crowds the screen: no black bars, no call over the middle. A moment after you fall a card
   comes up near the bottom: who got you (their picture), with what (its picture), a headshot and how far off, the
@@ -954,14 +1092,18 @@ like pea-shooters). To a 100-health body, before range falloff:
   for a couple of seconds as you come in, then faded back out of the way.
 - **The end of the match** slows the game down more and more as the last kill lands, to a dead stop about three
   seconds later, the results over the frozen moment. The clock and the HUD run on real time, so they carry on.
-- **Shot through the head**, your screen goes black at once, holds a moment, then comes up again over about a second
-  and a half as the death camera turns to whoever did it.
+- **Shot through the head**, it's a beat of its own: a white crack of a flash going red on the instant, the screen
+  crushed dark from its edges in a red-black vignette with a red heart to it, a high ringing in your ears (the world's
+  sound dulled under it); then the dark draws back
+  off the middle while the world stays drained of colour and a little out of focus, the colour seeping back as the death
+  camera turns to whoever did it, all of it gone in about 2.6 seconds.
 - **Space** skips the death camera a second after you go down: in the respawn modes you're straight back in (unless
   you've opened the loadouts), in Showdown straight on to watching a teammate. **F** opens the loadouts for your next
   life (the card says both).
 - **The death camera** goes to whoever killed you and follows them: from above it keeps them in the middle, and from
   your own eyes it draws out of yours and then follows from behind and above them, from your side. It lasts till
-  you're back in. Not in Showdown, where you only watch your own side. It stays on them even if they've gone down
+  you're back in. In Showdown only once your whole side is down (then it goes to whoever took the last of you down,
+  and on to their own eyes); before that you watch your teammates. It stays on them even if they've gone down
   since (a trade), looking at where they lie. The move over to them is one smooth curve from where your fall left the
   view, about a second and a half, lifting a little in the middle, its aim swinging round with it; where they stand
   and where it sits are smoothed, so their steps and the network's corrections never shake it (it used to chase them
@@ -988,69 +1130,124 @@ middle and about 5.5 s by either side lane):
   the flag between its two pools.
 - **South, the Food court**: medium range. Tables with stools and the food counters for low cover, the stalls along the
   south wall, a seating island in the middle so it's never seen end to end, open to the concourse either side of it.
-- Tiled floor (carpet in the stores, bare concrete back of house), a car park outside with the cars left in it. From
+- Tiled floor: metre tiles on the concourse with a dark diamond set at their corners, a checkerboard of granite
+  squares in the food court, a fine twill carpet in the stores, bare concrete back of house. A car park outside with
+  the cars left in it. From
   above the south and east walls are drawn cut down to waist height so nothing near them is hidden; from your own eyes
   they're full height, with the ceiling over you. You vault the pallets, counters, tables, planters and pools.
+- **The shelves' boxes can be shot off**: a round or a shotgun pellet that the shelving stops knocks off the box it
+  went into (from your own eyes the one its line meets; from above the one nearest the height it flies at, so the
+  next shot into the same spot takes the next one), in a burst of dust and scraps of cardboard with a dull crunch.
+  Bots' rounds do it too, and every player sees the same boxes go. They're dressing: the shelving still stops rounds
+  and sight. They all come back with the next round in Showdown; in Deathmatch and Team deathmatch each one's back
+  25 s after it went (and all of them at the next match). Any map can have them (world/arena-boxes.js).
+- **Dressed as a real mall**, none of it changing the cover: each shop's glass shows the shop behind it (clothes,
+  electronics, books, shoes, jewellery, toys) with its name lit on its sign band, the anchor stores' display windows
+  and names, slatwall hung with clothes along their outer walls; lit displays on the kiosks, a directory board (the
+  plan, you are here) and a bin on every pillar, bench boards round the planters; in the food court the stalls' menu
+  boards, tills and tray stacks on the counters, trays left on tables, banquettes and the Food court sign along the
+  seating island and a tray return at its end; back of house the lift doors, fire extinguishers, an electrical board
+  and safety posters. From your own eyes, overhead: a tiled ceiling, bulkheads down to the shop walls and a header
+  over every opening (exit signs over them), sprinklers, vents, cameras and banners. Nothing on a wall stands out
+  more than a quarter metre, every sign and picture sits clear of the face it's on (no z-fighting) and its words
+  always fit inside it.
 
 **Harlan Farm** is the outdoor farm map (world/arena-farm.js), not the farm you hold out on: a bigger working farm its
-people walled in against the dead with sheet tin, pallets and wire, and then gave up on. It's fought at the match's
-time of day; its yard lights (on the barn, the sheds, the wind pumps and poles in the hedgerow) come on at dusk. 42 by
-38 m, designed with the same three-lane workflow and checked by tools/farm-plan.py (every cell reachable, 20 spawn
-spots a side that nothing outside sees into, no spawn sees the other, no corridors one cell wide, no corner slits,
-nothing in the barn sees into the field, 4.2 s at a sprint from spawn to the flag through the yard, about 7 s by
-either side lane). The barn is the closest fighting of the three, the field the longest (the rifles' lane), the yard
-in between:
-- each side spawns in a **machine shed** with three ways out: north into its corral and south into the field (a rack
-  of parts just inside each, round its far end, so nothing outside sees in; a diesel tank outside the south door so
-  nobody far down the field watches it), and wide doors east onto the yard with the tractor and its hay wagon parked
-  out in front.
-- **North, the Barn**: close quarters. A big red barn burnt to its walls (its last charred rafters overhead from your
-  own eyes), stalls along its north wall, hay mows standing in it as islands with one in the very middle so it's never
-  seen end to end, its big doors at each end out of each side's corral (a stock trailer left standing in it), and a
-  door each side in its south wall into the yard, a mow just inside it so the yard never sees in.
-- **Middle, the Farmyard**: the contest. Between a grain silo in front of each barn door and a wind pump on its pump
-  house, the flag between two water troughs, "HARLAN" painted across the barn above it.
-- **South, the Field**: long range, but never seen end to end. Ploughed furrows with low cover (big bales, a rail
-  fence, culvert pipes by the dry irrigation ditch), a hay mow standing out in it each side, the farmhouse's burnt shell
-  in the middle (its chimneys standing, its windows boarded) and the corn crib against the south barricade; a gate in
-  the hedgerow each side, by the farmhouse and behind the wind pump, is the yard's way down into it. The longest lines
-  are a handful of 26-31 m diagonals corner to corner across it.
-- Outside: the woods close behind the barn, a gravel road down the west side with the power line and a burnt-out pickup
-  on it, stubble fields and a hay meadow on the camera's sides. From above the south and east barricades are waist
-  high with wire mesh over them, so nothing near them is hidden. You vault the bales, the fence, the troughs and pipes.
+people fenced and boarded up against the dead with whatever they had (sheet tin, pallets, wire, their own cars) and
+then left. It's fought at the match's time of day; its yard lights (on the barn, the sheds, the wind pumps and poles in
+the hedgerow) come on at dusk. 36 by 38 m, designed with the same three-lane workflow and checked by
+tools/farm-plan.py (every cell reachable, 16 spawn spots a side that nothing outside sees into, no spawn sees the
+other, no corridors one cell wide, no corner slits, nothing in the barn sees into the field, 3.7 s at a sprint from
+spawn to the flag through the yard, about 7 s by either side lane, nothing seen further than 25 m). It used to be 42
+m wide; the script still draws it at that width and leaves three columns of each half out, so the two sheds stand 6 m
+closer together. The barn is the closest fighting of the three, the field the longest (the rifles' lane), the yard in
+between:
+- each side spawns in a **machine shed** (corrugated walls, a tin roof over you from your own eyes, a bulb hung from
+  it, workbenches with vices and a pegboard of tools in its corners, racks of jerry cans, tyres and crates) with three
+  ways out: north into its corral and south into the field (a rack just inside each, round its far end, so nothing
+  outside sees in; the fuel tank up on its stand in its concrete bund outside the south door, so nobody far down the
+  field watches it), and wide doors east onto the yard with the tractor and its hay wagon parked out in front.
+- **North, the Barn**: close quarters. A big red board-and-batten barn on a concrete footing, white trim at its
+  corners and along its top; from your own eyes its gambrel roof on its trusses (a few sheets torn off, the sky through
+  them), the hayloft over the stalls along its north wall, its gable ends with the hayloft door and the hay hood over
+  it (from above you look in through where the roof would be). Hay mows stand in it as islands, a big one in the
+  middle so it's never seen end to end; its big sliding doors at each end, hung on their track, open onto each side's
+  corral (post-and-rail with woven wire, a hen house in it), and a door each side in its south wall, its leaf slid back,
+  opens into the yard, a mow just inside so the yard never sees in.
+- **Middle, the Farmyard**: the contest. A gravel drive with its tyre ruts from the sheds' doors round the tractors,
+  up to the barn doors and down past the wind pumps to the hedge gates; a grain silo in front of each barn door, the
+  flag between two stock troughs (a cast-iron hand pump at the north one, the ground churned to mud round them), a
+  woodpile by each wagon, "HARLAN" painted across the barn above it all.
+- **South, the Field**: long range, but never seen end to end. Corn stubble a hand high along the furrows (nothing to
+  hide behind or trip on), low cover (big bales, a rail fence half pulled down with its rails lying in the stubble,
+  culvert pipes by the dry irrigation ditch), a hay mow standing out in it each side, the farmhouse's burnt shell in the
+  middle (its chimneys standing, its windows boarded, its porch boarded up) and the corn crib against the south fence;
+  a gate in the hedgerow each side, hung back on its hinges, is the yard's way down into it.
+- Underfoot: packed dirt and grit over the yard and the drive, turned clods in the field and the corrals' mud, old
+  straw on the barn's floor, poured concrete in the sheds.
+- Its edge: the barn's and the sheds' own outer walls, post-and-rail round the corrals with pallets, sheet tin and a car
+  pushed up against it where they made it good, the hedge along the field's west side, a wire fence with barbed wire
+  along its south and east, and the farm gate in it chained shut with a pickup parked across it. On the camera's sides
+  (south and east) nothing stands much above the waist, so nothing near it is hidden.
+- Outside: the woods close behind the barn, the gravel road down the west side with the power line, a burnt-out pickup
+  and the mailbox and the farm's sign at the end of the lane, the irrigation main and its sprinklers along the south
+  fence, washing still on the line, a scarecrow in the corn nobody cut, a hay meadow with round bales east.
+- What dresses it never changes the fight: on the floor only what's flat or ankle high, the rest on walls, on roofs,
+  inside what's already solid in the plan, or past the fence. Every sign sits inside the face it's painted on, in front
+  of the boards and ribs, pulled forward in the depth test so it never flickers. What stands loose on the sheds' racks
+  and benches is its own mesh, listed on FARM_MAP.shelfItems, ready to be made shootable. You vault the bales, the fence,
+  the troughs, the pipes, the woodpiles and the workbenches.
 
 **Route 9** is the highway map (world/arena-route.js): a highway services stop on the way out of town, abandoned in
-the evacuation. The travel stop's store burnt out to its walls, the army's checkpoint left standing on the forecourt
-under the pumps' canopy, the highway past it jammed with the pile-up nobody came back for. It's fought at the match's
-time of day; the canopy's downlights, the sodium lamps on the walls and fence poles and the checkpoint's floods come on
-at dusk. 42 by 40 m, designed with the same three-lane workflow and checked by tools/route-plan.py (every cell
-reachable, 24 spawn spots a side that nothing outside sees into, no spawn sees the other, no corridors one cell wide, no
-corner slits, nothing in the store sees onto the highway, 4.5 s at a sprint from spawn to the flag across the
-forecourt, about 7.5 s by either side lane):
+the evacuation. The travel stop's store gutted by fire under its roof, the army's checkpoint left standing on the
+forecourt under the pumps' canopy, the highway past it jammed with the pile-up nobody came back for. It's fought at the
+match's time of day; the canopy's downlights, the sodium lamps on the walls and fence poles and the checkpoint's floods
+come on at dusk, and the work lamps on the store's walls run on the army's generator day and night. 42 by 40 m,
+designed with the same three-lane workflow and checked by tools/route-plan.py (every cell reachable, 20 spawn spots a
+side that nothing outside sees into, no spawn sees the other, no corridors one cell wide, no corner slits, nothing in
+the store sees onto the highway, no line over 29 m anywhere, 4.5 s at a sprint from spawn to the flag across the
+forecourt, about 7.3-7.7 s by either side lane):
 - each side spawns in a **lot at its end**, the garage and car wash's west, the motel's car park east (the same walls,
-  dressed differently), with three ways out: north into the side lot and south onto the highway (a wall stub just
-  inside each, round its far end, so nothing outside sees in) and a wide gate east onto the forecourt with the army's
-  truck parked across it.
-- **North, the Travel stop**: close quarters. The burnt-out store, in from the side lot by its side door or round
+  dressed differently): its team together in the middle of the lot between its two wall stubs, out of every sightline
+  (each round a random spot there, teammates next to each other: world/arena.js). Three ways out: north into the side
+  lot and south onto the highway (round a wall stub just inside each, so nothing outside sees in) and a wide gate east
+  onto the forecourt with the army's truck parked across it.
+- **North, the Travel stop**: close quarters. A real store: painted block walls up to its flat roof, a parapet round
+  it with ROUTE 9 MART along the front, lintels over its doors, its windows boarded over, the ice chest and the bin in a
+  bay of the front wall and the propane cage in one in the side wall. In from the side lot by its side door or round
   through the storeroom; gondolas either side of its front doors, the checkout, the walk-in cooler and restrooms in the
-  very middle so it's never seen end to end. Its front doors open onto the forecourt behind a pump island.
+  very middle so it's never seen end to end. From your own eyes its roof is on (stained ceiling tiles, dead strip
+  lights, one come down); from above it's cut away so you see in. Its front doors open onto the forecourt behind a
+  pump island. The boxes left on the gondolas can be shot off (a puff of dust and cardboard; they're back next round,
+  or after 25 s in a deathmatch).
 - **Middle, the Forecourt**: the contest. Past the truck, between the pump islands, onto the checkpoint under the
-  canopy ("EVAC POINT 9" painted round it): HESCO at its corners, sandbags round the flag.
-- **South, the Highway**: the long lane, low cover. Wrecked cars across both carriageways (gone round, not vaulted),
-  the median's jersey barriers, a sentry post off the blast walls at each end and, in the very middle, two tankers
-  jackknifed with their tractors wedged together across the median, so it's never seen end to end (the longest line,
-  about 31 m, runs along the westbound's shoulder). A slip road through the blast walls each side, behind a pump
-  island, is the forecourt's way down onto it.
-- Outside: the highway running on off both ends (the army's container roadblock across it west, the jam going on
-  east), the garage behind the west lot, the motel behind the east, the services' billboard and the power line north,
-  fields and woods. From above the fence along the highway and the east end is waist high with chain-link and razor
-  wire over it, so nothing near it is hidden, and the canopy is only its edge and its columns (its deck from your own
-  eyes). You vault the barriers, the counter, the crates and the dumpsters.
+  canopy ("EVAC POINT 9" painted round it): HESCO at its corners, sandbags round the flag (vaulted). The canopy's deck,
+  beams and downlights are there from your own eyes; from above it's only its edge and its columns.
+- **South, the Highway**: the long lane, reworked into three real ways along it, each at least three metres across,
+  each with its own cover and each broken once, staggered so none of them is the only way and nothing sees the
+  highway end to end (its longest lines about 28 m, corner to corner): the westbound's shoulder under the blast walls
+  (each slip road comes out behind the army's HESCO bunker), the median along its jersey barriers (vaulted, so you can
+  cross between the carriageways anywhere) into the two semis' tractors wedged together in the very middle, and the
+  eastbound along the guardrail past a school bus on its side, EVACUATION painted on it. Lane lines, a metre of
+  shoulder with rumble strips each side, manholes, skid marks and scorch round the wrecks.
+- Underfoot: coarse asphalt over the highway, the lots and the car park (the same out along the highway past the
+  fence), poured concrete under the canopy, along the store's front and in the garage's lot, half-metre speckled
+  tiles in the store under the soot.
+- Outside: the highway running on off both ends with its guardrails (the army's container roadblock across it west
+  under an I-9 NORTH / EVACUATION ROUTE gantry and the services' exit sign, the jam going on east), the garage behind
+  the west lot (its service bay with a car up on the lift and its car wash bay seen through their security grilles,
+  the office between them), the two-storey motel behind the east car park (numbered doors, the upper walkway's
+  railing and stair, the ice machine and the soda machine), the services' billboard and the power line north, fields
+  and woods. From above the highway's guardrail and fence and the car park's low wall are waist high with chain-link
+  and razor wire over them, so nothing near them is hidden. Every sign and decal sits flush on the face it's painted on
+  and inside it (never over an edge or round a corner), and nothing flickers through anything. You vault the
+  barriers, the sandbags, the counter, the crates and the dumpsters.
 
 **Yard 4** is an old freight yard in a clearing in the woods: its own woods now, a ring of pines past the terminal's
 apron (none close in on the camera's sides) on rough ground out to the horizon. Its walls carry a conduit with junction
-boxes, a breaker cabinet and a hose reel, and drain grates sit in the pad; the crate stacks are single crates now (the
-flat crate on top is gone), waist high. The vault prompt says what's there without "the": Vault crates, Vault barrier. It's a competitive three-lane map,
+boxes, a breaker cabinet and a hose reel, and drain grates sit in the pad (poured concrete, coarse asphalt on the
+apron round the walls); the crate stacks are pallets of stock now, waist high. The vault prompt says what's there
+without "the": Vault crates, Vault barrier. It's a competitive three-lane map,
 each lane its own kind of fight, laid out as open floors broken up by islands of cover rather than corridors, and
 checked by a script (tools/arena-plan.py) for reachability, spawn safety, sightlines, timings and one-cell-wide spots:
 
@@ -1062,8 +1259,10 @@ checked by a script (tools/arena-plan.py) for reachability, spawn safety, sightl
   out in the courtyard two metres off the gate and twice as long as it is wide. **Where you start** is worked out by
   the plan script: every open spot in the yard that no spot outside it can see (20 of them a side, over the back half
   of the yard). So the spawns are safe by the walls alone, never by a prop parked in the spawn. Everyone in a team mode
-  starts spread over those spots (in Showdown, a fresh spread each round, the same on every screen), never off in a
-  corner by a stub wall. **No spot outside a spawn can see a spawn spot, and no spot in one spawn can see any spot in
+  starts on those spots, never off in a corner by a stub wall. In Showdown a side starts somewhere different in its
+  yard each round (drawn by the round, the same on every screen) but together: one spot drawn anywhere in the yard and
+  each teammate on the next nearest free spot to it, a little shuffled and at least 1.4 m apart, so the team stands a
+  few metres across, never spread to the yard's far corners. **No spot outside a spawn can see a spawn spot, and no spot in one spawn can see any spot in
   the other.**
 - **The plaza door** (the flag's north approach) is three metres wide.
 - **North, the Warehouse floor: close quarters** (most sightlines 14 m or under). One big roofless hall, no rooms:
@@ -1111,7 +1310,7 @@ checked by a script (tools/arena-plan.py) for reachability, spawn safety, sightl
 - **The two halves** mirror each other, so neither side is better off: west against east, each spawn a hatched box
   painted plain white on the concrete (the sides swap ends in Showdown, so neither colour's on it). Eighteen spots
   spread round all three lanes are Deathmatch's spawns.
-- **Vaulting.** The crate stacks (1.4 m: a crate with a flat one on top) and the jersey barriers can be vaulted like
+- **Vaulting.** The pallets of stock (waist high) and the jersey barriers can be vaulted like
   the farm's fence: walk up to one (a **Vault the crates** or **Vault the barrier** prompt shows) and press the vault
   key, or sprint into it. **The sandbag walls can't be vaulted** (they used to be): you see and shoot over them, but
   you go round them. Nothing else of the farm's is in your bag: no planks.
@@ -1123,14 +1322,59 @@ checked by a script (tools/arena-plan.py) for reachability, spawn safety, sightl
   light for the whole match as it starts (the host draws it and everyone's game is sent it): mostly daylight, from
   morning to late afternoon, and now and then dusk or night (about one match in six is dark). **The clock never runs
   in the arena**, in any mode: the sun and shadows stay where the match (or the round) put them. Every game works it out from the score, so everyone's sky agrees.
-- **Floodlights** stand on poles in each corner, halfway along each wall, and four more round the middle, up on the
-  wall stubs at the flag ring's corners. They're **on only at night**: they come on as it gets dark and are off (dark
+- **Floodlights** stand on poles in each corner, halfway along each wall (the north wall's up off the yard office's
+  roof), and four more round the middle, up off the weighbridge booths' roofs. They're **on only at night**: they come on as it gets dark and are off (dark
   glass, no light, no halo, no flare) by day. Lit, their faces glow and bloom, with a soft halo round them, and one in
   sight shining your way throws a lens flare (as the sun does: the brightest two in view,
   stronger as it gets dark, gone when anything stands in front of the lamp).
 - **The walls** are 2 m precast panels on the north and west, waist high on the south and east (the camera's sides
-  from above), chain-link over all of them to 2.7 m, so the yard never feels walled in. On them the yard's name, its
-  warnings, an arrow to the west gate and a couple of tags.
+  from above), chain-link over all of them to 2.7 m, so the yard never feels walled in.
+- **A real place, not a test map.** The layout is exactly what it was (the plan, the cover, the sightlines and the
+  spawns are untouched, and tools/arena-plan.py passes as before); what changed is what each piece *is*, so the yard
+  reads as a working freight terminal that's been through something:
+  - **The warehouse burned out.** The north lane is its slab: its block walls broken off just over head height,
+    rubble and rebar along their tops, and its steel frame still standing over them (I-section columns at every bay,
+    the eaves beam along the north wall and the west end, knee braces at the column heads). Racking bays are still
+    painted along its north wall, the bays numbered on the wall (**BAY 1** to **BAY 4**, a callout for each stretch),
+    and the cover on its floor is pallets of stock left behind, cartons on a pallet, the bottom layer still
+    shrink-wrapped and strapped. The container stood against its north wall is the **yard office**, a portable cabin:
+    flat steel panels on a dark skid, two windows behind security grilles with the blinds down, its door and
+    nameplate, site rules on each end, an air conditioner on its roof and a floodlight's mast up off it.
+  - **Each spawn is the marshalling yard behind a gate.** The outer wall behind it is a steel sliding gate (a
+    corrugated leaf in a hollow-section frame, on its track, chained and padlocked, **WEST GATE** / **EAST GATE**),
+    in the same cells and as solid as the panels either side. The spawn yards' walls are finished blockwork with a
+    precast coping. A stop line and STOP are painted across each gate's way out.
+  - **The plaza is the weighbridge.** The flag stands on a steel checker-plate deck set flush in the pad, its panels
+    jointed, its ends striped, 60 T MAX at each end; the wall stubs at its corners are the weighbridge's booths
+    (blockwork under a roof slab, a door on the side away from the bridge, the window onto it boarded over so it never
+    reads as a way to see through, a WEIGHBRIDGE board).
+  - **The rail spur ends at the signal box.** The hut is a signal box: roofed, its door and nameplate north, its
+    windows along each siding boarded, an END OF SIDING board at each rail's end, and a colour-light signal mast up
+    off its roof (the south lane's landmark). A yellow edge line runs along the platform beside each siding.
+  - **The wall between the plaza and the rail spur** (it was a run of one-metre-thin "containers") is a wall of stacked
+    interlocking concrete blocks, three courses with staggered joints and studs along its top, **SIDING 1** and
+    **SIDING 2** stencilled on its rail side.
+  - **The containers are containers**: corrugated sides in their own colour, a frame (corner posts, top and bottom
+    rails, corner castings) standing proud only where nothing's against it, doors with locking bars at whichever end is
+    clear, an owner's code by a top corner and the line's name along the long ones.
+  - **The two-by-two box against the south wall is the transformer** that fed the floodlights: a green kiosk on a
+    plinth, louvred double doors, DANGER 11 000 V.
+  - **Outside**, the warehouse beyond the north wall has KESSLER FREIGHT · YARD 4 along its front, over the wall from
+    anywhere in the yard.
+- **Signs and stencils never cut off.** Every sign's text is sized to fit its plate (the font shrunk till it does), and
+  every sign on a wall is checked as the map's built to sit wholly on that wall, as high as its top, with nothing
+  standing in front of it (one that wouldn't is left out and reported in the console). The old ones that didn't (the
+  yard's name painted behind the office, a tag too wide for its canvas, signs the conduit ran across) are gone or
+  moved; the conduit now runs in stretches between whatever stands against the wall, turning up into the wall at each
+  end instead of running into the office and the block walls.
+- **No flicker (z-fighting).** Nothing is built in the same plane as anything else it overlaps: the blockwork, the
+  containers' sides, the concrete blocks and the gates are made only on the faces nothing stands against (no faces
+  buried in a neighbour), the apron has the yard's pad cut out of it instead of lying a few millimetres under it, the
+  outer wall's seams, its grime and its signs each stand their own distance off the panel, the corner caps stand
+  higher than the caps beside them, the sandbags no longer overlap one another, and the barriers' warning paint, the
+  drums' hoops, the containers' roofs and rails, and the roller doors' slats were all pulled out of their bodies'
+  planes. The block walls are never lower than they stand in the plan, so blood never hangs in the air over a
+  ragged top.
 - **A yellow walkway** is painted along the warehouse floor's south wall.
 - **Blood** lands on the arena's walls too: on the block walls, the containers and the outer wall behind whoever's hit,
   and a head burst spatters every wall near it.
@@ -1140,7 +1384,7 @@ checked by a script (tools/arena-plan.py) for reachability, spawn safety, sightl
 - **Underfoot** it's concrete, and so are the footsteps (the pack's hard tile recordings).
 - **Outside** is the rest of a freight terminal on a worn asphalt apron 70 m across, with the woods cleared back from
   it. The trees there aren't drawn at all while the arena's up, even by the forest's own per-frame culling.
-  - On the far sides from the camera: a long warehouse with its roller doors, containers stacked three high under a
+  - On the far sides from the camera: a long warehouse with its roller doors and the terminal's name, containers stacked three high under a
     yellow gantry crane, two-high stacks along the west, and a light tower.
   - On the camera's sides, only low things: a rail line with a flatcar, pallets, a forklift and a line of barriers.
   - From your own eyes the crane and the stacks make a skyline over the walls.
@@ -1203,10 +1447,12 @@ from about 1.33 m to about 1.06 m and a crouched head is hidden behind waist-hig
 It eases down and up (a little quicker going down). By default a press crouches you and another stands you up;
 Settings, Camera, Crouch switches it to Hold. Crouched you walk at 55% of your pace with shorter steps, your
 footsteps are about a third as loud (to you and to everyone else), and your spread is 35% tighter (from the hip and
-down the sights). From your own eyes the head goes down and comes up on a spring, sinking a touch past the crouch and
-settling, the view nodding down as you drop and lifting as you rise with a slight roll; the view is 4.5% narrower
-while crouched; and the gun and your arms cant in a little toward the middle (a quarter as much down the sights) and
-lag up and back on the way down and up. A sprint or a vault stands you up; a vault from a crouch starts from it, the
+down the sights). Crouched you're braced, too: the gun's sway and wander, from the hip and down the sights or a scope,
+drop to 60% of standing, so the sight picture holds steadier, and every shot kicks 15% less (the view's climb, the
+crosshair's walk and the gun's jump in your hands). From your own eyes the head goes down and comes up on a spring, sinking a touch past the crouch and
+settling, the view nodding down as you drop and lifting as you rise (gently: under 2 degrees at its most, damped so
+it barely carries past); the view is 3% narrower while crouched; and the gun and your arms cant in a little toward the
+middle (a quarter as much down the sights) and lag a touch on the way down and up. A sprint or a vault stands you up; a vault from a crouch starts from it, the
 hips coming up out of the bend into the vault's own crouch, never popping up to standing first. In the arena everyone
 sees you crouch (your pose carries it), and a crouched player's head, chest and legs are all lower for the shots that
 meet them; crouched behind low cover, nothing of you shows over it from above. Tear a board down moved to G, by the board
@@ -1306,7 +1552,7 @@ the end of the rail with a white dot on its back, lined up between the two white
 in the rear combat blade on the slide. Your eye's focused on the front sight, so the parts of the gun nearer
 your eye are as out of focus as they would really be, by distance and the size of your pupil: the rear aperture, a
 hand's breadth from your eye, goes soft and its hole opens up a little for the blur, while a handgun's rear notch is
-only a touch soft. The AR's carry handle sits low enough ahead of its rear sight that you see the front post over it. The AR's charging handle is a plain T at the back of the upper with its latch. The battle rifle's rear sight is built like the real flip-up: a cross drum with a ribbed knob each end, a round post with a knurled wheel, and a forked head, two ears either side of the aperture's tab with a slot between, the tab rounded over a wide hole. The battle rifle's charging handle rides on its bolt carrier: it runs back and forward with every shot and stays locked back with the bolt on an empty mag, until the reload sends it home. Its bolt only locks back when it's run dry: changing a mag with rounds still in it, the bolt (and the handle with it) stays home all the way through, as on any of the rifles, and nothing's charged at the end. A
+only a touch soft. The AR's carry handle is shaped like the real detachable A2/A4 handle: one bridge off its rail base, a thin upright at the front and a wide block at the back holding the rear sight, the bar between them over a long open window, its top running level off the block and sloping gently down to the front. The rear sight sits down in that block (the aperture in a notch between two low rounded wings, the windage knob on the right, the elevation drum under it) rather than standing up above the rest of the handle, and the bar stays just below what you see through the aperture, so the front post shows over it. The AR's charging handle is a plain T at the back of the upper with its latch. The battle rifle's rear sight is built like the real flip-up: a cross drum with a ribbed knob each end, a round post with a knurled wheel, and a forked head, two ears either side of the aperture's tab with a slot between, the tab rounded over a wide hole. The battle rifle's charging handle rides on its bolt carrier: it runs back and forward with every shot and stays locked back with the bolt on an empty mag, until the reload sends it home. Its bolt only locks back when it's run dry: changing a mag with rounds still in it, the bolt (and the handle with it) stays home all the way through, as on any of the rifles, and nothing's charged at the end. A
 shot's muzzle flash and its glow are hidden by the gun in front of them down the sights, and its light isn't smeared
 out over the out-of-focus rear sight. An optic on the MP5 sits on a claw mount, clear over its drum sight, and looking through the drum itself your eye's a little further back off it, so the drum doesn't fill the view. A handgun's irons are held a little further from your eye, so the slide slamming back with each shot (the rear sight rides on it) no longer swamps the view; the hand cannon's rear sight sits on a base no wider than itself, wholly under its notch, and its ported compensator's top and ports sit well under the sights. An ACOG on the hand cannon sits further back on its barrel rail and closer to your eye, its picture bigger. Every rifle scope has a rubber eyecup: from your own eyes a dark shell round the scope's picture, as an ACOG's body is, with your eye far enough back to see it. The pump has a picatinny rail along its receiver: an optic goes on it, and with one fitted both ghost ring sights come off, the back of the receiver left smooth with the rail running back to it. Each round
 flies the line you looked down: up into the sky (a round that meets nothing streaks on out of sight rather than stopping in mid-air, and from your own eyes it clears whatever it passes over: a wall below the eaves, the house's roof, the narrowing crown of a pine), or down into the ground where it kicks up dirt, its streak of light
@@ -1465,7 +1711,8 @@ the hip rather than coming back to the middle for the reload. Down the sights a 
 revolver) comes down off your eye while it's open and being loaded, so its barrels or cylinder aren't swung up into
 your face, and goes back up to it once it's shut if you're still holding aim. The flashlight points down the gun's barrel,
 easing after it, its pool brighter and paler the closer what it falls on (a wall right in front of you is lit hot, as a
-real torch's is, while across a room it's as before), and smoke and sparks thin out near the middle of your sights so they don't hide what you're aiming
+real torch's is, while across a room it's as before) and its spill falls only ahead of the lens: your own arm and
+hand behind it stay unlit (it lights them only where they're really in front of the beam), and smoke and sparks thin out near the middle of your sights so they don't hide what you're aiming
 at. Coming over a fence or a sill, the view turns smoothly to where you're looking once your hands are free. A zombie caught in your flashlight's beam after dark (or a teammate's) gets its pale outline from your own eyes too, and the last few zombies of a wave get their pulsing red outline, seen through walls: only your own arms and gun stand in front of it.
 Walking bobs the view softly, the way your head really rides on a stride: a small, rounded rise and fall with each
 step, a slight sway and roll toward the foot you're on, all eased in and out with no jolts, and the gun and your arms move on their own soft springs: tilted
@@ -1531,7 +1778,9 @@ into the next without a jump: after the last shell the hand comes off the loadin
 pump and takes hold of it before it's worked, and the hand on the bolt eases back to the grip. A pump or a bolt is
 never yanked out of nowhere: there's a beat first, the grip set and the gun easing a touch the other way from where the
 stroke will throw it, then the stroke snaps through on the same timing as before (so the sound and the case flying out
-still land on it), bounces off its stops and the gun follows through on its loose spring. A gun you've drawn doesn't
+still land on it), bounces off its stops and the gun follows through on its loose spring. Hold the trigger down after
+a shot and the pump or bolt isn't worked till you let go of it (the gun stays on target, the action shut, for a
+follow-up look), then it's racked; a pump with Slam fire is worked trigger down, as it fires as you pump it. A gun you've drawn doesn't
 stop dead in the hold either: it carries on a hair up as it gets there and seats back into your hands, a heavy one
 more. A draw is paced by how far the whole gun travels, its muzzle and butt as well as the grip, and it slows into its
 sharp turns (a long gun's muzzle dipping into the low ready before it comes up to the shoulder), so nothing pops or
@@ -1563,12 +1812,15 @@ coming up across your view.
 
 **The M4's flick.** With the AR's own 30-round box in it (any bigger mag reloads the usual way), a mag change is
 flicked: the thumb hits the release, the support hand goes straight off the handguard for the pouch, and the trigger
-hand cocks the rifle a touch the other way and whips it out to the side, canted hard over, so the empty mag is flung
-out of the well mid-flick and goes tumbling away (on your teammates' screens too). The wrist catches it, carries on a
-touch past and rocks back, then swings the rifle back in, past straight, to show the well to the fresh mag, which goes
-straight up and is driven home hard enough to buck the gun. Run dry, instead of the charging handle the heel of the
-support hand comes up off the mag and slaps the bolt catch, the bolt slamming home. Every move is eased on a springy
-curve, never a straight line, and the reload takes exactly as long as the plain one.
+hand eases the rifle a touch the other way, then snaps it over on the wrist, its top rolled in and the gun swung out to
+the right, so the empty mag is flung out of the well mid-flick, at the snap's quickest, and goes tumbling off up and
+out to your right (from your own eyes you see it go; on your teammates' screens too). The wrist whips through, carries
+the rifle on past, rocks it back and holds it out a beat, then eases it slowly back into the reload while the support
+hand is already coming up with the fresh mag, which goes straight up the well and is driven home hard enough to buck
+the gun. Run dry, instead of the charging handle the heel of the support hand comes up off the mag and slaps the bolt
+catch, the bolt slamming home. It's one continuous motion: the gun follows the wrist on a springy curve worked out
+ahead, so nothing in it starts or stops dead and its speed never jumps, and the reload takes exactly as long as the
+plain one.
 
 **Back to the hold.** Once a reload's last beat is done, the gun comes out of the reload pose on a critically damped
 spring: it sets off from rest, eases out and settles into the hold over about half a second, instead of leaving at
@@ -1586,7 +1838,10 @@ above) points at it and keeps pointing as you turn, fading over a second or so, 
 shakes back along that line as it settles. In first person your head flinches from the blow: it snaps back from one in
 front (forward from one behind), turns and tips away from the side it came from, the eye jolted back a couple of
 centimetres, and comes straight back to where you were looking within half a second, harder for a harder hit and as
-strong as **Screen shake** lets it. None of it covers the middle of the screen.
+strong as **Screen shake** lets it. None of it covers the middle of the screen. Down the sights the flinch is a smaller jolt (under
+half as big, with much less roll and none of the eye jolted back), and the view and the gun on your eye move as one,
+so the sight picture stays together instead of the optic being knocked off your eye; the screen shakes about half as
+much too.
 
 **Low health.** Your hands tremble and the crosshair wanders, a heartbeat knocking it now and then: a slow, smoothed
 tremble, small from your own eyes and kept calm from above too, never a jitter.
@@ -1912,7 +2167,10 @@ artists, under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) (the ne
 set's [Iconify package](https://www.npmjs.com/package/@iconify-json/game-icons)). Keyboard and mouse prompts from
 Kenney's [Input Prompts](https://kenney.nl/assets/input-prompts), and the shield, skull, hourglass, locks and the
 other small icons in the menus from Kenney's [Board Game Icons](https://kenney.nl/assets/board-game-icons) (both
-CC0). Built with [three.js](https://threejs.org) and [PeerJS](https://peerjs.com).
+CC0). The ground, the floors, the rocks' grain and the hay bales' straw are from
+[Screaming Brain Studios](https://screamingbrainstudios.itch.io)' Tiny Texture Pack, Tiny Texture Pack 2 and Tiny
+Texture Pack 3 (CC0; in assets/textures as they come, and packed by tools/pack-ground.py: only the textures used are in
+the game). Built with [three.js](https://threejs.org) and [PeerJS](https://peerjs.com).
 
 Every icon comes from those packs, with one exception: the rarity stars on upgrades (at the stations and on the cards)
 are drawn in code, because neither set has a plain five-pointed star (and their liquid fill is built on that shape).

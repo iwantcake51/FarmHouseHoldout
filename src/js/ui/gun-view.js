@@ -26,6 +26,10 @@ let yaw = 1.1, pitch = 0.16, gvZoom = 1, idleT = 9, drag = null, gvLen = 0.5, gv
 // showing you rather than a weapon: where on you the camera's headed (fig.to: the point, how far back, from which way
 // round and how far above) and where it is on the way there (fig.at, fig.dist), and each part of you the views look at
 let fig = null, gvRig = null, gvFloor = null, gvSpin = true;
+// no moving it about (the right or middle button, or Shift, dragging it up, down and across): the arena's Loadouts
+// screen keeps each weapon where it's framed, only turned and zoomed (ui/arena-loadouts.js); let go again when it shuts
+let gvNoPan = false;
+export function studioNoPan(on) { gvNoPan = !!on; }
 const figPart = new Map();
 // the studio's lights: [colour, strength, and where from (to the camera's right, up, toward it)]; sky: [above, below, strength]
 export const STUDIO_LIGHT = { sky: [0xfff0dc, 0x1c1610, 1.15], key: [0xfff0dc, 3.4, 1.6, 2.4, 2.2], fill: [0xc4d6ff, 1.05, -2.3, 0.8, 1.4], rimW: [0xffc48a, 2.6, -1.5, 1.9, -2.4], rimC: [0xa8c0ff, 1.5, 1.9, 1.4, -2.1] };
@@ -64,7 +68,7 @@ function setup() {
   gvFloor = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: BLOB_TEX, color: 0x000000, transparent: true, opacity: 0.55, depthWrite: false }));
   gvFloor.scale.set(1.1, 1, 0.8); gvFloor.position.y = 0.004; gvFloor.visible = false; gvScene.add(gvFloor);
   // the left button turns it; the right or middle button, or the left with Shift held, moves it about (pan)
-  gunView.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, yaw, pitch, pan: e.button === 2 || e.button === 1 || e.shiftKey, aim: gvAim.clone() }; try { gunView.setPointerCapture(e.pointerId); } catch (er) {} idleT = 0; });
+  gunView.addEventListener('pointerdown', e => { if (gvNoPan && (e.button === 2 || e.button === 1 || e.shiftKey)) return; drag = { x: e.clientX, y: e.clientY, yaw, pitch, pan: e.button === 2 || e.button === 1 || e.shiftKey, aim: gvAim.clone() }; try { gunView.setPointerCapture(e.pointerId); } catch (er) {} idleT = 0; });
   gunView.addEventListener('pointermove', e => {
     if (!drag) return; idleT = 0;
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;

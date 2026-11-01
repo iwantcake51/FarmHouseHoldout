@@ -24,6 +24,7 @@ import { springTo } from '../game/camera.js';
 import { beatT, ECG_R } from '../ui/vitals.js';
 import { ANIM } from './animation.js';
 import { fpOn } from '../game/view-cam.js';
+import { crouchKick, crouchSteady } from './crouch.js';
 
 const SHAKY_HP = { from: 0.3, to: 0.05 };
 // the crosshair's wander at its worst (screen px at 1080 high, scaled with the window), and how hard a heartbeat kicks it
@@ -122,7 +123,7 @@ export function xhKick(D, id, pw, auto) {
   if (!hasMouse || tStick.R) return;
   const sp = D.spread * S.spreadMul * (aiming ? (D.aimK || 1) : (D.hipK || 1)), sp0 = (WEAP[id] || D).spread || sp;
   const tight = clamp(sp / Math.max(1e-4, sp0), auto ? XREC.autoTight : 0.3, 1.2), ads = aiming ? (auto ? XREC.adsAuto : XREC.adsSemi) : (D.hipKick || 1);
-  const amt = XREC.px * innerHeight / 1080 * Math.pow(pw, 0.7) * tight * ads * (auto ? XREC.autoK : 1);
+  const amt = XREC.px * innerHeight / 1080 * Math.pow(pw, 0.7) * tight * ads * (auto ? XREC.autoK : 1) * crouchKick();
   _xv.set(P.x, GUN_Y, P.z).project(cam);   // (out along your aim: from you on the screen toward the cursor)
   let dx = mouseX - (_xv.x + 1) / 2 * innerWidth, dy = mouseY - (1 - _xv.y) / 2 * innerHeight; const L = Math.hypot(dx, dy);
   if (L < 1 || fpOn()) { dx = 0; dy = -1; } else { dx /= L; dy /= L; }   // (from your own eyes your aim's straight ahead: a shot climbs it up the screen; you're behind the view, so placing you on it would point it down)
@@ -190,7 +191,7 @@ function updateXhRecoil(dt) {
   // (how much you're moving, eased both ways: a climb counts as moving, though it carries you without a velocity, so
   // the sway doesn't drop away the moment you go over and jump back as you land)
   XR.mv = (XR.mv || 0) + ((P.vault ? 1 : Math.min(1, Math.hypot(P.vx, P.vz) / 3)) - (XR.mv || 0)) * Math.min(1, dt * XWORK.mvEase);
-  const t = XR.t, mv = XR.mv, amp = ((XSWAY.px + XSWAY.move * mv) * (D && !D.melee ? gunUnsteady(D, curId()) : 1) + (D && !D.melee ? XSWAY.front * (frontHeavy(curId()) - 1) : 0)) * innerHeight / 1080 * XR.sk * (1 + XR.un) * (1 + XHIT.sway * XR.hb);
+  const t = XR.t, mv = XR.mv, amp = ((XSWAY.px + XSWAY.move * mv) * (D && !D.melee ? gunUnsteady(D, curId()) : 1) + (D && !D.melee ? XSWAY.front * (frontHeavy(curId()) - 1) : 0)) * innerHeight / 1080 * XR.sk * (1 + XR.un) * (1 + XHIT.sway * XR.hb) * crouchSteady();   // (braced crouched: player/crouch.js)
   const heave = Math.sin(XR.bt) * amp * XWORK.heave * Math.min(1, XR.un);   // (the chest rising and falling)
   // (the stride's own swing: across with each step, a sharp dip each time a foot lands, STEP)
   const ph = P.phase || 0, stride = mv * XR.sk * innerHeight / 1080 * (D && !D.melee ? 0.6 + 0.4 * gunUnsteady(D, curId()) : 1);
@@ -201,7 +202,7 @@ function updateXhRecoil(dt) {
   // hurt you are (HOLD_SWAY.hurt of how shaky hands are, SHAKY), the more it wanders, the scope's picture with it
   const g = D && !D.melee && state === 'play' && !P.dead ? 1 : 0;
   XR.hk += (g - XR.hk) * Math.min(1, dt * 3);
-  const hl = ((1 + XSWAY.move / XSWAY.px * mv) * (g ? gunUnsteady(D, curId()) : 1) + (g ? XSWAY.front / XSWAY.px * (frontHeavy(curId()) - 1) : 0)) * (1 + XR.un) * (1 + XHIT.sway * XR.hb) * (1 + HOLD_SWAY.hurt * SHAKY.k) * XR.hk;
+  const hl = ((1 + XSWAY.move / XSWAY.px * mv) * (g ? gunUnsteady(D, curId()) : 1) + (g ? XSWAY.front / XSWAY.px * (frontHeavy(curId()) - 1) : 0)) * (1 + XR.un) * (1 + XHIT.sway * XR.hb) * (1 + HOLD_SWAY.hurt * SHAKY.k) * XR.hk * crouchSteady();
   XR.hx = (Math.sin(t * 0.9 + 1.3) * 0.6 + Math.sin(t * 1.7 + 0.4) * 0.4) * hl;
   XR.hy = (Math.sin(t * 0.7 + 2.1) * 0.6 + Math.sin(t * 1.3 + 3.7) * 0.4) * hl + Math.sin(XR.bt) * hl * XWORK.heave * Math.min(1, XR.un);
 }

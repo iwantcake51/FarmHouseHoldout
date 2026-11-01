@@ -205,10 +205,10 @@ export const SMG_MODELS = {
     box(sk, 0.0135, 0.0025, 0.16, GM.rubber, X, 1.0985, 0.355);   // the groove down the bar
     profile(sk, shp(inset([[0.185, 0.9272], [0.2017, 0.9283], [0.2068, 0.933], [0.2277, 1.0321], [0.2239, 1.0446], [0.224, 1.0523], [0.2299, 1.0606], [0.2381, 1.0645], [0.2485, 1.074], [0.2688, 1.0822], [0.2695, 1.1068], [0.2676, 1.1103], [0.1965, 1.1084], [0.1906, 1.1066], [0.188, 1.1037], [0.1864, 1.0696], [0.1837, 1.0617], [0.1811, 0.9729], [0.1782, 0.9363], [0.1794, 0.9309]], 0.003)), 0.024, P, X, 0.003);
     cyl(sk, 0.0042, 0.032, GM.steel, X, 0.997, 0.2015, 12).rotation.set(0, 0, Math.PI / 2);
-    // ---- the magazine: its top up in the grip, a stick longer each tier with its count windows, or a drum at the top
+    // ---- the magazine: its top up in the grip, the stick or the extended stick with its count windows, or the drum (its second step)
     box(mg, 0.0256, 0.15, 0.0552, K, X, 0.995, 0.629);   // (a hair inside the grip it sits up in, so their faces don't flicker through each other)
-    if (mt < 3) {
-      const L = 0.133 + 0.05 * mt, yb = 0.912 - L;
+    if (mt < 2) {   // (stock, then the extended stick; its second step is the drum: MAG_STEPS, upgrades/upgrades.js)
+      const L = 0.133 + 0.06 * mt, yb = 0.912 - L;
       profile(mg, shp(inset([[0.5993, 0.925], [0.66, 0.925], [0.66, yb + 0.028], [0.6585, yb + 0.002], [0.654, yb], [0.6074, yb], [0.6014, yb + 0.002], [0.5991, yb + 0.006]], 0.002)), 0.026, P, X, 0.002);
       [-1, 1].forEach(sd => { for (let k = 0; k < 3 + mt; k++) box(mg, 0.001, 0.016, 0.007, GM.rubber, X + sd * 0.0149, 0.885 - k * 0.04, 0.646); });
     } else {
@@ -238,7 +238,7 @@ export const SMG_MODELS = {
     solid(stk, [[0.146, 1.1268], [0.1674, 1.1274], [0.3683, 1.1302], [0.3778, 1.1313], [0.3947, 1.1346], [0.4125, 1.1399], [0.429, 1.148], [0.453, 1.1626], [0.4637, 1.1683], [0.4654, 1.1698], [0.4836, 1.1801], [0.4903, 1.1818], [0.497, 1.1822], [0.505, 1.1818], [0.505, 1.0642], [0.4705, 1.0641], [0.4663, 1.0648], [0.4552, 1.0684], [0.4417, 1.0687], [0.4342, 1.068], [0.411, 1.0595], [0.3822, 1.0476], [0.3661, 1.0411], [0.3217, 1.0234], [0.2965, 1.0132], [0.2701, 1.0024], [0.2542, 0.9967], [0.2247, 0.9846], [0.2009, 0.9744], [0.1903, 0.9708], [0.1843, 0.9678], [0.1796, 0.9669], [0.1606, 0.9659], [0.15, 0.9662]], 0.044, P, X, 0.017);
     solid(stk, [[0.1393, 1.1188], [0.1401, 1.1217], [0.1425, 1.1239], [0.148, 1.1261], [0.159, 1.1273], [0.159, 0.966], [0.1557, 0.9661], [0.151, 0.9684], [0.1482, 0.9725], [0.1464, 0.9834], [0.1461, 1.0049], [0.1443, 1.0245], [0.1437, 1.0465], [0.1429, 1.0565], [0.1419, 1.0593], [0.1407, 1.0833], [0.1395, 1.0937]], 0.046, GM.rubber, X, 0.008);
     taperX(stk, STK_W);
-    for (let k = -2; k <= 2; k++) { const r = box(g, 0.0024, 0.13, 0.002, GM.rubber, X + k * 0.0072, 1.044, 0.1418); r.rotation.x = -0.053; }   // the pad's ribs
+    for (let k = -2; k <= 2; k++) { const r = box(g, 0.0024, 0.104, 0.002, GM.rubber, X + k * 0.0072, 1.046, 0.1418); r.rotation.x = -0.053; }   // the pad's ribs (only down its flat face: run on past where it rounds off at the toe and the heel, their ends stood out below it, a comb of open slots)
     { const zs = 0.218, xs = X + 0.022 * STK_W(zs); const hx = new THREE.Mesh(new THREE.CylinderGeometry(0.0172, 0.0172, 0.003, 6), GM.metal2); hx.position.set(xs, 1.062, zs); hx.rotation.set(Math.PI / 6, 0, Math.PI / 2); hx.castShadow = true; g.add(hx);
       box(g, 0.0012, 0.019, 0.011, GM.rubber, xs + 0.0016, 1.062, zs); box(g, 0.004, 0.021, 0.0042, K, xs + 0.0025, 1.062, zs); }   // the sling plate, its slot and bar
     [0.222, 0.308].forEach(z => cyl(g, 0.0055, 0.002, GM.rubber, X - 0.022 * STK_W(z) - 0.0004, 1.079, z, 12).rotation.set(0, 0, Math.PI / 2));   // the plugs

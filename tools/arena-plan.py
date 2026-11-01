@@ -7,7 +7,9 @@
 #    round clock runs out). Walk 3 m/s, sprint 5.25 m/s; no crouch, no jump: one floor, no verticality. Sandbags are
 #    the cover you can vault, with the crate stacks. Automatics kill in about 0.35-0.45 s; shotguns reach 8-13 m; the hunting rifle is
 #    the one long gun. Camera at 1.56 m: low cover (1.05-1.15 m) hides legs and body, not heads.
-#  - Cells 1 m; tall: # outer wall 3.2, h block wall 2.7, C container 2.6 (they stop sight and
+#  - Cells 1 m; tall: # outer wall 3.2, h block wall 2.7, C container 2.6 (a C run one deep is built as a wall of stacked
+#    concrete blocks, the 6x3 against the north wall as the yard office, the 2x2 as the transformer; the h booths at the
+#    flag's corners as the weighbridge booths, the h in the rail spur's middle as the signal box: world/arena.js) (they stop sight and
 #    rounds); low: b jersey barrier, s sandbags, o drum, r spool (you see and shoot over them).
 #
 # The layout: three lanes west to east, each its own kind of fight, joined only at the spawns and at the middle; open

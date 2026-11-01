@@ -20,11 +20,11 @@ export const CROUCH = { drop: 0.28, thigh: 1.1, knee: 2.1, chest: 0.12, down: 7,
 // the head's spring (stiffness, damping: a little under critical, so it carries just past and settles), how much of its
 // lag and overshoot the eye takes (of the drop), how far the view nods and rolls with its speed (rad per share a
 // second) and how much narrower the view is crouched (of its width)
-const CR_HEAD = { k: 150, z: 0.55, eye: 0.7, nod: 0.05, roll: 0.012, fov: 0.045 };
+const CR_HEAD = { k: 150, z: 0.85, eye: 0.25, nod: 0.008, roll: 0.002, fov: 0.03 };   // (gentle: the head's moving up to about 4 shares a second, so at its fastest the view nods under 2 degrees)
 // the arms and gun from your own eyes crouched (game/view-cam.js): canted in a little toward the middle (cant, rad: less
 // down the sights, adsKeep of it), and on the way down and up lagging the head, up and back a touch then settling
 // (lift: m, pitch and roll: rad, each per share a second of the head's speed)
-const CR_ARMS = { cant: 0.14, adsKeep: 0.25, lift: 0.022, pitch: 0.06, roll: 0.07 };
+const CR_ARMS = { cant: 0.1, adsKeep: 0.25, lift: 0.005, pitch: 0.012, roll: 0.012 };
 // wanted (t: 0 or 1), how far down now (v, eased), held (Hold), and how far down a vault began (vv: player/animation.js
 // eases out of it through the vault's run-up)
 export const CR = { t: 0, v: 0, held: false, vv: 0, e: 0, ev: 0 };
@@ -68,6 +68,11 @@ export const crouchPace = () => 1 - (1 - CROUCH.pace) * crouchK();
 export const crouchStride = () => 1 - (1 - CROUCH.stride) * crouchK();
 export const crouchQuiet = () => 1 - (1 - CROUCH.step) * crouchK();
 export const crouchSpread = () => 1 - (1 - CROUCH.spread) * crouchK();
+// crouched you're braced: the gun's sway and wander (from the hip and down the sights or a scope) shrink to steady of
+// standing, and each shot's kick (the view's climb and the gun's jump in your hands) to kick of it
+const CR_BRACE = { steady: 0.6, kick: 0.85 };
+export const crouchSteady = () => 1 - (1 - CR_BRACE.steady) * crouchK();
+export const crouchKick = () => 1 - (1 - CR_BRACE.kick) * crouchK();
 // the legs bent and the hips down (player/animation.js, after the stride: added over it, the stride shortened). k:
 // how far down
 export function crouchLegs(pm, k) {

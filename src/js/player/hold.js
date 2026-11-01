@@ -516,6 +516,7 @@ function pauseIdle(rdt) {
   ANIM.pzK = k + (on - k) * Math.min(1, rdt * (on ? PAUSE_IDLE.in : PAUSE_IDLE.out)); if (ANIM.pzK < 1e-3 && !on) ANIM.pzK = 0;
   return smooth(ANIM.pzK);
 }
+const SLIDE_OPTIC = 0.25;
 function poseGun(D, up, ph, runF, rdt, now, sh) {
   const pm = PM, s = W8.cur, id = curId(), H = HOLD[id] || HOLD_DEF, ak = !!D.akimbo, gg = gunMeshes[s], pz = pauseIdle(rdt);
   const heavy = D.ammo === 'shells' || D.ammo === 'rifle' || (D.dmg || 0) > 60;
@@ -599,8 +600,9 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   const prevRp = ANIM.relRp || 0, beat = b => !!rel && prevRp < b && rp >= b; ANIM.relRp = rel ? rp : 0;
   if (!ak && rel === 'mag' && !D.speedload) {
     // (and before the dump, a beat the other way, the wrist winding up for it: ant)
-    // (the M4's flick has its own wind-up and throw in place of the dump: flickPose, below)
-    const m = rpm, k = J.k, ant = FK ? 0 : bump(m, 0, 0.07), dump = FK ? 0 : bump(m, 0.03, 0.22), fetch = bump(m, 0.16, 0.62), meet = bump(m, 0.5, 0.94), mf = CH ? CH_MAG : PS ? PS_MAG : FD ? FLK.mag : 1;
+    // (the M4's flick has its own wind-up and throw in place of the dump: flickPose, below; and its fetch and meet are
+    // eased in and out at both ends, sin², so the gun goes from the flick into the insert without a kick at either)
+    const m = rpm, k = J.k, ant = FK ? 0 : bump(m, 0, 0.07), dump = FK ? 0 : bump(m, 0.03, 0.22), fetch = FK ? bump(m, 0.16, 0.62) ** 2 : bump(m, 0.16, 0.62), meet = FK ? bump(m, 0.4, 0.96) ** 2 : bump(m, 0.5, 0.94), mf = CH ? CH_MAG : PS ? PS_MAG : FD ? FLK.mag : 1;
     AT.r += (0.07 * ant - 0.16 * dump + 0.14 * fetch - 0.17 * meet) * k; AT.p += (-0.035 * ant + 0.06 * dump - 0.08 * meet) * k; AT.y += 0.06 * meet * k; AT.h -= 0.014 * fetch; AT.z -= 0.022 * meet;
     AT.hp += 0.06 * fetch; AT.hy -= 0.26 * fetch; AT.tw -= 0.07 * fetch;
     if (!FK && beat(0.1 * mf)) relKnock(1.6, -2.6, -0.2, 0);             // the old mag shaken free
@@ -794,7 +796,9 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       // a slide locking back or dropping home after a reload eases there (fast going back, a softer run forward), never snaps
       if (held) { if (q.off === undefined) q.off = off; q.off += (off - q.off) * Math.min(1, rdt * (fast ? 60 : off > q.off ? 30 : 12)); off = q.off; } else q.off = off;
       if (q === sl[0]) ANIM.boltOff = off;   // (how far back the bolt is: a charging handle on the carrier rides with it, CH_ON_BOLT)
-      const zc = q.z0 - q.travel * off, cl = q.m.userData.clip;
+      // (a slide carrying an optic, down the sights: it rides back only SLIDE_OPTIC of its travel, so the sight you're
+      // looking through isn't thrown back into your eye with every shot; the kick still rocks the whole gun)
+      const zc = q.z0 - q.travel * off * (q.m.userData.optic ? 1 - (1 - SLIDE_OPTIC) * ads : 1), cl = q.m.userData.clip;
       if (cl === undefined) q.m.position.z = zc;
       else {   // a bolt seen through a port in the gun's side: whatever has run back past the port's rear edge is inside the receiver, out of sight
         const L = q.L || (q.L = 2 * (q.m.geometry.boundingBox || (q.m.geometry.computeBoundingBox(), q.m.geometry.boundingBox)).max.z), f = zc + L / 2, r = Math.max(cl, zc - L / 2);

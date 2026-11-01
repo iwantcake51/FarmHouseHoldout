@@ -86,7 +86,10 @@ float flCone(vec4 f, vec4 k, vec4 fh, vec2 p, float row) {
   float gap = smoothstep(${FL_WIN[0].toFixed(2)} - 0.03, ${FL_WIN[0].toFixed(2)} + 0.03, hw) * (1.0 - smoothstep(${FL_WIN[1].toFixed(2)} - 0.03, ${FL_WIN[1].toFixed(2)} + 0.03, hw));
   lit *= mix(1.0, gap, smoothstep(tw - 0.02, tw + 0.1, r));
   float dd = length(d3), near = 1.0 + ${FL_NEAR.k.toFixed(2)} / (1.0 + dd * dd / ${(FL_NEAR.d * FL_NEAR.d).toFixed(3)});   // (the closer what it falls on, the brighter its pool: FL_NEAR)
-  return mix(0.3, cone * near, smoothstep(0.15, 0.9, r)) * fall * fall * lit;
+  // (the spill round the lens only ahead of it, never back onto the arm and the sleeve holding the gun behind it: a light
+  // on the front of a gun lights what's in front of it, and the hand only once it's out ahead of the lens)
+  float ahead = smoothstep(-0.02, 0.06, dot(d3, ax));
+  return mix(0.3 * ahead, cone * near, smoothstep(0.15, 0.9, r)) * fall * fall * lit;
 }
 `;
 // the light map read smoothly: a cubic B-spline over its texels (four bilinear reads), so a lamp's light falls off in

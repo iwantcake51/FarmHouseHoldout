@@ -13,7 +13,7 @@ import { gunAtt, gunTier, magTierIn, recomputeEff, run, S, setTierCtx, T, W, W8 
 import {
   AKX, BELT, BIPOD, BRK, CHARGE, CRANE, fitted, flipIn, GM, gunMeshes, HOLDS, MAGG, MAGPOS, MUZ, setStowDirty, SLIDES, X
 } from './gun-materials.js';
-import { hi } from './gun-parts.js';
+import { hi, solid } from './gun-parts.js';
 import { GUNS } from '../melee/melee-models.js';
 import { fitAttachments } from './attachments.js';
 import { buildGear } from '../player/gear.js';
@@ -31,6 +31,22 @@ function drum(parent, info, big) {
   box(parent, 0.05, info.magY - cy, 0.06, GM.metal, X, (info.magY + cy) / 2, info.magZ);
 }
 // a box magazine with a darker base plate
+// the hand cannon's long mag: a straight stick, no curve at all, carrying on down out of the grip on the grip's own rake
+// (leaning back as the grip does), a pressed panel down each side and the floor plate square to its foot with a lip out
+// front. CM: its length (m), its lean from straight down where it leaves the grip and at its foot (rad, back negative:
+// the same, so it's straight), its depth front to back and width (m)
+const CM = { len: 0.17, rake: -0.27, bend: -0.27, depth: 0.066, w: 0.04 };
+function curvedMag(mg, z0, top) {
+  const n = 16, C = [[z0, top]], A = t => CM.rake + (CM.bend - CM.rake) * t;   // (the centre line: a constant bend, stepped down its length)
+  for (let i = 1; i <= n; i++) { const a = A((i - 0.5) / n), l = CM.len / n, p = C[i - 1]; C.push([p[0] + Math.sin(a) * l, p[1] - Math.cos(a) * l]); }
+  const N = i => { const a = A(i / n); return [Math.cos(a), Math.sin(a)]; };   // (square across it: forward and up)
+  const side = (k, inset = 0) => C.map((c, i) => { const m = N(i), h = CM.depth / 2 - inset; return [c[0] + k * m[0] * h, c[1] + k * m[1] * h]; });
+  const out = (inset = 0) => [...side(1, inset), ...side(-1, inset).reverse()];
+  solid(mg, out(), CM.w, GM.metal2, X, 0.004);
+  solid(mg, out(0.009).filter((_, i, a) => i > 1 && i < a.length - 2), CM.w + 0.0016, GM.metal2, X, 0.0008);   // the pressed panels
+  const c = C[n], m = N(n), u = [m[1], -m[0]], P = (a, b) => [c[0] + m[0] * a + u[0] * b, c[1] + m[1] * a + u[1] * b];   // (u: on down along the mag)
+  solid(mg, [P(-CM.depth / 2 - 0.004, -0.004), P(CM.depth / 2 + 0.007, -0.004), P(CM.depth / 2 + 0.007, 0.012), P(-CM.depth / 2 - 0.004, 0.012)], CM.w + 0.008, GM.poly, X, 0.002);   // the floor plate, its lip out front
+}
 function magBox(parent, w, h, d, x, y, z) { box(parent, w, h, d, GM.metal2, x, y, z); box(parent, w + 0.008, 0.016, d + 0.012, GM.poly, x, y - h / 2 + 0.006, z); hi(parent, w * 0.6, d * 0.8, x, y + h / 2 - 0.02, z); }
 // only: a change to one gun (an attachment, rounds or a mod bought or swapped at the bench) rebuilds just that gun,
 // not every weapon you carry and your gear with them: building a gun and pulling its faces apart is the slow part. A
@@ -56,7 +72,7 @@ export function buildWeapon(hold, id, D, mods, rec) {
   if (D.melee) { unfight(parent); return 0; }
   let front = info.front; const y = info.y;
   if (info.baseMag && !info.ownMags) { if (magT >= 2) drum(mg, info, magT >= 3); else { const h = info.baseMag + magT * 0.1; magBox(mg, 0.056, h, 0.08, X, info.magY - h / 2, info.magZ); } }
-  else if (info.magZ && !info.ownMags && info.stickMags) { if (magT) { const h = magT >= 2 ? 0.17 : 0.07; magBox(mg, 0.04, h, 0.066, X, 0.962 - h / 2 + 0.004, info.magZ); } }   // the hand cannon: a base plate, then a longer mag below its own
+  else if (info.magZ && !info.ownMags && info.stickMags) { if (magT >= 2) curvedMag(mg, info.magZ, 0.966); else if (magT) magBox(mg, 0.04, 0.07, 0.066, X, 0.962 - 0.035 + 0.004, info.magZ); }   // the hand cannon: a base plate, then a long straight mag below its own, raked with the grip
   else if (info.magZ && !info.ownMags) { if (magT >= 2) drum(mg, info, magT >= 3); else if (magT && !info.drumOnly) { const h = 0.06 + magT * 0.07; magBox(mg, 0.058, h, 0.07, X, info.magY - h / 2, info.magZ); } }
   const nb = parent.children.length, muz = fitted(parent, () => fitAttachments(parent, D, front, y, info)) + 0.02;
   // a break-action's barrels carry whatever was fitted on them (a choke, a laser, a light, the shell clip on a

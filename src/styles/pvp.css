@@ -306,3 +306,18 @@ body.menu #pvpFlag{z-index:4!important}
 /* (watching someone in the arena: who you're watching set down clear of the score along the top, not over it) */
 body.pvp #spec .spTop{top:calc(112px + env(safe-area-inset-top,0px))}
 body.pvp.pvpTeams #spec .spTop{top:calc(96px + env(safe-area-inset-top,0px))}
+
+/* a headshot death (pvp/pvp.js headBlack): the flash, the crush to dark from the edges, then the dark drawing
+   back while the world stays drained of colour and soft, the colour coming back last; 2.6 s in all */
+#pvpHead{position:fixed;inset:0;z-index:59;pointer-events:none;display:none}
+#pvpHead.on{display:block}
+#pvpHead i{position:absolute;inset:0;opacity:0}
+#pvpHead .hfFlash{background:radial-gradient(circle at 50% 46%,#fff 0,#ffd9cf 18%,#c3271c 55%,#5a0805 100%);mix-blend-mode:screen}
+#pvpHead.on .hfFlash{animation:hfFlash .42s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes hfFlash{0%{opacity:1}12%{opacity:.85;filter:saturate(1.6)}100%{opacity:0}}
+#pvpHead .hfDark{background:radial-gradient(ellipse at 50% 48%,rgba(70,4,2,.82) 0,rgba(22,0,0,.96) 34%,#000 70%)}
+#pvpHead.on .hfDark{animation:hfDark 2.6s cubic-bezier(.3,0,.25,1) forwards}
+@keyframes hfDark{0%{opacity:0;transform:scale(1.25)}5%{opacity:1;transform:scale(1)}26%{opacity:1}100%{opacity:0;transform:scale(1.04)}}
+#pvpHead .hfDrain{backdrop-filter:grayscale(1) contrast(1.15) blur(2.5px);-webkit-backdrop-filter:grayscale(1) contrast(1.15) blur(2.5px)}
+#pvpHead.on .hfDrain{animation:hfDrain 2.6s ease-out forwards}
+@keyframes hfDrain{0%,30%{opacity:1}100%{opacity:0}}
