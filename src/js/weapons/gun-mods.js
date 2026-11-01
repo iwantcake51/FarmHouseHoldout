@@ -71,7 +71,7 @@ export const GUN_MODS = {
   gl: { w: 'ar', r: 'e', name: 'Underbarrel launcher', text: 'G fires a grenade, then it recharges.', vis: 'A launcher tube under the barrel', stat: D => { D.gl = true; D.glRecharge = 6; } },
   // a small edge, not a big one: about 8% off a mag change, a few % more a level (weapons/mod-levels.js)
   well: { w: 'ar', r: 'u', name: 'Flared mag well', text: 'A funnel round the mag well: mag changes are a little quicker.', vis: 'A funnel round the mag well', stat: D => { D.reload *= 0.92; } },
-  heavy: { w: 'ar', r: 'c', name: 'Heavy barrel', text: 'Hits harder and spreads less.', vis: 'A thicker barrel', stat: D => { D.dmg *= 1.25; D.spread *= 0.7; } },
+  heavy: { w: 'ar', r: 'c', name: 'Heavy barrel', text: 'Hits harder, spreads less and keeps its damage further out.', vis: 'A thicker barrel', stat: D => { D.dmg *= 1.25; D.spread *= 0.7; D.reach = (D.reach || 1) + 0.3; } },
   bipod: { w: 'lmg', r: 'c', name: 'Bipod', text: 'Almost no spread while standing still.', vis: 'Folding bipod legs', stat: D => { D.bipod = true; } },
   akkit: { conv: true, w: 'scar', r: 'l', cost: AKKIT.cost, semi: true, locks: ['mag', 'loader'], name: 'AK conversion kit', text: `A new lower for 30-round AK mags and full auto (B for semi). Lighter rounds that stagger less, but ${AKKIT.mag} in the gun and half the kick. Takes the place of the 20-round mag and the flared magwell.`, vis: 'An AK lower and a curved 30-round mag',
     stat: D => { D.akKit = true; D.dmg *= AKKIT.dmg; D.rate = AKKIT.rate; D.mag = D.ownMag = AKKIT.mag; D.reload = AKKIT.reload; D.spread *= AKKIT.spread; D.kick *= AKKIT.kick; D.shake *= AKKIT.shake; D.stagger *= AKKIT.stagger; D.bruteStagger *= AKKIT.brute; D.bruteX = 1 + (D.bruteX - 1) * AKKIT.brute; } }

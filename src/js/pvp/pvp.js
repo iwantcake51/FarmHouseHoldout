@@ -316,8 +316,8 @@ function pvpLoadout() {
   for (const [id] of C.guns) if (!arenaMagSteps(id)) { delete W8.gt[id].mag; delete W8.own[id].mag; }   // (no longer belt for the LMG here, whatever a loadout kept from before says: upgrades/upgrades.js arenaMagSteps)
   // (a loadout made on the title's Loadouts screen, ui/arena-loadouts.js, can say which shells a shotgun's loaded with,
   // the only kind it carries (only: no buckshot to swap back to, weapons/rounds.js), and how many shells the pump takes
-  // a go: W8.load, game/run-state.js)
-  for (const [id, , , , ex] of C.guns) { if (!ex) continue; if (ex.rd && ex.rd !== 'std') W8.rounds[id] = { own: [ex.rd], on: ex.rd, only: true }; if (ex.ld) W8.load[id] = ex.ld; }
+  // a go: W8.load, game/run-state.js), and a sidearm's shoulder stock (W8.att)
+  for (const [id, , , , ex] of C.guns) { if (!ex) continue; if (ex.rd && ex.rd !== 'std') W8.rounds[id] = { own: [ex.rd], on: ex.rd, only: true }; if (ex.ld) W8.load[id] = ex.ld; if (ex.at) W8.att[id] = Object.assign({}, ex.at); }
   recomputeEff();
   // (a gun that can fire full auto or in bursts starts set to it, the fullest it has: full auto over a burst over single
   // shots, rather than on what it does out of the box)

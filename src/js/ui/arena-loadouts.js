@@ -45,6 +45,22 @@ const AL_LINES = [['sight', 'Optic'], ['supp', 'Suppressor'], ['choke', 'Choke']
 // and the choices, each one of a few (after them, a tile twice as wide): the gun's conversion kit, the shells a shotgun's
 // loaded with, how many shells the pump takes a go
 const AL_CHOICE = [['cv', 'Conversion'], ['rd', 'Shells'], ['ld', 'Loading']];
+// and the gun's own parts, a choice each (after the conversion's): its mods that aren't conversion kits (weapons/
+// gun-mods.js: the handgun's match barrel, the revolver's longer barrels and its filed hammer, the hand cannon's
+// compensator, slam fire, the twin trigger, the greased bolt, the machine pistol's ported barrel, the navy trigger
+// group, the M4's flared mag well and heavy barrel, the bipod), at each of their levels, 1 point a level ('m:' and the
+// mod); never one that needs another first (the auto sear rides the conversion's line) or the grenade launcher
+// (AL_NO_MOD); and a sidearm's folding shoulder stock ('at', the workbench's: game/run-state.js gunAtt), AL_STOCK_PTS.
+// Each tile is named for the part (AL_PART)
+const AL_NO_MOD = new Set(['gl']), AL_STOCK_PTS = 2;
+const AL_PART = { match: 'Barrel', longbarrel: 'Barrel', heavy: 'Barrel', ported: 'Barrel', comp: 'Compensator', fan: 'Hammer', slam: 'Action', bolt: 'Bolt', both: 'Trigger', navy: 'Trigger group', well: 'Mag well', bipod: 'Bipod' };
+const alModOk = (id, m) => { const M = GUN_MODS[m]; return !!M && M.w === id && !M.conv && !M.need && !AL_NO_MOD.has(m); };
+const alChoices = id => [...AL_CHOICE, ...Object.keys(GUN_MODS).filter(m => alModOk(id, m)).map(m => ['m:' + m, AL_PART[m] || GUN_MODS[m].name]), ...(WEAP[id] && WEAP[id].slot === 'side' ? [['at', 'Stock']] : [])];
+const choiceName = (id, key) => (alChoices(id).find(c => c[0] === key) || [key, ''])[1];
+const isChoice = key => key === 'at' || key.startsWith('m:') || AL_CHOICE.some(c => c[0] === key);
+// a muzzle mod (the compensator, the ported barrel) takes the muzzle a can or a choke would: one or the other
+const muzMod = key => key.startsWith('m:') && !!GUN_MODS[key.slice(2)].muzzle;
+const muzKeys = ex => Object.keys(ex || {}).filter(muzMod);
 // how far each line goes on a gun (0: it takes none), as the workbench has it (upgrades/upgrades.js tierFits) with no
 // mods on: a sight up to the scopes on the guns that take them, a can on all but the double barrel, a choke on the
 // shotguns, a loader on the revolver, the battle rifle and the double barrel, a trigger where the rate's the trigger's,
@@ -80,6 +96,11 @@ function alOpts(id, key) {
     if (o.length) o.unshift({ v: '', cost: 0, name: 'Stock', short: 'Stock' });
   } else if (key === 'rd' && D.ammo === 'shells') roundTypes(id).forEach(k => o.push({ v: k === 'std' ? '' : k, cost: 0, name: roundName(id, k), short: AL_SHORT[k] || roundName(id, k) }));
   else if (key === 'ld' && id === 'pump') AL_LOADS.forEach(([v, name, short], i) => o.push({ v, cost: i, name, short }));
+  else if (key.startsWith('m:') && alModOk(id, key.slice(2))) {
+    const m = key.slice(2), M = GUN_MODS[m], n = MOD_UP[m] ? MOD_CAP[m] || MOD_MAX : 1;
+    o.push({ v: '', cost: 0, name: 'None', short: 'None' });
+    for (let lv = 1; lv <= n; lv++) o.push({ v: String(lv), cost: lv, name: modNameAt(m, lv), short: M.names ? M.names[lv - 1].split(' ')[0] : n > 1 ? roman(lv) : 'Fitted' });
+  } else if (key === 'at' && D.slot === 'side') o.push({ v: '', cost: 0, name: 'None', short: 'None' }, { v: '1', cost: AL_STOCK_PTS, name: 'Shoulder stock', short: 'Folding' });
   return o;
 }
 const optOf = (id, key, v) => alOpts(id, key).find(o => o.v === (v || '')) || null;
@@ -92,6 +113,12 @@ function cvMods(cv) {
 }
 // the attachment lines a fitted conversion takes the place of (the AK kit's mag and magwell, the 10mm kit's mag)
 const cvLocks = cv => cvMods(cv)[0].flatMap(m => GUN_MODS[m].locks || []);
+// all a gun's mods as its choices have them ([mods, their levels]): the conversion's, then its own parts'
+function exMods(ex) {
+  const [mods, lv] = cvMods(ex && ex.cv);
+  for (const key in ex || {}) if (key.startsWith('m:') && ex[key]) { const m = key.slice(2); mods.push(m); lv[m] = +ex[key] || 1; }
+  return [mods, lv];
+}
 // the weapons the arena has: its guns (pvp/pvp.js PVP_DMG) and the classes' melee weapons. A primary is a long gun or
 // an automatic; the secondary a sidearm or another gun that rides in a different slot from the primary (the Rusher's
 // double barrel behind an SMG), or nothing at all
@@ -109,25 +136,31 @@ const alMelees = () => [...new Set(PVP_CLASSES.map(c => c.melee))];
 // one for each step on it and what its choices cost, and as the secondary, what a primary's kind of gun takes (gunFee);
 // whether a loadout's guns each keep within their six; and a loadout's points all told (the class list's number)
 const gunFee = (id, t) => t === 's' && id && WEAP[id] && WEAP[id].slot !== 'side' ? AL_SEC_PRI : 0;
-const exPts = (id, ex) => AL_CHOICE.reduce((a, [key]) => a + ((ex && ex[key] && optOf(id, key, ex[key])) || { cost: 0 }).cost, 0);
+const exPts = (id, ex) => Object.keys(ex || {}).reduce((a, key) => a + ((ex[key] && optOf(id, key, ex[key])) || { cost: 0 }).cost, 0);
 const gunPts = (g, t) => g ? gunFee(g[0], t) + Object.values(g[1]).reduce((a, n) => a + n, 0) + exPts(g[0], g[2]) : 0;
 const alOver = k => gunPts(k.p, 'p') > AL_BUDGET || gunPts(k.s, 's') > AL_BUDGET;
 const alPts = k => gunPts(k.p, 'p') + gunPts(k.s, 's');
 // what's fitted cleaned up: only choices the gun has, only lines it takes (and none a conversion's taken the place of),
 // each within its reach, and a can or a choke (they share the muzzle), never both
-function alCleanEx(id, ex) { const o = {}; for (const [key] of AL_CHOICE) if (ex && ex[key] && optOf(id, key, String(ex[key]))) o[key] = String(ex[key]); return o; }
+function alCleanEx(id, ex) { const o = {}; for (const [key] of alChoices(id)) if (ex && ex[key] && optOf(id, key, String(ex[key]))) o[key] = String(ex[key]); return o; }
 function alClean(id, gt, ex) {
   const o = {}, locks = cvLocks(ex && ex.cv);
   for (const [k] of AL_LINES) { const n = locks.includes(k) ? 0 : Math.min(alMax(id, k), Math.floor(+(gt || {})[k] || 0)); if (n > 0) o[k] = n; }
   if (o.supp && o.choke) delete o.choke;
+  if (muzKeys(ex).length) { delete o.supp; delete o.choke; }   // (a muzzle mod has the muzzle)
   return o;
 }
 const alGun = (id, gt, ex) => { const e = alCleanEx(id, ex); return [id, alClean(id, gt, e), e]; };
 // a class's own kit as the editor holds it ({ p: gun, s: gun or null, m: melee }): its stock guns, attachments and
-// conversion kits (a stock mod that's a conversion is its conversion), without its other mods (stockMods: those)
-function alStockEx(g) { const mods = g[2] || [], lv = g[3] || {}, line = mods.find(m => GUN_MODS[m] && GUN_MODS[m].need && MOD_LINE[m]), cv = line || mods.find(m => GUN_MODS[m] && GUN_MODS[m].conv); return cv ? { cv: cv + ':' + (line ? 1 : lv[cv] || 1) } : {}; }
+// conversion kits (a stock mod that's a conversion is its conversion) and its own parts' mods; anything else it has that
+// the editor can't offer (stockMods) only while it's as it comes
+function alStockEx(g) {
+  const mods = g[2] || [], lv = g[3] || {}, line = mods.find(m => GUN_MODS[m] && GUN_MODS[m].need && MOD_LINE[m]), cv = line || mods.find(m => GUN_MODS[m] && GUN_MODS[m].conv), o = cv ? { cv: cv + ':' + (line ? 1 : lv[cv] || 1) } : {};
+  mods.forEach(m => { if (alModOk(g[0], m)) o['m:' + m] = String(lv[m] || 1); });
+  return o;
+}
 const alStock = C => ({ p: alGun(C.guns[0][0], C.guns[0][1], alStockEx(C.guns[0])), s: C.guns[1] ? alGun(C.guns[1][0], C.guns[1][1], alStockEx(C.guns[1])) : null, m: C.melee });
-const stockMods = (C, id) => ((C.guns.find(g => g[0] === id) || [])[2] || []).filter(m => !(GUN_MODS[m] && (GUN_MODS[m].conv || (GUN_MODS[m].need && MOD_LINE[m]))));
+const stockMods = (C, id) => ((C.guns.find(g => g[0] === id) || [])[2] || []).filter(m => !(GUN_MODS[m] && (GUN_MODS[m].conv || (GUN_MODS[m].need && MOD_LINE[m]) || alModOk(id, m))));
 // a saved kit made safe to carry: anything that isn't the arena's or doesn't fit put back to the class's own, then
 // trimmed to six a gun (a gun's choices first, then its top steps; a secondary still over, dropped). Every stock class
 // keeps within six a gun as it comes, so this only ever bites on a kit kept from some other version of the rules
@@ -161,7 +194,7 @@ const alKitOf = C => alSaved[C.id] ? alFix(alSaved[C.id], C) : alStock(C);
 export function alKit(id) {
   const C = alClass(id); if (!C || !alChanged(C)) return null;
   if (!alSaved[id]) return Object.assign({}, C, { name: alName(C) });
-  const k = alFix(alSaved[id], C), guns = [k.p, k.s].filter(Boolean).map(([g, gt, ex]) => { const [mods, lv] = cvMods(ex.cv); return [g, Object.assign({}, gt), mods, lv, { rd: ex.rd || '', ld: +ex.ld || 0 }]; });
+  const k = alFix(alSaved[id], C), guns = [k.p, k.s].filter(Boolean).map(([g, gt, ex]) => { const [mods, lv] = exMods(ex); return [g, Object.assign({}, gt), mods, lv, { at: ex.at ? { stock: true } : null, rd: ex.rd || '', ld: +ex.ld || 0 }]; });
   return { id: C.id, name: alName(C), role: C.role, guns, melee: k.m, mags: guns.some(g => g[0] === 'lmg') ? 1 : 3, perks: C.perks.slice() };
 }
 // (what changes it: a match re-equips you at the count-in only when this differs from what it gave you)
@@ -172,9 +205,9 @@ export const alKitKey = id => alSaved[id] ? JSON.stringify(alSaved[id]) : '';
 // everything put back after (as pvp/pvp.js pvpGunArt does for the class cards)
 function alWith(id, gt, fn, more = [], ex = {}) {
   const keep = [], put = (o, k, v) => { if (!W8[o]) return; keep.push([o, k, k in W8[o], W8[o][k]]); if (v === undefined) delete W8[o][k]; else W8[o][k] = v; };
-  const [cm, lv] = cvMods(ex.cv), mods = [...cm, ...more];
+  const [cm, lv] = exMods(ex), mods = [...cm, ...more];
   if (!W8.modLv) W8.modLv = {}; if (!W8.load) W8.load = {};
-  put('gt', id, Object.assign({}, gt)); put('own', id, Object.assign({}, gt)); put('mods', id, mods); ['att', 'tune', 'rds', 'pin'].forEach(o => put(o, id, undefined));
+  put('gt', id, Object.assign({}, gt)); put('own', id, Object.assign({}, gt)); put('mods', id, mods); ['tune', 'rds', 'pin'].forEach(o => put(o, id, undefined)); put('att', id, ex.at ? { stock: true } : undefined);
   put('rounds', id, ex.rd ? { own: [ex.rd], on: ex.rd, only: true } : undefined); put('load', id, ex.ld ? +ex.ld : undefined);
   mods.forEach(m => put('modLv', m, lv[m] || 1));
   recomputeEff();
@@ -214,12 +247,16 @@ const AL_SAYS = {
   'cv:akimbo': [['A gun in each hand'], ['No aiming down the sights']], 'cv:akimbo2': [['A gun in each hand'], ['No aiming down the sights']],
   'cv:tenmm': [['Hotter 10mm rounds go through a body'], []], 'cv:akkit': [['Full auto, 30-round AK mags'], ['Takes the magazine and magwell slots']],
   'cv:sawn': [['Quick to bring up'], ['Weak past a few metres']], 'rd:slug': [['One heavy slug that carries'], ['Has to hit dead on']],
-  'rd:flech': [['A tight cloud of darts'], []], 'rd:fire': [['Spits fire up close'], ['Burns out past 8 m']]
+  'rd:flech': [['A tight cloud of darts'], []], 'rd:fire': [['Spits fire up close'], ['Burns out past 8 m']],
+  at: [['45% less kick', 'Fast shots stay tighter', 'Steadier in the hands'], []],
+  'm:comp': [[], ['Takes the muzzle: no can']], 'm:ported': [[], ['Takes the muzzle: no can']],
+  'm:fan': [['Fans the hammer from the hip'], ['Much wider spread fanning']], 'm:bipod': [['Almost no spread standing still'], []],
+  'm:both': [['Both barrels at once'], []], 'm:slam': [['Fires as you pump'], []], 'm:navy': [['3-round bursts'], []]
 };
 function alProsCons(id, gt, ex, more, key, v) {
   const with1 = { gt: Object.assign({}, gt), ex: Object.assign({}, ex) }, without = { gt: Object.assign({}, gt), ex: Object.assign({}, ex) };
-  if (AL_CHOICE.some(c => c[0] === key)) { if (v) with1.ex[key] = v; else delete with1.ex[key]; delete without.ex[key]; if (key === 'cv') cvLocks(v).forEach(l => { delete with1.gt[l]; }); }
-  else { with1.gt[key] = v; delete without.gt[key]; if (key === 'supp' || key === 'choke') { delete with1.gt[key === 'supp' ? 'choke' : 'supp']; } }
+  if (isChoice(key)) { if (v) with1.ex[key] = v; else delete with1.ex[key]; delete without.ex[key]; if (key === 'cv') cvLocks(v).forEach(l => { delete with1.gt[l]; }); if (v && muzMod(key)) { delete with1.gt.supp; delete with1.gt.choke; } }
+  else { with1.gt[key] = v; delete without.gt[key]; if (key === 'supp' || key === 'choke') { delete with1.gt[key === 'supp' ? 'choke' : 'supp']; muzKeys(with1.ex).forEach(m => { delete with1.ex[m]; }); } }
   const a = alSnap(id, without.gt, without.ex, more), b = alSnap(id, with1.gt, with1.ex, more), pros = [], cons = [];
   for (const [s, name, dir, f] of AL_PC) {
     const x = a[s], y = b[s]; if (!x && !y) continue;
@@ -256,12 +293,11 @@ function alEdit(fn) {
 // the weapon a tab shows; the stock class's other mods on it while it's as it comes
 const tabGun = (k, t) => t === 'm' ? k.m : k[t] ? k[t][0] : null;
 const moreOf = (C, id) => alSaved[C.id] ? [] : stockMods(C, id);
-const isChoice = key => AL_CHOICE.some(c => c[0] === key);
 // what it'd cost to set line key to step n on the tab's gun (a can taking the choke off, or the other way, gives its
-// points back), or a choice to option v (a conversion taking a line's place gives that line's points back); and
-// whether that fits
-function stepCost(k, t, key, n) { const gt = k[t][1], other = key === 'supp' ? 'choke' : key === 'choke' ? 'supp' : null; return n - (gt[key] || 0) - (other && n > 0 ? gt[other] || 0 : 0); }
-function optCost(k, t, key, v) { const [id, gt, ex] = k[t], c = o => (optOf(id, key, o) || { cost: 0 }).cost; return c(v) - c(ex[key]) - (key === 'cv' ? cvLocks(v).reduce((a, l) => a + (gt[l] || 0), 0) : 0); }
+// points back, and a muzzle mod), or a choice to option v (a conversion taking a line's place gives that line's points
+// back, a muzzle mod the can's or the choke's); and whether that fits
+function stepCost(k, t, key, n) { const [id, gt, ex] = k[t], other = key === 'supp' ? 'choke' : key === 'choke' ? 'supp' : null; return n - (gt[key] || 0) - (other && n > 0 ? (gt[other] || 0) + muzKeys(ex).reduce((a, m) => a + (optOf(id, m, ex[m]) || { cost: 0 }).cost, 0) : 0); }
+function optCost(k, t, key, v) { const [id, gt, ex] = k[t], c = o => (optOf(id, key, o) || { cost: 0 }).cost; return c(v) - c(ex[key]) - (key === 'cv' ? cvLocks(v).reduce((a, l) => a + (gt[l] || 0), 0) : 0) - (v && muzMod(key) ? (gt.supp || 0) + (gt.choke || 0) : 0); }
 const fits = (k, d, t = AL.tab) => gunPts(k[t], t) + d <= AL_BUDGET;
 function setStep(key, n) {
   const k = kitNow(), t = AL.tab; if (!k[t]) return;
@@ -269,14 +305,14 @@ function setStep(key, n) {
   n = Math.max(0, Math.min(alMax(k[t][0], key), n));
   if (n === (k[t][1][key] || 0)) return;
   if (!fits(k, stepCost(k, t, key, n))) { alDeny(); return; }
-  alEdit(k => { const gt = k[t][1]; if (n) gt[key] = n; else delete gt[key]; if (n && key === 'supp') delete gt.choke; if (n && key === 'choke') delete gt.supp; });
+  alEdit(k => { const [, gt, ex] = k[t]; if (n) gt[key] = n; else delete gt[key]; if (n && key === 'supp') delete gt.choke; if (n && key === 'choke') delete gt.supp; if (n && (key === 'supp' || key === 'choke')) muzKeys(ex).forEach(m => { delete ex[m]; }); });
   SFX.click();
 }
 function setChoice(key, v) {
   const k = kitNow(), t = AL.tab; if (!k[t]) return;
   if ((k[t][2][key] || '') === (v || '')) return;
   if (!fits(k, optCost(k, t, key, v))) { alDeny(); return; }
-  alEdit(k => { const [, gt, ex] = k[t]; if (v) ex[key] = v; else delete ex[key]; if (key === 'cv') cvLocks(v).forEach(l => { delete gt[l]; }); });
+  alEdit(k => { const [, gt, ex] = k[t]; if (v) ex[key] = v; else delete ex[key]; if (key === 'cv') cvLocks(v).forEach(l => { delete gt[l]; }); if (v && muzMod(key)) { delete gt.supp; delete gt.choke; } });
   SFX.click();
 }
 // a choice's tile clicked: its next option it can afford, round to stock again
@@ -322,7 +358,7 @@ function alBuild() {
   // the class's perks: set by it, shown for what they are
   alPart('perks', C.id, $('aloPerks'), () => `<div class="aloPerkHead aloGroup"><b>Perks</b><span>Set by the class</span></div>` + C.perks.map(p => `<span class="aloPerk" title="${alEsc(perkText(p))}">${alEsc(perkName(p))}</span>`).join('') + `<p class="aloRole">${alEsc(C.role)}</p><p class="aloNote" id="aloNote"></p>`);
   // the slot tiles (none for a melee weapon, or with no secondary): the attachment lines, then the choices
-  const lines = id && t !== 'm' ? AL_LINES.filter(([key]) => alMax(id, key) > 0) : [], chs = id && t !== 'm' ? AL_CHOICE.filter(([key]) => alOpts(id, key).length) : [];
+  const lines = id && t !== 'm' ? AL_LINES.filter(([key]) => alMax(id, key) > 0) : [], chs = id && t !== 'm' ? alChoices(id).filter(([key]) => alOpts(id, key).length) : [];
   alPart('atts', t + id, $('aloAtts'), () => lines.length || chs.length ? lines.map(([key, n]) => `<div class="aloA" data-k="${key}" role="group" aria-label="${n}"><button type="button" class="aloAMain" data-act="up"><small>${n}${key === 'supp' || key === 'choke' ? (alMax(id, key === 'supp' ? 'choke' : 'supp') ? '<i>Muzzle</i>' : '') : ''}</small><b></b></button><span class="aloPips">${Array.from({ length: alMax(id, key) }, (_, i) => `<button type="button" class="aloPip" data-n="${i + 1}" aria-label="${alEsc(tierName(key, i, id))}"></button>`).join('')}</span><button type="button" class="aloAX" data-act="off" aria-label="Take it off" title="Take it off"></button></div>`).join('') +
     chs.map(([key, n]) => `<div class="aloA ch" data-k="${key}" role="radiogroup" aria-label="${n}"><button type="button" class="aloAMain" data-act="up"><small>${n}</small><b></b></button><span class="aloSeg">${alOpts(id, key).map(o => `<button type="button" role="radio" data-v="${o.v}" aria-label="${alEsc(o.name)}">${alEsc(o.short)}</button>`).join('')}</span><button type="button" class="aloAX" data-act="off" aria-label="Back to stock" title="Back to stock"></button></div>`).join('')
     : `<p class="aloNone">${t === 'm' ? 'Melee weapons take no attachments, and cost nothing.' : 'No secondary. Pick one from the list to carry one.'}</p>`);
@@ -357,7 +393,7 @@ function alSync(changed) {
     const key = a.dataset.k, b = a.querySelector('b');
     if (isChoice(key)) {
       const v = ex[key] || '', o = optOf(id, key, v);
-      a.classList.toggle('on', !!v); b.textContent = o ? o.name : 'Stock'; b.dataset.r = v ? (key === 'cv' ? (MODS[v.split(':')[0]] || {}).r || 'u' : 'u') : '';
+      a.classList.toggle('on', !!v); b.textContent = o ? o.name : 'Stock'; b.dataset.r = v ? (key === 'cv' ? (MODS[v.split(':')[0]] || {}).r || 'u' : key.startsWith('m:') ? GUN_MODS[key.slice(2)].r || 'u' : 'u') : '';
       a.querySelectorAll('.aloSeg button').forEach(s => { const sv = s.dataset.v, c = optCost(k, t, key, sv), can = sv === v || fits(k, c), oc = (optOf(id, key, sv) || { cost: 0 }).cost;
         s.classList.toggle('lit', sv === v); s.classList.toggle('over', !can); s.setAttribute('aria-checked', String(sv === v)); s.dataset.c = oc ? '+' + oc : 'free'; });
       a.querySelector('.aloAMain').title = 'Next option';
@@ -399,7 +435,7 @@ function alSync(changed) {
   else { hideGun(); gunView.hidden = true; AL.shown = ''; }
   // the stock mods this class carries until it's changed, and what Reset does
   const mods = C.guns.flatMap(g => stockMods(C, g[0])), mine = !!alSaved[C.id];
-  $('aloNote').innerHTML = (alNames[C.id] ? `Renamed from <b>${alEsc(C.name)}</b>. ` : '') + (mine ? 'Your loadout. Conversion kits stay on; other mods are left off a changed class.' : mods.length ? `Stock kit, with ${mods.map(m => '<b>' + alEsc((MODS[m] || {}).name || m) + '</b>').join(', ')}. Change anything and those come off.` : 'Stock kit.');
+  $('aloNote').innerHTML = (alNames[C.id] ? `Renamed from <b>${alEsc(C.name)}</b>. ` : '') + (mine ? 'Your loadout.' : mods.length ? `Stock kit, with ${mods.map(m => '<b>' + alEsc((MODS[m] || {}).name || m) + '</b>').join(', ')}. Change anything and those come off.` : 'Stock kit.');
   $('aloReset').disabled = !alChanged(C);
   if (changed) { const b = $('aloCls').querySelector('.aloC.on'); if (b) { b.classList.remove('saved'); void b.offsetWidth; b.classList.add('saved'); } }
   if (AL.info) alInfo(AL.info);   // (the card over a tile kept up to date with what's now on the gun)
@@ -455,7 +491,7 @@ function alInfo(tg) {
   const [id, gt, ex] = k[t], C = cur(), key = tg.key, v = tg.show, lock = !isChoice(key) && cvLocks(ex.cv).includes(key);
   AL.info = tg;
   let name, sub, cost;
-  if (isChoice(key)) { const o = optOf(id, key, v) || { name: 'Stock', cost: 0 }; name = o.name; sub = AL_CHOICE.find(c => c[0] === key)[1]; cost = o.cost; }
+  if (isChoice(key)) { const o = optOf(id, key, v) || { name: 'Stock', cost: 0 }; name = o.name; sub = choiceName(id, key); cost = o.cost; }
   else { name = v ? tierName(key, v - 1, id) : 'None'; sub = AL_LINES.find(c => c[0] === key)[1] + (alMax(id, key) > 1 && v ? ' ' + roman(v) : ''); cost = v; }
   const ck = JSON.stringify([id, gt, ex, key, v, moreOf(C, id)]);
   let pc = alInfoCache.get(ck);

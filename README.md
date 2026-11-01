@@ -876,7 +876,24 @@ and on between them.
   off), and the cross or a right click takes it off. Only real attachments for that gun, as far as each goes on it
   (the workbench's own limits): sights up to the gun's strongest scope (the LMG's the ACOG), a can, a choke on the
   shotguns (it shares the muzzle with the can: fitting one takes the other off), laser, light, the speed loader where
-  there is one, the trigger, the magazine (not on the LMG: in the arena it keeps its 100-round belt, no longer one). Never the powder, never a tune-up, and no mod but the conversion kits.
+  there is one, the trigger, the magazine (not on the LMG: in the arena it keeps its 100-round belt, no longer one). Never the powder or a tune-up.
+- **The gun's own parts.** Every part the workbench can fit to that one gun has its own tile too, each named for the
+  part, one point a level: the handgun's **Barrel** (match barrel I to III) and **Stock**; the revolver's **Barrel**
+  (4", 6" or 8") and **Hammer** (fan the hammer), and **Stock**; the hand cannon's **Compensator** (I to III) and
+  **Stock**; the pump's **Action** (slam fire I to III); the double barrel's **Trigger** (the twin trigger, I to
+  III); the hunting rifle's **Bolt** (greased); the machine pistol's ported **Barrel** (I to III); the SMG's **Trigger
+  group** (navy burst, I to III); the M4's **Mag well** (flared, I to III) and **Barrel** (heavy, I to III); the LMG's
+  **Bipod** (I to III). A sidearm's folding shoulder stock costs 2: 45% less kick, fast shots kept tighter and the gun
+  steadier in the hands. A compensator or a ported barrel takes the muzzle, so fitting one takes off a can or a choke,
+  and the other way round, with the points given back. The grenade launcher and the auto sear's own tile aren't
+  offered (the auto sear stays on the Conversion tile). They go on as the workbench's do: everyone else sees them on
+  your gun, and the stock classes' own (the Rifleman's mag well, the Marksman's 4" barrel, the Battle rifleman's
+  compensator, the Scout's match barrel, the Breacher's slam fire, the Enforcer's hammer, the Gunner's bipod) show on
+  their tiles and are counted. Nothing hits harder in the arena (damage is capped at the gun's own), so a barrel's
+  worth is in its spread and how far it keeps its damage.
+- **The heavy barrel** (the M4's, at the workbench as well) now keeps its damage further out as well as hitting
+  harder and spreading less: its drop-off starts and bottoms out 30% further away, and each level after the first
+  another 20%. In the arena that's about 11 m more range at full strength, with 30% less spread.
 - **Conversion kits.** A gun that has one gets a **Conversion** tile, one kit at a time, picked off a row of choices
   with **Stock** first (the cross or a right click puts it back): the handgun's burst conversion (I or II, 1 or 2
   points), full auto (the auto sear, the third step of that line: 3) or a second pistol (1); a second machine pistol
@@ -903,8 +920,8 @@ and on between them.
   bare. Picking a primary that rides where the secondary does takes the secondary off.
 - **Kept.** Every change is saved at once, per class, in this browser. A class you haven't touched carries its stock
   kit, mods and all (a stock conversion, the Scout's 10mm kit or the Rusher's sawn-off, shows on its tile and is
-  counted); change anything and it's yours, its conversion kept and its other mods left off (the note under the perks
-  says which it is). A
+  counted, as are its own parts'); change anything and it's yours, all of that kept (the note under the perks says
+  which it is). A
   dot by a class in the list marks one you've changed; **Reset to default** (or R) puts it back. Every stock class
   already fits in 6 points a gun (1 to 5 on each, its conversion and the secondary's 2 counted), so none is
   trimmed; a loadout saved under the old shared 10 is trimmed to 6 on each gun (its choices first, then its top

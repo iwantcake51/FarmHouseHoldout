@@ -23,7 +23,7 @@ export const MOD_UP = {
   ported: { t: 'Spread −20%', up: D => { D.spread *= 0.8; } },
   navy: { t: '+1 round a burst, +6% damage', up: D => { D.burst += 1; D.dmg *= 1.06; } },
   gl: { t: 'Recharges 25% faster', up: D => { D.glRecharge *= 0.75; } },
-  heavy: { t: '+10% damage, spread −10%', up: D => { D.dmg *= 1.1; D.spread *= 0.9; } },
+  heavy: { t: '+10% damage, spread −10%, less drop-off at range', up: D => { D.dmg *= 1.1; D.spread *= 0.9; D.reach += 0.2; } },
   bipod: { t: 'Spread −15%', up: D => { D.spread *= 0.85; } },
   nails: { t: '+15% damage', up: D => { D.dmg *= 1.15; } },
   wire: { t: 'Reach +0.15', up: D => { D.range += 0.15; } },
