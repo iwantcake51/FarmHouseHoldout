@@ -22,7 +22,7 @@ import { SHELL_MAT } from '../weapons/gun-models.js';
 import { GUNS } from '../melee/melee-models.js';
 import { gearOnAvatar, gearSpec } from '../player/gear.js';
 import { buildWeapon, weaponRec } from '../weapons/build-weapons.js';
-import { placeMag } from '../weapons/casings.js';
+import { placeMag, remoteCycle, remoteEnd } from '../weapons/casings.js';
 import { state } from '../game/state.js';
 import { SNAP_GUN } from './avatars.js';
 import { camFocus } from './spectate.js';
@@ -265,11 +265,11 @@ export function buildArsenal(a, lo, lk) {
   // the speed loader and the shells in their hand
   if (!a.slm) { a.slm = SLM.clone(true); a.slm.visible = false; a.upper.add(a.slm); a.hsh = HSH.clone(true); a.hsh.visible = false; a.upper.add(a.hsh); }
 }
-// a shot's kick on their gun (m: back along it, up), and a pump's or bolt's working after it: when it starts (s after the
-// shot), how long it takes, and when the whole of a shot's moving is done
+// a shot's kick on their gun (m: back along it, up), and when it's died away (a pump's or bolt's working after it goes
+// on as your own does: weapons/casings.js remoteCycle)
 // (and its muzzle flipped up about where it's gripped, flip rad: by its kick, net/avatars.js avShot)
 const ARS_KICK = { back: 0.045, up: 0.012, flip: 0.09 };
-export const ARS_RACK = { at: 0.22, len: 0.42, end: 0.7 };
+const ARS_KICK_END = 0.36;
 // every frame: their weapons out where they hold them (eased), the moving parts as they last said, what's stowed
 const _aQ = new THREE.Quaternion();
 export function arsenalFrame(p, a, rdt) {
@@ -286,13 +286,14 @@ export function arsenalFrame(p, a, rdt) {
     // their shot (net/avatars.js avShot, a.fire): the gun kicked back into them and its muzzle up, easing home, and a
     // slide or bolt that cycles on its own slammed back and run home, as yours does (player/hold.js)
     // (and a pump's forend or a bolt worked after the shot, racked back and run home, a bolt's handle turned up first:
-    // ARS_RACK, as their own cycle has it, player/hold.js; the case flicks out as it comes back, net/avatars.js avShot)
-    const F = a.fire; if (F && F.s === s && F.t < ARS_RACK.end) {
+    // with your own cycle's beats and curves, weapons/casings.js remoteCycle; the case flicks out as it hits the stop,
+    // net/avatars.js avShot)
+    const F = a.fire; if (F && F.s === s && F.t < Math.max(ARS_KICK_END, F.cyc ? remoteEnd(F.cyc) : 0)) {
       F.t += rdt; const st = F.t, kk = F.k * Math.min(1, st / 0.012) * Math.exp(-st * 16);
       g.translateZ(-ARS_KICK.back * kk); g.position.y += ARS_KICK.up * kk;
       { const gp = (HOLD[h.id || F.id] || HOLD_DEF).grip; g.translateY(gp[1]); g.translateZ(gp[2]); g.rotateX(-ARS_KICK.flip * kk); g.translateZ(-gp[2]); g.translateY(-gp[1]); }
       const off = st < 0.02 ? st / 0.02 : st < 0.032 ? 1 : Math.max(0, 1 - (st - 0.032) / 0.06);
-      const R = ARS_RACK, u = (st - R.at) / R.len, rk = u <= 0 || u >= 1 ? 0 : u < 0.45 ? Math.sin(u / 0.45 * Math.PI / 2) : Math.cos((u - 0.45) / 0.55 * Math.PI / 2), lift = u <= 0 || u >= 1 ? 0 : Math.min(1, Math.min(u, 1 - u) * 6);
+      const cp = F.cyc && remoteCycle(F.cyc, st), rk = cp ? cp.off : 0, lift = cp ? cp.lift : 0;
       for (const q of h.rec.slides) { if (q.m.userData.clip !== undefined) continue; if (!q.cyc) q.m.position.z = q.z0 - q.travel * off; else { q.m.position.z = q.z0 - q.travel * rk; if (h.D && h.D.ammo === 'rifle' && h.D.slot === 'long') q.m.rotation.z = -BOLT_TURN * lift; } }
     }
   }

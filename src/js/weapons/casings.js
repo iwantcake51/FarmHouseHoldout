@@ -502,6 +502,15 @@ export function cyclePose(c, q) {
   else if (q < B.home) o.off = run(B.fwd, B.home, v => 1 - Math.pow(v, ex[1]));
   return o;
 }
+// someone else's pump or bolt worked after their shot (net/arsenal.js on their gun, net/spec-vm.js for the hand on a
+// bolt, net/avatars.js for the case flying out): your own cycle's beats and curves (cyclePose: the wind-up, the yank
+// quickest at the stop, the bounce off it, the slam home) in one of its ways (RACKS), picked per shot, started
+// REMOTE_RACK s after the shot (as long as a trigger's held a moment after it)
+const REMOTE_RACK = 0.22;
+export function remoteRack(id, vi) { const bolt = EJECT[id] === 'bolt', list = RACKS[bolt ? 'bolt' : 'pump']; return { bolt, v: list[vi % list.length] }; }
+export function remoteCycle(c, t) { const q = (t - REMOTE_RACK) / c.v.dur; return q <= 0 || q >= 1 ? null : cyclePose(c, q); }
+export const remoteEnd = c => REMOTE_RACK + c.v.dur;
+export const remoteEject = c => REMOTE_RACK + c.v.dur * c.v.beat.back;
 // a pump or bolt gun has to be racked before it fires again: firing leaves it open (W8.open), and it's chambered when
 // a rack drives the action home with a round to feed. A rack cut short (by a reload or a swap) leaves it open, and it's
 // racked again as soon as your hands are free (tickCycle); weapons/firing.js won't fire it till then

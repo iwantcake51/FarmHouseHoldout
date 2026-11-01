@@ -35,10 +35,10 @@ function drum(parent, info, big) {
 // (leaning back as the grip does), a pressed panel down each side and the floor plate square to its foot with a lip out
 // front. CM: its length (m), its lean from straight down where it leaves the grip and at its foot (rad, back negative:
 // the same, so it's straight), its depth front to back and width (m)
-const CM = { len: 0.17, rake: -0.27, bend: -0.27, depth: 0.066, w: 0.04 };
-function curvedMag(mg, z0, top) {
+const CM = { len: 0.17, plate: 0.07, rake: -0.27, bend: -0.27, depth: 0.066, w: 0.04 };   // (plate: the first step's short extension's length)
+function curvedMag(mg, z0, top, len = CM.len) {
   const n = 16, C = [[z0, top]], A = t => CM.rake + (CM.bend - CM.rake) * t;   // (the centre line: a constant bend, stepped down its length)
-  for (let i = 1; i <= n; i++) { const a = A((i - 0.5) / n), l = CM.len / n, p = C[i - 1]; C.push([p[0] + Math.sin(a) * l, p[1] - Math.cos(a) * l]); }
+  for (let i = 1; i <= n; i++) { const a = A((i - 0.5) / n), l = len / n, p = C[i - 1]; C.push([p[0] + Math.sin(a) * l, p[1] - Math.cos(a) * l]); }
   const N = i => { const a = A(i / n); return [Math.cos(a), Math.sin(a)]; };   // (square across it: forward and up)
   const side = (k, inset = 0) => C.map((c, i) => { const m = N(i), h = CM.depth / 2 - inset; return [c[0] + k * m[0] * h, c[1] + k * m[1] * h]; });
   const out = (inset = 0) => [...side(1, inset), ...side(-1, inset).reverse()];
@@ -72,7 +72,7 @@ export function buildWeapon(hold, id, D, mods, rec) {
   if (D.melee) { unfight(parent); return 0; }
   let front = info.front; const y = info.y;
   if (info.baseMag && !info.ownMags) { if (magT >= 2) drum(mg, info, magT >= 3); else { const h = info.baseMag + magT * 0.1; magBox(mg, 0.056, h, 0.08, X, info.magY - h / 2, info.magZ); } }
-  else if (info.magZ && !info.ownMags && info.stickMags) { if (magT >= 2) curvedMag(mg, info.magZ, 0.966); else if (magT) magBox(mg, 0.04, 0.07, 0.066, X, 0.962 - 0.035 + 0.004, info.magZ); }   // the hand cannon: a base plate, then a long straight mag below its own, raked with the grip
+  else if (info.magZ && !info.ownMags && info.stickMags) { if (magT) curvedMag(mg, info.magZ, 0.966, magT >= 2 ? CM.len : CM.plate); }   // the hand cannon: a short extension, then a long straight mag below its own, both raked with the grip
   else if (info.magZ && !info.ownMags) { if (magT >= 2) drum(mg, info, magT >= 3); else if (magT && !info.drumOnly) { const h = 0.06 + magT * 0.07; magBox(mg, 0.058, h, 0.07, X, info.magY - h / 2, info.magZ); } }
   const nb = parent.children.length, muz = fitted(parent, () => fitAttachments(parent, D, front, y, info)) + 0.02;
   // a break-action's barrels carry whatever was fitted on them (a choke, a laser, a light, the shell clip on a

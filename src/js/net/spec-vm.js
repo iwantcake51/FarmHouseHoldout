@@ -13,10 +13,9 @@ import { clamp, smooth } from '../core/math.js';
 import { FIST, HOLD, reach } from '../player/hold.js';
 import { SLOTS } from '../weapons/slots.js';
 import { WEAP } from '../weapons/gun-stats.js';
-import { EJECT } from '../weapons/casings.js';
+import { EJECT, remoteCycle } from '../weapons/casings.js';
 import { BOLT_KNOB } from '../weapons/gun-models.js';
 import { SPEC_VM_POSE } from './spec-vm-poses.js';
-import { ARS_RACK } from './arsenal.js';
 import { FPV } from '../game/view-cam.js';
 import { SET } from '../ui/settings.js';
 
@@ -80,7 +79,7 @@ function svAction(h, id, a, s) {
   q.m.updateMatrixWorld(true);
   if ((HOLD[id] || {}).foreOnSlide) { const dz = q.m.position.z - q.z0; if (Math.abs(dz) > 1e-4) { _svv.set(0, 0, dz).applyMatrix3(new THREE.Matrix3().setFromMatrix4(q.m.parent.matrixWorld)); out.fore = _svv; } }
   const F = a.fire; if (EJECT[id] === 'bolt' && F && F.s === s) {
-    const u = (F.t - ARS_RACK.at) / ARS_RACK.len; out.bolt = smooth(clamp((u + 0.3) / 0.25, 0, 1)) * smooth(clamp((1.15 - u) / 0.25, 0, 1));
+    const cp = F.cyc && remoteCycle(F.cyc, F.t); out.bolt = cp ? cp.grab : 0;   // (the hand to the knob and back as your own goes, weapons/casings.js cyclePose)
     if (out.bolt > 0) out.knob = _svb.set(BOLT_KNOB[0], BOLT_KNOB[1], BOLT_KNOB[2]).applyMatrix4(q.m.matrixWorld);
   }
   return out;

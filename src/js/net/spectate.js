@@ -115,7 +115,17 @@ export function renderSpec() {
 // sends it, ap: net/avatars.js; SPEC_XH.ease), draws in tighter while they're aiming down the sights, and fades in
 // and out with the watching
 const SPEC_XH = { ease: 12 }, _sxV = new V3();
+// a cut from one survivor you're watching to another: a quick dip through dark (SPEC_CUT s), so the view isn't seen
+// jumping from their eyes to someone else's across the map
+const SPEC_CUT = { s: 0.32 }; let specCutId = '', specCutEl = null;
+function specCut(f) {
+  const id = P.dead && f !== P ? f.id : ''; if (id === specCutId) return;
+  const was = specCutId; specCutId = id; if (!was || !id) return;
+  if (!specCutEl) { specCutEl = document.createElement('div'); specCutEl.id = 'specCut'; specCutEl.style.setProperty('--t', SPEC_CUT.s + 's'); document.body.appendChild(specCutEl); }
+  specCutEl.classList.remove('on'); void specCutEl.offsetWidth; specCutEl.classList.add('on');
+}
 export function updateSpecXh(rdt) {
+  specCut(camFocus());
   const el = $('specXh'), f = camFocus(), on = f !== P && (state === 'play' || state === 'paused') && !!f.ap && !(PVP.on && pvpFoe(f) && !(PVP.mode === 'rounds' && specFpOn()));   // (never the crosshair of the one who got you on the death camera: a teammate's, or once your side's out, from the eyes of the one on the other side you're watching)
   if (el.classList.contains('on') !== on) el.classList.toggle('on', on);
   if (!on) { SPEC.xh = null; return; }

@@ -466,9 +466,9 @@ export function gunFire(id, D, side) {
     if (D.dragon ? p < 2 : p < 4 || rand() < 0.5) { tracer(trO.x, trO.y, trO.z, ox + dx * flyT, fy, oz + dz * flyT, D.dragon ? trPw * 0.45 : trPw, trSt, sky); if (ends.length < 5) ends.push([ox + dx * flyT, fy, oz + dz * flyT, fK, hole]); }
     if (p === 0) { const sT = Math.min(flyT, FLY.smoke); smokeTrail(trO.x, trO.y, trO.z, ox + dx * sT, free && fp ? y0 + slope * sT : ey, oz + dz * sT, smokeOf(D, id, quietR, pellets === shots)); }   // big calibres leave smoke in the air, and every suppressed round a thicker, longer-lasting trail of it
     // (in the arena: a box on the shelving it stopped in, or one on its way, knocked off, instead of a hole in the shelving: world/arena-boxes.js)
-    const mbx = !n && !D.explode && arBoxShot(ox, y0, oz, dx, slope, dz, endR, wallT < reach && wallT <= endR, fp);
+    if (!n && !D.explode) arBoxShot(ox, y0, oz, dx, slope, dz, endR, wallT < reach && wallT <= endR, fp);
     if (D.explode && (n || wallT < reach)) explode(ox + dx * endT, oz + dz * endT, D.explode, 45, true, false, true);
-    else if (!n && !mbx && wallT < reach && wallT <= endR) {   // sparks and a little dust puff where it hits the wall
+    else if (!n && wallT < reach && wallT <= endR) {   // (a box knocked off on the way doesn't stop it: the shelving lets rounds through)   // sparks and a little dust puff where it hits the wall
       const ix = ox + dx * (wallT - 0.05), iz = oz + dz * (wallT - 0.05);
       if (p < 4 || rand() < 0.4) impactFx(ix, ey, iz, -dx, -dz, 'wood');   // a flash, splinters, a puff off the surface (effects/puffs.js)
       bulletHole(ox, oz, dx, dz, wallT, ey, hole);   // and a hole in it (effects/bullet-holes.js)

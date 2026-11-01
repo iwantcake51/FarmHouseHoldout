@@ -6,6 +6,9 @@ import { thinPush } from './thin-walls.js';
 import { lowObst, obstTop } from './props.js';
 
 export const blockArr = new Uint8Array(N * N);
+// cells a round goes through though you can't walk or see through them: the arena maps' shelving (world/arena.js), its
+// boxes knocked off as it goes (world/arena-boxes.js)
+export const SHOOT_THRU = new Set();
 // what stops bullets and sight: walls and tall props, not the crates and hay bales you can see over
 // (taken afresh from the grid as each run's farm is laid out, world/interior.js: the title's layout moves the yard's
 // props without it, so what was made here, with every prop where it was built, would go on blocking where none stands)
@@ -29,13 +32,13 @@ export function boxHitT(k, ox, oz, dx, dz, t0, t1) {
 export const hardBlocked = (i, j) => { if (!inb(i, j)) return true; const t = cell[idx(i, j)]; return t === WALL || t === OBST || t === FENCE || (t === OPEN && (openAt[idx(i, j)].boards.length > 0 || openAt[idx(i, j)].kind === 'window')); };
 export const playerBlocked = hardBlocked;
 // out past the edge of the farm is open ground: shots (and anything thrown) carry on out to the zombies coming in
-export const bulletBlocked = (x, z) => { const i = ci(x), j = ci(z); if (!inb(i, j)) return false; const k = idx(i, j); return blockArr[k] === 1 && inCellBox(k, x, z); };
+export const bulletBlocked = (x, z) => { const i = ci(x), j = ci(z); if (!inb(i, j)) return false; const k = idx(i, j); return blockArr[k] === 1 && !SHOOT_THRU.has(k) && inCellBox(k, x, z); };
 // and from your own eyes, where a round's height counts: it's stopped only if it's lower than what's there (the house's
 // walls up to its eaves, a tree up to its crown, a tall prop: BLOCK_TOP), so a round fired up over them flies on (the
 // roof over the house: weapons/firing.js)
 const BLOCK_TOP = { wall: 2.6, prop: 2.4, trunk: 0.18 };
 export const bulletBlockedAt = (x, z, y) => {
-  const i = ci(x), j = ci(z); if (!inb(i, j)) return false; const k = idx(i, j); if (blockArr[k] !== 1 || !inCellBox(k, x, z)) return false;
+  const i = ci(x), j = ci(z); if (!inb(i, j)) return false; const k = idx(i, j); if (blockArr[k] !== 1 || SHOOT_THRU.has(k) || !inCellBox(k, x, z)) return false;
   if (cell[k] === WALL) return y < BLOCK_TOP.wall;
   const o = obstTop.get(k); if (o === undefined) return y < BLOCK_TOP.prop; if (typeof o === 'number') return y < o;
   return y < o.top && Math.hypot(x - o.x, z - o.z) < Math.max(BLOCK_TOP.trunk, o.r * (o.top - y) / o.top);   // (a tree: inside its cone)

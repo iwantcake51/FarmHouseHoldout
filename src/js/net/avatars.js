@@ -29,7 +29,7 @@ import { fpOn, FPV, isoOn, specFpOn } from '../game/view-cam.js';
 import { FP_PIV, lookTurn } from '../player/hold.js';
 import { avatarAction, specKick, specVm, specVmFov } from './spec-vm.js';
 import { flipOf, gunMeshes, X } from '../weapons/gun-materials.js';
-import { EJECT, ejectFrom } from '../weapons/casings.js';
+import { EJECT, ejectFrom, remoteEject, remoteRack } from '../weapons/casings.js';
 import { flashes } from '../weapons/explosives.js';
 import { indoors, playS, SUPP_SFX } from '../audio/samples.js';
 import { footstep } from '../audio/footsteps.js';
@@ -150,11 +150,14 @@ function specJoltStep(a, rdt) {
   for (let n = Math.ceil(rdt / (1 / 120)), h = rdt / Math.max(1, n), i = 0; i < n; i++) for (const k of ['p', 'r', 'y']) { const v = 'v' + k; J[v] += (-SPEC_JOLT.k * J[k] - SPEC_JOLT.d * J[v]) * h; J[k] += J[v] * h; }
 }
 const _sfpA = new THREE.Matrix4(), _sfpB = new THREE.Matrix4(), _sfpP = new V3(), _sfpQ = new THREE.Quaternion(), _sfpS = new V3(1, 1, 1);
+// how quickly the view from someone's eyes follows what they send (per s): a player's own view, already smooth, closely;
+// a bot's, its aim snapping round to whoever shot it, eased
+const SPEC_EASE = { player: 20, bot: 9 };
 function specFp(p, a, rdt) {
   const f = p.fv, on = !!f && !p.dead && specFpOn() && camFocus() === p;
   const hv = !on && !a.headGone; if (a.head.visible !== hv) a.head.visible = hv;   // (gone to a headshot in the arena, till they're back: pvp/pvp.js)
   if (!on) { a.fvc = null; return; }
-  const k = 1 - Math.exp(-rdt * 20), c = a.fvc && a.fvc.length === f.length ? a.fvc : (a.fvc = f.slice());
+  const k = 1 - Math.exp(-rdt * (f.length <= 8 ? SPEC_EASE.bot : SPEC_EASE.player)), c = a.fvc && a.fvc.length === f.length ? a.fvc : (a.fvc = f.slice());   // (a bot's eyes eased more: its aim turning onto someone is a turn of your view, never a whip)
   for (let i = 0; i < f.length; i++) c[i] += (f[i] - c[i]) * k;
   a.g.updateMatrixWorld(true);
   // (each part's world: their body's frame, then where it was in it; into its parent's frame)
@@ -402,7 +405,7 @@ function avShot(m) {
   const D = WEAP[m.w] || {}; a.fire = { t: 0, s: SLOTS[e[0]], id: m.w, k: Math.min(2, (D.kick || 3) / 3) };
   const hold = h.holds.R; hold.updateWorldMatrix(true, false);
   if (p.bot) { _avM.set(X, GUN_Y + 0.03, (h.muz || 0.9) + 0.02); hold.localToWorld(_avM); m.x = _avM.x; m.y = _avM.y; m.z = _avM.z; }   // (a bot's said only roughly where: from its gun's muzzle)
-  const ej = EJECT[m.w]; if (ej === 'fire') ejectFrom(m.w, flipOf(hold) || hold, p.vx, p.vz, p.vw ? p.vw[0] : 0); else if (ej === 'pump' || ej === 'bolt') a.ejT = { t: 0.4, id: m.w };   // (as the action comes back: net/arsenal.js ARS_RACK)
+  const ej = EJECT[m.w]; if (ej === 'fire') ejectFrom(m.w, flipOf(hold) || hold, p.vx, p.vz, p.vw ? p.vw[0] : 0); else if (ej === 'pump' || ej === 'bolt') { a.fire.cyc = remoteRack(m.w, (Math.random() * 3) | 0); a.ejT = { t: remoteEject(a.fire.cyc), id: m.w }; }   // (worked as your own is, and the case out as the action hits its stop: weapons/casings.js remoteCycle)
   if (a.fvc) specJolt(a, 'kick', a.fire.k);
 }
 NET_ON.shot = m => {

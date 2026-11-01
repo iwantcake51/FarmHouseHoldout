@@ -30,7 +30,7 @@ import { soundAt } from '../audio/spatial.js';
 
 // back: a deathmatch's wait before a box is back (s); reach: how far past where the shelving stopped the round a box can
 // still be met (m); ear: the least gap between two boxes' sounds (s: a shotgun's blast knocking off several at once)
-const AR_BOX = { sets: new Map(), back: 25, reach: 1.0, ear: 0.05, earT: 0 };
+const AR_BOX = { sets: new Map(), back: 25, reach: 1.0, near: 0.45, ear: 0.05, earT: 0 };
 const arBoxM = new THREE.Matrix4();
 // a set of boxes (id: its name, the same on every screen; g: the map's group). Registering a set again under the same
 // name (the map built again) replaces it
@@ -106,8 +106,10 @@ export function arBoxShot(ox, oy, oz, dx, dy, dz, endT, stopped, fp) {
     if (!arBoxUp(set)) continue;
     // (in what stopped it, and the next along that holds boxes too: never through a wall beside it)
     if (stopped && set.cells.has(k0)) for (const k of near) { const ns = set.cells.get(k); if (ns) for (const n of ns) look(set, n, endT + AR_BOX.reach); }
-    // (from your own eyes, any its line meets on the way: one on a bench or a low shelf it flies over)
-    if (fp) for (let n = 0; n < set.list.length; n++) look(set, n, endT);
+    // (any its line meets on the way: the shelving lets rounds through, world/collision.js SHOOT_THRU, so a round
+    // fired through a shelf knocks off the box it passes through and flies on. From above, only one near the height the
+    // round flies at, AR_BOX.near)
+    for (let n = 0; n < set.list.length; n++) { if (fp) look(set, n, endT); else { const b = set.list[n], t = arBoxT(b, ox, oy, oz, dx, dy, dz, true); if (t <= endT && Math.abs(oy + dy * t - b.y) - b.h / 2 < AR_BOX.near) look(set, n, endT); } }
   }
   if (!best) return false;
   arBoxBreak(best, bn, dx, dz); netSend('abx', { s: best.id, i: bn, dx: Math.round(dx * 100) / 100, dz: Math.round(dz * 100) / 100 });

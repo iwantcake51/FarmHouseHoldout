@@ -226,8 +226,8 @@ the fresh box comes up with its end lying loose in it, and once the box is on th
 and drawn into the port. A teammate sees each round where yours are. At the workbench you can add sights, lasers,
 suppressors, stocks, grips and underbarrel grenades (a laser's beam is a fine line of light from its lens to its dot, the same width on screen however you look along it, never a flat strip), and change calibres with conversion kits such as AK mags for the
 battle rifle (rocked in front lug first, the AK way) or 10mm for the SMG. The double barrel's sawn-off kit cuts it to a coach gun: more pellets in a wider spread, each hitting 30% harder up close, but its short barrels drop it off hard (full damage only to 2.5 m, down to a fifth of it by 7 m, where the full-length gun holds to 4 m and keeps half past 11). Down the sights it's quicker on its feet than the full-length gun too (76% of your pace against 66%). Every slug, out of any shotgun, holds its damage far further than shot but still tails off: full damage to 10 m, easing down to 60% by 26 m and never below that. Out of the sawn-off a slug drops off hard instead, as its buckshot does: full damage to 3 m and down to a fifth by 8 m. The double barrel itself was too strong early on: it's now eight pellets of 16 a barrel (from nine of 19: 256 for both barrels, from 342), its second barrel follows a touch slower (0.12 s) and each shell takes 0.5 s to load (from 0.42); still the biggest burst up close, not by so much. You can also load special rounds (hollow points, slugs, flechettes and more) and
-tune damage, fire rate, recoil and magazine size. The hand cannon's longest mag is a straight stick, no curve at all,
-carrying on down out of the grip on the grip's own rake (leaning back as the grip does), a pressed panel down each
+tune damage, fire rate, recoil and magazine size. The hand cannon's mags, the first extension and the longest alike,
+are straight sticks, no curve at all, carrying on down out of the grip on the grip's own rake (leaning back as the grip does), a pressed panel down each
 side and the floor plate square to its foot with a lip out front; the
 machine pistol's magazine steps go from its stick to an extended stick and then straight to a drum (no casket). The
 shotguns' chokes are real choke tubes, as wide as the muzzle they thread into: the **Modified choke** (tier 1) a black
@@ -495,7 +495,10 @@ the pickups feed) is put away. The host picks one of three modes:
     mags; Slam fire, the 10mm kit, the AK conversion, a second pistol, burst and so on), and a melee weapon. Each is
     drawn at any of its levels, 1 up to as far as that line goes on the gun (a level II or III can, a scope up to the
     gun's strongest, a mod at level I to III), but never the powder, never a tune-up and never a longer belt on the
-    LMG (a loadout kept from before with one goes in with the stock belt). The same set lasts two rounds
+    LMG (a loadout kept from before with one goes in with the stock belt). A mod that needs another first (the auto
+    sear needs the burst conversion) used to be left out of the draw altogether, so full auto never turned up; now
+    when the draw gives a handgun the burst conversion, it adds the auto sear 60% of the time (with the burst
+    conversion at the level it needs), and burst itself comes up more often (60%). The same set lasts two rounds
     (the host can make it 1, 2 or 3: Match settings), then a whole new one is drawn. A round with a new set shows it
     on a card for 3 seconds, the round's number on it; a round that keeps last round's skips the card and goes straight
     to the count-in, and your guns aren't drawn again for it. There's no picking, and no perks. **With each new
@@ -600,6 +603,9 @@ their aim faster, and their first two rounds after a breath spread 40% less.
   than trailing them. In a fight they cut back and forth unevenly, bob in a crouch, go for whoever's out in the open
   over whoever's behind cover, press someone they've just slowed with a hit, and get out of the open when they're
   tagged themselves.
+- **No moonwalking.** A bot on the move keeps its aim within about 100° of the way it's going, unless it's holding an
+  angle (in cover, peeking, waiting in ambush) or has just seen someone. It used to backpedal at a run with its gun
+  on something behind it, its legs sliding the wrong way under it.
 - **Hits slow bots as they slow you**: about half pace from a hit, a third from a heavy one, sprint broken, worn off over
   a second and a half or two.
 - **Footsteps.** A bot hears a sprint out to 16 m and a walk to 8 m; crouch-walking is about a third as loud. Hearing
@@ -707,6 +713,19 @@ their aim faster, and their first two rounds after a breath spread 40% less.
   take flinches the view.
 - **Seen from outside**, a bot's support hand rides its pump's forend as it's racked and its trigger hand works its
   bolt, and anyone's gun flips up about the grip with each shot as well as kicking back.
+- **Pumps and bolts worked as yours are.** Someone else's pump or bolt (watched from their eyes or seen from outside)
+  is worked with your own cycle's beats and curves (weapons/casings.js remoteCycle): a beat of wind-up, the yank back
+  quickest as it hits the stop, a bounce off it, the slam home and a bounce off the front, a bolt's handle snapped up
+  and slapped down. Each shot picks one of the same few ways yours are worked. The hand on a bolt's knob goes there and back with it, and
+  the case flies out as the action hits its stop. It used to be one plain back-and-forth curve that looked stiff
+  next to your own.
+- **A bot looking its gun over** turns it about where its hand grips it (with the gun's own grip point,
+  player/hold.js), so the gun stays in its hand; it used to turn about a point well below the hand and swing out to
+  the side, floating free.
+- **Switching who you watch** (your side's all down and it moves to the other side, or a teammate you were watching
+  goes down) is a cut: the view dips to dark for a third of a second and comes up on them, rather than whipping across
+  in one hard flick. A bot's view is eased more gently than a person's (it sends its aim less often), so it doesn't
+  snap from one sent aim to the next.
 - **The poses were recorded again** after the first set caught the long guns, the sub guns and the hand cannon
   mid-draw, still slung on the back, so from a bot's eyes the gun sat off the bottom of the view; now every gun is held
   from the hip and down the sights exactly as your own is.
@@ -762,13 +781,21 @@ Its body moves like a player's. The poses were recorded from a survivor in this 
 **Nothing of the farm** shows in the arena: no burn barrel fire or moths round its lamps. Running a gun dry says
 **Empty. Switch weapons** with no "craft some at the workbench" popup, as there's no workbench.
 
+**Close buttons** are the same plain × on every menu (dim, lighting up on hover), with no box or outline; the settings
+menu used to have two of them.
+
 **The pause screen** has no close cross: Resume (or Esc) takes you back. The host's has **End game** (see How a run
 goes), which ends the match for everyone and goes to the results.
 
 **No stall at a new round.** When the next round brings a new random loadout, it's drawn at the end of the round
 before and readied a piece at a time over the four seconds the round's end lasts: the loadout card's pictures, every
 other player's guns as they'll carry them, and their shaders. So the teleport back to the spawns no longer freezes the
-game while all of it is built at once.
+game while all of it is built at once. That building waits about two seconds into the round's end, so it doesn't land
+while the score bar's shine is playing.
+
+**The score bar's shine** at a round's end (the winning side lit, a sweep across it, its number and pip popping) moves
+only things the graphics card can move on its own (fading and sliding), no glow or shadow redrawn each frame, so it no
+longer stutters the game as it plays.
 
 **A version check.** A game that's a build behind or ahead of the host's (a page not refreshed since an update) is
 turned away when it tries to join, with a note to refresh. The two would otherwise play different games: a joiner on
@@ -793,6 +820,9 @@ Then comes the **count-in**, before every match and every Showdown round:
   bolt gun's action still gets worked. Your survivor stands straight at the spawn from the first moment (it used to ease up out of the title
   screen's kneel, the view rising from about your knees).
 - At 0 it calls **Fight**.
+- **Match point and the final round** are called out in Showdown: the count-in shows **Match point** (gold) or
+  **Final round** (red) big over the number with a low horn, and the score bar's "First to" line becomes the same word,
+  pulsing, for the whole round.
 
 The classes: always two guns and a melee weapon, with their attachments and perks set.
 
@@ -1067,7 +1097,7 @@ like pea-shooters). To a 100-health body, before range falloff:
 - **The results** come up at the end, even if you're down, on a sheet in the menus' own style (styles/pvp-results.css)
   with a stripe of the outcome's colour along its top: **Victory** (green), **Defeat** (red) or **Draw** (grey) big
   on the left, who won under it, and the final score on the right with each side's name over its number. Under that
-  the **MVP** on a gold-edged card of their own (their picture, side, and kills, deaths, damage, headshots and accuracy
+  the **MVP** on a gold-edged card of their own (their picture, drawn from their own look, side, and kills, deaths, damage, headshots and accuracy
   in large numbers with plain labels; picked by kills first, then damage, headshots and accuracy, less a little for
   each death), then the whole table: names in a plain readable face, numbers in the game's condensed one, each side
   under its own coloured heading with its score, your row lit and the MVP tagged. The buttons sit at the foot on the
@@ -1100,6 +1130,10 @@ like pea-shooters). To a 100-health body, before range falloff:
 - **Space** skips the death camera a second after you go down: in the respawn modes you're straight back in (unless
   you've opened the loadouts), in Showdown straight on to watching a teammate. **F** opens the loadouts for your next
   life (the card says both).
+- **Changing your loadout while you're down** (the respawn modes) holds you there: the countdown still runs, but at
+  0 it waits, and you're only back in, with the new loadout, when you press **Space** (the card says "Back in 3 · then
+  [Space]", then "[Space] to go back in"). It used to drop you straight back in the moment the countdown ran out, maybe
+  before you'd finished picking.
 - **The death camera** goes to whoever killed you and follows them: from above it keeps them in the middle, and from
   your own eyes it draws out of yours and then follows from behind and above them, from your side. It lasts till
   you're back in. In Showdown only once your whole side is down (then it goes to whoever took the last of you down,
@@ -1138,8 +1172,9 @@ middle and about 5.5 s by either side lane):
 - **The shelves' boxes can be shot off**: a round or a shotgun pellet that the shelving stops knocks off the box it
   went into (from your own eyes the one its line meets; from above the one nearest the height it flies at, so the
   next shot into the same spot takes the next one), in a burst of dust and scraps of cardboard with a dull crunch.
-  Bots' rounds do it too, and every player sees the same boxes go. They're dressing: the shelving still stops rounds
-  and sight. They all come back with the next round in Showdown; in Deathmatch and Team deathmatch each one's back
+  Bots' rounds do it too, and every player sees the same boxes go. **Shelving can be shot through**: rounds and pellets
+  go on through it (knocking off every box in their way), on every map with shelving (the Mall, Route 9, the Farm),
+  though it still blocks sight and movement. They all come back with the next round in Showdown; in Deathmatch and Team deathmatch each one's back
   25 s after it went (and all of them at the next match). Any map can have them (world/arena-boxes.js).
 - **Dressed as a real mall**, none of it changing the cover: each shop's glass shows the shop behind it (clothes,
   electronics, books, shoes, jewellery, toys) with its name lit on its sign band, the anchor stores' display windows
@@ -1634,7 +1669,7 @@ quickly and clears as you settle; standing still on your first shots it's sharp.
 touch, a dot's bloom growing a little round it), never its size. A handgun's dot is kept tighter still, a small sharp
 point with very little bloom, since its window is small and close to your eye. On a handgun the red dot is a pistol sight cut
 into the slide, one of four dealt to each handgun once a run (and the same one on your teammates' screens): a Trijicon
-RMR (a shield-shaped hood raked in to a flat top, 3.25 MOA dot), an SRO (a big round window, its battery cap on top, 2.5
+RMR (a shield-shaped hood raked in to a flat top, 3.25 MOA dot), an SRO (a big round window with nothing standing up on top of it, 2.5
 MOA), a Holosun 507C (a squared shroud, solar panel on top, battery tray in the right side and buttons in the left, 2
 MOA) or a Leupold DeltaPoint Pro (the widest, tallest window and a rear-sight notch across its back, 2.5 MOA), each its
 true size, the glass at the front and the emitter on the base behind the window. It sits at the back of the slide where

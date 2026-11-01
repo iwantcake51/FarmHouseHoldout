@@ -29,7 +29,7 @@ import { rand, rr, seeded, withSeed } from '../core/math.js';
 import { lam, lit, LMU } from '../core/shaders.js';
 import { box, mergeInto } from '../core/geometry.js';
 import { cell, ci, cxw, EMPTY, idx, OBST, openAt, WALL } from './grid.js';
-import { cellBox, syncBlock } from './collision.js';
+import { cellBox, SHOOT_THRU, syncBlock } from './collision.js';
 import { lowObst, obstTop } from './props.js';
 import { THIN, wX, wZ } from './thin-walls.js';
 import { openings, WALL_FORMS } from './house.js';
@@ -869,13 +869,13 @@ export function arenaUp(id) {
   arSaved = { out, cell: cell.slice(), open: openAt.slice(), box: cellBox.slice(), low: new Set(lowObst), top: new Map(obstTop), wX: wX.slice(), wZ: wZ.slice(), thinN: THIN.n, thinBox: THIN.box.slice(),
     openings: openings.slice(), doors: HOUSE_DOORS.list.slice(), doorKey: HOUSE_DOORS.key, lights: STATIC_LIGHTS.slice(), house: LMU.uHouse.value.clone() };
   openings.length = 0; HOUSE_DOORS.list.length = 0; HOUSE_DOORS.key = 'arena'; wX.fill(0); wZ.fill(0); THIN.n = 0;
-  cell.fill(EMPTY); openAt.fill(null); cellBox.fill(null); lowObst.clear(); obstTop.clear();
+  cell.fill(EMPTY); openAt.fill(null); cellBox.fill(null); lowObst.clear(); obstTop.clear(); SHOOT_THRU.clear();
   if (!M.g) M.g = arBuildMap(M);   // (the props' footprints go in as they're built: arCellBoxes keeps them for the next match)
   FLARE_SRC.length = 0; FLARE_SRC.push(...(M.flares || []));   // (the floodlights' lens flares: effects/post.js)
   for (let j = ARENA.z0; j <= ARENA.z1; j++) for (let i = ARENA.x0; i <= ARENA.x1; i++) {
     const k = AR_KIND(i, j), c = idx(i, j);
     if (M.walls.includes(k)) cell[c] = WALL;
-    else if (M.h[k]) { cell[c] = OBST; obstTop.set(c, M.h[k]); if (M.low.has(k)) lowObst.add(c); if (M.vault.has(k)) VAULT_LOW.add(c); }
+    else if (M.h[k]) { cell[c] = OBST; obstTop.set(c, M.h[k]); if (M.low.has(k)) lowObst.add(c); if (M.vault.has(k)) VAULT_LOW.add(c);  if ((M.thru || AR_THRU).includes(k)) SHOOT_THRU.add(c); }
   }
   TREE_HIDE.at = () => true;   // (and none of the woods the forests draw afresh each frame: world/tree-cull.js)
   arCellBoxes(M);
@@ -906,13 +906,15 @@ export function arenaDown() {
   s.out.forEach(o => scene.add(o));
   cell.set(s.cell); for (let k = 0; k < openAt.length; k++) openAt[k] = s.open[k]; for (let k = 0; k < cellBox.length; k++) cellBox[k] = s.box[k];
   lowObst.clear(); s.low.forEach(k => lowObst.add(k)); obstTop.clear(); s.top.forEach((v, k) => obstTop.set(k, v));
-  wX.set(s.wX); wZ.set(s.wZ); THIN.n = s.thinN; THIN.box = s.thinBox;
+  wX.set(s.wX); wZ.set(s.wZ); THIN.n = s.thinN; THIN.box = s.thinBox; SHOOT_THRU.clear();
   openings.length = 0; openings.push(...s.openings); HOUSE_DOORS.list.length = 0; HOUSE_DOORS.list.push(...s.doors); HOUSE_DOORS.key = s.doorKey;
   STATIC_LIGHTS.length = 0; STATIC_LIGHTS.push(...s.lights); LMU.uHouse.value.copy(s.house);
   syncBlock(); setLightsDirty(true); setVisKey(''); stillShadowsReset();
 }
 // the spawn spot for a side (A, B or F) furthest from the enemies given ([x, z] each), a little off where it's marked
 const RESPAWN_PICK = 0.75;
+// the plan's kinds a round goes straight through (shelving: S on every map that has it), its boxes knocked off
+const AR_THRU = 'S';
 export function arenaSpawn(side, foes, n, seed) {
   const SP = AR_CUR.spawn.S, L = SP[side] || SP.F;
   let best = L[0], bd = -1;

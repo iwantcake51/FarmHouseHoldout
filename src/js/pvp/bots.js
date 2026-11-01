@@ -43,6 +43,7 @@ import { ci, cxw, idx, inb } from '../world/grid.js';
 import { bulletBlocked, hardBlocked, moveCircle } from '../world/collision.js';
 import { los } from '../lighting/lightmap.js';
 import { PVP, PVP_BLEED, PVP_CLASSES, PVP_DMG, PVP_R, PVP_T, PVP_TTK, pvpClassOf, pvpCovered, pvpFalloff, pvpHome, pvpFlag, pvpPartK, pvpKilled, pvpKitOn, pvpSideOf } from './pvp.js';
+import { HOLD, HOLD_DEF } from '../player/hold.js';
 import { BOT_CYC, BOT_GUN, BOT_GY, BOT_IDLE, BOT_INSPECT, BOT_LEG, BOT_UP } from './bot-poses.js';
 
 // how good they are, by the lobby's pick (NET.botSkill): how long they take to react to someone new (s), how far off
@@ -311,7 +312,7 @@ const BOT_TBAG = { odds: 0.3, cocky0: 0.25, far: 25, len: 9, bobs: [3, 6], wait:
 // looking its gun over (BOT_INSPECT, the player's own moves): how likely while counting in, after wait s; at a round's
 // end, how likely every gap s it's stood about; let go part way (cut: of the way through) or when it's time to move,
 // eased in at in and out at out (per s)
-const BOT_INSP = { count: 0.45, wait: [0.2, 1.6], end: 0.35, gap: [1.5, 4], cut: [0.45, 1.15], in: 5, out: 8 };
+const BOT_INSP = { turn: 0.45, move: 0.5, count: 0.45, wait: [0.2, 1.6], end: 0.35, gap: [1.5, 4], cut: [0.45, 1.15], in: 5, out: 8 };
 // footsteps heard (botSense): out to run m at a sprint, walk m walking (over slow m/s), crouched quieter as yours are
 // (CROUCH.step), and how near and fresh one has to be for it to get ready for them (ready m, s: BOT_AMBUSH)
 // topping off in a lull (botThink): nobody seen nor shooting at it for calm s; a veteran steps into cover first from
@@ -321,6 +322,9 @@ const BOT_STEP = { run: 16, walk: 8, slow: 1.3, ready: 13, fresh: 1.5 };
 // getting ready for someone it's heard coming (botThink): waiting for them crouched where it is with its gun on the
 // corner, leaned the way it'd see them (wait s, as likely as BOT_SKILL iq times wait_), else out at them first: a
 // peek or a swing (pre-peek)
+// walking with its aim off the way it's going: at most max (rad) of it, unless it's in one of hold's states or had
+// someone in a fight within fresh s
+const BOT_BACKPEDAL = { max: 1.75, fresh: 2, hold: ['hold', 'cover', 'peek', 'ambush', 'tbag'] };
 const BOT_AMBUSH = { wait: [2.2, 4], wait_: 0.55 };
 const botTagged = (b, id, t) => { const e = b.dealt && b.dealt.get(id); return !!(e && t - e.t < BOT_TAG.fresh); };
 // hurt: someone it's put dmg (hp) into within mem s (or the one who's just killed a teammate, BOT_TRADE, or in
@@ -1096,6 +1100,9 @@ function botAimStep(b, dt, t, T) {
         b.preA = watch ? (los(b.x, b.z, watch.x, watch.z) ? null : botPreAim(b, aL, t, BOT_AIMPRE.arcL, aL)) : botPreAim(b, mv, t, BOT_AIMPRE.arc);
       }
       want = watch && b.preA === null ? Math.atan2(watch.x - b.x, watch.z - b.z) : b.preA ?? mv ?? b.aim; ready = true;
+      // (walking somewhere, it never looks back over its shoulder for long: unless it's in a fight just now or holding
+      // a spot, its aim stays within BOT_BACKPEDAL.max of the way it's going, so it doesn't walk backwards down a lane)
+      if (mv !== null && !BOT_BACKPEDAL.hold.includes(b.state) && !(watch && t - watch.t < BOT_BACKPEDAL.fresh)) { const d = angDiff(want, mv); if (Math.abs(d) > BOT_BACKPEDAL.max) want = mv + Math.sign(d) * BOT_BACKPEDAL.max; }
     }
     else { if (t > b.glanceT) { b.glanceT = t + rr(...BOT_LOOK.glance); b.look = botOpenLook(b); } want = b.look; }
   }
@@ -1191,7 +1198,7 @@ function botShoot(b, id, D, foes, d) {
         endK = 0; ey = part === 'head' ? 1.62 : part.startsWith('leg') ? 0.5 : 1.15;
       }
     }
-    if (!hit && wallT < 70) arBoxShot(ox, ey, oz, dx, 0, dz, wallT, true, false);   // (into shelving: a box on it knocked off, world/arena-boxes.js)
+    arBoxShot(ox, ey, oz, dx, 0, dz, hit ? ht : Math.min(wallT, 70), false, false);   // (a box on shelving it passes through knocked off on the way, world/arena-boxes.js)
     if (ends.length < 5 && (k < 4 || rand() < 0.5)) ends.push([bR3(ox + dx * ht), bR3(ey), bR3(oz + dz * ht), endK, pel > 2 ? 0.045 : 0.08]);
   }
   if (on.size) b.st.hits++;
@@ -1338,7 +1345,11 @@ function botPose(b, dt, t, now_) {
       w = [bR3(_bvP.x), bR3(_bvP.y), bR3(_bvP.z), bR3(_bvQ.x), bR3(_bvQ.y), bR3(_bvQ.z), bR3(_bvQ.w)];
       // (looked over: the gun brought up and in, and turned in its hands, by the moves eased in or out: botInspKey)
       if (IK) {
-        _bgA.compose(_bvP.set(w[0] + IK[4] * iw, w[1] + IK[5] * iw, w[2] - IK[6] * iw), _bvQ.set(w[3], w[4], w[5], w[6]), _bvS).multiply(_bgB.makeRotationFromEuler(_bvE.set(IK[1] * iw, IK[2] * iw, IK[3] * iw, 'XYZ'))).decompose(_bvP, _bvQ, _bvS);
+        // (turned about where its hand holds it, HOLD grip, not the gun's own origin a metre below: about that it swung
+        // right out of its hands; and only BOT_INSP.turn of your own view's turn, its arms not following the gun round)
+        const gp = (HOLD[id] || HOLD_DEF).grip, T = BOT_INSP.turn * iw, M = BOT_INSP.move * iw;
+        _bgA.compose(_bvP.set(w[0] + IK[4] * M, w[1] + IK[5] * M, w[2] - IK[6] * M), _bvQ.set(w[3], w[4], w[5], w[6]), _bvS)
+          .multiply(_bgB.makeTranslation(gp[0], gp[1], gp[2])).multiply(_bgB.makeRotationFromEuler(_bvE.set(IK[1] * T, IK[2] * T, IK[3] * T, 'XYZ'))).multiply(_bgB.makeTranslation(-gp[0], -gp[1], -gp[2])).decompose(_bvP, _bvQ, _bvS);
         w = [bR3(_bvP.x), bR3(_bvP.y), bR3(_bvP.z), bR3(_bvQ.x), bR3(_bvQ.y), bR3(_bvQ.z), bR3(_bvQ.w)];
       }
     }   // (and tipped up or down with its look) j[6] = bR3(j[6] + BOT_LEAN.hip * Math.sin(la)); j[7] = bR2(j[7] + BOT_LEAN.hip * (1 - Math.cos(la)));

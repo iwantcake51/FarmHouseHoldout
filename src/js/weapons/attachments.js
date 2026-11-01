@@ -193,7 +193,7 @@ export function fitAttachments(g, D, front, y, info) {
 }
 // a handgun's red dot (its first sight step; its second puts the holographic sight on instead), cut into the slide, after
 // the four you see most, each its true size: a Trijicon RMR, its hood a shield, the sides raked in to a flat top; an SRO,
-// the RMR's base under a big round window with the battery cap on top; a Holosun 507C, a squared shroud with flat sides,
+// the RMR's base under a big round window (no battery cap standing up on top: it sat in the sight picture); a Holosun 507C, a squared shroud with flat sides,
 // the solar panel on top at the back, the battery tray in the right side and the buttons in the left; a Leupold
 // DeltaPoint Pro, wide and tall with the biggest window and a rear-sight notch across its back. PDOT: its length, width
 // and height, the window's middle up from the base and its half width and height, the hood's depth, its dot (MOA).
@@ -233,7 +233,6 @@ function pistolDot(p, sx, by, bz, ret, kind) {
     [-1, 1].forEach(sd => btn(sx + sd * (Q.W / 2 + 0.0005), zr + 0.012));   // its two buttons, one each side
     const el = cyl(p, 0.0026, 0.001, GM.metal2, sx + 0.0055, low + 0.0005, zr + 0.0115, 12); el.rotation.x = Math.PI / 2;   // the elevation screw on top
     cyl(p, 0.0024, 0.001, GM.metal2, sx + Q.W / 2 + 0.0005, by + 0.0062, zr + 0.0035, 12).rotation.z = Math.PI / 2;           // the windage screw in the side
-    if (k === 'sro') { const cap = cyl(p, 0.0062, 0.0018, GM.metal2, sx, wy + Q.W / 2 - 0.0004, zf - Q.hood / 2, 20); cap.rotation.x = Math.PI / 2; }   // the battery cap on top
   } else if (k === 'h507') {
     box(p, 0.016, 0.0006, 0.009, GM.glass, sx, by + Q.H + 0.0003, zf - Q.hood + 0.0065);              // the solar panel
     box(p, 0.0012, 0.0085, 0.014, GM.metal2, sx + Q.W / 2 + 0.0006, by + 0.011, zf - Q.hood + 0.013);   // the battery tray
