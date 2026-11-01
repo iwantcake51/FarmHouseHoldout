@@ -7,12 +7,14 @@
 import { keyIcon, slotIcons } from '../ui/input-icons.js';
 
 // what each does and its key to start with (e.key, lower-cased; ' ' Space; mouse3-5 the middle and side buttons).
-// Using something and boarding up share a key, F: a press uses, a hold boards (player/lean.js has Q and E, player/crouch.js C)
+// Using something and boarding up share a key, F: a press uses, a hold boards; the underbarrel grenade and tearing a
+// board down share G: at a boarded window or door a hold tears, anywhere else a press fires (player/lean.js has Q and
+// E, player/crouch.js C)
 const BIND_DEF = {
   sprint: 'shift', vault: ' ', zoomIn: '=', zoomOut: '-',
   leanL: 'q', leanR: 'e', crouch: 'c',
   reload: 'r', slot1: '1', slot2: '2', slot3: '3', slot4: '4', shove: 'v', fireMode: 'b', ammo: 'z', grenade: 'g', stats: 'i',
-  use: 'f', board: 'f', tear: 'k', bandage: 'x', wave: 't', share: 'h', pause: 'p', view: 'n', freeLook: 'alt', inspect: 'y', cls: 'l'
+  use: 'f', board: 'f', tear: 'g', bandage: 'x', wave: 't', share: 'h', pause: 'p', view: 'n', freeLook: 'alt', inspect: 'y', cls: 'l'
 };
 // the groups they're listed in (hold: held down rather than pressed), and the ones that can't move, shown with them
 export const BIND_GROUPS = [
@@ -27,8 +29,9 @@ try { const s = JSON.parse(localStorage.getItem('kessler-keys') || '{}');
   // (keys saved before leaning came in: use, the bandage and the next kind of round off Q, E and X, if they were left
   // where they started, so leaning has them)
   if (!('leanL' in s)) { if (s.use === 'e') delete s.use; if (s.bandage === 'q') delete s.bandage; if (s.ammo === 'x') delete s.ammo; if (s.board === 'f') delete s.board; }
-  // (and before crouching: tearing a board down off C, if it was left there, so crouching has it)
-  if (!('crouch' in s) && s.tear === 'c') delete s.tear;
+  // (and tearing a board down off C, where it started before crouching came in, or off K, where it went for a while,
+  // onto G by the board key, if it was left on either)
+  if ((!('crouch' in s) && s.tear === 'c') || s.tear === 'k') delete s.tear;
   for (const a in s) if (a in BIND_DEF && typeof s[a] === 'string' && !BIND_LOCK.has(s[a])) KB[a] = s[a]; } catch (e) {}
 export const saveBinds = () => { try { localStorage.setItem('kessler-keys', JSON.stringify(KB)); } catch (e) {} };
 // the key pressed, as it's bound: a number by its key, whatever Shift does to it (Shift+1 is still 1)

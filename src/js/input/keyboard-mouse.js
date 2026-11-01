@@ -36,6 +36,7 @@ import { startInspect } from '../player/inspect.js';
 import { PVP, pvpChangeClass, pvpLocked, pvpPicking, pvpSkipDeath } from '../pvp/pvp.js';
 import { leanKey } from '../player/lean.js';
 import { crouchKey } from '../player/crouch.js';
+import { TEAR_NEAR } from '../barricades/interactions.js';
 
 export const keys = new Set();
 // mouseDownR: the right button, which aims, or with a gun in each hand fires the right one (weapons/akimbo.js)
@@ -89,7 +90,7 @@ function keyAct(k, e) {
   if (bindIs(k, 'cls') && PVP.on) pvpChangeClass();   // (the arena's class picker, for your next life)
   if (bindIs(k, 'vault')) tryVault();                                    // climbs through windows and hops fences
   if (bindIs(k, 'shove')) shove();   // (board, held at a door or window, boards it up: barricades/interactions.js)
-  if (bindIs(k, 'grenade')) throwGrenade();
+  if (bindIs(k, 'grenade') && !(bindIs(k, 'tear') && TEAR_NEAR.on)) throwGrenade();   // (at a boarded window or door the same key tears a board down instead: barricades/interactions.js)
   if (bindIs(k, 'share') && !e.repeat) gunShare(nearestTake());   // share a gun you've put down with your team (net/teamwork.js)
   if (k === 'enter' && openSt && openSt.id === 'box') giftSend();   // the strongbox: give what's picked (net/teamwork.js)
   if (bindIs(k, 'stats')) toggleWeaponStats();   // the weapon stats sheet (ui/weapon-stats.js)

@@ -66,6 +66,9 @@ const TEAR_T = 0.65;
 let tearT = 0;
 const tearHold = o => o && o.grate ? GRATE.tear : TEAR_T;
 const tearable = o => !!(o && o.boards.length && !P.vault && !openSt);
+// whether there's a board or a grate in front of you to tear down this frame: tearing shares G with the underbarrel
+// grenade, and at a boarded window or door G tears rather than fires (input/keyboard-mouse.js)
+export const TEAR_NEAR = { on: false };
 // door/window boarding, station prompts and the on-screen hint
 // the colour each kind of prompt picks its thing out in (a gun's is its rarity's colour)
 const OPEN_OK = 0xf4f1ea, OPEN_NO = 0xe2412c;   // an opening's outline: white, red for a window you can't climb through
@@ -73,6 +76,7 @@ const PROMPT_COL = { thing: '#f0bf4c', station: '#e8c070', move: '#8fc4e0', wood
 export function updateInteractions(dt) {
   // doors, windows and stations
   const o = nearestOpening(), st = nearestStation();
+  TEAR_NEAR.on = tearable(o);
   // the opening you'd work on outlined on your side of it, pulsing as the stations' outlines do (world/house.js)
   openings.forEach(q => {
     // a window you can't climb through (boarded, barred, or nowhere to land) outlined red

@@ -1168,7 +1168,7 @@ any page (moving round the buttons and pressing them) and the arrows scroll; onl
 | Movement | | Combat | | Survival | |
 | --- | --- | --- | --- | --- | --- |
 | W A S D | Walk | Mouse | Aim and fire | Hold F | Board up a window or door |
-| Shift | Sprint | Right click | Aim down the sights | Hold K | Tear a board down |
+| Shift | Sprint | Right click | Aim down the sights | Hold G | Tear a board down |
 | Space | Vault a window or fence | R | Reload | F | Use a station or pick something up |
 | Q, E | Lean left, lean right | L | Change class (arena) | | |
 | C | Crouch | | | | |
@@ -1176,7 +1176,7 @@ any page (moving round the buttons and pressing them) and the arrows scroll; onl
 | N | Back out of the free camera (cheat menu only; not listed in Settings without it) | V | Shove | T | Start the next wave early |
 | Hold Alt | Free look (first person) | B | Switch fire mode | H | Share a gun (co-op) |
 | | | Z | Load the next kind of round | Esc, P | Pause |
-| | | G | Underbarrel grenade | Enter | Chat to your team (co-op) |
+| | | G | Underbarrel grenade (at a boarded window or door, hold to tear a board down) | Enter | Chat to your team (co-op) |
 | | | I | Weapon stats | | |
 | | | Y | Inspect your weapon | | |
 
@@ -1209,8 +1209,9 @@ while crouched; and the gun and your arms cant in a little toward the middle (a 
 lag up and back on the way down and up. A sprint or a vault stands you up; a vault from a crouch starts from it, the
 hips coming up out of the bend into the vault's own crouch, never popping up to standing first. In the arena everyone
 sees you crouch (your pose carries it), and a crouched player's head, chest and legs are all lower for the shots that
-meet them; crouched behind low cover, nothing of you shows over it from above. Tear a board down moved to K (a key you'd
-left on C moves with it).
+meet them; crouched behind low cover, nothing of you shows over it from above. Tear a board down moved to G, by the board
+key F (a key you'd left on C, or on K, moves with it); G is also the underbarrel grenade, so at a boarded window or door
+holding G tears a board down and never fires a grenade, and anywhere else it fires as before.
 
 The fire mode by your ammo count only shows its B hint on a gun that can actually switch modes (the AR, or one
 with a mod that adds a setting). Its little rounds are the gun's own cartridge: a 9mm's round nose, the 10mm's and a magnum's flat
