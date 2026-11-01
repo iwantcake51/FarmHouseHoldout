@@ -847,7 +847,7 @@ the picker.
 in four plain groups: the points along the top, the classes down the left, the weapon and its attachments in the
 middle, and the weapons for the slot (with the class's perks) down the right. Words are set in Archivo, as on the
 co-op screen, at sizes that read; names and numbers in the game's condensed face. The attachments sit under a heading
-that says how many of the ten points that gun is using, and scroll in their own space in a small window (they never
+that says how many of its six points that gun is using, and scroll in their own space in a small window (they never
 run over the foot). It is laid out like a shooter's: the classes down the left (1 to 8, or the up and down arrows), the slot tabs along the top
 (**Primary**, **Secondary**, **Melee**; Q and E step through them), the weapon itself in the middle, turning slowly in
 the same studio as the Character menu's (drag to turn it, scroll to zoom), with its arena damage, fire
@@ -859,11 +859,16 @@ turned with a drag and zoomed with the wheel, but not moved about (the right or 
 points meter holds what something would cost while the pointer moves from one row to the next, rather than blinking off
 and on between them.
 
-- **Pick 10.** The two guns share 10 points. Each gun costs 1, each step of an attachment 1 more (a scope at step
-  3 costs 3, a heavy-duty suppressor 3), a conversion kit 1 a step, the pump's pair loading 1 and triple loading 2;
-  a kind of shell is free (each is a sidegrade), and so is the melee weapon. The meter along the top shows ten pips, the
-  primary's lit orange and the secondary's pale, and hovering anything shows what it would add (striped in) or give
-  back (hollowed out). Anything that would go past 10 is dimmed and can't be picked; trying anyway shakes the meter.
+- **Six points a gun.** Each gun has 6 points of its own for what goes on it (they used to share 10 between them).
+  The guns themselves are free, and so is the melee weapon, with one exception: a primary's kind of gun (a long gun or
+  an automatic, such as the Rusher's double barrel) carried as the secondary takes 2 of that gun's 6 points; a handgun
+  there is free. Each step of an attachment costs 1 (a scope at step 3 costs 3, a heavy-duty suppressor 3), a
+  conversion kit 1 a step, the pump's pair loading 1 and triple loading 2; a kind of shell is free (each is a
+  sidegrade). The meter along the top shows the six pips of the gun on show (**Primary points** or **Secondary
+  points**; the primary's on the melee tab): what's fitted lit orange, and the 2 for carrying a primary's kind as the
+  secondary pale, first. Hovering anything shows what it would add (striped in) or give back (hollowed out). Anything
+  that would take that gun past 6 is dimmed and can't be picked; trying anyway shakes the meter. The number by each
+  class in the list is both its guns' points added together.
 - **Attachments.** Click a tile for its next step, click a pip for that exact step (its own pip again takes that step
   off), and the cross or a right click takes it off. Only real attachments for that gun, as far as each goes on it
   (the workbench's own limits): sights up to the gun's strongest scope (the LMG's the ACOG), a can, a choke on the
@@ -891,14 +896,16 @@ and on between them.
   Your name for it is on the list, the class picker's cards, the class shown down the left in the match and its toasts;
   the bots and everyone else's classes keep the stock names. **Reset to default** puts the name back too.
 - **Guns.** A primary is any long gun or automatic; the secondary a sidearm or any gun that rides in a different slot
-  from the primary (the Rusher's double barrel behind an SMG), or **None** to put that point into the primary. A new
-  gun starts bare. Picking a primary that rides where the secondary does takes the secondary off.
+  from the primary (the Rusher's double barrel behind an SMG), or **None** to carry no secondary. A new gun starts
+  bare. Picking a primary that rides where the secondary does takes the secondary off.
 - **Kept.** Every change is saved at once, per class, in this browser. A class you haven't touched carries its stock
   kit, mods and all (a stock conversion, the Scout's 10mm kit or the Rusher's sawn-off, shows on its tile and is
   counted); change anything and it's yours, its conversion kept and its other mods left off (the note under the perks
   says which it is). A
   dot by a class in the list marks one you've changed; **Reset to default** (or R) puts it back. Every stock class
-  already fits in 10 points (6 to 9, its conversion counted), so none is trimmed. A kit carrying the LMG gets one spare belt, as the Gunner
+  already fits in 6 points a gun (1 to 5 on each, its conversion and the secondary's 2 counted), so none is
+  trimmed; a loadout saved under the old shared 10 is trimmed to 6 on each gun (its choices first, then its top
+  steps). A kit carrying the LMG gets one spare belt, as the Gunner
   does; anything else three mags.
 - **In the match.** Pick the class as ever and you carry your version of it, solo or online; the class picker's cards
   show it. Everyone else sees your guns as they are on you, attachments and all. The bots always carry the stock

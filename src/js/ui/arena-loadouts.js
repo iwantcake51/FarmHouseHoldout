@@ -8,10 +8,12 @@
 // what it costs (red), worked out from the gun as it'd be with it and without it. Down the right the weapons that can
 // go in that slot, and the class's perks (set by the class: not yours to change).
 //
-// Pick 10: the two guns share ten points. Each gun costs one, each attachment step one more (a 3-step suppressor is
-// three), a conversion kit one a step (a 3-step sawn-off three, the pistol's full auto, the burst line's third step,
-// three), pair loading one and triple loading two; a kind of shell is free (none's simply better), and so is the melee
-// weapon. Whatever would take you past ten can't be picked, and the meter along the top says where you are. Only
+// Six a gun: each gun has six points of its own for what goes on it. The guns themselves are free, except a primary's
+// kind of gun (a long gun or an automatic) carried as the secondary, which takes AL_SEC_PRI of that gun's six. Each
+// attachment step costs one (a 3-step suppressor is three), a conversion kit one a step (a 3-step sawn-off three, the
+// pistol's full auto, the burst line's third step, three), pair loading one and triple loading two; a kind of shell is
+// free (none's simply better), and so is the melee weapon. Whatever would take a gun past six can't be picked, and the
+// meter along the top says where the gun on show is. Only
 // attachments proper go on (sights, cans, chokes, lasers, lights, loaders, triggers and mags, as far as each goes on
 // that gun: the same lines Showdown's random loadouts draw from) and the conversion kits (the workbench's conv mods),
 // never the powder, a workbench tune-up or any other mod. A class you've never touched is carried as it comes (mods and
@@ -34,9 +36,9 @@ import { gunArt, meleeArt } from './melee-art.js';
 import { gunView, hideGun, showGun, studioNoPan } from './gun-view.js';
 import { PVP_CLASSES, PVP_DMG, pvpFalloff, pvpRoundDmg } from '../pvp/pvp.js';
 
-// the budget; where your loadouts and your names for the classes are kept; and the slots, in the order they're tabbed
+// the points each gun has, and what a primary's kind of gun takes of them as the secondary; where your loadouts and your names for the classes are kept; and the slots, in the order they're tabbed
 // through; the longest a name can be
-const AL_BUDGET = 10, AL_KEY = 'fhh-arena-loadouts', AL_NAMES = 'fhh-arena-names', AL_TABS = [['p', 'Primary'], ['s', 'Secondary'], ['m', 'Melee']], AL_NAME_MAX = 18;
+const AL_BUDGET = 6, AL_SEC_PRI = 2, AL_KEY = 'fhh-arena-loadouts', AL_NAMES = 'fhh-arena-names', AL_TABS = [['p', 'Primary'], ['s', 'Secondary'], ['m', 'Melee']], AL_NAME_MAX = 18;
 // the attachment lines a gun can carry here, in the order their tiles sit (the slot each fills on the gun, by name).
 // Never 'ammo' (the powder) or a tune-up: they're a gun's insides, not something bolted on
 const AL_LINES = [['sight', 'Optic'], ['supp', 'Suppressor'], ['choke', 'Choke'], ['laser', 'Laser'], ['light', 'Light'], ['loader', 'Loader'], ['trigger', 'Trigger'], ['mag', 'Magazine']];
@@ -103,11 +105,14 @@ const alCatSort = (list, sideFirst) => { const ord = c => { const i = AL_CATS.fi
 const alPriOk = id => !!WEAP[id] && WEAP[id].slot !== 'side' && id in PVP_DMG;
 const alSecOk = (id, pri) => !!WEAP[id] && id in PVP_DMG && id !== pri && (!pri || WEAP[id].slot !== WEAP[pri].slot);
 const alMelees = () => [...new Set(PVP_CLASSES.map(c => c.melee))];
-// a gun as the editor holds it: [gun, its attachment steps, its choices { cv, rd, ld }]. Its points: one for it, one for
-// each step on it, and what its choices cost; a loadout's, both guns'
+// a gun as the editor holds it: [gun, its attachment steps, its choices { cv, rd, ld }]. Its points (of its own six):
+// one for each step on it and what its choices cost, and as the secondary, what a primary's kind of gun takes (gunFee);
+// whether a loadout's guns each keep within their six; and a loadout's points all told (the class list's number)
+const gunFee = (id, t) => t === 's' && id && WEAP[id] && WEAP[id].slot !== 'side' ? AL_SEC_PRI : 0;
 const exPts = (id, ex) => AL_CHOICE.reduce((a, [key]) => a + ((ex && ex[key] && optOf(id, key, ex[key])) || { cost: 0 }).cost, 0);
-const gunPts = g => g ? 1 + Object.values(g[1]).reduce((a, n) => a + n, 0) + exPts(g[0], g[2]) : 0;
-const alPts = k => gunPts(k.p) + gunPts(k.s);
+const gunPts = (g, t) => g ? gunFee(g[0], t) + Object.values(g[1]).reduce((a, n) => a + n, 0) + exPts(g[0], g[2]) : 0;
+const alOver = k => gunPts(k.p, 'p') > AL_BUDGET || gunPts(k.s, 's') > AL_BUDGET;
+const alPts = k => gunPts(k.p, 'p') + gunPts(k.s, 's');
 // what's fitted cleaned up: only choices the gun has, only lines it takes (and none a conversion's taken the place of),
 // each within its reach, and a can or a choke (they share the muzzle), never both
 function alCleanEx(id, ex) { const o = {}; for (const [key] of AL_CHOICE) if (ex && ex[key] && optOf(id, key, String(ex[key]))) o[key] = String(ex[key]); return o; }
@@ -124,16 +129,16 @@ function alStockEx(g) { const mods = g[2] || [], lv = g[3] || {}, line = mods.fi
 const alStock = C => ({ p: alGun(C.guns[0][0], C.guns[0][1], alStockEx(C.guns[0])), s: C.guns[1] ? alGun(C.guns[1][0], C.guns[1][1], alStockEx(C.guns[1])) : null, m: C.melee });
 const stockMods = (C, id) => ((C.guns.find(g => g[0] === id) || [])[2] || []).filter(m => !(GUN_MODS[m] && (GUN_MODS[m].conv || (GUN_MODS[m].need && MOD_LINE[m]))));
 // a saved kit made safe to carry: anything that isn't the arena's or doesn't fit put back to the class's own, then
-// trimmed to the budget (the secondary's choices and top steps first, then the primary's, then the secondary itself).
-// Every stock class costs ten or less as it comes, so this only ever bites on a kit kept from some other version of the
-// rules
+// trimmed to six a gun (a gun's choices first, then its top steps; a secondary still over, dropped). Every stock class
+// keeps within six a gun as it comes, so this only ever bites on a kit kept from some other version of the rules
 function alFix(k, C) {
   const st = alStock(C), o = { p: null, s: null, m: st.m };
   o.p = k && k.p && alPriOk(k.p[0]) ? alGun(k.p[0], k.p[1], k.p[2]) : st.p;
   o.s = k && k.s === null ? null : k && k.s && alSecOk(k.s[0], o.p[0]) ? alGun(k.s[0], k.s[1], k.s[2]) : st.s && alSecOk(st.s[0], o.p[0]) ? st.s : null;
   o.m = k && alMelees().includes(k.m) ? k.m : st.m;
   const drop = g => { if (!g) return false; const e = Object.keys(g[2]).find(key => exPts(g[0], { [key]: g[2][key] }) > 0); if (e) { delete g[2][e]; return true; } const ks = Object.keys(g[1]); if (!ks.length) return false; const top = ks.sort((a, b) => g[1][b] - g[1][a])[0]; if (--g[1][top] <= 0) delete g[1][top]; return true; };
-  while (alPts(o) > AL_BUDGET) { if (!drop(o.s) && !drop(o.p)) o.s = null; }
+  while (gunPts(o.p, 'p') > AL_BUDGET && drop(o.p));
+  while (o.s && gunPts(o.s, 's') > AL_BUDGET) if (!drop(o.s)) o.s = null;
   return o;
 }
 // what's kept: { classId: kit } for the classes you've changed, and { classId: name } for the ones you've renamed (a
@@ -257,7 +262,7 @@ const isChoice = key => AL_CHOICE.some(c => c[0] === key);
 // whether that fits
 function stepCost(k, t, key, n) { const gt = k[t][1], other = key === 'supp' ? 'choke' : key === 'choke' ? 'supp' : null; return n - (gt[key] || 0) - (other && n > 0 ? gt[other] || 0 : 0); }
 function optCost(k, t, key, v) { const [id, gt, ex] = k[t], c = o => (optOf(id, key, o) || { cost: 0 }).cost; return c(v) - c(ex[key]) - (key === 'cv' ? cvLocks(v).reduce((a, l) => a + (gt[l] || 0), 0) : 0); }
-const fits = (k, d) => alPts(k) + d <= AL_BUDGET;
+const fits = (k, d, t = AL.tab) => gunPts(k[t], t) + d <= AL_BUDGET;
 function setStep(key, n) {
   const k = kitNow(), t = AL.tab; if (!k[t]) return;
   if (cvLocks(k[t][2].cv).includes(key)) { alDeny(); return; }
@@ -280,7 +285,7 @@ function nextChoice(key) {
   for (let i = 1; i <= os.length; i++) { const o = os[(at + i) % os.length]; if (fits(k, optCost(k, t, key, o.v))) { setChoice(key, o.v); return; } }
   alDeny();
 }
-// a weapon picked for the tab's slot: a new gun starts bare (one point); a primary that rides where the secondary does
+// a weapon picked for the tab's slot: a new gun starts bare (free, or AL_SEC_PRI for a primary's kind as the secondary); a primary that rides where the secondary does
 // takes its place, the secondary dropped
 function pickGun(id) {
   const k = kitNow(), t = AL.tab;
@@ -289,7 +294,7 @@ function pickGun(id) {
   if (k[t] && k[t][0] === id) return;
   if (t === 'p' ? !alPriOk(id) : !alSecOk(id, k.p[0])) return;
   const after = { p: t === 'p' ? [id, {}, {}] : k.p, s: t === 's' ? [id, {}, {}] : k.s && t === 'p' && WEAP[k.s[0]].slot === WEAP[id].slot ? null : k.s };
-  if (alPts(after) > AL_BUDGET) { alDeny(); return; }
+  if (alOver(after)) { alDeny(); return; }
   alEdit(k => { k.p = after.p; k.s = after.s; });
   SFX.click();
 }
@@ -309,9 +314,9 @@ function alBuild() {
   // the weapons for this slot, each with its picture and what it costs
   const list = t === 'm' ? alMelees() : t === 'p' ? alCatSort(alGuns().filter(alPriOk), false) : alCatSort(alGuns().filter(g => alSecOk(g, k.p[0])), true);
   const catHead = (g, i) => t !== 'm' && (i === 0 || alCatOf(list[i - 1]) !== alCatOf(g)) ? `<div class="aloCat">${alCatName(alCatOf(g))}</div>` : '';   // (a heading over each kind of gun)
-  if (alPart('pick', t + list.join(), $('aloPick'), () => (t === 's' ? `<button type="button" class="aloW none" data-w=""><span class="aloWArt nil"></span><span class="aloWTx"><b>None</b><small>Keep the point for the primary</small></span><em>0</em></button>` : '') +
-    list.map((g, i) => { const D = WEAP[g]; return catHead(g, i) + `<button type="button" class="aloW" data-w="${g}"><span class="aloWArt"><img alt="" decoding="sync" src="${alArt(g)}"></span><span class="aloWTx"><b>${alEsc(D.name)}</b><small>${D.melee ? 'Melee' : alEsc(D.cal || '')}${t === 's' && D.slot !== 'side' ? ' · ' + (D.slot === 'long' ? 'Long gun' : 'Automatic') : ''}</small></span><em>${t === 'm' ? '' : 1}</em></button>`; }).join(''))) {
-    $('aloPickHead').innerHTML = `<b>${t === 'm' ? 'Melee weapons' : t === 'p' ? 'Primary weapons' : 'Secondary weapons'}</b><span>${t === 'm' ? 'Free' : '1 point each'}</span>`;
+  if (alPart('pick', t + list.join(), $('aloPick'), () => (t === 's' ? `<button type="button" class="aloW none" data-w=""><span class="aloWArt nil"></span><span class="aloWTx"><b>None</b><small>Carry no secondary</small></span><em></em></button>` : '') +
+    list.map((g, i) => { const D = WEAP[g]; return catHead(g, i) + `<button type="button" class="aloW" data-w="${g}"><span class="aloWArt"><img alt="" decoding="sync" src="${alArt(g)}"></span><span class="aloWTx"><b>${alEsc(D.name)}</b><small>${D.melee ? 'Melee' : alEsc(D.cal || '')}${t === 's' && D.slot !== 'side' ? ' · ' + (D.slot === 'long' ? 'Long gun' : 'Automatic') : ''}</small></span><em>${gunFee(g, t) || ''}</em></button>`; }).join(''))) {
+    $('aloPickHead').innerHTML = `<b>${t === 'm' ? 'Melee weapons' : t === 'p' ? 'Primary weapons' : 'Secondary weapons'}</b><span>${t === 'm' || t === 'p' ? 'Free' : `Handguns free, others ${AL_SEC_PRI} of its points`}</span>`;
     swapIn($('aloPick'));
   }
   // the class's perks: set by it, shown for what they are
@@ -320,7 +325,7 @@ function alBuild() {
   const lines = id && t !== 'm' ? AL_LINES.filter(([key]) => alMax(id, key) > 0) : [], chs = id && t !== 'm' ? AL_CHOICE.filter(([key]) => alOpts(id, key).length) : [];
   alPart('atts', t + id, $('aloAtts'), () => lines.length || chs.length ? lines.map(([key, n]) => `<div class="aloA" data-k="${key}" role="group" aria-label="${n}"><button type="button" class="aloAMain" data-act="up"><small>${n}${key === 'supp' || key === 'choke' ? (alMax(id, key === 'supp' ? 'choke' : 'supp') ? '<i>Muzzle</i>' : '') : ''}</small><b></b></button><span class="aloPips">${Array.from({ length: alMax(id, key) }, (_, i) => `<button type="button" class="aloPip" data-n="${i + 1}" aria-label="${alEsc(tierName(key, i, id))}"></button>`).join('')}</span><button type="button" class="aloAX" data-act="off" aria-label="Take it off" title="Take it off"></button></div>`).join('') +
     chs.map(([key, n]) => `<div class="aloA ch" data-k="${key}" role="radiogroup" aria-label="${n}"><button type="button" class="aloAMain" data-act="up"><small>${n}</small><b></b></button><span class="aloSeg">${alOpts(id, key).map(o => `<button type="button" role="radio" data-v="${o.v}" aria-label="${alEsc(o.name)}">${alEsc(o.short)}</button>`).join('')}</span><button type="button" class="aloAX" data-act="off" aria-label="Back to stock" title="Back to stock"></button></div>`).join('')
-    : `<p class="aloNone">${t === 'm' ? 'Melee weapons take no attachments, and cost nothing.' : 'No secondary: its point goes to the primary. Pick one from the list to carry one.'}</p>`);
+    : `<p class="aloNone">${t === 'm' ? 'Melee weapons take no attachments, and cost nothing.' : 'No secondary. Pick one from the list to carry one.'}</p>`);
   $('aloAtts').classList.toggle('empty', !lines.length && !chs.length);
   // a new class or slot (or a new weapon in it): the studio and the tiles swap in
   const view = AL.cls + t + id; if (AL.view !== view) { AL.view = view; swapIn($('aloStage')); swapIn($('aloAtts')); alInfo(null); }
@@ -341,7 +346,7 @@ function alSync(changed) {
   $('aloPick').querySelectorAll('.aloW').forEach(b => {
     const w = b.dataset.w, sel = (w || null) === (t === 'm' ? k.m : k[t] ? k[t][0] : null);
     const after = t === 'm' ? null : { p: t === 'p' ? [w, {}, {}] : k.p, s: t === 's' ? (w ? [w, {}, {}] : null) : k.s && WEAP[k.s[0]].slot === WEAP[w].slot ? null : k.s };
-    const over = !sel && after && alPts(after) > AL_BUDGET;
+    const over = !sel && after && alOver(after);
     b.classList.toggle('on', sel); b.classList.toggle('over', !!over); b.setAttribute('aria-disabled', String(!!over)); b.setAttribute('aria-pressed', String(sel));
     b.title = over ? 'Not enough points left' : t === 'p' && !sel && k.s && WEAP[k.s[0]].slot === WEAP[w].slot ? 'Takes the place of your ' + WEAP[k.s[0]].name + ' (same slot)' : '';
   });
@@ -369,9 +374,9 @@ function alSync(changed) {
     a.querySelector('.aloAMain').title = lock ? 'Taken by the conversion' : n >= mx ? 'As far as it goes' : up ? `Add ${tierName(key, n, id)} (+${stepCost(k, t, key, n + 1)})` : 'Not enough points left';
   });
   alMeter(k);
-  // the attachments' heading: what this gun's taking of the ten (or why there's nothing here)
-  const gp = t !== 'm' && k[t] ? gunPts(k[t]) : 0;
-  $('aloAttsHead').innerHTML = t === 'm' ? '<b>Attachments</b><span>None on a melee weapon</span>' : !k[t] ? '<b>Attachments</b><span>No secondary</span>' : `<b>Attachments</b><span>This gun uses ${gp} of your ${AL_BUDGET} points</span>`;
+  // the attachments' heading: what this gun's taking of its six (or why there's nothing here)
+  const gp = t !== 'm' && k[t] ? gunPts(k[t], t) : 0;
+  $('aloAttsHead').innerHTML = t === 'm' ? '<b>Attachments</b><span>None on a melee weapon</span>' : !k[t] ? '<b>Attachments</b><span>No secondary</span>' : `<b>Attachments</b><span>This gun uses ${gp} of its ${AL_BUDGET} points${gunFee(id, t) ? ` (${AL_SEC_PRI} for carrying it as the secondary)` : ''}</span>`;
   // the weapon on show: its name and what it is, its numbers, and itself in the studio (a stock class's gun with its
   // stock mods on, as it'd be carried: those that aren't conversions only come off once the class is changed)
   const D = id && WEAP[id], more = D && !D.melee ? moreOf(C, id) : [];
@@ -399,15 +404,17 @@ function alSync(changed) {
   if (changed) { const b = $('aloCls').querySelector('.aloC.on'); if (b) { b.classList.remove('saved'); void b.offsetWidth; b.classList.add('saved'); } }
   if (AL.info) alInfo(AL.info);   // (the card over a tile kept up to date with what's now on the gun)
 }
-// the meter: ten pips, the primary's lit in the accent, the secondary's paler; a hover over something it'd cost shows
-// how many more it'd take (or that it won't go), and the number's big beside them
+// the meter: the six pips of the gun on show (the primary's on the melee tab), what's on it lit in the accent and
+// what carrying a primary's kind as the secondary takes paler, first; a hover over something it'd cost shows how many
+// more it'd take (or that it won't go), and the number's big beside them
 function alMeter(k) {
-  const a = gunPts(k.p), b = gunPts(k.s), h = AL.hover, m = $('aloPts'), d = h ? h.d : 0;
-  if (!m.firstChild) m.innerHTML = `<span class="aloPtsL">Points</span><span class="aloPtsBar">${'<i></i>'.repeat(AL_BUDGET)}</span><span class="aloPtsN"><b></b><small>/ ${AL_BUDGET}</small><em></em></span>`;
-  m.querySelectorAll('.aloPtsBar i').forEach((p, i) => { const c = i < a ? 'p' : i < a + b ? 's' : '', cn = c + (d > 0 && !c && i < a + b + d ? ' ghost' : d < 0 && c && i >= a + b + d ? ' free' : ''); if (p.className !== cn) p.className = cn; });   // (only when it changes: setting it afresh restarted the pips' transitions, a flicker)
+  const t = AL.tab === 's' ? 's' : 'p', g = k[t], b = g ? gunFee(g[0], t) : 0, a = gunPts(g, t) - b, h = AL.hover, m = $('aloPts'), d = h && AL.tab !== 'm' ? h.d : 0;
+  if (!m.firstChild) m.innerHTML = `<span class="aloPtsL"></span><span class="aloPtsBar">${'<i></i>'.repeat(AL_BUDGET)}</span><span class="aloPtsN"><b></b><small>/ ${AL_BUDGET}</small><em></em></span>`;
+  const lb = m.querySelector('.aloPtsL'), lt = (t === 's' ? 'Secondary' : 'Primary') + ' points'; if (lb.textContent !== lt) lb.textContent = lt;
+  m.querySelectorAll('.aloPtsBar i').forEach((p, i) => { const c = i < b ? 's' : i < a + b ? 'p' : '', cn = c + (d > 0 && !c && i < a + b + d ? ' ghost' : d < 0 && c && i >= a + b + d ? ' free' : ''); if (p.className !== cn) p.className = cn; });   // (only when it changes: setting it afresh restarted the pips' transitions, a flicker)
   const n = m.querySelector('.aloPtsN'); n.classList.toggle('over', a + b + d > AL_BUDGET); n.querySelector('b').textContent = a + b;
   n.querySelector('em').textContent = d ? (d > 0 ? '+' : '') + d : ''; n.classList.toggle('full', a + b === AL_BUDGET);
-  m.setAttribute('aria-valuenow', String(a + b)); m.setAttribute('aria-valuetext', `${a + b} of ${AL_BUDGET} points`);
+  m.setAttribute('aria-valuenow', String(a + b)); m.setAttribute('aria-valuetext', `${lt}: ${a + b} of ${AL_BUDGET}`);
 }
 // what something under the pointer (or the keyboard's focus) on a tile is: the line or choice, and the step or option
 // it'd mean ([key, value, what it'd be set to]); null off the tiles
@@ -427,7 +434,7 @@ function alHover(e) {
   const k = kitNow(), t = AL.tab; let d = null;
   const tg = alTarget(e.target), w = e.target.closest('.aloW');
   if (tg) d = isChoice(tg.key) ? optCost(k, t, tg.key, tg.to) : stepCost(k, t, tg.key, tg.to);
-  else if (w && t !== 'm') { const id = w.dataset.w, after = { p: t === 'p' ? [id, {}, {}] : k.p, s: t === 's' ? (id ? [id, {}, {}] : null) : k.s && WEAP[k.s[0]].slot === WEAP[id].slot ? null : k.s }; d = alPts(after) - alPts(k); }
+  else if (w && t !== 'm') { const id = w.dataset.w, after = { p: t === 'p' ? [id, {}, {}] : k.p, s: t === 's' ? (id ? [id, {}, {}] : null) : k.s && WEAP[k.s[0]].slot === WEAP[id].slot ? null : k.s }; d = gunPts(after[t], t) - gunPts(k[t], t); }
   if (tg) alInfo(tg); else if (!e.target.closest('#aloInfo')) alInfoLater();
   const over = !!(tg || (w && t !== 'm'));
   // (crossing the gap between two rows, or from a row onto its own text, the pointer's briefly over nothing: the
