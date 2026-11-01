@@ -100,8 +100,10 @@ export function poseOut(rdt) {
   if (fpOn() && !P.dead && [...NET.peers.values()].some(p => p.dead)) msg.fv = fpView();   // (what you see, for a teammate down and watching you from your own eyes: specFp)
   weaponPose(rdt, msg);   // the weapons out, their moving parts, what's stowed (net/arsenal.js)
   ammoOut(msg, now);
+  msg.q = ++poseQ;   // (its number, so one that comes in late is dropped: NET_ON.p)
   netSend('p', msg);
 }
+let poseQ = 0;
 
 // what a teammate watching you while they're down sees on their HUD (net/spectate.js): what's in the gun as your HUD
 // shows it (-1 for a melee weapon; a pair, left then right, for akimbo), what's left to load, how much it holds,
@@ -267,6 +269,9 @@ export function netDropAvatar(p) {
 // a pose in: kept as where they're headed; their survivor eases there over the next frames
 NET_ON.p = m => {
   const p = NET.peers.get(m.f); if (!p) return;
+  // (one that's come in after a newer one, by the unordered way the poses go, net/net.js NET_FAST: dropped; one numbered
+  // far lower is a fresh start, a rejoin or the host's bot again)
+  if (m.q) { if (p.q && m.q <= p.q && p.q - m.q < 90) return; p.q = m.q; }
   if (m.dead && !p.dead && p.x !== undefined && state !== 'title' && !PVP.on) { teamDown(p); turnedDown(p.id); }   // they've just gone down (net/lobby.js), and they'll be back next wave as one of them (net/sync.js)
   Object.assign(p, { x: m.x, z: m.z, vx: m.vx || 0, vz: m.vz || 0, hp: m.hp, maxHp: m.mh, vw: m.vw || p.vw, dead: !!m.dead, vault: !!m.v, picking: !!m.pk, cw: m.cw | 0, wp: m.wp, sv: m.sv, ex: m.ex, stats: m.st, am: m.am, heal: m.hl || 0, fl: m.fl || 0, fc: m.fc || 0, ap: m.ap || 0, fv: m.fv || 0, cr: m.cr || 0, loaded: true }); if (m.wn !== undefined) { p.wn = m.wn; p.wid = m.wid || ''; } if (m.dr) p.drops = m.dr;
   // a loadout we haven't got (or an old one): ask for it, once a second at most

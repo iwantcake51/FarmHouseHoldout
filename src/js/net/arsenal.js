@@ -263,7 +263,9 @@ export function buildArsenal(a, lo, lk) {
     if (s === 'side') st.belt = [box(a.upper, 0.512, 0.05, 0.312, BELT_M, 0, 0.6, 0), box(a.upper, 0.07, 0.054, 0.008, BUCKLE_M, 0, 0.6, 0.158)];
   }
   // the speed loader and the shells in their hand
-  if (!a.slm) { a.slm = SLM.clone(true); a.slm.visible = false; a.upper.add(a.slm); a.hsh = HSH.clone(true); a.hsh.visible = false; a.upper.add(a.hsh); }
+  // (kept off their rig until they're in hand, arsHang: a speed loader's two hundred pieces would otherwise be walked
+  // over every frame for every survivor, hidden or not)
+  if (!a.slm) { a.slm = SLM.clone(true); a.slm.visible = false; a.hsh = HSH.clone(true); a.hsh.visible = false; }
 }
 // a shot's kick on their gun (m: back along it, up), and when it's died away (a pump's or bolt's working after it goes
 // on as your own does: weapons/casings.js remoteCycle)
@@ -305,11 +307,14 @@ export function arsenalFrame(p, a, rdt) {
   });
   // the speed loader or the shells in their hand
   const ex = p.ex || [0, 0]; let i = 0;
-  if (ex[i]) { a.slm.visible = true; a.slm.position.set(ex[i + 1], ex[i + 2], ex[i + 3]); a.slm.quaternion.set(ex[i + 4], ex[i + 5], ex[i + 6], ex[i + 7]); a.slm.children[a.slm.children.length - 1].visible = !!ex[i + 8]; i += 9; } else { a.slm.visible = false; i++; }
+  if (ex[i]) { arsHang(a, a.slm, true); a.slm.position.set(ex[i + 1], ex[i + 2], ex[i + 3]); a.slm.quaternion.set(ex[i + 4], ex[i + 5], ex[i + 6], ex[i + 7]); a.slm.children[a.slm.children.length - 1].visible = !!ex[i + 8]; i += 9; } else { arsHang(a, a.slm, false); i++; }
   if (ex[i]) {
-    a.hsh.visible = true; a.hsh.position.set(ex[i + 1], ex[i + 2], ex[i + 3]); a.hsh.quaternion.set(ex[i + 4], ex[i + 5], ex[i + 6], ex[i + 7]); a.hsh.children.forEach((c, j) => { c.visible = !!(ex[i + 8] & (1 << j)); });
+    arsHang(a, a.hsh, true); a.hsh.position.set(ex[i + 1], ex[i + 2], ex[i + 3]); a.hsh.quaternion.set(ex[i + 4], ex[i + 5], ex[i + 6], ex[i + 7]); a.hsh.children.forEach((c, j) => { c.visible = !!(ex[i + 8] & (1 << j)); });
     // their shells in the colour of the kind their gun has loaded (SHELL_MAT, weapons/gun-models.js)
     const e = (p.wp || [])[0], lo = p.lo, id = e && lo && lo.slots[SLOTS[e[0]]], r = id && lo.guns[id] && lo.guns[id].rnd, sm = SHELL_MAT[r && r.on] || GM.shell;
     a.hsh.children.forEach((c, j) => { if (j < 3 && c.children[0]) c.children[0].material = sm; });
-  } else a.hsh.visible = false;
+  } else arsHang(a, a.hsh, false);
 }
+// something they only hold now and then (the speed loader, the shells in their hand) on their rig while it's out, and off
+// it (not merely hidden) while it isn't
+function arsHang(a, o, on) { o.visible = on; if (on) { if (o.parent !== a.upper) a.upper.add(o); } else if (o.parent) o.parent.remove(o); }

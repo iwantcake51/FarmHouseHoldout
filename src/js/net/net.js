@@ -70,7 +70,9 @@ function netRaw(id, m) {
   if (NET.solo) return;
   try {
     if (NET.mode === 'local') { if (NET.bc) NET.bc.postMessage({ to: id, from: NET.id, m }); return; }
-    const c = NET.host ? NET.conns.get(id) : NET.conn; if (c && c.open) c.send(m);
+    const c = NET.host ? NET.conns.get(id) : NET.conn; if (!c || !c.open) return;
+    if (NET_FAST.has(m.t) && c.fast && c.fast.readyState === 'open') { const s = JSON.stringify(m); if (s.length < FAST_MAX) { c.fast.send(s); return; } }
+    c.send(m);
   } catch (e) { console.warn('net send', e); }
 }
 // a message in: the host hands on what's for the others first, then everyone acts on what's for them
@@ -86,6 +88,21 @@ function netRecv(m) {
 }
 
 // ---- hosting and joining
+// the poses (NET_FAST: sent many times a second, each one replacing the one before) go by a channel of their own that
+// never waits on a lost one being sent again, or on one sent before it (fastOpen: one on the same connection, set up the
+// same on both ends, unordered and never resent). Over the one PeerJS opens, reliable and in order, a single dropped
+// packet held back every message behind it, so a joiner saw everyone stutter and then catch up in a jump. One that comes
+// in late is dropped (NET_ON.p: q, net/avatars.js). Everything else, and anything too big for one packet (FAST_MAX
+// characters), goes the reliable way
+const NET_FAST = new Set(['p']), FAST_ID = 777, FAST_MAX = 12000;
+function fastOpen(c) {
+  try {
+    const pc = c && c.peerConnection; if (!pc || c.fast) return;
+    const ch = pc.createDataChannel('fhh-fast', { negotiated: true, id: FAST_ID, ordered: false, maxRetransmits: 0 });
+    ch.onmessage = e => { let m = null; try { m = JSON.parse(e.data); } catch (er) { return; } netRecv(m); };
+    c.fast = ch;
+  } catch (e) { console.warn('net fast channel', e); }
+}
 export function netLib() {
   if (window.Peer) return Promise.resolve();
   return new Promise((ok, no) => { const s = document.createElement('script'); s.src = window.PEERJS_SRC || './vendor/peerjs.min.js'; s.onload = ok; s.onerror = () => no(new Error('Could not load the connection library')); document.head.appendChild(s); });
@@ -118,7 +135,7 @@ export async function netHost(solo) {
         peer.on('open', id => { Object.assign(NET, { on: true, host: true, code, id, hostId: id }); ok(); });
         peer.on('error', e => { if (!NET.on) no(e); else netProblem(e); });
         peer.on('connection', c => {
-          c.on('open', () => NET.conns.set(c.peer, c));
+          c.on('open', () => { NET.conns.set(c.peer, c); fastOpen(c); });
           c.on('data', netRecv);
           c.on('close', () => netGone(c.peer, 'left'));
         });
@@ -144,7 +161,7 @@ export async function netJoin(code) {
         peer.on('open', id => {
           Object.assign(NET, { on: true, code, id, hostId: NET_PREFIX + code });
           const c = peer.connect(NET.hostId, { reliable: true, serialization: 'json' }); NET.conn = c;
-          c.on('open', ok); c.on('data', netRecv); c.on('close', () => netLost('The host closed the game'));
+          c.on('open', () => { fastOpen(c); ok(); }); c.on('data', netRecv); c.on('close', () => netLost('The host closed the game'));
         });
       });
     }

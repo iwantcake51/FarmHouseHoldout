@@ -1356,7 +1356,7 @@ function botPose(b, dt, t, now_) {
   }
   if (!now_ && (b.poseT -= dt) > 0 && b.sentLocal) { NET_ON.p(Object.assign({ t: 'p', f: b.id }, botMsg(b, j, id, w, upK, false))); return; }
   b.poseT = 1 / BOT_HZ; b.sentLocal = true;
-  const m = botMsg(b, j, id, w, upK, true);
+  const m = botMsg(b, j, id, w, upK, true); m.q = b.q = (b.q || 0) + 1;
   NET_ON.p(Object.assign({ t: 'p', f: b.id }, m)); netAs(b.id, 'p', m);
 }
 function botMsg(b, j, id, w, upK, full) {

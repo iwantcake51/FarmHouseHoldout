@@ -804,6 +804,19 @@ longer stutters the game as it plays.
 turned away when it tries to join, with a note to refresh. The two would otherwise play different games: a joiner on
 an old page could find themselves on the farm while everyone else was in the arena.
 
+**Smoother for a joiner.** Everyone's pose (where they are and how they stand, their gun, sent 15 times a second for
+each player and each bot) now goes by a channel of its own that never waits: unordered, and never sent again if a
+packet's lost, since the next one's along in a fifteenth of a second anyway. It used to share the one reliable,
+in-order connection with everything else, so a single dropped packet held back every message behind it until it had
+been sent again, and a joiner saw everyone freeze and then jump. A pose that comes in after a newer one is dropped.
+Everything that has to arrive (shots, hits, kills, chat, the score) still goes the reliable way, and so does a pose too
+big for one packet. Between tabs on one computer (the local test mode) nothing changes.
+
+**Lighter survivors.** A speed loader and a handful of shells are only on someone's rig while they hold them; they
+used to sit on every survivor, hidden, with the speed loader's two hundred pieces walked over every frame for each.
+The station labels from the farm's first prep no longer work out their places every frame in the arena, where there are
+no stations.
+
 A match opens on the **class picker**: five cards, each with its two guns and its melee weapon (each pictured) and
 its bandages. Click one or press 1 to 5. Everyone stands frozen at their spawn while picking (5 seconds at the start, 4
 between rounds, in every mode). Clicking a card never takes the mouse for the game; it's taken back when the picker closes. The picker
@@ -1218,7 +1231,14 @@ middle and about 5.5 s by either side lane):
   they're full height, with the ceiling over you. You vault the pallets, counters, tables, planters and pools.
 - **The shelves' boxes can be shot off**: a round or a shotgun pellet that the shelving stops knocks off the box it
   went into (from your own eyes the one its line meets; from above the one nearest the height it flies at, so the
-  next shot into the same spot takes the next one), in a burst of dust and scraps of cardboard with a dull crunch.
+  next shot into the same spot takes the next one), and it comes apart: its six sides blown off as flat panels of
+  its own cardboard (the side the round went out of thrown hardest), tumbling and fluttering down, swaying as they
+  fall, with torn scraps of it, what was in it spilling out (tins and packets in shop colours) and shreds of paper
+  drifting down slowest. Each bounces and slides to a stop, lying flat on the shelf it stood on (or the floor, thrown
+  clear), and shrinks away after 4 to 6.5 seconds, with a puff of dust thrown out the way the round went and a slow
+  cloud of it hanging a moment where the box stood, and a dull crunch. (It used to be a puff of dust and a few small
+  cubes.) All the pieces are one instanced mesh, at most 260 of them at once, so a shotgun blast through a shelf
+  costs next to nothing.
   Bots' rounds do it too, and every player sees the same boxes go. **Shelving can be shot through**: rounds and pellets
   go on through it (knocking off every box in their way), on every map with shelving (the Mall, Route 9, the Farm),
   though it still blocks sight and movement. They all come back with the next round in Showdown; in Deathmatch and Team deathmatch each one's back
