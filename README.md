@@ -227,8 +227,11 @@ and drawn into the port. A teammate sees each round where yours are. At the work
 suppressors, stocks, grips and underbarrel grenades (a laser's beam is a fine line of light from its lens to its dot, the same width on screen however you look along it, never a flat strip), and change calibres with conversion kits such as AK mags for the
 battle rifle (rocked in front lug first, the AK way) or 10mm for the SMG. The double barrel's sawn-off kit cuts it to a coach gun: more pellets in a wider spread, each hitting 30% harder up close, but its short barrels drop it off hard (full damage only to 2.5 m, down to a fifth of it by 7 m, where the full-length gun holds to 4 m and keeps half past 11). Down the sights it's quicker on its feet than the full-length gun too (76% of your pace against 66%). Every slug, out of any shotgun, holds its damage far further than shot but still tails off: full damage to 10 m, easing down to 60% by 26 m and never below that. Out of the sawn-off a slug drops off hard instead, as its buckshot does: full damage to 3 m and down to a fifth by 8 m. The double barrel itself was too strong early on: it's now eight pellets of 16 a barrel (from nine of 19: 256 for both barrels, from 342), its second barrel follows a touch slower (0.12 s) and each shell takes 0.5 s to load (from 0.42); still the biggest burst up close, not by so much. You can also load special rounds (hollow points, slugs, flechettes and more) and
 tune damage, fire rate, recoil and magazine size. The hand cannon's mags, the first extension and the longest alike,
-are straight sticks, no curve at all, carrying on down out of the grip on the grip's own rake (leaning back as the grip does), a pressed panel down each
-side and the floor plate square to its foot with a lip out front; the
+are straight sticks, no curve at all, carrying on down out of the grip's foot as one piece with it: flush with the
+grip's steel front and back where they meet, as wide as it, its top tucked up inside the grip so there's no gap or
+step (it used to hang below the grip at its own angle, its top tilted against the grip's foot), leaning back on the
+front strap's rake, a pressed panel down each side of the long one, and the gun's own floor plate, lip out front,
+moved down to its foot; the
 machine pistol's magazine steps go from its stick to an extended stick and then straight to a drum (no casket). The
 shotguns' chokes are real choke tubes, as wide as the muzzle they thread into: the **Modified choke** (tier 1) a black
 tube sitting almost flush with a castellated rim, the **Full choke** (tier 2) an extended steel tube standing out past

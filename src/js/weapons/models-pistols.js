@@ -16,6 +16,10 @@ const MATCH_SLIDE = [0.04, 0.055, 0.07];
 // where an optic's middle sits along the slide (the red dot, then the holo): back against the slide's rear, where the
 // rear sight was, the way a cut slide carries one
 const PISTOL_OPTIC_Z = [0.573, 0.594];
+// the hand cannon's longer mags: straight sticks, no curve, carrying on down out of the grip's foot (y, m) between
+// its steel's back and front there (z), as wide as that steel (w), leaning back on the front strap's rake (rad), its top
+// tucked a little up inside the grip; how far the short extension and the long mag reach below it
+const DEAGLE_EXT = { y: 0.9645, back: 0.549, front: 0.6305, w: 0.031, rake: 0.19, tuck: 0.004, short: 0.07, long: 0.17 };
 export const PISTOL_MODELS = {
   // 9mm pistol: a Glock 17 Gen 5, traced off a side-on photo. The slide (serrations front and back, the sights, the
   // ejection port on the right with the barrel's hood in it) rides on a polymer frame: the dust cover with its rail
@@ -202,7 +206,16 @@ export const PISTOL_MODELS = {
       cyl(g, 0.0098, 0.0012, GM.poly, X + sd * 0.0218, 1.0475, 0.5866, 24).rotation.set(0, 0, Math.PI / 2); cyl(g, 0.0074, 0.0016, GM.rubber, X + sd * 0.0219, 1.0475, 0.5866, 24).rotation.set(0, 0, Math.PI / 2);   // the medallion
       cyl(g, 0.0032, 0.0016, D, X + sd * 0.0219, 1.0156, 0.5404, 12).rotation.set(0, 0, Math.PI / 2);   // the grip screw
     });
-    { const mg = g.userData.magG || g; solid(mg, [[0.5491, 0.9636], [0.6196, 0.9639], [0.6201, 0.962], [0.6319, 0.9613], [0.6334, 0.9594], [0.6327, 0.9578], [0.6171, 0.9554], [0.5541, 0.9549], [0.5463, 0.9584], [0.5483, 0.9599]], 0.036, GM.poly, X, 0.0015); box(mg, 0.024, 0.15, 0.06, GM.metal2, X, 1.03, 0.578).rotation.x = 0.16; }
+    // (a longer mag, DEAGLE_EXT: its body carries on straight down out of the bottom of the grip, flush with the steel
+    // of it front and back and leaning back on the front strap's own rake, its sides pressed in, and the same base plate
+    // at its foot; the grip's own foot hides where it goes in)
+    const mt = T('mag'), E = DEAGLE_EXT, ext = mt ? (mt >= 2 ? E.long : E.short) : 0, dz = -ext * Math.tan(E.rake), dy = -ext;
+    { const mg = g.userData.magG || g, tn = Math.tan(E.rake), at = (z, y) => [z + (y - E.y) * tn, y], y0 = E.y + E.tuck, y1 = E.y - ext;
+      if (ext) {
+        solid(mg, [at(E.back, y0), at(E.front, y0), at(E.front, y1), at(E.back, y1)], E.w, GM.metal2, X, 0.0015);
+        if (ext > 0.05) solid(mg, [at(E.back + 0.012, E.y - 0.012), at(E.front - 0.012, E.y - 0.012), at(E.front - 0.012, y1 + 0.016), at(E.back + 0.012, y1 + 0.016)], E.w + 0.0016, GM.metal2, X, 0.0008);   // the pressed panels
+      }
+      solid(mg, [[0.5491, 0.9636], [0.6196, 0.9639], [0.6201, 0.962], [0.6319, 0.9613], [0.6334, 0.9594], [0.6327, 0.9578], [0.6171, 0.9554], [0.5541, 0.9549], [0.5463, 0.9584], [0.5483, 0.9599]].map(([z, y]) => [z + dz, y + dy]), 0.036, GM.poly, X, 0.0015); box(mg, 0.024, 0.15, 0.06, GM.metal2, X, 1.03, 0.578).rotation.x = 0.16; }
     // ---- the slide: it rides back on each shot and locks open on an empty mag (player/hold.js)
     const sl = new THREE.Group(); g.add(sl);
     profile(sl, shp([[0.536, 1.122], [0.672, 1.122], [0.672, 1.188], [0.6, 1.188], [0.564, 1.185], [0.553, 1.175], [0.548, 1.17], [0.536, 1.17]]), 0.03, S2, X, 0.003);
@@ -213,10 +226,10 @@ export const PISTOL_MODELS = {
     // the bolt in the slide's mouth, seen when it runs back
     cyl(g, 0.012, 0.075, GM.steel, X, 1.16, 0.64, 14); box(g, 0.024, 0.03, 0.08, GM.rubber, X, 1.15, 0.636);
     let front = 0.916; if (m.comp) { const L = 0.1 + 0.03 * (m.comp - 1); profile(g, shp([[0.916, 1.128], [0.916 + L, 1.132], [0.916 + L, 1.166], [0.916, 1.168]]), 0.03, S2, X, 0.003); for (let k = 0; k < 2 + m.comp; k++) box(g, 0.026, 0.004, 0.012, GM.rubber, X, 1.1685, 0.935 + k * 0.025); front = 0.916 + L; }   // (its top and ports kept well under the sights, which used to look straight into them down the sights)   // longer, with another port, each level
-    if (roundOn(tierCtx) === 'boom') box(g.userData.magG || g, 0.0366, 0.0035, 0.07, GM.red, X, 0.9595, 0.589);   // explosive tips: the mag's base plate painted with a red band
+    if (roundOn(tierCtx) === 'boom') box(g.userData.magG || g, 0.0366, 0.0035, 0.07, GM.red, X, 0.9595 + dy, 0.589 + dz);   // explosive tips: the mag's base plate painted with a red band
     // (a scope or an ACOG goes on the barrel's rail, optRail: the top of it, where on its slots (well back, toward you),
     // and the eye relief to hold it at, out in front of you but not at full stretch, so its picture fills more of the view; the handgun scope a short one, scopeK, slimmer, scopeR, low on its rings, scopeH)
-    return { front, y: 1.16, magZ: 0.588, magY: 1.07, slide: sl, travel: 0.07, lock: true, top: 1.188, sz: 0.61, laser: { y: 1.118, z: 0.81 }, stickMags: true,   // the laser under the frame's lip
+    return { front, y: 1.16, magZ: 0.588, magY: 1.07, slide: sl, travel: 0.07, lock: true, top: 1.188, sz: 0.61, laser: { y: 1.118, z: 0.81 }, ownMags: true,   // the laser under the frame's lip
       optRail: { top: 1.1875, z: 0.745, relief: 0.14 }, scopeH: 0.038, scopeK: 0.74, scopeR: 0.8 };
   },
 };
