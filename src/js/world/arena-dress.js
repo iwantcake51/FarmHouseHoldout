@@ -20,6 +20,7 @@
 import { seeded } from '../core/math.js';
 import { lam, lit } from '../core/shaders.js';
 import { cxw } from './grid.js';
+import { threadJob, threadRun } from '../core/threads.js';
 
 // how much of each, per square metre of open floor (litter) or per metre of wall along the floor (decals)
 const AD = { px: 40, litter: 0.55, wallDecals: 0.16, camps: 4, bodyBags: 3, top: 0.26 };
@@ -59,11 +60,11 @@ function adCamps(open, wallSide, r) {
 
 // ---- the floor: one transparent sheet over the map's own floor, a hair above it, painted with what wears into a
 // floor that's been lived on and fought over. Painting it (a few thousand gradients and strokes over a picture up to
-// 1700 px across) is the slowest part of dressing a map, so it's done off the main thread: a worker paints it on an
-// OffscreenCanvas from a description of the plan (adFloorJob) and hands back the picture (an ImageBitmap,
-// transferred, not copied), and the sheet shows once it's in. Where there are no workers or no OffscreenCanvas it's
-// painted here instead, the same function either way (adPaintFloor: everything it needs is in its arguments, so the
-// worker's copy of it is its own source)
+// 1700 px across) is the slowest part of dressing a map, so it's done off the main thread: one of the game's worker
+// threads (core/threads.js) paints it on an OffscreenCanvas from a description of the plan and hands back the picture
+// (an ImageBitmap, transferred, not copied), and the sheet shows once it's in. Where there are no workers it's painted
+// here instead, the same function either way (adPaintFloor: everything it needs is in its arguments, so the worker's
+// copy of it is its own source)
 function adFloorSheet(g, M, W, H, x0, z0, kind, tall, wallSide, open, camps, outdoor, r) {
   const P = AD.px, cells = new Uint8Array(W * H);
   for (const [i, j] of open) { let v = 1; for (const [a, b] of wallSide(i, j)) v |= a > 0 ? 2 : a < 0 ? 4 : b > 0 ? 8 : 16; cells[j * W + i] = v; }
@@ -72,27 +73,15 @@ function adFloorSheet(g, M, W, H, x0, z0, kind, tall, wallSide, open, camps, out
   const m = new THREE.Mesh(new THREE.PlaneGeometry(W, H), lam(0xffffff, { map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
   m.rotation.x = -Math.PI / 2; m.position.set(x0 + W / 2, 0.03, z0 + H / 2); m.receiveShadow = true; m.renderOrder = 1; m.visible = false; g.add(m);
   const show = img => { tex.image = img; tex.needsUpdate = true; m.visible = true; };
-  adFloorJob(job, show);
+  threadRun('floor', job).then(show, () => {});   // (core/threads.js: painted on one of the game's worker threads)
 }
-// the worker that paints floors (made once, from adPaintFloor's own source); each job's answer goes to its own callback
-let adWorker = null, adJobs = new Map(), adJobN = 0;
-function adFloorJob(job, done) {
-  try {
-    if (!adWorker && globalThis.Worker && globalThis.OffscreenCanvas) {
-      const src = `const paint = ${adPaintFloor.toString()};\nonmessage = e => { const d = e.data, c = new OffscreenCanvas(d.W * d.P, d.H * d.P), x = c.getContext('2d'); x.translate(0, c.height); x.scale(1, -1); paint(x, d); const b = c.transferToImageBitmap(); postMessage({ id: d.id, b }, [b]); };`;
-      adWorker = new globalThis.Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
-      adWorker.onmessage = e => { const f = adJobs.get(e.data.id); adJobs.delete(e.data.id); if (f) f(e.data.b); };
-      adWorker.onerror = () => { const left = [...adJobs.values()]; adJobs = new Map(); adWorker = false; left.forEach(f => f(null)); };
-    }
-    if (adWorker) { const id = ++adJobN; adJobs.set(id, b => done(b || adPaintHere(job))); adWorker.postMessage(Object.assign({ id }, job)); return; }   // (copied, not transferred: small, and kept for the fallback)
-  } catch (e) { adWorker = false; }
-  done(adPaintHere(job));
-}
-// (no worker: painted here, on a canvas, flipped the same way)
-function adPaintHere(d) { const c = document.createElement('canvas'); c.width = d.W * d.P; c.height = d.H * d.P; const x = c.getContext('2d'); x.translate(0, c.height); x.scale(1, -1); adPaintFloor(x, d); return c; }
 // the painting itself: d = { W, H, P (px a metre), cells (per plan cell: 1 open, then 2/4/8/16 a wall east/west/south/
-// north of it), camps ([[i, j]]), outdoor, seed }. Uses nothing from outside itself (it's run in the worker as is)
-function adPaintFloor(x, d) {
+// north of it), camps ([[i, j]]), outdoor, seed }. Uses nothing from outside itself (it's run in a worker as is: a job
+// of the game's threads, core/threads.js)
+function adPaintFloor(d) {
+  // (its own canvas, in a worker or here: painted upside down, as the floor's texture reads it, flipY off)
+  const cw = d.W * d.P, ch = d.H * d.P, c = globalThis.OffscreenCanvas ? new globalThis.OffscreenCanvas(cw, ch) : Object.assign(document.createElement('canvas'), { width: cw, height: ch }), x = c.getContext('2d');
+  x.translate(0, ch); x.scale(1, -1);
   const { W, H, P, cells, camps, outdoor } = d;
   let st = d.seed >>> 0; const r = () => { st = (st + 0x6D2B79F5) | 0; let t = Math.imul(st ^ (st >>> 15), 1 | st); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   const open = []; for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (cells[j * W + i] & 1) open.push([i, j]);
@@ -138,6 +127,10 @@ function adPaintFloor(x, d) {
   }
   // the camps' ash, under their fire rings
   for (const [i, j] of camps) { const a = (i + 0.5) * P, b = (j + 0.5) * P; blot(a, b, 0.75 * P, 'rgba(30,28,26,0.7)'); blot(a, b, 1.1 * P, 'rgba(60,50,40,0.25)'); }
+
+  // (handed back as a picture to move between threads where the canvas can make one, else the canvas itself)
+  const out = c.transferToImageBitmap ? c.transferToImageBitmap() : c;
+  return { out, transfer: c.transferToImageBitmap ? [out] : [] };
 }
 
 // ---- the walls: an atlas of what's on them (4 by 4 tiles), each decal a quad on the face a ray from the floor found
@@ -381,3 +374,4 @@ function adSmoke(g, x0, z0, W, H, r) {
     }
   };
 }
+threadJob('floor', adPaintFloor);

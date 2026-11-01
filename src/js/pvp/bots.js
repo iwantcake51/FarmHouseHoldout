@@ -40,6 +40,8 @@ import { tracerPower } from '../effects/tracers.js';
 import { ARENA, arenaSpawn } from '../world/arena.js';
 import { arBoxShot } from '../world/arena-boxes.js';
 import { ci, cxw, idx, inb } from '../world/grid.js';
+import { N } from '../core/math.js';
+import { threadJob, threadRun } from '../core/threads.js';
 import { bulletBlocked, hardBlocked, moveCircle } from '../world/collision.js';
 import { los } from '../lighting/lightmap.js';
 import { PVP, PVP_BLEED, PVP_CLASSES, PVP_DMG, PVP_R, PVP_T, PVP_TTK, pvpClassOf, pvpCovered, pvpFalloff, pvpHome, pvpFlag, pvpPartK, pvpKilled, pvpKitOn, pvpSideOf } from './pvp.js';
@@ -65,12 +67,23 @@ import { BOT_CYC, BOT_GUN, BOT_GY, BOT_IDLE, BOT_INSPECT, BOT_LEG, BOT_UP } from
 // open when it's been tagged itself (BOT_TAG); top, how empty its mag has to be before it tops it off in a lull
 // (of a full one: a recruit leaves it half gone, a veteran tops off after a round or two, BOT_TOPOFF); crAcc, how
 // likely it crouches to steady its aim far off (BOT_CRACC)
+// The Terminator's extras (the others go without, as 1 or nothing): hs, how many of its hits aimed at a head land
+// there; reach, how much further than its gun's usual reach it fires (BOT_REACH); farK, mvK, gunK, how much of the
+// spread a long range, its own moving and its gun's own looseness put on its shots; think, how much sooner it thinks
+// and senses again; peekK, how much shorter its peeks and the gaps between them are (BOT_QPEEK, BOT_PEEK, BOT_COVER);
+// qpkAll, back in after a burst from a stepped-out peek too, not only a leaned one; crK, how likely it is to bob in a
+// crouch once a fight's on (BOT_CRSPAM k), bob, each bob down or up (s); leanSpam, leaning one way and the other mid
+// fight (BOT_LEANSPAM); run, sprinting everywhere it goes; angles, holding the angles the other side comes through in
+// Showdown (BOT_ANGLE); burn, never peeking again the angle it was shot at from the same spot (BOT_BURN)
 const BOT_SKILL = [
   { react: [0.34, 0.55], err: 0.24, settle: 3, sig: 0.06, turn: 3.6, view: 32, fov: 1.1, head: 0.09, iq: 0.35, team: 0.25, sneak: 0, flank: 0, gate: 0.12, track: [3.8, 4.6], wob: 0.016, tap: 1.1, hit: [0.2, 0.32], pre: 0.15, ctrl: 1.2, lead: 0, leadK: 1, dodge: null, crch: 0, sharp: 0, top: 0.5, crAcc: 0.1 },
   { react: [0.22, 0.36], err: 0.19, settle: 4, sig: 0.045, turn: 4.6, view: 38, fov: 1.25, head: 0.13, iq: 0.7, team: 0.7, sneak: 0.35, flank: 0.12, gate: 0.075, track: [4.8, 6], wob: 0.011, tap: 0.9, hit: [0.13, 0.22], pre: 0.5, ctrl: 0.9, lead: 0, leadK: 1, dodge: null, crch: 0, sharp: 0, top: 0.75, crAcc: 0.3 },
-  { react: [0.1, 0.17], err: 0.09, settle: 7.5, sig: 0.017, turn: 6.2, view: 50, fov: 1.5, head: 0.2, iq: 1, team: 1, sneak: 0.5, flank: 0.25, gate: 0.032, track: [7.5, 9], wob: 0.004, tap: 0.7, hit: [0.06, 0.11], pre: 0.9, ctrl: 0.4, lead: 0.11, leadK: 0.35, dodge: [0.22, 0.5], crch: 0.45, sharp: 1, top: 0.95, crAcc: 0.85 }
+  { react: [0.1, 0.17], err: 0.09, settle: 7.5, sig: 0.017, turn: 6.2, view: 50, fov: 1.5, head: 0.2, iq: 1, team: 1, sneak: 0.5, flank: 0.25, gate: 0.032, track: [7.5, 9], wob: 0.004, tap: 0.7, hit: [0.06, 0.11], pre: 0.9, ctrl: 0.4, lead: 0.11, leadK: 0.35, dodge: [0.22, 0.5], crch: 0.45, sharp: 1, top: 0.95, crAcc: 0.85 },
+  { react: [0.05, 0.09], err: 0.025, settle: 16, sig: 0.003, turn: 9.5, view: 75, fov: 1.75, head: 0.45, iq: 1, team: 1, sneak: 0, flank: 0.3, gate: 0.012, track: [13, 15], wob: 0.0015, tap: 0.55, hit: [0.025, 0.05], pre: 1, ctrl: 0.12, lead: 0.07, leadK: 0.05, dodge: [0.12, 0.3], crch: 1, sharp: 1, top: 0.98, crAcc: 1,
+    hs: 0.96, reach: 1.7, farK: 0.08, mvK: 0.2, gunK: 0.2, think: 0.55, peekK: 0.55, qpkAll: 1, crK: 0.85, bob: [0.09, 0.18], leanSpam: 1, run: 1, angles: 1, burn: 1 }
 ];
-export const BOT_SKILLS = ['Recruit', 'Regular', 'Veteran', 'Random'];   // (Random: each bot its own, drawn as it sits down: net/net.js)
+export const BOT_SKILLS = ['Recruit', 'Regular', 'Veteran', 'Terminator', 'Random'];   // (Random: each bot its own of the first three, drawn as it sits down: net/net.js)
+export const BOT_RANDOM = 4;   // (the lobby's pick that's Random)
 const botSk = b => BOT_SKILL[b && b.sk !== undefined ? b.sk : NET.botSkill ?? 1] || BOT_SKILL[1];   // (each bot's own, or the lobby's)
 // how each class fights: the range it likes (m), how keen it is to push in (0 to 1), which gun it wants out at a range,
 // (none fires on the run: nobody can in the arena, as you can't)
@@ -163,6 +176,7 @@ export function botsBegin() {
   botSquadReset();
   for (const b of BOTS.values()) botSpawn(b, true);
   botAxisSet();
+  BOT_HEAT.A = BOT_HEAT.B = null; botHeatPrior();
 }
 export function botsEnd() { BOTS.clear(); BOT_HOT.length = 0; }
 export const botIds = () => [...BOTS.keys()];
@@ -184,7 +198,7 @@ export const botStats = () => [...BOTS.values()].map(b => [b.id, [Math.round(b.s
 // (Showdown: those still up at a round's end grow a little bolder; botDie makes those who went down early more careful)
 export function botsPhase(ph, was) {
   if (ph === 'roundEnd') for (const b of BOTS.values()) if (!b.dead) { b.learn.bold = Math.min(BOT_LEARN.most, b.learn.bold + BOT_LEARN.win); b.learn.lane[b.lane ?? 1] = Math.max(0, (b.learn.lane[b.lane ?? 1] || 0) - 0.5); }   // (and the lane it lived through it's a little keener on)
-  if (ph === 'pick' && (was === 'roundEnd' || was === 'idle')) { botSquadReset(); BOT_HOT.length = 0; for (const b of BOTS.values()) { if (was === 'idle' && rand() < 0.3) b.cls = PVP_CLASSES[Math.floor(rand() * PVP_CLASSES.length)].id; botSpawn(b, true); } botAxisSet(); if (PVP.mode !== 'ffa') ['A', 'B'].forEach(sd => botLanesTeam([...BOTS.values()].filter(b => b.side === sd))); }
+  if (ph === 'pick' && (was === 'roundEnd' || was === 'idle')) { botSquadReset(); BOT_HOT.length = 0; for (const b of BOTS.values()) { if (was === 'idle' && rand() < 0.3) b.cls = PVP_CLASSES[Math.floor(rand() * PVP_CLASSES.length)].id; botSpawn(b, true); } botAxisSet(); if (PVP.mode !== 'ffa') ['A', 'B'].forEach(sd => botLanesTeam([...BOTS.values()].filter(b => b.side === sd))); botHeatPrior(); }
   // (counting in, some look their gun over, BOT_INSP; the round on, each lets it go to get moving)
   if (ph === 'count') for (const b of BOTS.values()) if (!b.dead) { botArm(b); if (rand() < BOT_INSP.count) botInspGo(b, rr(...BOT_INSP.wait)); }
   if (ph === 'live') for (const b of BOTS.values()) { b.prot = PVP_T.prot; botInspCut(b); }
@@ -221,7 +235,7 @@ function botSpawn(b, fresh) {
   const [x, z, f] = arenaSpawn(PVP.mode === 'ffa' ? 'F' : pvpHome(b.side), foes, PVP.mode === 'rounds' || fresh ? list.findIndex(r => r.id === b.id) : undefined, PVP.mode === 'rounds' ? PVP.rd : undefined);
   Object.assign(b, { x, z, vx: 0, vz: 0, aim: f, av: 0, look: f, hp: 100, dead: false, bleed: 0, calm: 0, regen0: null, stun: 0, prot: PVP_T.prot, state: 'roam', path: [], tgt: '', vis: null, last: null, mv: '', react: 0, err: 0, spray: 0, hurtT: -9, seenT: -9, stopT: 0, glanceT: 0, stuck: 0, lookW: f, alarm: undefined, alarmT: 0, pitch: 0, leanT: 0, lean: 0 });
   b.mem.clear(); b.healing = false; b.lowDone = false; b.noFire = false; b.shotAtT = -9; b.flinchAt = undefined;
-  b.pre = null; b.trade = null; b.brawl = null; b.dealt = new Map(); b.taken = new Map(); b.cr = 0; b.crW = 0; b.crSpam = 0; b.tbag = null; b.insp = null; b.jig = 0; b.swing = 0; b.jiggle = false; b.coverAt = null; b.preT = 0;
+  b.pre = null; b.trade = null; b.brawl = null; b.dealt = new Map(); b.taken = new Map(); b.cr = 0; b.crW = 0; b.crSpam = 0; b.burn = []; b.ang = null; b.angN = 0; b.angUsed = []; b.angRetry = 0; b.lsT = 0; b.tbag = null; b.insp = null; b.jig = 0; b.swing = 0; b.jiggle = false; b.coverAt = null; b.preT = 0;
   b.lane = botLanePick(b); b.routeSeed = Math.floor(rand() * 1e9); b.pace = b.pace || rr(0.95, 1.04); b.edgy = rand() < BOT_EDGE.odds;   // (some rounds it works the yard's edges, round the outside of everyone)
   botArm(b);
   b.p.dead = false; b.p.hp = 100;
@@ -261,6 +275,7 @@ function botSense(b, foes, t) {
         const k = 1 + BOT_REACT.side * clamp(off / S.fov, 0, 1.5) + (expect ? -BOT_REACT.expect : BOT_REACT.surprise) + (d < 8 && !expect ? BOT_REACT.close : 0) - (ready ? BOT_REACT.ready : 0);
         b.react = t + rr(...S.react) * Math.max(0.45, k); b.err = S.err * (0.8 + 0.6 * clamp(off / S.fov, 0, 1)) * (expect ? 0.6 : 1) * (ready ? 0.7 : 1) * (rand() < 0.5 ? -1 : 1);
         botAimPart(b); if (f.id !== b.tgt) b.tunnel = rand() < BOT_TUNNEL;
+        botHeatAdd(b.side, f.x, f.z, BOT_ANGLE.seen);   // (one of them come this way: BOT_HEAT)
       }
       b.mem.set(f.id, { id: f.id, x: f.x, z: f.z, t, seen: true, threat: !!(m && m.threat), aim: f.aim });
       botCall(b, f, t);
@@ -300,6 +315,8 @@ const BOT_TAG = { base: 0.6, per: 0.008, most: 0.95, wear: 0.45, fresh: 1.1, pre
 // out again again s later from another angle: a wide swing, the other side, or somewhere else (b.rechal: round
 // some other way flank of the time, times BOT_SKILL iq). It leans out rather than steps out leanK of the time (times iq)
 const BOT_QPEEK = { lean: [0.35, 0.65], fight: [0.55, 1.0], again: [0.3, 0.7], leanK: 0.9, flank: 0.4 };
+// a peek's or a gap's length (s), shorter for a Terminator (BOT_SKILL peekK: in and out, quick)
+const botPk = (b, r) => rr(...r) * (botSk(b).peekK || 1);
 // bobbing in a crouch fighting (botThink, botCrouchStep): how likely it starts each think (times BOT_SKILL crch), for
 // how long (s), each bob down or up (s)
 const BOT_CRSPAM = { k: 0.35, len: [1.2, 2.5], bob: [0.16, 0.3] };
@@ -324,7 +341,7 @@ const BOT_STEP = { run: 16, walk: 8, slow: 1.3, ready: 13, fresh: 1.5 };
 // corner found a bot sat waiting behind it, which was more annoying than clever, so it no longer does)
 // walking with its aim off the way it's going: at most max (rad) of it, unless it's in one of hold's states or had
 // someone in a fight within fresh s
-const BOT_BACKPEDAL = { max: 1.75, fresh: 2, hold: ['hold', 'cover', 'peek', 'tbag'] };
+const BOT_BACKPEDAL = { max: 1.75, fresh: 2, hold: ['hold', 'cover', 'peek', 'tbag', 'angle'] };
 const botTagged = (b, id, t) => { const e = b.dealt && b.dealt.get(id); return !!(e && t - e.t < BOT_TAG.fresh); };
 // hurt: someone it's put dmg (hp) into within mem s (or the one who's just killed a teammate, BOT_TRADE, or in
 // Deathmatch someone who's been in a fight with someone else, BOT_THIRD), and how much keener it is to push them
@@ -465,7 +482,7 @@ function botCover(b, from, far) {
 function botPeek(b, L, others, wide) {
   const P_ = BOT_PEEK, dL = Math.hypot(L.x - b.x, L.z - b.z) || 1, ux = (L.x - b.x) / dL, uz = (L.z - b.z) / dL;
   const lp = b.lastPk && botNow() - b.lastPk.t < 6 ? b.lastPk : null;   // (not from just where it last peeked them from)
-  const cs = botCells(b.x, b.z, wide ? P_.far : P_.near).filter(c => los(c[0], c[1], L.x, L.z) && !botSeenBy(c[0], c[1], others) && (!lp || Math.hypot(c[0] - lp.x, c[1] - lp.z) > 1.5));
+  const cs = botCells(b.x, b.z, wide ? P_.far : P_.near).filter(c => los(c[0], c[1], L.x, L.z) && !botSeenBy(c[0], c[1], others) && (!lp || Math.hypot(c[0] - lp.x, c[1] - lp.z) > 1.5) && !botBurnt(b, c[0], c[1], L.x, L.z));
   if (wide) { const sc = c => { const ex = c[0] - b.x, ez = c[1] - b.z; return Math.min(Math.abs(ex * uz - ez * ux), P_.lat) - Math.max(0, ex * ux + ez * uz) * 0.4; }; cs.sort((a, c) => sc(c) - sc(a)); }
   else cs.sort((a, c) => a[2] - c[2]);
   return cs.length ? botPath(b, cs[0][0], cs[0][1]) : null;
@@ -613,6 +630,141 @@ function botPreAim(b, head, t, arc, goal) {
   return best ?? botOpenLook(b);
 }
 
+// ---- the Terminator's extras (BOT_SKILL leanSpam, burn, angles)
+// leaning one way and the other mid fight (botLeanSpam): every gap s a side it still sees them from (leaned out either
+// way, or upright), never the one it's on; eased over at ease (per s), quicker than anyone else leans
+const BOT_LEANSPAM = { gap: [0.16, 0.34], ease: 12 };
+function botLeanSpam(b, t) {
+  const T = b.vis; if (!botSk(b).leanSpam || !T || b.sprint || b.state !== 'fight' || t < (b.lsT || 0)) return;
+  b.lsT = t + rr(...BOT_LEANSPAM.gap);
+  const a = Math.atan2(T.x - b.x, T.z - b.z), ox = -Math.cos(a) * BOT_LEAN.off, oz = Math.sin(a) * BOT_LEAN.off;
+  const ok = [-1, 0, 1].filter(sd => sd !== (b.leanSide || 0) && !bulletBlocked(b.x + ox * sd, b.z + oz * sd) && los(b.x + ox * sd, b.z + oz * sd, T.x, T.z));
+  if (!ok.length) return;
+  b.leanSide = ok[Math.floor(rand() * ok.length)]; b.leanT = b.lsT + 0.05;
+}
+// where it's been shot from where it stood (botHit, a Terminator's b.burn): the last keep of them; a spot within near
+// (m) of one, looking within ang (rad) of the way that shot came, it never peeks from again (botPeek, a lean out of
+// cover, a held angle: botAnglePick); it goes and comes at them from another angle
+const BOT_BURN = { keep: 16, near: 2, ang: 0.7 };
+const botBurnt = (b, x, z, tx, tz) => !!b.burn && b.burn.some(q => Math.hypot(q.x - x, q.z - z) < BOT_BURN.near && Math.abs(angDiff(Math.atan2(tx - x, tz - z), q.a)) < BOT_BURN.ang);
+// where the other side comes through, for each side over the match (BOT_HEAT: a cell's worth, kept per side, of where
+// that side's foes are): at the start of every round each of the ways from their end of the map up each lane to this
+// side's (prior), and from then on every place one of them's first been seen (seen) or shot from (shot), worth more;
+// all of it faded by decay a round, so what they did lately counts most.
+// A Terminator in Showdown knowing of nobody (botAngleThink) gets to a spot that watches the most of that (of the
+// hottest targets cells, those near to far m off it and on toward the other side), from beside something it can lean
+// round (wall: worth that much more), the more of it one way the better (spread: what's still worth it spread all
+// round), the nearer the better (travel per m), never one it's been shot at there from that way (BOT_BURN), nor one
+// it's held already this round. It holds it hold s, gun on it, crouched if there's low cover in front of it, leaned
+// round what's beside it; nobody comes and it moves on to another, step m further on toward the other side each time
+// (from ahead0 m: its own half), steps times, then goes looking (and not with the round nearly out: BOT_LATE)
+const BOT_HEAT = { A: null, B: null };
+const BOT_ANGLE = { prior: 1, seen: 4, shot: 6, decay: 0.75, targets: 40, cands: 70, near: 5, far: 32, reach: 26, hold: [5, 8.5], steps: 4, ahead0: [-16, -3], step: 5, spread: 0.6, wall: 1.3, travel: 0.03, used: 3, burnt: 2.5 };
+function botHeatAdd(sd, x, z, w) {
+  const H = BOT_HEAT[sd]; if (!H || PVP.mode !== 'rounds') return;
+  const i0 = ci(x), j0 = ci(z);
+  for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const i = i0 + di, j = j0 + dj; if (inb(i, j)) H[idx(i, j)] += di || dj ? w * 0.4 : w; }
+}
+function botHeatPrior() {
+  if (PVP.mode !== 'rounds') return;
+  const c = { A: [0, 0, 0], B: [0, 0, 0] }, add = (sd, x, z) => { if (c[sd] && x !== undefined) { c[sd][0] += x; c[sd][1] += z; c[sd][2]++; } };
+  for (const o of BOTS.values()) add(o.side, o.x, o.z);
+  add(pvpSideOf(NET.id), P.x, P.z); for (const q of NET.peers.values()) if (!BOTS.has(q.id)) add(pvpSideOf(q.id), q.x, q.z);
+  // (the open cells as the bots walk them, for the worker: it can't ask the map)
+  const walk = new Uint8Array(N * N); for (let j = ARENA.z0; j <= ARENA.z1; j++) for (let i = ARENA.x0; i <= ARENA.x1; i++) if (botWalk(i, j)) walk[idx(i, j)] = 1;
+  for (const sd of ['A', 'B']) {
+    const H = BOT_HEAT[sd] || (BOT_HEAT[sd] = new Float32Array(N * N)); for (let k = 0; k < H.length; k++) H[k] *= BOT_ANGLE.decay;
+    const fo = c[sd === 'A' ? 'B' : 'A'], us = c[sd]; if (!fo[2] || !us[2]) continue;
+    // their ways up each lane, walked on one of the game's threads (core/threads.js: botHeatWays), added in once they're
+    // in (long before the round's under way: this is while everyone's picking)
+    const d = { N, walk, from: [ci(fo[0] / fo[2]), ci(fo[1] / fo[2])], to: [ci(us[0] / us[2]), ci(us[1] / us[2])], half: cxw(0) - 0.5, axis: [BOT_AXIS.ax, BOT_AXIS.az, BOT_AXIS.cx, BOT_AXIS.cz, BOT_AXIS.lo, BOT_AXIS.hi], ways: 6, w: BOT_ANGLE.prior / 6, seed: Math.floor(rand() * 1e9) };
+    threadRun('heat', d).then(add_ => { if (BOT_HEAT[sd] === H) for (let k = 0; k < H.length; k++) H[k] += add_[k]; }, () => {});
+  }
+}
+// the other side's likely ways from their spawns to this side's (d: the open cells, from and to as cells, half: the
+// grid's offset (a cell's middle in metres is i + half + 0.5), axis: the lanes' line and spread (BOT_AXIS); ways of
+// them, two by each lane, each a little differently): a path along each, kept to its own lane but for its ends, each
+// cell on it worth w, the cells beside it less. Uses nothing outside itself: it's a job for the game's threads
+function botHeatWays(d) {
+  const { N, walk, from, to, half, axis, ways, w } = d, out = new Float32Array(N * N);
+  let st = d.seed >>> 0; const rnd = () => { st = (st + 0x6D2B79F5) | 0; let t = Math.imul(st ^ (st >>> 15), 1 | st); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const ok = (i, j) => i >= 0 && j >= 0 && i < N && j < N && walk[j * N + i] === 1;
+  const laneOf = (i, j) => { const x = i + half + 0.5, z = j + half + 0.5, u = (x - axis[2]) * -axis[1] + (z - axis[3]) * axis[0]; return Math.max(0, Math.min(2, Math.floor((u - axis[4]) / (axis[5] - axis[4] + 1e-6) * 3))); };
+  const near = (i, j, k, r) => { let bd = 1e9, b = -1; for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) if (ok(i + di, j + dj) && di * di + dj * dj < bd) { bd = di * di + dj * dj; b = (j + dj) * N + i + di; } return b < 0 ? k : b; };
+  const s0 = near(from[0], from[1], -1, 4), g0 = near(to[0], to[1], -1, 4); if (s0 < 0 || g0 < 0) return { out, transfer: [out.buffer] };
+  const gi = g0 % N, gj = (g0 / N) | 0, si = s0 % N, sj = (s0 / N) | 0, span = Math.hypot(gi - si, gj - sj) || 1;
+  for (let k = 0; k < ways; k++) {
+    const lane = k % 3, noise = new Float32Array(N * N); for (let q = 0; q < noise.length; q++) noise[q] = rnd() * 0.9;
+    const g = new Float32Array(N * N).fill(1e9), from_ = new Int32Array(N * N).fill(-1), shut = new Uint8Array(N * N), heap = [];
+    const push = (f, q) => { heap.push([f, q]); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+    const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = i * 2 + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
+    const h = q => { const dx = Math.abs(q % N - gi), dz = Math.abs(((q / N) | 0) - gj); return Math.max(dx, dz) + 0.414 * Math.min(dx, dz); };
+    g[s0] = 0; push(h(s0), s0);
+    while (heap.length) {
+      const [, q] = pop(); if (q === g0) break; if (shut[q]) continue; shut[q] = 1;
+      const i = q % N, j = (q / N) | 0;
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+        if (!di && !dj) continue; const ni = i + di, nj = j + dj; if (!ok(ni, nj)) continue;
+        if (di && dj && (!ok(i + di, j) || !ok(i, j + dj))) continue;
+        const nq = nj * N + ni, mid = Math.min(Math.hypot(ni - si, nj - sj), Math.hypot(ni - gi, nj - gj)) / span;
+        const c = g[q] + (di && dj ? 1.414 : 1) + noise[nq] + (mid > 0.2 && laneOf(ni, nj) !== lane ? 2.5 : 0);   // (off its lane, but near either end, dearer)
+        if (c < g[nq]) { g[nq] = c; from_[nq] = q; push(c + h(nq), nq); }
+      }
+    }
+    if (from_[g0] < 0) continue;
+    for (let q = g0; q >= 0 && q !== s0; q = from_[q]) {
+      const i = q % N, j = (q / N) | 0;
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const a = i + di, b = j + dj; if (a >= 0 && b >= 0 && a < N && b < N) out[b * N + a] += di || dj ? w * 0.4 : w; }
+    }
+  }
+  return { out, transfer: [out.buffer] };
+}
+threadJob('heat', botHeatWays);
+function botAnglePick(b, t) {
+  const H = BOT_HEAT[b.side], A = BOT_ANGLE; if (!H) return null;
+  const tg = [];
+  for (let j = ARENA.z0; j <= ARENA.z1; j++) for (let i = ARENA.x0; i <= ARENA.x1; i++) { const h = H[idx(i, j)]; if (h > 0.05 && botWalk(i, j)) tg.push([cxw(i), cxw(j), h, 0]); }
+  if (!tg.length) return null;
+  tg.sort((a, c) => c[2] - a[2]); tg.length = Math.min(tg.length, A.targets);
+  for (const g of tg) g[3] = botAhead(b, g[0], g[1]);
+  const n = b.angN || 0, lo = A.ahead0[0] + n * A.step, hi = A.ahead0[1] + n * A.step;
+  const cs = botCells(b.x, b.z, A.reach).filter(c => { const a = botAhead(b, c[0], c[1]); return a >= lo && a <= hi && !b.angUsed.some(u => Math.hypot(u.x - c[0], u.z - c[1]) < A.used) && !(b.burn || []).some(q => Math.hypot(q.x - c[0], q.z - c[1]) < A.burnt); });
+  for (let k = cs.length - 1; k > 0; k--) { const r = Math.floor(rand() * (k + 1)); [cs[k], cs[r]] = [cs[r], cs[k]]; }
+  let best = null, bs = 0;
+  for (const c of cs.slice(0, A.cands)) {
+    const ca = botAhead(b, c[0], c[1]); let w = 0, sx = 0, sz = 0, top = null, tw = 0;
+    for (const g of tg) {
+      const ex = g[0] - c[0], ez = g[1] - c[1], d = Math.hypot(ex, ez);
+      if (d < A.near || d > A.far || g[3] < ca - 2 || !los(c[0], c[1], g[0], g[1]) || botBurnt(b, c[0], c[1], g[0], g[1])) continue;
+      w += g[2]; sx += ex / d * g[2]; sz += ez / d * g[2]; if (g[2] > tw) { tw = g[2]; top = g; }
+    }
+    if (!w) continue;
+    const i = ci(c[0]), j = ci(c[1]); let wall = false;
+    for (let dj = -1; dj <= 1 && !wall; dj++) for (let di = -1; di <= 1; di++) if ((di || dj) && !botWalk(i + di, j + dj)) { wall = true; break; }
+    const sc = w * (A.spread + (1 - A.spread) * Math.hypot(sx, sz) / w) * (wall ? A.wall : 1) / (1 + c[2] * A.travel);
+    if (sc > bs) {
+      bs = sc; const d = Math.hypot(top[0] - c[0], top[1] - c[1]) || 1;
+      best = { x: c[0], z: c[1], a: Math.atan2(sx, sz), tx: top[0], tz: top[1], cr: pvpCovered(c[0], c[1], top[0], top[1], (c[0] - top[0]) / d, (c[1] - top[1]) / d, d) };
+    }
+  }
+  return best;
+}
+function botAngleThink(b, t) {
+  const A = BOT_ANGLE, n = b.angN || 0;
+  if (n >= A.steps || PVP.t < BOT_LATE) return false;
+  if (b.state === 'angle' && b.ang) {
+    if (b.path.length) { b.sprint = Math.hypot(b.ang.x - b.x, b.ang.z - b.z) > 3; return true; }
+    if (b.ang.until === undefined) { b.ang.until = t + rr(...A.hold); b.leanSide = botLeanSide(b, { x: b.ang.tx, z: b.ang.tz }); b.leanT = b.ang.until; b.coverAt = { x: b.x, z: b.z }; b.sprint = false; }
+    if (t < b.ang.until) return true;
+    b.angN = n + 1; b.ang = null; b.leanT = 0;   // (nobody came: on to another, further on)
+    if (b.angN >= A.steps) return false;
+  }
+  if (t < (b.angRetry || 0)) return false;
+  const pk = botAnglePick(b, t); if (!pk) { b.angRetry = t + 1.5; return false; }
+  b.ang = pk; b.angUsed.push({ x: pk.x, z: pk.z }); b.state = 'angle'; b.path = botPath(b, pk.x, pk.z); b.sprint = Math.hypot(pk.x - b.x, pk.z - b.z) > 3; b.coverAt = null;
+  return true;
+}
+
 // ---- its side's plan (the team games, the host's bots on a side together), a couple of times a second: how many are
 // still up on each side, what they know between them, and the clock. In Showdown, more of them than of you and someone
 // known: now and then they all rush that spot together (BOT_RUSH). Fewer of them: they sit back and hold. Late in the
@@ -687,7 +839,7 @@ function botThink(b, t) {
     }
     if (leave && b.state !== 'cover' && t - (b.coverT || 0) > 0.6) {
       b.coverT = t; const cv = botCover(b, known.length ? known : [T], b.healing);
-      if (cv) { b.state = 'cover'; b.path = cv.path; b.sprint = true; b.peekAt = t + rr(...BOT_COVER.peek); b.coverAt = { x: cv.x, z: cv.z }; return; }
+      if (cv) { b.state = 'cover'; b.path = cv.path; b.sprint = true; b.peekAt = t + botPk(b, BOT_COVER.peek); b.coverAt = { x: cv.x, z: cv.z }; return; }
     }
     if (b.state === 'cover' && b.path.length) return;
     // (a standoff: it can see them but its rounds would only go into the cover they're behind, BOT_STALL s of it, and
@@ -704,20 +856,24 @@ function botThink(b, t) {
     // stepping out into the open; swung wide out, it keeps moving across them as it fights)
     // (a quick peek, leaned out, BOT_QPEEK: a burst from there, and back in behind it before they've settled on it,
     // to come at them again from somewhere else; not with them nearly done)
-    if ((b.state === 'peek' || b.state === 'cover') && b.mv !== 'hold' && b.mv !== 'strafe') {
+    if ((b.state === 'peek' || b.state === 'cover' || b.state === 'angle') && b.mv !== 'hold' && b.mv !== 'strafe') {
+      if (b.state === 'angle') b.coverAt = b.coverAt || { x: b.x, z: b.z };
       if (b.swing) { b.mv = 'strafe'; b.strafe = b.swing; b.path = []; b.sprint = false; b.mvT = t + rr(0.6, 1.1); }
-      else { b.mv = 'hold'; b.path = []; b.sprint = false; b.leanSide = b.lpeek || botLeanSide(b, T); b.leanT = t + rr(1.1, 2); b.mvT = t + rr(0.8, 1.5); if (b.lpeek && b.coverAt && rand() < S.iq) b.qpk = t + rr(...BOT_QPEEK.fight); }
+      else { b.mv = 'hold'; b.path = []; b.sprint = false; b.leanSide = b.lpeek || botLeanSide(b, T); b.leanT = t + rr(1.1, 2); b.mvT = t + rr(0.8, 1.5); if ((b.lpeek || S.qpkAll) && b.coverAt && rand() < S.iq) b.qpk = t + botPk(b, BOT_QPEEK.fight); }
     }
     b.lpeek = 0;
     if (b.qpk && t > b.qpk && b.coverAt && !weak && !rushing && !deny) {
-      b.qpk = 0; b.mv = ''; b.state = 'cover'; b.path = botPath(b, b.coverAt.x, b.coverAt.z); b.peekAt = t + rr(...BOT_QPEEK.again); b.rechal = true; b.leanT = 0; b.leanSide = 0; b.coverT = t; return;
+      b.qpk = 0; b.mv = ''; b.state = 'cover'; b.path = botPath(b, b.coverAt.x, b.coverAt.z); b.peekAt = t + botPk(b, BOT_QPEEK.again); b.rechal = true; b.leanT = 0; b.leanSide = 0; b.coverT = t; return;
+    }
+    if (S.burn && b.mv === 'hold' && t - b.hurtT < 0.3 && b.coverAt && !weak && !rushing && !deny && !onTop) {
+      b.qpk = 0; b.mv = ''; b.state = 'cover'; b.path = botPath(b, b.coverAt.x, b.coverAt.z); b.peekAt = t + botPk(b, BOT_QPEEK.again); b.rechal = true; b.leanT = 0; b.leanSide = 0; b.coverT = t; return;
     }
     b.state = 'fight'; b.swing = 0;
     // (down in a crouch to steady it, BOT_CRACC: far off, or with a gun in each hand some way off, stood or strafing,
     // as likely as it knows to (BOT_SKILL crAcc); bobbing in a crouch as it fights, BOT_CRSPAM: a veteran's habit,
     // harder to hold a head on)
     if (t > (b.crAccT || 0)) { const gl = b.lo && b.lo.guns[botGunOf(b)], ak = !!(gl && (gl.mods || []).some(m => /^akimbo/.test(m))); b.crAccT = t + rr(1, 2); b.crAcc = (d > BOT_CRACC.far || (ak && d > BOT_CRACC.dual)) && rand() < S.crAcc; }
-    if (b.crSpam < t && b.mv !== 'push' && rand() < S.crch * BOT_CRSPAM.k) b.crSpam = t + rr(...BOT_CRSPAM.len);
+    if (b.crSpam < t && (b.mv !== 'push' || S.crK) && rand() < S.crch * (S.crK ?? BOT_CRSPAM.k)) b.crSpam = t + rr(...BOT_CRSPAM.len);
     if (t > (b.mvT || 0)) {
       b.mvT = t + rr(0.5, 1.1); const lo = st.range[0] * S.iq, hi = st.range[1] + (1 - S.iq) * 14;   // (a recruit hardly minds what range it's at)
       const covered = pvpCovered(b.x, b.z, T.x, T.z, (b.x - T.x) / (d || 1), (b.z - T.z) / (d || 1), d), bold = st.push + (b.learn.bold || 0) + (weak ? BOT_FINISH.push : 0) + (away ? 0.25 : 0);
@@ -786,7 +942,7 @@ function botThink(b, t) {
   }
   // someone heard coming close, out of its sight (BOT_STEP): ready for them, out at them first, a peek or a swing
   const H = b.step && t - b.step.t < BOT_STEP.fresh && Math.hypot(b.step.x - b.x, b.step.z - b.z) < BOT_STEP.ready ? b.step : null;
-  if (H && S.iq >= 0.5 && !/cover|peek|flag|rush|tbag/.test(b.state) && !los(b.x, b.z, H.x, H.z)) {
+  if (H && S.iq >= 0.5 && !/cover|peek|flag|rush|tbag|angle/.test(b.state) && !los(b.x, b.z, H.x, H.z)) {
     b.step = null; b.coverAt = { x: b.x, z: b.z };
     b.state = 'cover'; b.path = []; b.sprint = false; b.peekAt = t + rr(0.05, 0.25); b.coverSinceT = t; return;
   }
@@ -826,14 +982,17 @@ function botThink(b, t) {
   if (stale && b.state === 'hot' && b.path.length) return;
   if (!L) {
     if (Q.plan === 'push' && Q.at) { if (b.state !== 'hunt' || !b.path.length) { b.state = 'hunt'; b.path = botPath(b, Q.at.x, Q.at.z); b.sprint = true; } return; }
-    if (b.state !== 'roam' || !b.path.length) { b.state = 'roam'; b.path = botRoam(b); b.sprint = rand() < (PVP.mode === 'rounds' ? BOT_EARLY.sprint : BOT_DM.sprint); }
+    if (S.angles && PVP.mode === 'rounds' && botAngleThink(b, t)) return;   // (a Terminator holds the angles they come through: BOT_ANGLE)
+    if (b.state !== 'roam' || !b.path.length) { b.state = 'roam'; b.path = botRoam(b); b.sprint = !!S.run || rand() < (PVP.mode === 'rounds' ? BOT_EARLY.sprint : BOT_DM.sprint); }
     return;
   }
+  // (holding an angle and someone heard or called out coming the way it's watching: it stays on it for them)
+  if (S.angles && b.state === 'angle' && b.ang && !b.path.length && t - L.t < 4 && Math.abs(angDiff(Math.atan2(L.x - b.x, L.z - b.z), b.ang.a)) < 0.9) { b.ang.until = Math.max(b.ang.until || 0, t + 1.5); return; }
   if (b.state === 'cover') {
     // (hit where it sits by someone it can't see from there: it doesn't sit and take it, it swings out at them now)
     if (t - b.hurtT < 0.6 && !b.path.length) b.peekAt = Math.min(b.peekAt, t + rr(0.15, 0.4));
     // (and sat long enough, it goes looking rather than holding the corner: BOT_CAMP)
-    if (!b.path.length && t - (b.coverSinceT ?? (b.coverSinceT = t)) > BOT_CAMP && !b.healing && Q.plan !== 'hold') { b.coverSinceT = undefined; b.state = 'reset'; }
+    if (!b.path.length && t - (b.coverSinceT ?? (b.coverSinceT = t)) > BOT_CAMP * (S.peekK || 1) && !b.healing && Q.plan !== 'hold') { b.coverSinceT = undefined; b.state = 'reset'; }
     else if (b.path.length || b.reloading || t < b.peekAt) return;
   }
   if (b.state !== 'cover') b.coverSinceT = undefined;
@@ -844,15 +1003,15 @@ function botThink(b, t) {
     // are and draw their fire. No such spot: round some other way to them
     // (leaned out round it where that sees them, BOT_QPEEK: head and shoulder, not the whole of it, quick and back; not
     // again from the same place straight after one that found nothing or got it hurt (b.rechal): another angle then)
-    const others = known.filter(m => m !== L), ls = !b.rechal && botLeanSide(b, L);
-    if (ls && rand() < BOT_QPEEK.leanK * S.iq) { b.state = 'peek'; b.path = []; b.sprint = false; b.lpeek = ls; b.leanSide = ls; b.peekEnd = t + rr(...BOT_QPEEK.lean); b.leanT = b.peekEnd; b.jiggle = true; b.swing = 0; b.coverAt = b.coverAt || { x: b.x, z: b.z }; return; }
-    if (b.rechal) { b.rechal = false; if (rand() < BOT_QPEEK.flank * S.iq) { const fl = botFlank(b, L, others); if (fl) { b.state = 'flank'; b.path = fl; b.sprint = false; return; } } }
+    const others = known.filter(m => m !== L), ls = !b.rechal && !botBurnt(b, b.x, b.z, L.x, L.z) && botLeanSide(b, L);
+    if (ls && rand() < BOT_QPEEK.leanK * S.iq) { b.state = 'peek'; b.path = []; b.sprint = false; b.lpeek = ls; b.leanSide = ls; b.peekEnd = t + botPk(b, BOT_QPEEK.lean); b.leanT = b.peekEnd; b.jiggle = true; b.swing = 0; b.coverAt = b.coverAt || { x: b.x, z: b.z }; return; }
+    if (b.rechal) { b.rechal = false; if (rand() < BOT_QPEEK.flank * S.iq) { const fl = botFlank(b, L, others); if (fl) { b.state = 'flank'; b.path = fl; b.sprint = !!S.run && fl.length > 2; return; } } }
     const wide = botEdge(b, L, t) > 0 || (b.jig || 0) >= BOT_PEEK.jigs || !!b.lastPk && t - b.lastPk.t < 6, pk = botPeek(b, L, others, wide);
     if (pk) {
       { const e = pk[pk.length - 1]; b.lastPk = { x: e[0], z: e[1], t }; }
       b.state = 'peek'; b.path = pk; b.sprint = false; b.leanSide = botLeanSide(b, L);
       if (wide) { b.jig = 0; b.swing = rand() < 0.5 ? 1 : -1; b.peekEnd = t + rr(...BOT_PEEK.wide); b.leanT = 0; if (t - L.t < 3 && rand() < S.pre) b.pre = { id: L.id, x: L.x, z: L.z, until: t + 1.8, at: t, n: 2, go: false }; }
-      else { b.jig = (b.jig || 0) + 1; b.swing = 0; b.peekEnd = t + rr(...BOT_PEEK.jiggle); b.leanT = b.peekEnd; b.jiggle = true; }
+      else { b.jig = (b.jig || 0) + 1; b.swing = 0; b.peekEnd = t + botPk(b, BOT_PEEK.jiggle); b.leanT = b.peekEnd; b.jiggle = true; }
       return;
     }
     const fl = botFlank(b, L, others); if (fl) { b.state = 'flank'; b.path = fl; b.sprint = false; return; }
@@ -861,7 +1020,7 @@ function botThink(b, t) {
   }
   if (b.state === 'peek' && (b.path.length || t < b.peekEnd)) return;
   // (a jiggle done: back behind its cover and out again in a moment)
-  if (b.state === 'peek' && b.jiggle && b.coverAt) { b.jiggle = false; b.rechal = !!b.lpeek; b.lpeek = 0; b.leanT = 0; b.state = 'cover'; b.path = botPath(b, b.coverAt.x, b.coverAt.z); b.peekAt = t + rr(...BOT_PEEK.again); return; }
+  if (b.state === 'peek' && b.jiggle && b.coverAt) { b.jiggle = false; b.rechal = !!b.lpeek; b.lpeek = 0; b.leanT = 0; b.state = 'cover'; b.path = botPath(b, b.coverAt.x, b.coverAt.z); b.peekAt = t + botPk(b, BOT_PEEK.again); return; }
   if (b.state === 'peek') { b.state = 'reset'; b.jiggle = false; b.swing = 0; }   // (a peek that found nobody: it doesn't stand there; on, below)
   if (b.state === 'hunt' || b.state === 'flank' || b.state === 'search' || b.state === 'trade') {
     if (b.path.length) return;
@@ -869,7 +1028,7 @@ function botThink(b, t) {
     // give up on: it searches on near there, and remembers them a while yet)
     if (los(b.x, b.z, L.x, L.z) && Math.hypot(L.x - b.x, L.z - b.z) < 9) {
       if (!L.threat || (L.searched || 0) >= 2) { b.mem.delete(L.id); b.state = 'roam'; b.path = []; return; }
-      L.searched = (L.searched || 0) + 1; b.state = 'search'; b.path = botSearch(b, L); b.sprint = false; return;
+      L.searched = (L.searched || 0) + 1; b.state = 'search'; b.path = botSearch(b, L); b.sprint = !!S.run; return;
     }
   }
   // what now, with someone out there it can't see: straight at where they were, or round to their side (more likely the
@@ -877,10 +1036,10 @@ function botThink(b, t) {
   // (confident: somewhere it knows someone is, fresh, and healthy enough, it goes straight at them: BOT_CONF; someone
   // it's hurt, straight at them whatever)
   const fresh = t - L.t < BOT_CONF.fresh, weak = botWeak(b, L.id, t), bold = st.push + BOT_CONF.base + (b.learn.bold || 0) + (b.hp > 80 ? 0.15 : 0) - (b.hp < 50 ? 0.3 : 0) - (known.length > 1 ? 0.15 : 0) + (Q.plan === 'push' ? 0.4 : 0) + (fresh && b.hp > 50 ? BOT_CONF.freshPush : 0) + (weak ? 1 : 0);
-  const sneak = rand() < S.sneak + (Q.wary ? 0.35 : 0) - (weak ? 1 : 0);   // (walking in quietly on someone it knows is there: no running footsteps)
+  const sneak = !S.run && rand() < S.sneak + (Q.wary ? 0.35 : 0) - (weak ? 1 : 0);   // (walking in quietly on someone it knows is there: no running footsteps)
   const fl = rand() < bold - S.flank - (Q.wary ? 0.3 : 0) ? null : botFlank(b, L, known.filter(m => m !== L)), dL = Math.hypot(L.x - b.x, L.z - b.z);
-  if (fl) { b.state = 'flank'; b.path = fl; b.sprint = dL > 10 && !(sneak && dL < 22); }
-  else { b.state = 'hunt'; b.path = botPath(b, L.x, L.z); b.sprint = dL > (fresh ? 7 : 11) && !(sneak && dL < 18); }
+  if (fl) { b.state = 'flank'; b.path = fl; b.sprint = dL > (S.run ? 5 : 10) && !(sneak && dL < 22); }
+  else { b.state = 'hunt'; b.path = botPath(b, L.x, L.z); b.sprint = dL > (S.run ? 4 : fresh ? 7 : 11) && !(sneak && dL < 18); }
 }
 // its main gun's slot: its class's first (the one it'd go back to after a sidearm, BOT_SIDE)
 const botMainSlot = b => { const g = (botCls(b).guns[0] || [])[0]; return g && WEAP[g] ? WEAP[g].slot : null; };
@@ -916,9 +1075,11 @@ export function botsUpdate(dt) {
     // reeling from a shove: carried back on it, no moving or firing of its own
     if (b.stun > 0) { b.stun -= dt; const f = Math.exp(-dt * 6); b.vx *= f; b.vz *= f; moveCircle(b, b.vx * dt, b.vz * dt, 0.3, false); botAimStep(b, dt, t, null); botPose(b, dt, t); continue; }
     const foes = botFoes(b);
-    if ((b.senseT -= dt) <= 0) { b.senseT = 0.1; botSense(b, foes, t); }
-    if ((b.thinkT -= dt) <= 0) { b.thinkT = rr(0.16, 0.26); botThink(b, t); }
+    const qk = botSk(b).think || 1;   // (a Terminator senses and thinks again sooner)
+    if ((b.senseT -= dt) <= 0) { b.senseT = 0.1 * qk; botSense(b, foes, t); }
+    if ((b.thinkT -= dt) <= 0) { b.thinkT = rr(0.16, 0.26) * qk; botThink(b, t); }
     botCrouchStep(b, dt, t);
+    botLeanSpam(b, t);
     botMove(b, dt, t);
     botAimStep(b, dt, t, b.vis);
     botGun(b, dt, t, foes);
@@ -952,8 +1113,8 @@ const botCrK = b => smooth(clamp(b.cr || 0, 0, 1));
 function botCrouchStep(b, dt, t) {
   if (b.state === 'tbag' && b.tbag && !b.path.length) {
     const g = b.tbag; if (t > g.nextT) { b.crW = b.crW ? 0 : 1; g.nextT = t + rr(...BOT_TBAG.bob); if (!b.crW && --g.n <= 0) { b.tbag = null; b.state = 'reset'; b.thinkT = 0; } }
-  } else if (b.crSpam > t && b.vis && b.mv !== 'push') { if (t > (b.bobT || 0)) { b.crW = b.crW ? 0 : 1; b.bobT = t + rr(...BOT_CRSPAM.bob); } }
-  else b.crW = (b.state === 'fight' && b.vis && ((b.mv === 'hold' && b.reloading) || (b.crAcc && b.mv !== 'push' && b.mv !== 'tocover'))) ? 1 : 0;
+  } else if (b.crSpam > t && b.vis && (b.mv !== 'push' || botSk(b).crK)) { if (t > (b.bobT || 0)) { b.crW = b.crW ? 0 : 1; b.bobT = t + rr(...(botSk(b).bob || BOT_CRSPAM.bob)); } }
+  else b.crW = (b.state === 'fight' && b.vis && ((b.mv === 'hold' && b.reloading) || (b.crAcc && b.mv !== 'push' && b.mv !== 'tocover'))) || (b.state === 'angle' && b.ang && b.ang.cr && !b.path.length) ? 1 : 0;
   if (b.sprint || b.dead) b.crW = 0;
   b.cr = (b.cr || 0) + (b.crW - (b.cr || 0)) * (1 - Math.exp(-dt * (b.crW > b.cr ? CROUCH.down : CROUCH.up)));
 }
@@ -1079,6 +1240,7 @@ function botAimStep(b, dt, t, T) {
     want = b.alarmA; if (Math.abs(angDiff(want, b.aim)) < 0.1) b.alarm = undefined;
   }
   else if (q) { want = Math.atan2(q.x - b.x, q.z - b.z); ready = true; }   // (on the corner it's waiting to prefire)
+  else if (b.state === 'angle' && b.ang && !b.path.length) { want = b.ang.a; ready = true; }   // (its gun on the angle it's holding: BOT_ANGLE)
   else if (b.state === 'tbag' && b.tbag) want = Math.atan2(b.tbag.x - b.x, b.tbag.z - b.z) + Math.sin(t * 1.7 + b.seed) * 0.3;   // (down at the body)
   else {
     // (where it's going: a little way on along its path, not the way it's moving this instant, which every step round
@@ -1125,12 +1287,12 @@ function botGun(b, dt, t, foes) {
   if (b.swapT > 0) { b.swapT -= dt; return; }
   const id = botGunOf(b), D = WEAP[id]; if (!D || D.melee) return;   // (its melee out to run with: botRunMelee puts its gun back)
   // (reloaded in cover: straight back out at them, BOT_COVER)
-  if (b.reloading) { if ((b.relT -= dt) <= 0) { const n = Math.min((D.mag || 1) - b.mag[id], b.res[id]); b.mag[id] += n; b.res[id] -= n; b.reloading = false; if (b.state === 'cover') b.peekAt = Math.min(b.peekAt || 0, t + rr(...BOT_COVER.repeek)); } return; }
+  if (b.reloading) { if ((b.relT -= dt) <= 0) { const n = Math.min((D.mag || 1) - b.mag[id], b.res[id]); b.mag[id] += n; b.res[id] -= n; b.reloading = false; if (b.state === 'cover') b.peekAt = Math.min(b.peekAt || 0, t + botPk(b, BOT_COVER.repeek)); } return; }
   b.cd -= dt;
   const T = b.vis, S = botSk(b); if (!T) { botPrefire(b, t, id, D, foes); return; }
   if (t < b.react || b.noFire || b.sprint) return;
   const d = Math.hypot(T.x - b.x, T.z - b.z);
-  if (d > (BOT_REACH[id] || 25)) return;
+  if (d > (BOT_REACH[id] || 25) * (S.reach || 1)) return;
   b.hipT = d < BOT_HIP.near || (D.ammo === 'shells' && d < BOT_HIP.shells) ? t + 0.6 : b.hipT;   // (close in, from the hip: botPose)
   if (Math.abs(angDiff(Math.atan2(T.x - b.x, T.z - b.z), b.aim)) > S.gate + PVP_R / Math.max(1, d)) return;
   if (b.mag[id] <= 0) {
@@ -1159,7 +1321,7 @@ const BOT_SIDE = { near: 12, reach: 0.8, swap: 0.35, quick: 0.25 };
 function botPrefire(b, t, id, D, foes) {
   const q = b.pre; if (!q || !(q.n > 0) || t > q.until || b.sprint || b.noFire || b.cd > 0 || (t < q.at && !q.go)) return;
   if (b.mag[id] <= q.n) { q.n = 0; return; }
-  const d = Math.hypot(q.x - b.x, q.z - b.z); if (d < 1.5 || d > Math.min(BOT_PRE.reach, BOT_REACH[id] || 25)) { q.n = 0; return; }
+  const d = Math.hypot(q.x - b.x, q.z - b.z); if (d < 1.5 || d > Math.min(BOT_PRE.reach * (botSk(b).reach || 1), (BOT_REACH[id] || 25) * (botSk(b).reach || 1))) { q.n = 0; return; }
   if (Math.abs(angDiff(Math.atan2(q.x - b.x, q.z - b.z), b.aim)) > 0.05 + PVP_R / Math.max(1, d) || !los(b.x, b.z, q.x, q.z)) return;
   q.n--; b.cd = D.rate < 0.12 && !D.pellets ? D.rate * 1.3 : Math.max(D.rate, rr(0.2, 0.3));
   botShoot(b, id, D, foes, d);
@@ -1171,8 +1333,8 @@ function botShoot(b, id, D, foes, d) {
   const S = botSk(b), pel = D.pellets || 1, shells = D.ammo === 'shells', gt = b.gt[id] || {};
   b.mag[id]--; b.st.shots++;
   const moving = Math.hypot(b.vx, b.vz), T = b.vis, tv = T ? Math.hypot(T.vx, T.vz) : 0;
-  const sig = (S.sig + (pel > 1 ? 0 : (D.spread || 0.03) * 0.5 + (botNow() < (b.hipT || 0) ? BOT_HIP.spread : 0)) + moving * BOT_ACC.move + (b.sprint ? BOT_ACC.sprint : 0) + b.spray + Math.min(BOT_LEAD.max, tv * BOT_LEAD.k) * S.leadK
-    + Math.max(0, d - BOT_ACC.near) * BOT_ACC.far + (D.kick || 1) * BOT_ACC.kick) * botSight(gt.sight || 0, d) * (1 - (1 - CROUCH.spread) * botCrK(b));   // (crouched, steadier, as you are)
+  const sig = (S.sig + (pel > 1 ? 0 : ((D.spread || 0.03) * 0.5 + (botNow() < (b.hipT || 0) ? BOT_HIP.spread : 0)) * (S.gunK ?? 1)) + moving * BOT_ACC.move * (S.mvK ?? 1) + (b.sprint ? BOT_ACC.sprint : 0) + b.spray + Math.min(BOT_LEAD.max, tv * BOT_LEAD.k) * S.leadK
+    + Math.max(0, d - BOT_ACC.near) * BOT_ACC.far * (S.farK ?? 1) + (D.kick || 1) * BOT_ACC.kick * (S.gunK ?? 1)) * botSight(gt.sight || 0, d) * (1 - (1 - CROUCH.spread) * botCrK(b));   // (crouched, steadier, as you are)
   // (its first shots after a breath steadier: BOT_ACC first)
   const t = botNow(); if (t - (b.lastShotT ?? -9) > BOT_ACC.rested) b.firstN = 0; b.lastShotT = t;
   const common = botGauss() * sig * (b.firstN++ < BOT_ACC.first ? BOT_ACC.firstK : 1); b.spray = Math.min(BOT_ACC.sprayMax, b.spray + (BOT_ACC.spray0 + (D.kick || 1) * BOT_ACC.sprayKick) * S.ctrl);   // (a kicking gun's held trigger walking off further, the less so the better it is)
@@ -1184,7 +1346,7 @@ function botShoot(b, id, D, foes, d) {
     for (const f of foes) { const vx = f.x - ox, vz = f.z - oz, tt = vx * dx + vz * dz, off = vx * dz - vz * dx; if (tt > 0.2 && tt < ht && off * off < PVP_R * PVP_R) { hit = f; ht = tt; rel = off / PVP_R; } }
     let endK = wallT < 70 ? 1 : 3, ey = oy + rr(-0.2, 0.05);
     if (hit) {
-      const r = rand(), ap = b.aimPart || 'torso', head = ap === 'head' ? Math.min(0.5, S.head * 3.2) : S.head * 0.6, legs = ap === 'legs' ? 0.55 : 0.18;
+      const r = rand(), ap = b.aimPart || 'torso', head = ap === 'head' ? S.hs ?? Math.min(0.5, S.head * 3.2) : S.head * 0.6, legs = ap === 'legs' ? 0.55 : 0.18;
       const part = r < head ? 'head' : r < head + legs ? (rel > 0 ? 'legR' : 'legL') : r < head + legs + 0.18 ? (rel > 0 ? 'armR' : 'armL') : 'torso';   // (where it's aiming: botAimPart)
       // into the cover in front of them (all of it, from someone crouched down behind it: BOT_CROUCH)
       if (pvpCovered(hit.x, hit.z, ox, oz, dx, dz, ht) && ((hit.cr || 0) > BOT_CROUCH.down || (part !== 'head' && !part.startsWith('arm')))) { ht = Math.max(0.3, ht - 0.9); endK = 1; }
@@ -1226,6 +1388,10 @@ export function botHit(id, m) {
   b.last = { id: m.f, w: m.w, head: m.p === 'head', d: m.d, at: t, x: m.x, z: m.z, pt: m.p, g: m.g ?? 0 };
   b.taken.set(m.f, (b.taken.get(m.f) || 0) + m.d);   // (who's put what into it this life: its assists, botDie)
   b.hurtT = t; b.calm = 0; b.regen0 = null; botNote(b, m.f, m.x, m.z, 1.5, t, true);
+  botHeatAdd(b.side, m.x, m.z, BOT_ANGLE.shot);   // (shot from there: BOT_HEAT)
+  // (a Terminator remembers where it stood and which way it was shot from there, and never peeks that angle from
+  // there again: BOT_BURN)
+  if (botSk(b).burn) { b.burn.push({ x: b.x, z: b.z, a: Math.atan2(m.x - b.x, m.z - b.z) }); if (b.burn.length > BOT_BURN.keep) b.burn.shift(); }
   // (a lot of it, fast, BOT_HURT: it breaks off, backs out of it and goes somewhere else to fight from)
   b.hurtSum = (t - (b.hurtSumT || -9) < BOT_HURT.window ? b.hurtSum || 0 : 0) + m.d; b.hurtSumT = t;
   if (b.hurtSum >= BOT_HURT.much && b.hp > 0) { b.hurtSum = 0; b.relocate = t; }
@@ -1321,8 +1487,8 @@ function botPose(b, dt, t, now_) {
     // leaning out round its cover to peek or hold an angle, as a player leans (player/lean.js): the upper body (j 6-11,
     // its place and turn) tipped over at the hips
     // (out round it for a while once it's leaned, eased out and back, not snapped: leanT)
-    const lw = !b.dead && !b.sprint && Math.hypot(b.vx, b.vz) < 1.6 && (b.state === 'peek' || (b.state === 'fight' && b.mv === 'hold') || t < (b.leanT || 0)) ? b.leanSide || 0 : 0;
-    b.lean = (b.lean || 0) + (lw - (b.lean || 0)) * (1 - Math.exp(-dt * 5));
+    const spam = botSk(b).leanSpam, lw = !b.dead && !b.sprint && (Math.hypot(b.vx, b.vz) < 1.6 || spam) && (b.state === 'peek' || (b.state === 'fight' && b.mv === 'hold') || t < (b.leanT || 0)) ? b.leanSide || 0 : 0;
+    b.lean = (b.lean || 0) + (lw - (b.lean || 0)) * (1 - Math.exp(-dt * (spam ? BOT_LEANSPAM.ease : 5)));
     const la = b.lean * BOT_LEAN.tilt; j[11] = bR2(j[11] + la); j[9] = bR2(j[9] - (b.pitch || 0) * BOT_PITCH_BODY);
     // crouched (as you are, player/crouch.js crouchLegs): the hips dropped, the thighs forward and the knees bent
     const ck = b.dead ? 0 : botCrK(b);

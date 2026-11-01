@@ -539,7 +539,8 @@ the host. The match starts with the sides as the lobby has them.
 one away with the cross on its seat. A bot gives up its seat when a person joins. **Play solo** on the co-op screen
 opens a lobby of your own with five bots already in it (a full 3v3 with you). That lobby needs no connection, nobody
 can join it, and it's always the arena. The host picks how good the bots are under **Bots**: Recruit, Regular,
-Veteran, or **Random**, where each bot is drawn its own skill as it sits down (its seat shows which). A bot's seat
+Veteran, **Terminator**, or **Random**, where each bot is drawn its own skill of the first three as it sits down (its
+seat shows which; Random never deals a Terminator, that's only ever picked on purpose). A bot's seat
 has its kick cross clear of its side's badge.
 
 | Skill | Reacts in | Aim starts off by | Sees | Headshots | How it plays |
@@ -547,6 +548,7 @@ has its kick cross clear of its side's badge.
 | Recruit | 0.42–0.7 s | about 16° | 30 m | 8% of hits | Hardly minds what range its gun's good at, rarely flanks, runs everywhere (you hear it coming), barely plays as a side |
 | Regular | 0.28–0.45 s | about 13° | 36 m | 11% | In between |
 | Veteran | 0.17–0.3 s | about 10° | 42 m | 15% | Keeps to its gun's range (a shotgun pressing in, a rifle keeping back), flanks more, walks in quietly on someone it knows is there, spreads over the lanes with its side and goes where a teammate fell |
+| Terminator | 0.05–0.09 s | about 1.5° | 75 m | almost every hit | Everything a veteran does, cranked up: lasers you from far off, quick-peeks everything, spams crouch and lean mid fight, runs everywhere, holds the angles you come through in Showdown, and never re-peeks an angle it was shot from (below) |
 
 **Reacting** takes longer the more of a surprise you are: off to the side of where it's looking (up to 70% longer at
 the edge of what it sees), someone it had no idea of (a third longer), and that close, round a corner under 8 m (a
@@ -630,6 +632,37 @@ their aim faster, and their first two rounds after a breath spread 40% less.
 - **Showing off.** Now and then (the cockier the bot, the likelier) a bot that's made a kill with nobody else about walks
   over the body and crouches on it a few times. Counting in, and walking about after a round, some look their gun over
   as you can (your own inspect moves), letting it go part way to get moving.
+
+**Terminator: harder than Veteran, everything cranked up.** A fifth pick under **Bots** (pvp/bots.js, the fourth row of
+BOT_SKILL and the Terminator's own knobs on it):
+- **Lasers you from far off.** It reacts in 0.05–0.09 s, its first aim is about a quarter as far off you as a veteran's
+  and settles twice as fast, it turns about half again as quick, and it sees out to 75 m across a wider view. Its shots
+  hardly spread: a fifth of the spread its own moving and its gun's looseness add, a twelfth of what range adds, and
+  almost none from a held trigger. It fires 70% further past each gun's usual reach.
+- **Hits all headshots.** It aims at the head every time, and 96% of the hits it lands that way are in the head (a
+  veteran's land there at most half the time). Low cover still takes its rounds as it does anyone's.
+- **Quick-peeks everything.** Its peeks, the gaps between them and its time holding a corner are all about half as long.
+  After a burst from a stepped-out peek it's straight back in behind its cover, as it already was from a lean, and comes
+  again from somewhere else.
+- **Crouch spam and lean spam.** Once a fight's on it bobs in a crouch most of the time (even pushing in), each bob a
+  tenth to a fifth of a second. It also leans one way and the other every fifth to a third of a second, always to a side
+  it can still see you from, at any walking pace and quicker to lean over than anyone else.
+- **Runs everywhere.** It sprints wherever it's going (looking, flanking, searching, going after someone, out to its
+  first spot of a round) and never walks in quietly. It still puts its gun up to fight, as you have to.
+- **Knows the angles and prepares (Showdown).** The bots keep a heat map of where the other side comes through, one
+  for each side, over the match. At the start of each round it's seeded with the other side's likely ways from their spawns
+  up each of the three lanes, walked on one of the game's worker threads (below). From then on it adds every place one
+  of them is first seen or shoots from, which counts for more. It fades by a quarter each round, so what you did lately
+  counts most. Knowing of nobody, a Terminator runs to a spot in its own half that watches the most of that heat, the
+  more of it in one direction the better. It prefers a spot beside something it can lean round, and nearer is better.
+  There it holds with its gun on the angle, crouched if there's low cover in front, leaned round what's beside it.
+  Hearing or being told of someone coming the way it's watching, it stays on it for them.
+- **Repositions if nobody comes.** After 5 to 8.5 seconds with no one, it moves to another spot 5 m further on toward
+  the other side, up to four times a round. After that, or with 20 seconds left, it goes hunting.
+- **Never re-peeks the same angle from the same spot.** It remembers every place it's been shot from and which way the
+  shot came. It never peeks that angle again from within 2 m of that spot: not a lean out of its cover, not a step out,
+  not a held angle. Shot while holding a spot (unless it's nearly finished you), it's straight back in behind its cover
+  and comes at you from another angle.
 
 - **Fights.** It strafes side to side, holds still behind low cover, backs off if its gun wants more range, or pushes
   in. In the open with low cover a few steps off that still has you in sight, it goes over to it and fights from
@@ -1369,12 +1402,27 @@ was there, and none of it changes the fight (world/arena-dress.js, laid on each 
   outdoors.
 - **What it keeps to:** nothing on the floor stands higher than a boot (the tallest, a sleeping bag or a body bag, about
   a quarter metre), nothing it adds stops you or a round, and what's on top of tall things is already above every line
-  of sight. It's the same on every screen (seeded by the map). The floor's sheet is painted on a **worker thread** (an
-  OffscreenCanvas, its picture handed back without a copy), so the slowest part never holds up the main thread; where
-  a browser has no workers it's painted in place. The rays that find the walls and the tops are tested only against
+  of sight. It's the same on every screen (seeded by the map). The floor's sheet is painted on one of the game's
+  **worker threads** (an OffscreenCanvas, its picture handed back without a copy: see "The game's worker threads"
+  below), so the slowest part never holds up the main thread; where a browser has no workers it's painted in place. The rays that find the walls and the tops are tested only against
   what's near them (the map's pieces sorted into 2 m buckets), so dressing a map takes well under a tenth of a second.
 - Signs, posters and painted faces that were folded into a map's merged meshes kept no texture coordinates and came
   out one flat colour (the small maps' shop names, notices and paint); merging now keeps them (core/geometry.js).
+
+**The game's worker threads.** Heavy work that needs nothing of the scene runs on the game's own threads, not the main
+thread the frame's drawn on (core/threads.js). That's a pool of one fewer worker than the machine has cores (two to
+four), started the first time it's needed, each one holding every job, with each job sent to the least busy. Data goes
+in as a copy; pictures and buffers come back moved, not copied. Where a browser has no workers, or a worker fails, the
+same job runs on the main thread instead, so nothing's lost, only slower. What runs on them:
+- **Every weapon picture** (the HUD's slot row and melee picture, the kill feed, the death card, the loadout and class
+  screens, spectating). The model is still drawn on the GPU, but it's read back without the frame stalling for it.
+  The shading, the inked lines, the gold parts' hairline, an akimbo pair and the PNG are then all made on a worker.
+  Until a picture's in, a clear one the same size stands in, swapped for the real one wherever it's already shown. The
+  results are pixel for pixel the same as before. The main thread spends about 17–31 ms on a gun's picture now, where
+  it spent 107–237 ms (measured in headless Chromium).
+- **Each arena map's floor wear** (above).
+- **The heat map's routes** for the Terminators: six walks per side up the three lanes, at the start of every Showdown
+  round (about 36 ms that used to land on the main thread while everyone picks).
 
 **Room to move: no squeezes.** Every map's plan is now checked for doorways and gaps between two solid things two
 metres wide or less (tools/plan_check.py: "ways two metres wide or less"), and the ways you're meant to use are three
@@ -2297,6 +2345,11 @@ three.js the game uses into `vendor/three.min.js`. Each file in `src/js` is an E
   already there is pushed out a hair (0.1 mm on gun-sized parts, 0.6 mm on anything over 25 cm), so the later piece (the
   detail on a body, as models are built) always shows. Pieces side by side in a row aren't touched, and nothing is
   pushed more than three times. Build models body first, details after, and this takes care of itself.
+- Work that needs nothing of the scene (painting a picture, walking a grid) can go to the game's worker threads:
+  write it as one function that uses nothing outside itself (its source is all a worker gets), register it with
+  `threadJob(name, fn)` from `core/threads.js`, and run it with `threadRun(name, data, transfer)`, which hands back a
+  promise. It returns `{ out, transfer }`, and can draw on an OffscreenCanvas. Where there are no workers, the same
+  function runs on the main thread.
 - Each frame, `game/loop.js` runs `update(dt)` (`game/update.js`, the simulation) and then `visuals(dt)`
   (`game/visuals.js`, animation, camera and HUD). Those two files list every system in order, so they're the place to
   start reading.

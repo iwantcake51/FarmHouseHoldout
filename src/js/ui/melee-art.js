@@ -10,6 +10,7 @@ import { magTierIn, setTierCtx, W, W8 } from '../game/run-state.js';
 import { GUNS } from '../melee/melee-models.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { buildWeapon, weaponRec } from '../weapons/build-weapons.js';
+import { threadJob, threadRun, threadsOn } from '../core/threads.js';
 
 const meleeArtCache = {};
 const MELEE_ART_PPU = 190;   // CSS pixels per metre, the same for every weapon, so a katana draws longer than a wrench
@@ -83,69 +84,96 @@ function snapArt(g, ppu, opt = {}) {
   const oc = new THREE.OrthographicCamera(bb.min.x - pad, bb.max.x + pad, bb.max.y + pad, bb.min.y - pad, near, far); oc.position.z = 5;
   const isAtt = o => { for (let p = o; p; p = p.parent) if (p.userData.att) return true; return false; };
   const meshes = []; g.traverse(o => { if (o.isMesh) meshes.push(o); });
-  meshes.forEach(o => { o.material = ART_Z; });
-  const depth = shoot(sc, oc, pw, ph, 0).getContext('2d').getImageData(0, 0, pw, ph).data;
-  meshes.forEach(o => { o.material = ART_INK; });
-  const whole = shoot(sc, oc, pw, ph);
-  // the attachments on their own in gold, the rest only hiding what's behind it (drawn first)
-  let parts = null;
-  if (opt.cut && meshes.some(isAtt)) { meshes.forEach(o => { const a = isAtt(o); o.material = a ? ART_GOLD : ART_DEPTH; o.renderOrder = a ? 0 : -1; }); parts = shoot(sc, oc, pw, ph); }
+  // the passes drawn (on the GPU, now): how near each pixel is, the whole of it, and its fitted parts on their own
+  const rts = [];
+  meshes.forEach(o => { o.material = ART_Z; }); rts.push(drawArt(sc, oc, pw, ph, 0));
+  meshes.forEach(o => { o.material = ART_INK; }); rts.push(drawArt(sc, oc, pw, ph));
+  if (opt.cut && meshes.some(isAtt)) { meshes.forEach(o => { const a = isAtt(o); o.material = a ? ART_GOLD : ART_DEPTH; o.renderOrder = a ? 0 : -1; }); rts.push(drawArt(sc, oc, pw, ph)); }
   meshes.forEach(o => o.geometry.dispose());
-  const one = parts ? canvas(pw, ph) : whole;
-  if (parts) { const x = one.getContext('2d'); x.drawImage(whole, 0, 0); hairline(x, parts, 0, 0); x.drawImage(parts, 0, 0); }
-  shadeArt(one, depth, ART_SHADE.aoStep / (far - near) * 255); inkSteps(one, depth, ART.step / (far - near) * 255);
-  if (!opt.pair) return { url: one.toDataURL(), w: w * ppu, h: h * ppu };
-  const ox = Math.round(pw * ART.pairX), oy = Math.round(ph * ART.pairY), c = canvas(pw + ox, ph + oy), x = c.getContext('2d');
-  x.globalAlpha = ART.pairA; x.drawImage(one, ox, 0); x.globalAlpha = 1;
-  hairline(x, one, 0, oy); x.drawImage(one, 0, oy);
-  return { url: c.toDataURL(), w: (pw + ox) / ss, h: (ph + oy) / ss };
-}
-// ink the lines in (above): a pixel with something nearer than it by more than step (in depth's units) within a drawn
-// pixel or two any way is darkened
-function inkSteps(c, depth, step) {
-  const pw = c.width, ph = c.height, x = c.getContext('2d'), im = x.getImageData(0, 0, pw, ph), d = im.data;
-  const near = (i, j) => i >= 0 && j >= 0 && i < pw && j < ph && depth[(j * pw + i) * 4 + 3] > 0 ? depth[(j * pw + i) * 4] : 999;
-  for (let j = 0; j < ph; j++) for (let i = 0; i < pw; i++) {
-    const k = (j * pw + i) * 4; if (!d[k + 3] || !depth[k + 3]) continue;
-    const z = depth[k] - step;
-    for (let r = 1; r <= ART.ss; r++) if (near(i + r, j) < z || near(i - r, j) < z || near(i, j + r) < z || near(i, j - r) < z) { d[k] *= ART.line; d[k + 1] *= ART.line; d[k + 2] *= ART.line; break; }
+  const d = { pw, ph, pair: !!opt.pair, A: ART, S: ART_SHADE, ao: ART_SHADE.aoStep / (far - near) * 255, ink: ART.step / (far - near) * 255 };
+  const size = opt.pair ? [(pw + Math.round(pw * ART.pairX)) / ss, (ph + Math.round(ph * ART.pairY)) / ss] : [w * ppu, h * ppu];
+  const art = { url: '', w: size[0], h: size[1] };
+  // (on the game's threads where they're up: read back without the GPU stalling the frame for it, then shaded, inked
+  // and made a PNG in a worker; meanwhile it's a clear picture the right size, swapped for the real one everywhere it's
+  // shown once that's in: artReady)
+  if (threadsOn() && R.readRenderTargetPixelsAsync) {
+    art.url = artHold(art);
+    Promise.all(rts.map(rt => R.readRenderTargetPixelsAsync(rt, 0, 0, pw, ph, new Uint8Array(pw * ph * 4))))
+      .then(px => { rts.forEach(rt => rt.dispose()); const [depth, whole, parts] = px; return threadRun('art', Object.assign(d, { depth, whole, parts: parts || null }), px.map(p => p.buffer)); })
+      .then(blob => artReady(art, URL.createObjectURL(blob)))
+      .catch(() => { rts.forEach(rt => rt.dispose()); artReady(art, artHere(rts, d)); });
+    return art;
   }
-  x.putImageData(im, 0, 0);
+  art.url = artHere(rts, d); return art;
 }
-// the drawing's shading (ART_SHADE) over what's drawn, from how near each pixel is (depth, as for the lines)
-function shadeArt(c, depth, step) {
-  const pw = c.width, ph = c.height, x = c.getContext('2d'), im = x.getImageData(0, 0, pw, ph), d = im.data, S = ART_SHADE;
-  let zn = 255, zf = 0; for (let k = 0; k < depth.length; k += 4) if (depth[k + 3]) { zn = Math.min(zn, depth[k]); zf = Math.max(zf, depth[k]); }
-  const span = Math.max(1, zf - zn), dirs = [[1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7], [-0.7, -0.7]];
-  for (let j = 0; j < ph; j++) for (let i = 0; i < pw; i++) {
-    const k = (j * pw + i) * 4; if (!d[k + 3] || !depth[k + 3]) continue;
-    const z = depth[k]; let n = 0;
-    for (const r of S.r) for (const [u, v] of dirs) { const a = i + Math.round(u * r * ART.ss), b = j + Math.round(v * r * ART.ss); if (a >= 0 && b >= 0 && a < pw && b < ph) { const q = (b * pw + a) * 4; if (depth[q + 3] && depth[q] < z - step) n++; } }
-    const f = (1 - S.deep * (z - zn) / span) * (1 - Math.min(S.aoMost, n * S.ao)) * (1 + S.fall / 2 - S.fall * j / ph);
-    d[k] = Math.min(255, d[k] * f); d[k + 1] = Math.min(255, d[k + 1] * f); d[k + 2] = Math.min(255, d[k + 2] * f);
-  }
-  x.putImageData(im, 0, 0);
+// (here, at once: each pass read back as it is, finished on this thread, and the PNG made here too)
+function artHere(rts, d) {
+  const [depth, whole, parts] = rts.map(rt => { const px = new Uint8Array(d.pw * d.ph * 4); try { R.readRenderTargetPixels(rt, 0, 0, d.pw, d.ph, px); } catch (e) { /* gone: left clear */ } rt.dispose(); return px; });
+  return artFinish(Object.assign({}, d, { depth, whole, parts: parts || null, keep: true })).out.toDataURL();
 }
-const canvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
-// render the scene into a canvas of its own (GL reads bottom row first, so it's flipped on the way)
-// (samples: multisampled for smooth edges; none for the depth, so no pixel's depth is a blend of two)
-function shoot(sc, oc, pw, ph, samples = 4) {
+// a picture on its way: a clear one its size, marked (zart<n>z) so wherever it's put (an img's src, a style's url) can
+// be found and given the real one when it's in
+let artN = 0;
+function artHold(art) { art.tok = 'zart' + (++artN) + 'z'; return 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${Math.ceil(art.w)}" height="${Math.ceil(art.h)}"><!--${art.tok}--></svg>`); }
+function artReady(art, url) {
+  const was = art.url; art.url = url; if (!art.tok) return;
+  for (const el of document.querySelectorAll(`img[src*="${art.tok}"]`)) el.src = url;
+  for (const el of document.querySelectorAll(`[style*="${art.tok}"]`)) el.setAttribute('style', el.getAttribute('style').split(was).join(url));
+}
+// one pass into a target of its own, left for reading back (multisampled for smooth edges; none for the depth, so no
+// pixel's depth is a blend of two)
+function drawArt(sc, oc, pw, ph, samples = 4) {
   const rt = new THREE.WebGLRenderTarget(pw, ph, { samples }), prevRT = R.getRenderTarget(), prevC = R.getClearColor(new THREE.Color()), prevA = R.getClearAlpha();
   R.setRenderTarget(rt); R.setClearColor(0x000000, 0); R.clear(); R.render(sc, oc);
-  const px = new Uint8Array(pw * ph * 4); R.readRenderTargetPixels(rt, 0, 0, pw, ph, px);
-  R.setRenderTarget(prevRT); R.setClearColor(prevC, prevA); rt.dispose();
-  const c = canvas(pw, ph), x = c.getContext('2d'), im = x.createImageData(pw, ph);
-  for (let r = 0; r < ph; r++) im.data.set(px.subarray((ph - 1 - r) * pw * 4, (ph - r) * pw * 4), r * pw * 4);
-  x.putImageData(im, 0, 0);
-  return c;
+  R.setRenderTarget(prevRT); R.setClearColor(prevC, prevA);
+  return rt;
 }
-// clear a hairline round the shape of src (drawn at x0, y0) out of what's already drawn: the shape spread by ART.cut
-// pixels every way and taken out, before the shape itself goes on top
-function hairline(x, src, x0, y0) {
-  x.globalCompositeOperation = 'destination-out';
-  for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; x.drawImage(src, x0 + Math.round(Math.cos(a) * ART.cut), y0 + Math.round(Math.sin(a) * ART.cut)); }
-  x.globalCompositeOperation = 'source-over';
+// the picture finished from its passes (d: pw, ph, depth / whole / parts as read back, bottom row first; pair; A, ART;
+// S, ART_SHADE; ao and ink, ART_SHADE.aoStep and ART.step in depth's units): the gold parts stood apart from the gun by
+// a hairline of clear and drawn over it, the shading, the inked lines where one part stands out in front of another,
+// and an akimbo pair drawn as two; then a PNG of it (or, keep, the canvas itself). Uses nothing outside itself: it's a
+// job for the game's threads (core/threads.js), and the same function's run here where they aren't up
+function artFinish(d) {
+  const { pw, ph, A, S } = d, mk = (w, h) => !d.keep && globalThis.OffscreenCanvas ? new globalThis.OffscreenCanvas(w, h) : Object.assign(document.createElement('canvas'), { width: w, height: h });
+  // (GL reads bottom row first: flipped as it's put on a canvas)
+  const flip = px => { const o = new Uint8ClampedArray(pw * ph * 4); for (let r = 0; r < ph; r++) o.set(px.subarray((ph - 1 - r) * pw * 4, (ph - r) * pw * 4), r * pw * 4); return o; };
+  const put = px => { const c = mk(pw, ph); c.getContext('2d').putImageData(new ImageData(flip(px), pw, ph), 0, 0); return c; };
+  const depth = flip(d.depth), whole = put(d.whole), parts = d.parts ? put(d.parts) : null;
+  // (clear a hairline round the shape of src, drawn at x0, y0, out of what's already drawn: the shape spread by A.cut
+  // pixels every way and taken out, before the shape itself goes on top)
+  const hairline = (x, src, x0, y0) => { x.globalCompositeOperation = 'destination-out'; for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; x.drawImage(src, x0 + Math.round(Math.cos(a) * A.cut), y0 + Math.round(Math.sin(a) * A.cut)); } x.globalCompositeOperation = 'source-over'; };
+  const one = parts ? mk(pw, ph) : whole;
+  if (parts) { const x = one.getContext('2d'); x.drawImage(whole, 0, 0); hairline(x, parts, 0, 0); x.drawImage(parts, 0, 0); }
+  const x1 = one.getContext('2d'), im = x1.getImageData(0, 0, pw, ph), px = im.data;
+  // the shading (ART_SHADE) from how near each pixel is
+  let zn = 255, zf = 0; for (let k = 0; k < depth.length; k += 4) if (depth[k + 3]) { zn = Math.min(zn, depth[k]); zf = Math.max(zf, depth[k]); }
+  const span = Math.max(1, zf - zn), dirs = [[1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7], [-0.7, -0.7]];
+  const shade = new Float32Array(pw * ph);
+  for (let j = 0; j < ph; j++) for (let i = 0; i < pw; i++) {
+    const k = (j * pw + i) * 4; if (!px[k + 3] || !depth[k + 3]) continue;
+    const z = depth[k]; let n = 0;
+    for (const r of S.r) for (const [u, v] of dirs) { const a = i + Math.round(u * r * A.ss), b = j + Math.round(v * r * A.ss); if (a >= 0 && b >= 0 && a < pw && b < ph) { const q = (b * pw + a) * 4; if (depth[q + 3] && depth[q] < z - d.ao) n++; } }
+    shade[j * pw + i] = (1 - S.deep * (z - zn) / span) * (1 - Math.min(S.aoMost, n * S.ao)) * (1 + S.fall / 2 - S.fall * j / ph);
+  }
+  for (let q = 0; q < pw * ph; q++) { const f = shade[q]; if (!f) continue; const k = q * 4; px[k] = Math.min(255, px[k] * f); px[k + 1] = Math.min(255, px[k + 1] * f); px[k + 2] = Math.min(255, px[k + 2] * f); }
+  // the lines inked in (a pixel with something nearer than it by more than ink within a drawn pixel or two any way)
+  const near = (i, j) => i >= 0 && j >= 0 && i < pw && j < ph && depth[(j * pw + i) * 4 + 3] > 0 ? depth[(j * pw + i) * 4] : 999;
+  for (let j = 0; j < ph; j++) for (let i = 0; i < pw; i++) {
+    const k = (j * pw + i) * 4; if (!px[k + 3] || !depth[k + 3]) continue;
+    const z = depth[k] - d.ink;
+    for (let r = 1; r <= A.ss; r++) if (near(i + r, j) < z || near(i - r, j) < z || near(i, j + r) < z || near(i, j - r) < z) { px[k] *= A.line; px[k + 1] *= A.line; px[k + 2] *= A.line; break; }
+  }
+  x1.putImageData(im, 0, 0);
+  let c = one;
+  if (d.pair) {
+    const ox = Math.round(pw * A.pairX), oy = Math.round(ph * A.pairY); c = mk(pw + ox, ph + oy); const x = c.getContext('2d');
+    x.globalAlpha = A.pairA; x.drawImage(one, ox, 0); x.globalAlpha = 1;
+    hairline(x, one, 0, oy); x.drawImage(one, 0, oy);
+  }
+  if (d.keep) return { out: c };
+  return (c.convertToBlob ? c.convertToBlob({ type: 'image/png' }) : new Promise(ok => c.toBlob(ok, 'image/png'))).then(out => ({ out }));
 }
+threadJob('art', artFinish);
 // a gun the same way, built as it's built for your hands (buildWeapon) with everything fitted to it that shows (its mods
 // and their levels, its tiers, attachments, the tune-up, the rounds and mag in it), its attachments in gold
 // and a pair drawn as two (snapArt), laid on its side with the muzzle to the left, as the melee weapons lie; kept

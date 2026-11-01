@@ -214,7 +214,7 @@ function alWith(id, gt, fn, more = [], ex = {}) {
   try { return fn(); } finally { for (let i = keep.length - 1; i >= 0; i--) { const [o, k, had, v] = keep[i]; if (had) W8[o][k] = v; else delete W8[o][k]; } recomputeEff(); }
 }
 const alArtCache = {};
-const alArt = id => alArtCache[id] ?? (alArtCache[id] = ((WEAP[id].melee ? meleeArt(id, []) : alWith(id, {}, () => gunArt(id))) || { url: '' }).url);
+const alArt = id => (alArtCache[id] ?? (alArtCache[id] = (WEAP[id].melee ? meleeArt(id, []) : alWith(id, {}, () => gunArt(id))) || { url: '' })).url;   // (the picture kept, its url read each time: it's finished on another thread, ui/melee-art.js)
 // a gun's numbers as a kit has it, for the bars over its tiles and for what each thing on it does (alProsCons): a shot
 // against a body (the arena's own damage, pvp/pvp.js pvpRoundDmg, every pellet of it), pellets, rounds a minute, spread
 // from the hip and down the sights (SIGHT_AIM), kick, what it holds, a full reload (a tube or the double fed shell by

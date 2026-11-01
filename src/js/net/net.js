@@ -20,7 +20,7 @@ import { setViewMode, VCAM } from '../game/view-cam.js';
 import { chatClear, chatSys } from './chat.js';
 import { frMet } from './friends.js';
 import { PVP_MODES, pvpCfgFix, pvpTeams } from '../pvp/pvp.js';
-import { botName } from '../pvp/bots.js';
+import { BOT_RANDOM, botName } from '../pvp/bots.js';
 
 export const NET_V = 3, NET_PREFIX = 'fhh-coop-', NET_QUIET = 15;   // (NET_V: 3 since the arena and its bots, which a game before them doesn't know; NET_QUIET: seconds without a word before a player counts as gone; a slow machine can stall that long building its shaders)
 export const NET = { on: false, host: false, mode: /[?&]net=local/.test(location.search) ? 'local' : 'peer', id: '', hostId: '', code: '', name: '', inGame: false, status: '', idx: 0,
@@ -243,15 +243,16 @@ export function netBotAdd(quiet) {
   if (!NET.host || NET.inGame || NET.game !== 'arena' || NET.peers.size >= netMax() - 1) return;
   const used = new Set([0, ...[...NET.peers.values()].map(p => p.idx)]); let idx = 1; while (used.has(idx)) idx++;
   const id = 'B-' + Math.random().toString(36).slice(2, 8), name = botName(new Set([...NET.peers.values()].map(p => p.name)));
-  NET.peers.set(id, { id, name, look: dealLook(), idx, bot: true, ready: true, heard: performance.now(), sk: NET.botSkill === 3 ? Math.floor(Math.random() * 3) : undefined });
+  NET.peers.set(id, { id, name, look: dealLook(), idx, bot: true, ready: true, heard: performance.now(), sk: NET.botSkill === BOT_RANDOM ? Math.floor(Math.random() * 3) : undefined });
   rosterOut(); if (!quiet) { chatSys(name + ' (bot) sat down'); SFX.click(); } lobbyRender();
 }
 export function netBotDrop(id, quiet) {
   const p = NET.peers.get(id); if (!NET.host || NET.inGame || !p || !p.bot) return;
   NET.peers.delete(id); netDropAvatar(p); rosterOut(); if (!quiet) chatSys(p.name + ' (bot) left'); lobbyRender();
 }
-// (Random: each bot in the lobby its own skill, drawn now and for each one sat down after)
-export function netSetBotSkill(v) { if (!NET.host || NET.inGame || !(v >= 0 && v <= 3)) return; NET.botSkill = v; for (const p of NET.peers.values()) if (p.bot) p.sk = v === 3 ? Math.floor(Math.random() * 3) : undefined; rosterOut(); lobbyRender(); }
+// (Random: each bot in the lobby its own skill of the first three, Recruit to Veteran, drawn now and for each one sat
+// down after; never the Terminator, picked only on purpose)
+export function netSetBotSkill(v) { if (!NET.host || NET.inGame || !(v >= 0 && v <= BOT_RANDOM)) return; NET.botSkill = v; for (const p of NET.peers.values()) if (p.bot) p.sk = v === BOT_RANDOM ? Math.floor(Math.random() * 3) : undefined; rosterOut(); lobbyRender(); }
 
 // ---- the handshake: a joiner says hello, the host takes them in (or turns them away) and tells everyone who's in
 NET_ON.hello = m => {

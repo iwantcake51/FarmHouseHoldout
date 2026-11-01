@@ -1,5 +1,6 @@
 [
   "core/dom.js",
+  "core/threads.js",
   "ui/input-icons-data.js",
   "ui/input-icons.js",
   "input/keybinds.js",

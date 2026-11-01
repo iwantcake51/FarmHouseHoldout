@@ -27,7 +27,7 @@ import { lookThumb } from '../ui/look-card.js';
 import { lookMenuOpen, openLookMenu } from '../ui/look-menu.js';
 import { chatRender } from './chat.js';
 import { PVP, pvpMate } from '../pvp/pvp.js';   // (and its settings' limits, above)
-import { BOT_SKILLS } from '../pvp/bots.js';
+import { BOT_RANDOM, BOT_SKILLS } from '../pvp/bots.js';
 
 const lobbySeen = new Set();   // who's been shown in the seats already (someone just in slides into their seat)
 let lookSent = '';
@@ -57,7 +57,7 @@ export function lobbyRender() {
   // the arena's bots: how good they are, and one more in an open seat (the host's; solo, nobody else's to pick)
   $('coopBots').hidden = NET.game !== 'arena';
   for (const b of $('coopBots').querySelectorAll('[data-s]')) { b.setAttribute('aria-checked', String(+b.dataset.s === NET.botSkill)); b.disabled = !host || NET.inGame; }
-  $('coopBotsNote').textContent = (NET.botSkill === 3 ? 'Each bot its own' : BOT_SKILLS[NET.botSkill] || '') + (host ? '' : ' · the host picks');
+  $('coopBotsNote').textContent = (NET.botSkill === BOT_RANDOM ? 'Each bot its own' : BOT_SKILLS[NET.botSkill] || '') + (host ? '' : ' · the host picks');
   $('coopBotAdd').hidden = !host; $('coopBotAdd').disabled = NET.inGame || NET.peers.size >= netMax() - 1;
   $('coopCodeRow').hidden = NET.solo;
   cfgRender(host);
