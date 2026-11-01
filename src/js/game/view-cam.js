@@ -19,7 +19,7 @@ import { thinRay } from '../world/thin-walls.js';
 import { bulletBlocked } from '../world/collision.js';
 import { P, PM } from '../player/player.js';
 import { swapSt, SWAP_T } from '../player/swap.js';
-import { carryMul, curId, hasMod, SCOPE_ACOG, SCOPES, T, W, W8 } from './run-state.js';
+import { carryMul, curId, gunAtt, hasMod, SCOPE_ACOG, SCOPES, T, W, W8 } from './run-state.js';
 import { MS } from '../melee/melee-anim.js';
 import { GM, gunMeshes, HOLDS, MUZ, X } from '../weapons/gun-materials.js';
 import { SPRITE_AIM, SPRITE_RES } from '../effects/sprite-batch.js';
@@ -78,10 +78,10 @@ const ADS_T = { in: 15, out: 17, dip: 0.028, cant: 0.21 };
 // weight as it's carried (game/run-state.js carryMul: its calibre, its magazine, what's bolted on: weight, how much of
 // what that costs your pace it costs the aim too) and quickened a little by a laser (laser, a tier: you're already on
 // target as it comes up)
-const ADS_SPEED = { pistol: 1.3, smg: 1.3, revolver: 1.2, deagle: 1.1, sub: 1.18, ar: 1, scar: 0.88, pump: 0.9, dbl: 0.9, auto12: 0.84, hunting: 0.82, lmg: 0.74, dblSawn: 1.08, other: 1, weight: 0.8, laser: 0.05 };
+const ADS_SPEED = { pistol: 1.3, smg: 1.3, revolver: 1.2, deagle: 1.1, sub: 1.18, ar: 1, scar: 0.88, pump: 0.9, dbl: 0.9, auto12: 0.84, hunting: 0.82, lmg: 0.74, dblSawn: 1.08, other: 1, weight: 0.8, laser: 0.05, stock: 0.9 };
 export function adsSpeed(id) {
   const k = ADS_SPEED[id === 'dbl' && hasMod('sawn') ? 'dblSawn' : id] ?? ADS_SPEED.other;
-  return k * (1 - ADS_SPEED.weight * (1 - carryMul(id))) * (1 + ADS_SPEED.laser * (T('laser') || 0));
+  return k * (1 - ADS_SPEED.weight * (1 - carryMul(id))) * (1 + ADS_SPEED.laser * (T('laser') || 0)) * ((W(id) || {}).adsK || 1) * (gunAtt(id, 'stock') ? ADS_SPEED.stock : 1);   // (and a part that's slow to bring up, adsK, weapons/gun-mods.js; a sidearm's shoulder stock, shouldered first)
 }
 // a shouldered gun meeting your shoulder as it comes up: a jolt (p, y: radians up and across, r: cant, z: metres back)
 // on a loose spring that shakes out (k, d), and the hands trembling a little on the way up (trem); k per gun; draw: how

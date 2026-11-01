@@ -15,6 +15,7 @@ import { zombies } from '../zombies/zombie-types.js';
 import { state } from '../game/state.js';
 import { scoped } from '../player/aiming.js';
 import { zRay } from './firing.js';
+import { PVP } from '../pvp/pvp.js';
 
 // the beam is a line of light drawn on the screen itself: its two ends projected and a strip laid between them across
 // the screen, so it's never seen edge-on or flat however it's looked along (from your own eyes, down its own length,
@@ -64,7 +65,7 @@ const LASER_RES = new THREE.Vector2(1, 1);   // (half the drawing buffer's size,
 const mkBeam = () => {
   const geo = new THREE.PlaneGeometry(1, 1, 1, 24).rotateX(Math.PI / 2).translate(0, 0, 0.5);   // x across, z along (0-1)
   const b = new THREE.Mesh(geo, new THREE.ShaderMaterial({ vertexShader: LASER_VS, fragmentShader: LASER_FS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-    uniforms: { uCol: { value: new THREE.Color(0xff3a24) }, uT: { value: 0 }, uOp: { value: 1 }, uW: { value: 0.08 }, uWfp: { value: 0.02 }, uPx: { value: 7 }, uRes: { value: LASER_RES }, uFade: { value: new THREE.Vector2(...LASER_FADE) } } }));
+    uniforms: { uCol: { value: new THREE.Color(0xff3a24) }, uT: { value: 0 }, uOp: { value: 1 }, uW: { value: 0.08 }, uWfp: { value: 0.02 }, uPx: { value: LASER_PX }, uRes: { value: LASER_RES }, uFade: { value: new THREE.Vector2(...LASER_FADE) } } }));
   b.frustumCulled = false;
   const d = new THREE.Group(), halo = glowSprite(), core = glowSprite(), lens = glowSprite();
   core.material.color.set(0xffffff); d.add(halo, core);
@@ -78,6 +79,10 @@ const LASER_RUN = 20, LASER_MIN = 8, LASER_MAX = LASER_FADE[1] + 0.5;
 // each tier's colours (beam, glow) and size: the taped-on pointer a thin, dim red; the mounted module green, about as
 // fine and only a little brighter
 const LASER_COL = { 1: [0xff3a24, 0xff5a3a], 2: [0x3cff5a, 0x7dff8e] };
+// in the arena a beam's only a faint pencil of light, not a searchlight giving everyone away: its opacity, its least width
+// on screen (px, out of the usual uPx) and its dot and lens glint, each a share of LASER_LOOK's; someone else's fainter
+// still than your own
+const LASER_PVP = { own: { op: 0.5, px: 2.5, dot: 0.6 }, other: { op: 0.28, px: 1.5, dot: 0.4 } }, LASER_PX = 7;
 const LASER_LOOK = { 1: { w: 0.1, wfp: 0.022, op: 0.62, halo: 0.34, core: 0.08, lens: 0.12, dot: 0.8 }, 2: { w: 0.085, wfp: 0.019, op: 0.5, halo: 0.28, core: 0.065, lens: 0.1, dot: 0.7 } };
 // the laser on the gun in your hands shines (both of a pair), straight out of its lens along the barrel wherever the
 // gun points, whether it's on the aim, being reloaded or coming out. A gun in its holster or on your back has its laser
@@ -116,7 +121,7 @@ function lens(key, em, tier, used) {
   if (!B.b.visible) B.len = 0;   // switched on: it runs out from the lens
   B.b.visible = B.lens.visible = true;
   em.updateWorldMatrix(true, false); em.getWorldPosition(_lsA); _lsD.set(0, 0, 1).applyQuaternion(em.getWorldQuaternion(_lsQ)).normalize();
-  beam(B, tier, laserReach(_lsA, _lsD, LASER_MAX));
+  beam(B, tier, laserReach(_lsA, _lsD, LASER_MAX), PVP.on ? LASER_PVP[key[0] === 'h' ? 'own' : 'other'] : null);
 }
 // how far a beam from o along d goes before it meets the ground (or the floor, porch or step), a wall or a zombie
 function laserReach(o, d, max) {
@@ -133,19 +138,19 @@ function laserReach(o, d, max) {
   }
   return { L, hit };
 }
-function beam(B, tier, reach) {
+function beam(B, tier, reach, pk) {
   const { b: laser, d: laserDot } = B, col = LASER_COL[tier] || LASER_COL[1], look = LASER_LOOK[tier] || LASER_LOOK[1], u = laser.material.uniforms, t = performance.now() / 1000, L = reach.L;
   if (u.uCol.value.getHex() !== col[0]) { u.uCol.value.setHex(col[0]); B.halo.material.color.setHex(col[1]); B.lens.material.color.setHex(col[1]); }
   const dt = clamp(t - B.t, 0, 0.1); B.t = t;
   B.len = L <= B.len ? L : Math.min(L, B.len + Math.max((L - B.len) * Math.min(1, dt * LASER_RUN), dt * LASER_MIN));
   _lsB.copy(_lsA).addScaledVector(_lsD, Math.max(0.01, B.len));
   laser.position.copy(_lsA); laser.lookAt(_lsB); laser.scale.set(1, 1, Math.max(0.01, B.len));
-  u.uT.value = t + B.ph; u.uW.value = look.w; u.uWfp.value = look.wfp; u.uOp.value = look.op * (0.94 + 0.06 * Math.sin(t * 41 + B.ph));
+  u.uT.value = t + B.ph; u.uW.value = look.w; u.uWfp.value = look.wfp; u.uOp.value = look.op * (pk ? pk.op : 1) * (0.94 + 0.06 * Math.sin(t * 41 + B.ph)); u.uPx.value = pk ? pk.px : LASER_PX;
   // the dot where it lands, pulsing a little, its halo breathing round a hard point: only once the beam's reached what
   // it lands on, and fading with the beam far off. The lens glints
   const pulse = 1 + 0.14 * Math.sin(t * 8.5 + B.ph) + 0.05 * Math.sin(t * 23);
   const dotA = reach.hit ? clamp(1 - (L - B.len) / 0.3, 0, 1) * (1 - smooth(clamp((B.len - LASER_FADE[0]) / (LASER_FADE[1] - LASER_FADE[0]), 0, 1))) : 0;
   laserDot.position.copy(_lsB); B.halo.scale.setScalar(look.halo * pulse); B.core.scale.setScalar(look.core);
-  B.halo.material.opacity = look.dot * dotA; B.core.material.opacity = dotA; laserDot.visible = dotA > 0.01;
-  B.lens.position.copy(_lsA); B.lens.scale.setScalar(look.lens * (0.9 + 0.1 * pulse));
+  const dk = pk ? pk.dot : 1; B.halo.material.opacity = look.dot * dotA * dk; B.core.material.opacity = dotA * dk; laserDot.visible = dotA > 0.01;
+  B.lens.position.copy(_lsA); B.lens.scale.setScalar(look.lens * (0.9 + 0.1 * pulse)); B.lens.material.opacity = pk ? pk.dot : 1;
 }

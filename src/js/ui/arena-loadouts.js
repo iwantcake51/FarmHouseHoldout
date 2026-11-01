@@ -8,11 +8,11 @@
 // what it costs (red), worked out from the gun as it'd be with it and without it. Down the right the weapons that can
 // go in that slot, and the class's perks (set by the class: not yours to change).
 //
-// Six a gun: each gun has six points of its own for what goes on it. The guns themselves are free, except a primary's
-// kind of gun (a long gun or an automatic) carried as the secondary, which takes AL_SEC_PRI of that gun's six. Each
+// Ten a gun: each gun has ten points of its own for what goes on it. The guns themselves are free, except a primary's
+// kind of gun (a long gun or an automatic) carried as the secondary, which takes AL_SEC_PRI of that gun's ten. Each
 // attachment step costs one (a 3-step suppressor is three), a conversion kit one a step (a 3-step sawn-off three, the
 // pistol's full auto, the burst line's third step, three), pair loading one and triple loading two; a kind of shell is
-// free (none's simply better), and so is the melee weapon. Whatever would take a gun past six can't be picked, and the
+// free (none's simply better), and so is the melee weapon. Whatever would take a gun past ten can't be picked, and the
 // meter along the top says where the gun on show is. Only
 // attachments proper go on (sights, cans, chokes, lasers, lights, loaders, triggers and mags, as far as each goes on
 // that gun: the same lines Showdown's random loadouts draw from) and the conversion kits (the workbench's conv mods),
@@ -38,7 +38,7 @@ import { PVP_CLASSES, PVP_DMG, pvpFalloff, pvpRoundDmg } from '../pvp/pvp.js';
 
 // the points each gun has, and what a primary's kind of gun takes of them as the secondary; where your loadouts and your names for the classes are kept; and the slots, in the order they're tabbed
 // through; the longest a name can be
-const AL_BUDGET = 6, AL_SEC_PRI = 2, AL_KEY = 'fhh-arena-loadouts', AL_NAMES = 'fhh-arena-names', AL_TABS = [['p', 'Primary'], ['s', 'Secondary'], ['m', 'Melee']], AL_NAME_MAX = 18;
+const AL_BUDGET = 10, AL_SEC_PRI = 2, AL_KEY = 'fhh-arena-loadouts', AL_NAMES = 'fhh-arena-names', AL_TABS = [['p', 'Primary'], ['s', 'Secondary'], ['m', 'Melee']], AL_NAME_MAX = 18;
 // the attachment lines a gun can carry here, in the order their tiles sit (the slot each fills on the gun, by name).
 // Never 'ammo' (the powder) or a tune-up: they're a gun's insides, not something bolted on
 const AL_LINES = [['sight', 'Optic'], ['supp', 'Suppressor'], ['choke', 'Choke'], ['laser', 'Laser'], ['light', 'Light'], ['loader', 'Loader'], ['trigger', 'Trigger'], ['mag', 'Magazine']];
@@ -132,9 +132,9 @@ const alCatSort = (list, sideFirst) => { const ord = c => { const i = AL_CATS.fi
 const alPriOk = id => !!WEAP[id] && WEAP[id].slot !== 'side' && id in PVP_DMG;
 const alSecOk = (id, pri) => !!WEAP[id] && id in PVP_DMG && id !== pri && (!pri || WEAP[id].slot !== WEAP[pri].slot);
 const alMelees = () => [...new Set(PVP_CLASSES.map(c => c.melee))];
-// a gun as the editor holds it: [gun, its attachment steps, its choices { cv, rd, ld }]. Its points (of its own six):
+// a gun as the editor holds it: [gun, its attachment steps, its choices { cv, rd, ld }]. Its points (of its own ten):
 // one for each step on it and what its choices cost, and as the secondary, what a primary's kind of gun takes (gunFee);
-// whether a loadout's guns each keep within their six; and a loadout's points all told (the class list's number)
+// whether a loadout's guns each keep within their ten; and a loadout's points all told (the class list's number)
 const gunFee = (id, t) => t === 's' && id && WEAP[id] && WEAP[id].slot !== 'side' ? AL_SEC_PRI : 0;
 const exPts = (id, ex) => Object.keys(ex || {}).reduce((a, key) => a + ((ex[key] && optOf(id, key, ex[key])) || { cost: 0 }).cost, 0);
 const gunPts = (g, t) => g ? gunFee(g[0], t) + Object.values(g[1]).reduce((a, n) => a + n, 0) + exPts(g[0], g[2]) : 0;
@@ -162,8 +162,8 @@ function alStockEx(g) {
 const alStock = C => ({ p: alGun(C.guns[0][0], C.guns[0][1], alStockEx(C.guns[0])), s: C.guns[1] ? alGun(C.guns[1][0], C.guns[1][1], alStockEx(C.guns[1])) : null, m: C.melee });
 const stockMods = (C, id) => ((C.guns.find(g => g[0] === id) || [])[2] || []).filter(m => !(GUN_MODS[m] && (GUN_MODS[m].conv || (GUN_MODS[m].need && MOD_LINE[m]) || alModOk(id, m))));
 // a saved kit made safe to carry: anything that isn't the arena's or doesn't fit put back to the class's own, then
-// trimmed to six a gun (a gun's choices first, then its top steps; a secondary still over, dropped). Every stock class
-// keeps within six a gun as it comes, so this only ever bites on a kit kept from some other version of the rules
+// trimmed to ten a gun (a gun's choices first, then its top steps; a secondary still over, dropped). Every stock class
+// keeps within ten a gun as it comes, so this only ever bites on a kit kept from some other version of the rules
 function alFix(k, C) {
   const st = alStock(C), o = { p: null, s: null, m: st.m };
   o.p = k && k.p && alPriOk(k.p[0]) ? alGun(k.p[0], k.p[1], k.p[2]) : st.p;
@@ -410,7 +410,7 @@ function alSync(changed) {
     a.querySelector('.aloAMain').title = lock ? 'Taken by the conversion' : n >= mx ? 'As far as it goes' : up ? `Add ${tierName(key, n, id)} (+${stepCost(k, t, key, n + 1)})` : 'Not enough points left';
   });
   alMeter(k);
-  // the attachments' heading: what this gun's taking of its six (or why there's nothing here)
+  // the attachments' heading: what this gun's taking of its ten (or why there's nothing here)
   const gp = t !== 'm' && k[t] ? gunPts(k[t], t) : 0;
   $('aloAttsHead').innerHTML = t === 'm' ? '<b>Attachments</b><span>None on a melee weapon</span>' : !k[t] ? '<b>Attachments</b><span>No secondary</span>' : `<b>Attachments</b><span>This gun uses ${gp} of its ${AL_BUDGET} points${gunFee(id, t) ? ` (${AL_SEC_PRI} for carrying it as the secondary)` : ''}</span>`;
   // the weapon on show: its name and what it is, its numbers, and itself in the studio (a stock class's gun with its
@@ -440,7 +440,7 @@ function alSync(changed) {
   if (changed) { const b = $('aloCls').querySelector('.aloC.on'); if (b) { b.classList.remove('saved'); void b.offsetWidth; b.classList.add('saved'); } }
   if (AL.info) alInfo(AL.info);   // (the card over a tile kept up to date with what's now on the gun)
 }
-// the meter: the six pips of the gun on show (the primary's on the melee tab), what's on it lit in the accent and
+// the meter: the ten pips of the gun on show (the primary's on the melee tab), what's on it lit in the accent and
 // what carrying a primary's kind as the secondary takes paler, first; a hover over something it'd cost shows how many
 // more it'd take (or that it won't go), and the number's big beside them
 function alMeter(k) {

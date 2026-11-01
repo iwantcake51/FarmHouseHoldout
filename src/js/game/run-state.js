@@ -221,7 +221,7 @@ export const magSize = id => Math.max(1, Math.round(W(id).mag * S.magMul));
 export function carryMul(id) {
   const D = id && W(id); if (!D) return 1;
   if (D.melee) return D.two ? 1.03 : 1.07;
-  const big = D.magX > 1.01 ? 1 - MAG_WALK * Math.log2(D.magX) : 1;
+  const big = (D.magX > 1.01 ? 1 - MAG_WALK * Math.log2(D.magX) : 1) * (1 - (D.heft || 0));   // (heft: a heavy part's weight, weapons/gun-mods.js)
   if (D.slot !== 'long' && D.slot !== 'auto') return big;
   const gt = W8.gt[id] || {}, att = ['supp', 'choke', 'sight', 'laser', 'light'].reduce((n, k) => n + (gt[k] || 0), 0) + (gunAtt(id, 'bayonet') ? 1 : 0);
   const cal = D.ammo === 'rifle' ? 0.05 : D.ammo === 'shells' ? 0.04 : 0.025, mag = Math.min(0.07, magSize(id) / 30 * 0.03);

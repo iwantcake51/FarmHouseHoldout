@@ -850,7 +850,7 @@ the picker.
 in four plain groups: the points along the top, the classes down the left, the weapon and its attachments in the
 middle, and the weapons for the slot (with the class's perks) down the right. Words are set in Archivo, as on the
 co-op screen, at sizes that read; names and numbers in the game's condensed face. The attachments sit under a heading
-that says how many of its six points that gun is using, and scroll in their own space in a small window (they never
+that says how many of its ten points that gun is using, and scroll in their own space in a small window (they never
 run over the foot). It is laid out like a shooter's: the classes down the left (1 to 8, or the up and down arrows), the slot tabs along the top
 (**Primary**, **Secondary**, **Melee**; Q and E step through them), the weapon itself in the middle, turning slowly in
 the same studio as the Character menu's (drag to turn it, scroll to zoom), with its arena damage, fire
@@ -862,15 +862,16 @@ turned with a drag and zoomed with the wheel, but not moved about (the right or 
 points meter holds what something would cost while the pointer moves from one row to the next, rather than blinking off
 and on between them.
 
-- **Six points a gun.** Each gun has 6 points of its own for what goes on it (they used to share 10 between them).
+- **Ten points a gun.** Each gun has 10 points of its own for what goes on it (the two used to share 10 between them,
+  then had 6 each).
   The guns themselves are free, and so is the melee weapon, with one exception: a primary's kind of gun (a long gun or
-  an automatic, such as the Rusher's double barrel) carried as the secondary takes 2 of that gun's 6 points; a handgun
+  an automatic, such as the Rusher's double barrel) carried as the secondary takes 2 of that gun's 10 points; a handgun
   there is free. Each step of an attachment costs 1 (a scope at step 3 costs 3, a heavy-duty suppressor 3), a
   conversion kit 1 a step, the pump's pair loading 1 and triple loading 2; a kind of shell is free (each is a
-  sidegrade). The meter along the top shows the six pips of the gun on show (**Primary points** or **Secondary
+  sidegrade). The meter along the top shows the ten pips of the gun on show (**Primary points** or **Secondary
   points**; the primary's on the melee tab): what's fitted lit orange, and the 2 for carrying a primary's kind as the
   secondary pale, first. Hovering anything shows what it would add (striped in) or give back (hollowed out). Anything
-  that would take that gun past 6 is dimmed and can't be picked; trying anyway shakes the meter. The number by each
+  that would take that gun past 10 is dimmed and can't be picked; trying anyway shakes the meter. The number by each
   class in the list is both its guns' points added together.
 - **Attachments.** Click a tile for its next step, click a pip for that exact step (its own pip again takes that step
   off), and the cross or a right click takes it off. Only real attachments for that gun, as far as each goes on it
@@ -891,8 +892,23 @@ and on between them.
   compensator, the Scout's match barrel, the Breacher's slam fire, the Enforcer's hammer, the Gunner's bipod) show on
   their tiles and are counted. Nothing hits harder in the arena (damage is capped at the gun's own), so a barrel's
   worth is in its spread and how far it keeps its damage.
+- **What each part costs you.** A part that only helped now has a drawback too, here and at the workbench, shown on
+  its card under Costs:
+  - the **match barrel**'s heavier slide is 8% slower to bring up to the eye (3% more a level);
+  - the revolver's **longer barrels** weigh it down (2% off your pace, 1.5% more a level) and are 8% slower up to
+    the eye (5% more a level);
+  - the hand cannon's **compensator** is 6% slower up to the eye;
+  - the machine pistol's **ported barrel** bleeds gas, so its rounds lose damage sooner (its drop-off 12% closer, 5%
+    more a level);
+  - the M4's **heavy barrel** weighs it down (3% off your pace, 1% more a level) and is 8% slower up to the eye (4%
+    more a level), about 10% slower all told at level I;
+  - the LMG's **bipod** legs weigh it down (3% off your pace, 1% more a level) and make it 10% slower up to the eye;
+  - the **greased bolt** locks up a little looser: 10% more spread;
+  - a sidearm's **shoulder stock** has to be shouldered first: 10% slower up to the eye.
+  The rest already had one (slam fire's spread, fanning's spread, the navy group's burst in place of full auto, the
+  twin trigger's two barrels at once); the flared mag well's small saving on a reload is left as it was.
 - **The heavy barrel** (the M4's, at the workbench as well) now keeps its damage further out as well as hitting
-  harder and spreading less: its drop-off starts and bottoms out 30% further away, and each level after the first
+  harder and spreading less (and weighs more, above): its drop-off starts and bottoms out 30% further away, and each level after the first
   another 20%. In the arena that's about 11 m more range at full strength, with 30% less spread.
 - **Conversion kits.** A gun that has one gets a **Conversion** tile, one kit at a time, picked off a row of choices
   with **Stock** first (the cross or a right click puts it back): the handgun's burst conversion (I or II, 1 or 2
@@ -923,9 +939,8 @@ and on between them.
   counted, as are its own parts'); change anything and it's yours, all of that kept (the note under the perks says
   which it is). A
   dot by a class in the list marks one you've changed; **Reset to default** (or R) puts it back. Every stock class
-  already fits in 6 points a gun (1 to 5 on each, its conversion and the secondary's 2 counted), so none is
-  trimmed; a loadout saved under the old shared 10 is trimmed to 6 on each gun (its choices first, then its top
-  steps). A kit carrying the LMG gets one spare belt, as the Gunner
+  already fits in 10 points a gun (1 to 6 on each, its conversion, its own parts and the secondary's 2 counted), so
+  none is trimmed. A kit carrying the LMG gets one spare belt, as the Gunner
   does; anything else three mags.
 - **In the match.** Pick the class as ever and you carry your version of it, solo or online; the class picker's cards
   show it. Everyone else sees your guns as they are on you, attachments and all. The bots always carry the stock
@@ -1157,6 +1172,11 @@ like pea-shooters). To a 100-health body, before range falloff:
 - **Space** skips the death camera a second after you go down: in the respawn modes you're straight back in (unless
   you've opened the loadouts), in Showdown straight on to watching a teammate. **F** opens the loadouts for your next
   life (the card says both).
+- **Lasers in the arena** are a faint pencil of light rather than a searchlight: your own beam at half its usual
+  brightness and never more than about 2.5 pixels wide on screen, everyone else's (players' and bots') at under a
+  third and 1.5 pixels, and the dot where it lands and the glint at its lens dimmed to match. They used to be drawn
+  at least 7 pixels wide at full brightness, so a laser gave its owner away from across the map. Outside the arena
+  they're as they were.
 - **Changing your loadout while you're down** (the respawn modes) holds you there: the countdown still runs, but at
   0 it waits, and you're only back in, with the new loadout, when you press **Space** (the card says "Back in 3 · then
   [Space]", then "[Space] to go back in"). It used to drop you straight back in the moment the countdown ran out, maybe
