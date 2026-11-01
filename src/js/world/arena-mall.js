@@ -3,11 +3,13 @@
 // walls inside, a car park round it outside, a ceiling over it seen only from your own eyes (from above you look in
 // through where its roof would be, as the cutaway does the farmhouse's). Designed and checked in tools/mall-plan.py
 // (reachability, spawn sightlines, lane sightlines, corridors, corner pinches, timings):
-//  - each spawn an anchor store (the department store) at its end, three ways out: north into back of house and south
+//  - each spawn an anchor store (the department store) at its end, three ways out: north into the supermarket and south
 //    into the food court (a shelf just inside each, round its far end, so nothing outside sees in), and a wide
 //    entrance east onto the concourse with a display kiosk out in front of it
-//  - NORTH, Back of house: close quarters. The stockroom behind the shops, shelving islands and pallets, the lift core
-//    in the middle, a service door into the concourse
+//  - NORTH, the Supermarket: close quarters. The mall's grocery store along its north side, its aisles of shelving
+//    and pallets of stock, the lift core in its middle; its shutter forced up and its exit doors beside it, two ways
+//    in from the concourse each side (a pillar out in front of the lift core, so nothing through the doors sees down
+//    into the food court). A store you're in, not a corridor behind the shops
 //  - MIDDLE, the Concourse: the contest. Pillars, planters and the fountain court with the flag between its two pools
 //  - SOUTH, the Food court: medium range. Tables and counters for low cover, the stalls along the south wall, a seating
 //    island in the middle so it's never seen end to end; open to the concourse either side of it
@@ -36,10 +38,10 @@ const MALL_PLAN = [
   '#..........SSS..hhhh..SSS..........#',
   '#...............hhhh...............#',
   '#..........F....hhhh....F..........#',
-  '#hhh...hhh...hhhhhhhhhh...hhh...hhh#',
+  '#hhh...hhh...h..hhhh..h...hhh...hhh#',
   '#A.....h....................h.....B#',
   '#......h.F..Pp........pP..F.h......#',
-  '#..SSSSh.......F....F.......hSSSS..#',
+  '#..SSSSh.......FP..PF.......hSSSS..#',
   '#......h..KK..P......P..KK..h......#',
   '#.A....h..KK............KK..h....B.#',
   '#AAA......KK....wwww....KK......BBB#',
@@ -69,7 +71,7 @@ const MALL_KIND = (i, j) => { const r = MALL_PLAN[j - MALL_B[1]]; return r ? r[i
 const MALL_H = { '#': 3.6, h: 2.7, S: 2.3, K: 2.2, P: 3.6, k: 1.0, c: 1.05, T: 0.8, p: 0.9, w: 0.8 };
 const MALL_LOW = new Set(['k', 'c', 'T', 'p', 'w']);
 const MALL_WHAT = { k: 'pallet', c: 'counter', T: 'table', p: 'planter', w: 'fountain' };
-// the ceiling (m up), and its lights: fluorescent panels over the concourse and back of house, warmer pendants over
+// the ceiling (m up), and its lights: fluorescent panels over the concourse and the supermarket, warmer pendants over
 // the food court and the stores (cells in the plan: [column, row, warm])
 const MALL_CEIL = 3.6;
 const MALL_LAMPS = [[4, 3, 0], [11, 2, 0], [24, 2, 0], [31, 3, 0], [17.5, 2.5, 0], [10, 10, 0], [25, 10, 0], [10, 19, 0], [25, 19, 0], [17.5, 14.5, 0], [13, 14.5, 0], [22, 14.5, 0],
@@ -96,18 +98,19 @@ function mallFloorTex() {
   const px = W / cw, pz = H / ch, rnd = seeded(5150);
   x.fillStyle = '#cbc3b2'; x.fillRect(0, 0, W, H);
   for (let k = 0; k < 9000; k++) { x.fillStyle = `rgba(${rnd() < 0.5 ? '120,110,96' : '232,226,214'},${0.25 + rnd() * 0.4})`; x.fillRect(rnd() * W, rnd() * H, 1 + rnd() * 2, 1 + rnd() * 2); }   // (the terrazzo's chips)
-  // each zone its own floor: back of house bare concrete, the stores carpeted, the food court in darker tile
+  // each zone its own floor: the supermarket in pale vinyl squares, the stores carpeted, the food court in darker tile
   const zone = (j0, j1, i0, i1, col) => { x.fillStyle = col; x.fillRect(i0 * px, j0 * pz, (i1 - i0) * px, (j1 - j0) * pz); };
-  zone(1, 7, 1, cw - 1, 'rgba(128,126,120,0.92)'); zone(8, 22, 1, 7, 'rgba(92,46,44,0.9)'); zone(8, 22, cw - 7, cw - 1, 'rgba(44,58,86,0.9)'); zone(23, ch - 1, 1, cw - 1, 'rgba(150,120,92,0.55)');
-  for (let k = 0; k < 2500; k++) { x.fillStyle = `rgba(0,0,0,${0.03 + rnd() * 0.05})`; x.fillRect(rnd() * W, rnd() * pz * 7 + pz, 1 + rnd() * 3, 1 + rnd() * 3); }   // (the concrete's grain)
-  x.strokeStyle = 'rgba(80,74,64,0.55)'; x.lineWidth = 2;   // the tiles' grout, every 2 m (not in the stores' carpet or back of house)
+  zone(1, 7, 1, cw - 1, 'rgba(206,204,194,0.92)');
+  for (let j = 1; j < 7; j += 0.5) for (let i = 1; i < cw - 1; i += 0.5) if (((i + j) * 2) % 2 === 0) { x.fillStyle = 'rgba(150,160,150,0.35)'; x.fillRect(i * px, j * pz, px / 2, pz / 2); } zone(8, 22, 1, 7, 'rgba(92,46,44,0.9)'); zone(8, 22, cw - 7, cw - 1, 'rgba(44,58,86,0.9)'); zone(23, ch - 1, 1, cw - 1, 'rgba(150,120,92,0.55)');
+  for (let k = 0; k < 2500; k++) { x.fillStyle = `rgba(0,0,0,${0.03 + rnd() * 0.05})`; x.fillRect(rnd() * W, rnd() * pz * 7 + pz, 1 + rnd() * 3, 1 + rnd() * 3); }   // (the vinyl's scuffs)
+  x.strokeStyle = 'rgba(80,74,64,0.55)'; x.lineWidth = 2;   // the tiles' grout, every 2 m (not in the stores' carpet or the supermarket)
   for (let i = 0; i <= cw; i += 2) { x.beginPath(); x.moveTo(i * px, 8 * pz); x.lineTo(i * px, H - pz); x.stroke(); }
   for (let j = 8; j <= ch; j += 2) { x.beginPath(); x.moveTo(7 * px, j * pz); x.lineTo((cw - 7) * px, j * pz); x.stroke(); }
   // the concourse's inlay: a ring of dark stone round the fountain court, a compass in the middle
   x.strokeStyle = 'rgba(70,60,52,0.7)'; x.lineWidth = 10; x.beginPath(); x.ellipse(W / 2, 14.5 * pz + pz / 2, 5.6 * px, 4.4 * pz, 0, 0, 7); x.stroke();
   x.lineWidth = 3; x.beginPath(); x.ellipse(W / 2, 14.5 * pz + pz / 2, 6.2 * px, 5 * pz, 0, 0, 7); x.stroke();
-  // the loading lines in back of house: a yellow walkway along its south wall, hatched by each door
-  x.strokeStyle = 'rgba(214,174,52,0.75)'; x.lineWidth = 5; x.setLineDash([22, 12]); x.beginPath(); x.moveTo(pz, 6.6 * pz); x.lineTo(W - pz, 6.6 * pz); x.stroke(); x.setLineDash([]);
+  // the supermarket's entrance mats inside its doors
+  for (const [a, b] of [[10, 13], [14, 16], [cw - 13, cw - 10], [cw - 16, cw - 14]]) { x.fillStyle = 'rgba(40,40,44,0.8)'; x.fillRect(a * px, 6.1 * pz, (b - a) * px, 0.85 * pz); }
   // each store's entrance mat
   for (const i of [7, cw - 8]) { x.fillStyle = 'rgba(40,36,34,0.85)'; x.fillRect((i - 0.8) * px, 13 * pz, 2.6 * px, 4 * pz); }
   // scuffs and the odd spill
@@ -236,7 +239,7 @@ function mallTick() { if (mallCeil) mallCeil.visible = fpOn(); }
 //  - the kiosks' lit displays; a directory board and a bin on each pillar; bench seats round the planters' rims
 //  - the food court: the stalls' menu boards, tills and tray stacks on the counters, a tray on some tables, banquettes
 //    and the Food court sign along the seating island, a tray return at its end
-//  - back of house: the lift doors and their sign, fire extinguishers, an electrical board, safety posters
+//  - the supermarket: the lift doors and their sign, fire extinguishers, an electrical board, its notices
 //  - the anchor stores: slatwall along their outer walls hung with clothes, the store's name over it
 //  - overhead (from your own eyes): the ceiling's tiles, bulkheads over the shopfronts and headers over each opening
 //    with its sign, exit signs, sprinklers, vents, cameras and banners
@@ -345,7 +348,7 @@ function mallDress(g) {
   menu(0, cxw(MALL_B[0] + 8) + 0.5, 1.75, cxw(MALL_B[1] + 27), [1, 0]); menu(1, cxw(MALL_B[0] + 27) - 0.5, 1.75, cxw(MALL_B[1] + 27), [-1, 0]);
   menu(2, cxw(MALL_B[0]) + 0.5, 1.9, cxw(MALL_B[1] + 25), [1, 0]); menu(3, cxw(MALL_B[2]) - 0.5, 1.9, cxw(MALL_B[1] + 25), [-1, 0], true);
   menu(3, cxw(MALL_B[0] + 11), 2.0, cxw(MALL_B[3]) - 0.5, [0, -1], true); menu(1, cxw(MALL_B[0] + 24), 2.0, cxw(MALL_B[3]) - 0.5, [0, -1], true);
-  // ---- back of house: the lifts' sign, fire extinguishers with their signs, an electrical board, safety posters (on
+  // ---- the supermarket: the lifts' sign, fire extinguishers with their signs, an electrical board, safety posters (on
   // the north wall, which stands full height)
   mPic(1.6, 0.4, mTexMat('lift', () => mallSignBoard('lift'), false), cxw(MALL_B[0] + 17.5), 2.35, cxw(MALL_B[1] + 4) - 0.5 - L, [0, -1]);
   const nz0 = cxw(MALL_B[1]) + 0.5;
@@ -419,7 +422,7 @@ function mallBuild(g) {
 }
 // the map as world/arena.js takes it (AR_MAPS)
 export const MALL = {
-  id: 'mall', name: 'Larkspur Mall', note: 'Indoors: back of house, the concourse, the food court',
+  id: 'mall', name: 'Larkspur Mall', note: 'Indoors: the supermarket, the concourse and its fountain, the food court',
   plan: MALL_PLAN, b: MALL_B, h: MALL_H, low: MALL_LOW, vault: MALL_LOW, walls: '#h', what: MALL_WHAT, build: mallBuild, indoor: true, tod: 20.6, foot: 'tile',
   // (its lights: the panels cool white, the pendants warm, always on, lighting/lightmap.js)
   lights: () => MALL_LAMPS.map(([i, j, warm]) => ({ arena: true, always: true, x: cxw(MALL_B[0] + i), z: cxw(MALL_B[1] + j), r: warm ? 8.5 : 10, col: warm ? [1, 0.8, 0.55] : [0.9, 0.95, 1], int: warm ? 1.15 : 1.05 }))

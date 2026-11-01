@@ -1,22 +1,21 @@
 // The arena: the map the player-against-player mode is played on (pvp/pvp.js), built over where the farm stands for as
-// long as a match goes on. "Yard 4", an old freight terminal yard in a clearing in the woods: a cast concrete pad
-// walled round with tall precast panels, laid out as three lanes, the west half (Blue's) mirrored for the east (Red's),
-// so neither side's better off. Designed and checked in tools/arena-plan.py (reachability, spawn sightlines, lane
-// sightlines, edge runs, timings):
-//  - each spawn, a walled yard at its end with three exits: north into the warehouse and south onto the rail spur
-//    (each with a short wall stub just inside it, round either end), and east through a wide gate into the courtyard,
-//    a container parked in the yard between the spawn spots and the gate. Nothing outside a spawn sees into it, and no
-//    spawn sees the other's
-//  - NORTH, the Warehouse floor: close quarters. One big roofless hall broken up by islands (container stacks, wall
-//    stubs, crates) rather than rooms and corridors. A door into the plaza is the flag's north approach
-//  - MIDDLE, the Plaza: medium range and the contest. The courtyard out of each spawn's gate, between container
-//    stacks, onto the open plaza and the flag in its sandbag ring, with wall stubs at the ring's corners
-//  - SOUTH, the Rail spur: long range, the one place for a rifle. An open yard with low cover (the platform's
-//    barriers, sandbags, drums), a container stack part way along and a signal hut in the very middle so it's never
-//    seen end to end; a gap at the west end of the container wall (by the courtyard) is the middle's way south
-// No line runs from the north lane into the south, nowhere is a long corridor, and the longest straight run along any
-// wall is 18 m. Floodlights stand
-// in its corners and halfway along each wall.
+// long as a match goes on. "Yard 4", an old freight terminal's yard in a clearing in the woods, overrun: a cast
+// concrete pad walled round with precast panels, one open yard laid out as three lanes by what stands in it (never by
+// walls with doorways), the west half (Blue's) mirrored for the east (Red's), so neither side's better off. Designed and
+// checked in tools/arena-plan.py (tools/plan_check.py: reachability, spawn sightlines, lane sightlines, corner
+// pinches, squeezes, timings):
+//  - each spawn the marshalling area behind its gate: container stacks north and south of it and a long one out in
+//    front, two ways out round that one's ends. Nothing out on the map sees in, and no spawn sees the other's
+//  - NORTH, the Warehouse floor: close quarters. What's left of a burned-out warehouse, its roof gone and its south
+//    wall broken into three pieces with wide gaps between them; the yard office against its north wall, containers
+//    and a transformer left standing in it. The gaps either side of the middle piece are the flag's north approaches
+//  - MIDDLE, the Weighbridge: medium range and the contest. A container stood up in the courtyard each side, the
+//    stacks round it, the flag on the weighbridge between its booths and their sandbags
+//  - SOUTH, the Rail spur: the long lane. A train of container wagons left on the first siding along its north side
+//    (the gaps between the wagons the ways down from the middle), the signal box in the very middle, container stacks
+//    part way along each side, the second siding along the platform, so it's never seen end to end
+// Hardly a line runs from the north lane into the south, and the longest anywhere is about 31 m, corner to corner
+// across the warehouse floor. Floodlights stand in its corners and halfway along each wall.
 //
 // It's one of the arena's maps (AR_MAPS; the other's indoors, world/arena-mall.js), picked with the match's settings in
 // the lobby. A map is its own world, not built over the farm: while it's up the farm's every piece (the house, the
@@ -60,42 +59,42 @@ const AR_PLAN = [
   '#........h.F......CCCCCC......F.h........#',
   '#........h........CCCCCC........h........#',
   '#..F.....h......................h.....F..#',
-  '#.....kk.h..CC..bb......bb..CC..h.kk.....#',
-  '#...........CC..............CC...........#',
-  '#...........CC..F........F..CC...........#',
-  '#..............h..........h..............#',
-  '#.........k....h..........h....k.........#',
-  '#.........k....h..........h....k.........#',
-  '#..............h..........h..............#',
-  '#hhh...hhhhhhhhh...hhhh...hhhhhhhhh...hhh#',
-  '#......h..........................h......#',
-  '#......h.......F..........F.......h......#',
-  '#..hhhhh....CC..............CC....hhhhh..#',
-  '#.....Ah....CC..hh......hh..CC....hB.....#',
-  '#......h..CCCC..hh.ssss.hh..CCCC..h......#',
-  '#AA....h..CC..................CC..h....BB#',
-  '#AAA......CC..................CC......BBB#',
-  '#AAAA.....CC......s....s......CC.....BBBB#',
-  '#AAAA....FCC......s....s......CCF....BBBB#',
-  '#AAA......CC..................CC......BBB#',
-  '#AA....h..CC..................CC..h....BB#',
-  '#......h..CCCC..hh.ssss.hh..CCCC..h......#',
-  '#.....Ah....CC..hh......hh..CC....hB.....#',
-  '#..hhhhh....CC..............CC....hhhhh..#',
-  '#......h.......F..........F.......h......#',
-  '#......h..........................h......#',
-  '#hhh...h..CCCCCCCCCCCCCCCCCCCCCC..h...hhh#',
-  '#..................CCCC..................#',
-  '#..................CCCC..................#',
-  '#...........CC..............CC...........#',
-  '#...........CC.s..........s.CC...........#',
-  '#..........FCC.s...hhhh...s.CCF..........#',
-  '#......bbbb.CC.s...hhhh...s.CC.bbbb......#',
-  '#...F..............hhhh..............F...#',
-  '#..................hhhh..................#',
-  '#.....r..........F.hhhh.F..........r.....#',
-  '#.........CC....o........o....CC.........#',
-  '#.........CC..................CC.........#',
+  '#....kk.....CC..............CC.....kk....#',
+  '#...........CC..bb......bb..CC...........#',
+  '#...........CC.....CCCC.....CC...........#',
+  '#...............F..CCCC..F...............#',
+  '#CCC......k...CC..........CC...k......CCC#',
+  '#CCC......k...CC..........CC...k......CCC#',
+  '#........................................#',
+  '#....hhhhhhh....hhhhhhhhhh....hhhhhhh....#',
+  '#..............F..........F..............#',
+  '#CCCC........CCC..........CCC........CCCC#',
+  '#CCCC...CC...CCC..........CCC...CC...CCCC#',
+  '#AA.....CC........hh..hh........CC.....BB#',
+  '#.......CC........hhsshh........CC.......#',
+  '#.A.....CC......................CC.....B.#',
+  '#AAA....CC...CC............CC...CC....BBB#',
+  '#AAA....CC...CC..s......s..CC...CC....BBB#',
+  '#AAA....CC.F.CC..s......s..CC.F.CC....BBB#',
+  '#.AA....CC...CC............CC...CC....BB.#',
+  '#..A....CC......................CC....B..#',
+  '#.......CC........hhsshh........CC.......#',
+  '#AA.....CC........hh..hh........CC.....BB#',
+  '#CCCC...CC...CCC..........CCC...CC...CCCC#',
+  '#CCCC........CCC..........CCC........CCCC#',
+  '#............CCF..........FCC............#',
+  '#.....CCCCC......CCCCCCCC......CCCCC.....#',
+  '#.....CCCCC......CCCCCCCC......CCCCC.....#',
+  '#........................................#',
+  '#.............CCC........CCC.............#',
+  '#........F..CCCCC........CCCCC..F........#',
+  '#...CCC.....CC.....hhhh.....CC.....CCC...#',
+  '#...CCbbbb..CC..s..hhhh..s..CC..bbbbCC...#',
+  '#...F.......CC..s..hhhh..s..CC.......F...#',
+  '#...............s..hhhh..s...............#',
+  '#CCC..r..........F......F..........r..CCC#',
+  '#CCC......CC....o........o....CC......CCC#',
+  '#CCC......CC..................CC......CCC#',
   '##########################################'
 ];
 // how tall each kind stands (m): what a round fired below it from your own eyes stops on (world/props.js: obstTop), and
@@ -110,7 +109,7 @@ export const VAULT_LOW = new Set();
 // are low and which vaulted, which are walls, what the vault prompt calls each, how it's built (its pieces back, into
 // its group), its fixed lights, and, indoors, the hour it's always at (its own lights on). Picked with the match's
 // settings (pvp/pvp.js PVP.cfg.map, the lobby's map picker: net/lobby.js)
-const AR_YARD4 = { id: 'yard', name: 'Yard 4', note: 'A freight yard: the warehouse, the plaza, the rail spur', plan: AR_PLAN, b: [1, 1, 42, 42], h: AR_H, low: AR_LOW, vault: AR_VAULT, walls: '#h',
+const AR_YARD4 = { id: 'yard', name: 'Yard 4', note: 'A freight yard, overrun: the burned warehouse, the weighbridge, the train on the siding', plan: AR_PLAN, b: [1, 1, 42, 42], h: AR_H, low: AR_LOW, vault: AR_VAULT, walls: '#h',
   what: { k: 'crates', b: 'barrier' }, build: null, indoor: false, tod: null, lights: () => AR_LIGHTS(), flares: [] };
 export const AR_MAPS = { yard: AR_YARD4, mall: MALL, farm: FARM_MAP, route: ROUTE_MAP, square: SQUARE_MAP, quay: QUAY_MAP };
 export const AR_MAP_IDS = Object.keys(AR_MAPS);
@@ -187,7 +186,7 @@ const AR_M = {
 // where the floor's yard markings go (plan rows and columns): the sidings' centre line and how far west each runs to (the
 // signal box), the walkway's row, and the loading bays' west columns (at the plaza doors); the weighbridge across the
 // plaza ([c0, r0, c1, r1], plan cells: the flag stands on it), the racking bays along the warehouse's north wall
-const AR_YARD = { rail: [37, 18], walk: 11, bay: [17], bridge: [14, 19.25, 27, 22.75], racks: [[1, 8], [10, 17]] };
+const AR_YARD = { rail: [[37, 18], [29.5, 40]], walk: 11, bay: [13], bridge: [15, 19.25, 26, 22.75], racks: [[1, 8], [10, 17]] };
 // (the floor's resolution, pixels a metre: its markings and stencils crisp from your own eyes)
 const AR_FLOOR_PX = 2048;
 // the pad: concrete, its joints every 4 m, worn and stained, and each spawn's box painted on it
@@ -212,13 +211,13 @@ function arFloorTex() {
   // sleepers and all, each ending at a buffer stop by the signal box, the platform's yellow edge line beside them; a
   // yellow walkway painted along the warehouse floor's south wall; a hatched loading bay inside each plaza door; the
   // racking bays' lines along the warehouse's north wall, where its shelving stood
-  for (const [a, b] of [[1, Y.rail[1]], [41 - Y.rail[1], 40]]) {
-    const xa = cx(a) - px / 2, xb = cx(b) + px / 2, zc = cz(Y.rail[0]);
+  for (const [row, end] of Y.rail) for (const [a, b] of end >= 40 ? [[1, 40]] : [[1, end], [41 - end, 40]]) {
+    const xa = cx(a) - px / 2, xb = cx(b) + px / 2, zc = cz(row);
     x.fillStyle = 'rgba(70,58,46,0.75)'; for (let xx = xa + 4 * k; xx < xb; xx += px * 0.7) x.fillRect(xx, zc - pz * 1.1, px * 0.22, pz * 2.2);   // (the sleepers)
     x.fillStyle = 'rgba(60,58,56,0.9)'; for (const o of [-0.72, 0.72]) x.fillRect(xa, zc + o * pz - 3 * k, xb - xa, 6 * k);   // (the rails)
     x.fillStyle = 'rgba(150,152,154,0.8)'; for (const o of [-0.72, 0.72]) x.fillRect(xa, zc + o * pz - k, xb - xa, 2 * k);   // (their worn tops)
-    const bx = a === 1 ? xb - 6 * k : xa; x.fillStyle = 'rgba(201,164,58,0.9)'; x.fillRect(bx, zc - pz * 1.2, 6 * k, pz * 2.4);   // (the buffer stop)
-    x.fillStyle = 'rgba(214,174,52,0.7)'; x.fillRect(xa, zc - pz * 1.45, xb - xa, pz * 0.12);   // (the platform's edge line)
+    if (end < 40) { const bx = a === 1 ? xb - 6 * k : xa; x.fillStyle = 'rgba(201,164,58,0.9)'; x.fillRect(bx, zc - pz * 1.2, 6 * k, pz * 2.4); }   // (the buffer stop)
+    if (end < 40) { x.fillStyle = 'rgba(214,174,52,0.7)'; x.fillRect(xa, zc - pz * 1.45, xb - xa, pz * 0.12); }   // (the platform's edge line)
   }
   x.strokeStyle = 'rgba(214,174,52,0.7)'; x.lineWidth = 6 * k; x.setLineDash([26 * k, 14 * k]); x.beginPath(); x.moveTo(cx(1), cz(Y.walk)); x.lineTo(cx(40), cz(Y.walk)); x.stroke(); x.setLineDash([]);
   for (const i of Y.bay) for (const ii of [i, 40 - i - 1]) {
@@ -240,8 +239,6 @@ function arFloorTex() {
     stencil('60 T MAX', X0 + 1.3 * px, (Z0 + Z1) / 2, 2.6, 0.8, 'rgba(226,220,204,0.6)', -Math.PI / 2);
     stencil('60 T MAX', X1 - 1.3 * px, (Z0 + Z1) / 2, 2.6, 0.8, 'rgba(226,220,204,0.6)', Math.PI / 2);
   }
-  // a stop line and STOP across the way out of each spawn's gate, the trucks' lane in
-  for (const [c, rot] of [[8, -Math.PI / 2], [33, Math.PI / 2]]) { x.fillStyle = 'rgba(226,220,204,0.55)'; x.fillRect(cx(c) + (c < 20 ? 0.3 : -0.45) * px, cz(19) - pz / 2, 0.15 * px, 4 * pz); stencil('STOP', cx(c) + (c < 20 ? 0.95 : -0.95) * px, cz(20) + pz / 2, 3.4, 0.9, 'rgba(226,220,204,0.5)', rot); }
   // each side's pad: a hatched box in its colour, worn
   // (in plain white, the same at both ends: in Showdown the sides swap ends as the loadouts change)
   [['A', 'rgba(226,220,204,0.42)'], ['B', 'rgba(226,220,204,0.42)']].forEach(([s, col]) => {
@@ -253,7 +250,7 @@ function arFloorTex() {
     x.restore();
   });
   // the yard's number stencilled in the courtyard north of the weighbridge, half worn off
-  stencil('YARD 4', W / 2, cz(16), 9, 2.6, 'rgba(210,200,170,0.22)');
+  stencil('YARD 4', W / 2, cz(13), 8, 1.6, 'rgba(210,200,170,0.22)');
   for (let n = 0; n < 900 * k * k; n++) { x.fillStyle = 'rgba(141,138,131,0.9)'; x.fillRect(rnd() * W, rnd() * W, (2 + rnd() * 5) * k, (2 + rnd() * 5) * k); }   // (the paint worn through)
   const t = new THREE.CanvasTexture(c); t.anisotropy = 8; return t;
 }
@@ -405,6 +402,7 @@ function arBuild() {
     }
     for (const R of AR_BLDG) arBldg(parts, g, R);
     arFrame(parts);
+    arWagons(parts);
     arGates(parts, g);
     arFlood(parts, g);
     arFence(parts, g);
@@ -453,7 +451,7 @@ function arWall(parts, i, j, x, z) {
 // north lane and its south wall) broken off just over head height where it burned, rubble and rebar along their tops;
 // the rest, the spawn yards' walls, finished with a precast coping; the weighbridge booths and the signal box roofed
 // (arBldg). Never lower than they stand in the plan (AR_H.h), so a round, a look or a splash of blood on one stops where it shows
-const AR_BLDG = [[16, 16, 17, 17], [24, 16, 25, 17], [16, 24, 17, 25], [24, 24, 25, 25], [19, 34, 22, 38]];   // (plan [c0, r0, c1, r1]: the weighbridge's booths and the signal box)
+const AR_BLDG = [[18, 16, 19, 17], [22, 16, 23, 17], [18, 24, 19, 25], [22, 24, 23, 25], [19, 34, 22, 37]];   // (plan [c0, r0, c1, r1]: the weighbridge's booths and the signal box)
 const arBldgOf = (i, j) => AR_BLDG.find(R => i - ARENA.x0 >= R[0] && i - ARENA.x0 <= R[2] && j - ARENA.z0 >= R[1] && j - ARENA.z0 <= R[3]);
 function arBlock(parts, i, j, x, z) {
   const H = AR_H.h, ruin = j - ARENA.z0 <= 12, S = AR_TX.cmu;
@@ -487,7 +485,7 @@ function arBldg(parts, g, R) {
   // the signal box: its door north (onto the stacks), its windows along each siding boarded, an END OF SIDING board under each
   door(arF(c0 + 1, r0, 'n'), mx - 0.3);
   arSign(g, arF(c0 + 1, r0, 'n'), 1.6, 1.55, { text: 'YARD 4\nSIGNAL BOX', w: 1.3, h: 0.4, col: 'rgba(236,232,220,0.95)', bg: 'rgba(122,40,32,0.95)', wear: 40 });
-  for (const [sd, c] of [['w', c0], ['e', c1]]) { const F = arF(c, r0 + 2, sd); boards(F, mz - 0.5, 1.4, 1.6, 0.7); arSign(g, arF(c, AR_YARD.rail[0], sd), 0, 0.75, { text: 'END OF\nSIDING', w: 0.8, h: 0.6, col: 'rgba(250,246,236,0.95)', bg: 'rgba(170,40,30,0.95)', edge: 'rgba(250,246,236,0.9)', wear: 50 }); }
+  for (const [sd, c] of [['w', c0], ['e', c1]]) { const F = arF(c, r0 + 2, sd); boards(F, mz - 0.5, 1.4, 1.6, 0.7); arSign(g, arF(c, AR_YARD.rail[0][0], sd), 0, 0.75, { text: 'END OF\nSIDING', w: 0.8, h: 0.6, col: 'rgba(250,246,236,0.95)', bg: 'rgba(170,40,30,0.95)', edge: 'rgba(250,246,236,0.9)', wear: 50 }); }
   // the mast: a lattice pole up off its roof, a colour-light head each way along the sidings, the landmark down the rail spur
   const top = 5.2, base = H + 0.13;
   arPush(parts, box2(0.14, top - base, 0.14, AR_M.sigBk, mx, (base + top) / 2, mz));
@@ -500,7 +498,7 @@ function arBldg(parts, g, R) {
 // the warehouse's steel frame, what's left standing of it over the broken walls: I-section columns up out of the walls
 // at each bay, and the eaves beam along the north and the two ends (none along its south side, on the camera's side from
 // above), knee braces at the columns' heads
-const AR_FRAME = { cols: [3, 9, 15], row: [0, 12], top: 5.4 };
+const AR_FRAME = { cols: [6, 11, 16], row: [0, 12], top: 5.4 };
 function arFrame(parts) {
   const F = AR_FRAME, T = F.top, cs = [...F.cols, ...F.cols.map(c => 41 - c)], x0 = cxw(ARENA.x0), x1 = cxw(ARENA.x1), zN = cxw(ARENA.z0), zS = cxw(ARENA.z0 + F.row[1]);
   // (an I-section: two flanges across the wall's line and the web between them, its faces never in one plane)
@@ -512,6 +510,22 @@ function arFrame(parts) {
   for (const x of [x0]) arPush(parts, box2(0.18, 0.32, zS - zN - 0.3, AR_M.steel, x, T + 0.16, (zN + zS) / 2));
   // (knee braces off the north columns, up under the eaves)
   for (const c of cs) { const x = cxw(ARENA.x0 + c); const b = arPush(parts, box2(0.08, 0.9, 0.08, AR_M.steel, x, T - 0.4, zN + 0.32)); b.rotation.x = -0.75; }
+}
+// the train left on the first siding (AR_YARD.rail[1]: the containers standing on it are its wagons' loads): under each
+// wagon's ends a bogie each side, its two wheels on the rails, and the couplers between, so it reads as a train stopped
+// where it was, not containers on the ground (all within the containers' own cells)
+function arWagons(parts) {
+  const row = AR_YARD.rail[1][0], j0 = ARENA.z0 + Math.floor(row), z = cxw(j0) + 0.5, M = AR_M.contDk;
+  for (let i = ARENA.x0; i <= ARENA.x1; i++) {
+    if (AR_KIND(i, j0) !== 'C' || AR_KIND(i - 1, j0) === 'C') continue;
+    let i1 = i; while (AR_KIND(i1 + 1, j0) === 'C') i1++;
+    const x0 = cxw(i) - 0.5, x1 = cxw(i1) + 0.5;
+    for (const x of [x0 + 0.9, x1 - 0.9]) for (const sg of [-1, 1]) {
+      arPush(parts, box2(1.5, 0.16, 0.06, M, x, 0.42, z + sg * 1.03));
+      for (const dx of [-0.48, 0.48]) { const w = arPush(parts, new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.05, 12), AR_M.pole)); w.rotation.x = Math.PI / 2; w.position.set(x + dx, 0.33, z + sg * 1.04); w.castShadow = true; }
+    }
+    for (const [x, sg] of [[x0, 1], [x1, -1]]) arPush(parts, box2(0.06, 0.2, 0.5, M, x + sg * 0.04, 0.75, z));
+  }
 }
 // a jersey barrier, laid along whichever way its run goes, a band of warning paint along each side of its top and the
 // drainage slots along its foot
@@ -710,11 +724,9 @@ function arSigns(g) {
   [['BAY 1', 3.5], ['BAY 2', 13.5], ['BAY 3', 27.5], ['BAY 4', 37.5]].forEach(([t, c]) => arSign(g, arF(Math.floor(c), 0, 's'), c % 1, 1.05, Object.assign({ text: t, w: 1.7, h: 0.75 }, st)));
   arSign(g, arF(16, 0, 's'), 0.2, 1.3, Object.assign(plate('NO SMOKING\nNO NAKED FLAMES', 'rgba(240,238,232,0.96)', 'rgba(190,40,30,0.95)'), { w: 0.75, h: 0.5, edge: 'rgba(190,40,30,0.9)' }));
   arSign(g, arF(25, 0, 's'), -0.2, 1.3, Object.assign(plate('HIGH LOAD\nKEEP CLEAR', 'rgba(214,180,60,0.96)', 'rgba(25,25,22,0.95)'), { w: 0.75, h: 0.5, edge: 'rgba(25,25,22,0.9)' }));
-  arSign(g, arF(14, 29, 's'), 0, 1.35, Object.assign({ text: 'SIDING 1', w: 2.4, h: 0.6 }, st));
-  arSign(g, arF(27, 29, 's'), 0, 1.35, Object.assign({ text: 'SIDING 2', w: 2.4, h: 0.6 }, st));
-  arSign(g, arF(0, 26, 'e'), 0, 1.0, { text: 'ROT', w: 1.6, h: 0.9, col: 'rgba(160,210,90,0.8)', font: 'italic 900 _px "Archivo", sans-serif', wear: 120 });
-  arSign(g, arF(2, 29, 'n'), 0, 1.2, { text: 'KESSLER 77', w: 2.6, h: 0.7, col: 'rgba(240,240,236,0.72)', font: 'italic 900 _px "Archivo", sans-serif', wear: 140 });
-  arSign(g, arF(39, 12, 's'), 0, 1.25, Object.assign(plate('NO ENTRY\nAUTHORISED\nVEHICLES ONLY', 'rgba(240,238,232,0.96)', 'rgba(190,40,30,0.95)'), { w: 0.7, h: 0.6, edge: 'rgba(190,40,30,0.9)' }));
+  arSign(g, arF(0, 17, 'e'), 0, 1.0, { text: 'ROT', w: 1.6, h: 0.9, col: 'rgba(160,210,90,0.8)', font: 'italic 900 _px "Archivo", sans-serif', wear: 120 });
+  arSign(g, arF(8, 12, 's'), 0, 1.2, { text: 'EVAC  ✗', w: 2.6, h: 0.7, col: 'rgba(200,40,30,0.8)', font: 'italic 900 _px "Archivo", sans-serif', wear: 140 });
+  arSign(g, arF(33, 12, 's'), 0, 1.25, Object.assign(plate('NO ENTRY\nAUTHORISED\nVEHICLES ONLY', 'rgba(240,238,232,0.96)', 'rgba(190,40,30,0.95)'), { w: 0.7, h: 0.6, edge: 'rgba(190,40,30,0.9)' }));
 }
 // ---- outside the walls: the rest of the terminal. On the two sides away from the camera from above (north and west)
 // the tall things, a warehouse with its roller doors and the terminal's name along its front, containers stacked three
@@ -819,7 +831,7 @@ function arWallKit(parts) {
   arPush(parts, box2(0.8, 1.2, 0.22, M.cab, cx, 0.85, zN + 0.11)); arPush(parts, box2(0.06, Y - 1.45, 0.06, M.pipe, cx, (Y + 1.45) / 2, zN + 0.05));
   arPush(parts, box2(0.03, 0.12, 0.04, M.pipe, cx + 0.3, 0.85, zN + 0.24));
   arText(arP, { text: 'DANGER\n415 V', x: cx, y: 1.2, z: zN + 0.22 + AR_SIGN_OFF, w: 0.34, h: 0.26, col: 'rgba(20,20,20,0.95)', bg: 'rgba(222,186,40,0.96)', wear: 10 });
-  arPush(parts, box2(0.12, 0.5, 0.5, M.hose, xW + 0.06, 1.0, cxw(ARENA.z0 + 14)));   // (a hose reel, on the west spawn yard's wall)
+  arPush(parts, box2(0.12, 0.5, 0.5, M.hose, xW + 0.06, 1.0, cxw(ARENA.z0 + 17)));   // (a hose reel, on the wall behind the west spawn)
   // drains in the floor where the pad falls (open cells only), as flat grates
   for (const [i, j] of [[5, 9], [36, 9], [5, 33], [36, 33], [20, 14], [21, 27]]) if (AR_KIND(ARENA.x0 + i, ARENA.z0 + j) === '.') arPush(parts, box2(0.55, 0.02, 0.55, M.drain, cxw(ARENA.x0 + i), 0.022, cxw(ARENA.z0 + j)));
 }
@@ -829,7 +841,7 @@ const AR_OUT = 35, AR_SHIFT = 13;
 // where the floodlights stand: each corner and halfway along each wall (cells, just inside the wall)
 // and four more round the middle, one up on each of the wall stubs at the flag ring's corners (AR_MID_LAMPS: their
 // cells in the plan), so the fight for the flag isn't in the dark between the walls' lights
-const AR_MID_LAMPS = [[17, 17], [24, 17], [17, 24], [24, 24]];
+const AR_MID_LAMPS = [[19, 17], [22, 17], [19, 24], [22, 24]];
 const AR_LAMPS = () => { const mi = Math.round((ARENA.x0 + ARENA.x1) / 2), mj = Math.round((ARENA.z0 + ARENA.z1) / 2); return [[ARENA.x0 + 1, ARENA.z0 + 1], [ARENA.x1 - 1, ARENA.z0 + 1], [ARENA.x0 + 1, ARENA.z1 - 1], [ARENA.x1 - 1, ARENA.z1 - 1], [mi, ARENA.z0 + 1], [mi, ARENA.z1 - 1], [ARENA.x0 + 1, mj], [ARENA.x1 - 1, mj], ...AR_MID_LAMPS.map(([i, j]) => [ARENA.x0 + i, ARENA.z0 + j])]; };
 // a floodlight on its pole at each, its head tipped down into the yard; each one's flare (AR_YARD4.flares, put up with the
 // arena: arenaUp) and its halo's look

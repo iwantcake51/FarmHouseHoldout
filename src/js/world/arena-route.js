@@ -3,24 +3,25 @@
 // forecourt under the pumps' canopy, the highway past it jammed with the pile-up nobody came back for. Its own world,
 // not built over the farm (world/arena.js arenaUp takes the farm out of the scene for it): the services and the
 // highway inside the fence, the highway running on off both ends, fields and woods round it. Fought at the match's
-// own hour. Designed and checked in tools/route-plan.py (reachability, spawn sightlines, lane sightlines, corridors,
-// corner pinches, timings), the west half (Blue's) drawn and mirrored for the east (Red's):
-//  - each spawn a lot at its end of the map, the garage and car wash's west, the motel's car park east (the same
-//    walls, dressed differently), three ways out: north into the side lot and south onto the highway (a stub just
-//    inside each, round its far end, so nothing outside sees in) and a wide gate east onto the forecourt with the
-//    army's truck parked across it
-//  - NORTH, the Travel stop: close quarters. The gutted store, in from the side lot by its side door or round
-//    through the storeroom; gondolas either side of its front doors, the checkout, the walk-in cooler and the
-//    restrooms in the very middle off the back wall, so it's never seen end to end
-//  - MIDDLE, the Forecourt: medium range and the contest. Past the truck, between the pump islands, onto the
-//    checkpoint under the canopy: HESCO at its corners, sandbags round the flag (vaulted)
-//  - SOUTH, the Highway: the long lane, three ways along it, each with its own cover and each broken once so it's never
-//    seen end to end: the westbound's shoulder under the blast walls (the slip road comes out behind the army's HESCO
-//    bunker), the median along its barriers into the two tractors wedged together in the very middle, the eastbound
-//    along the guardrail past the school bus on its side. Each three metres or more across, the median's barriers
-//    vaulted anywhere to cross between them; a slip road through the blast walls each side is the middle's way down
-// No line runs from the north lane into the south; the longest anywhere is about 29 m, from the forecourt down a slip
-// road. Each side comes in between its lot's two stubs, in front of the gate: together, and out of every sightline.
+// own hour. Designed and checked in tools/route-plan.py (tools/plan_check.py: reachability, spawn sightlines, lane
+// sightlines, corner pinches, squeezes, timings), the west half (Blue's) drawn and mirrored for the east (Red's), as one
+// real place rather than rooms with doors: the store a building standing in its lot, the forecourt open, the army's
+// line along the highway only in sections now:
+//  - each spawn the garage's lot (the motel's east: the same walls, dressed differently), its wings either side and
+//    the army's truck and trailer parked across its front; two ways out, round either end of the truck
+//  - NORTH, the Travel stop: close quarters. The gutted store in its lot, in from the side lot by its side door or round
+//    through the storeroom, its front doors onto the forecourt; a gondola inside each half, the checkout, the walk-in
+//    cooler and the restrooms in the very middle off the back wall; the side lot beside it with the car wash and the
+//    cars left in it
+//  - MIDDLE, the Forecourt: medium range and the contest. Past the truck, between the pump islands and the HESCO round
+//    the army's generator, onto the checkpoint under the canopy (HESCO at its corners, sandbags round the flag), its
+//    sentry post in front of the store's doors
+//  - SOUTH, the Highway: the long lane, three ways along it: the westbound's shoulder behind the sentry bunkers, the
+//    median along its barriers into the two tractors wedged together in the very middle, the eastbound past the bus
+//    on its side. The army's line of T-walls along it stands in sections, one knocked flat by the pile-up, so it's
+//    reached from the forecourt in four places
+// Hardly a line runs from the north lane into the south; the longest anywhere are about 31 m, across the forecourt
+// and down onto the highway.
 // The store's a real building again, its roof on: from above it's cut away (its parapet standing round the edge), from
 // your own eyes it's there, as the canopy's deck is (rtFP).
 
@@ -36,43 +37,45 @@ import { GLOW_LAYER } from '../effects/post.js';
 import { arBoxSet } from './arena-boxes.js';
 
 // its plan, a row a line from north to south (tools/route-plan.py prints it): # the perimeter, h block walls (the
-// store's, the cooler's, the spawn lots'), W blast walls (the line along the highway, the checkpoint's corners, the
-// bunker), S the store's gondolas, G a pump island (its pumps and the canopy's column), R the army's truck, U a bus on
-// its side, X a semi's tractor (all those stop sight and rounds); c a wrecked car, b a jersey barrier,
+// store's, the cooler's, the garage's wings either side of each spawn, the car wash), W blast walls (the sections of
+// the line along the highway, HESCO at the checkpoint's corners, the sentry post, the bunkers and round the generator),
+// S the store's gondolas, G a pump island (its pumps and the canopy's column), R the army's truck (and its trailer), U
+// a bus on its side, X a semi's tractor (all those stop sight and rounds); c a wrecked car, b a jersey barrier (on the
+// line along the highway, a T-wall knocked flat),
 // n the checkout counter, s sandbags, k crates or pallets, d a dumpster (seen and shot over; the barriers, counter,
 // sandbags, crates and dumpster vaulted, the cars gone round); A and B each side's spawn, F the spots a
 // free-for-all spawns from
 const RT_PLAN = [
   '##########################################',
-  '#.......h.........hhhhhh.........h.......#',
-  '#.dd.......Fkk....hhhhhh....kkF.......dd.#',
   '#.................hhhhhh.................#',
-  '#.......hhhhhhhh..hhhhhh..hhhhhhhh.......#',
-  '#..F....h.........hhhhhh.........h....F..#',
-  '#...........nn..F.hhhhhh.F..nn...........#',
+  '#.dd.........Fk...hhhhhh...kF.........dd.#',
   '#.................hhhhhh.................#',
-  '#.......h..S...S..........S...S..h.......#',
-  '#.......h..S...S..........S...S..h.......#',
-  '#.......h..S...S..........S...S..h.......#',
-  '#hhh...hhhhh...hhhhhhhhhhhh...hhhhh...hhh#',
-  '#......h..........................h......#',
-  '#......h.F......................F.h......#',
-  '#..hhhhh....GGGG..........GGGG....hhhhh..#',
-  '#.....Ah.........WW....WW.........hB.....#',
-  '#......h..RR.....WWssssWW.....RR..h......#',
-  '#AA....h..RR...F..........F...RR..h....BB#',
-  '#AAA......RR..................RR......BBB#',
-  '#AAAA.....RR.k.....s..s.....k.RR.....BBBB#',
-  '#AAAA.....RR.k.....s..s.....k.RR.....BBBB#',
-  '#AAA......RR..................RR......BBB#',
-  '#AA....h..RR..................RR..h....BB#',
-  '#......h..RR.....WWssssWW.....RR..h......#',
-  '#.....Ah.........WW....WW.........hB.....#',
-  '#..hhhhh....GGGG..........GGGG....hhhhh..#',
-  '#......h.F......................F.h......#',
-  '#......h..........................h......#',
-  '#hhh...hWWWW..WWWWWWWWWWWWWW..WWWWh...hhh#',
-  '#..............WW........WW..............#',
+  '#..F.......hhhhh..hhhhhh..hhhhh.......F..#',
+  '#..........h......hhhhhh......h..........#',
+  '#...hhhh....nn..F.hhhhhh.F..nn....hhhh...#',
+  '#...hhhh.......S..hhhhhh..S.......hhhh...#',
+  '#..........h...S..........S...h..........#',
+  '#cccc......h..................h......cccc#',
+  '#cccc......h..................h......cccc#',
+  '#hhhhhhhh..hh...hhhhhhhhhh...hh..hhhhhhhh#',
+  '#..........F.......WWWW.......F..........#',
+  '#..................WWWW..................#',
+  '#.......RR..GGGG..........GGGG..RR.......#',
+  '#......ARR.......WW....WW.......RRB......#',
+  '#......ARR.......WWssssWW.......RRB......#',
+  '#.....AARR...WWF..........FWW...RRBB.....#',
+  '#.....AARR...WW............WW...RRBB.....#',
+  '#.....AARR........s....s........RRBB.....#',
+  '#....AAARR...k....s....s....k...RRBBB....#',
+  '#...AAAARR...k..............k...RRBBBB...#',
+  '#....AAARR......................RRBBB....#',
+  '#.....AARR.......WWssssWW.......RRBB.....#',
+  '#......ARR.......WW....WW.......RRB......#',
+  '#.......RR..GGGG..........GGGG..RR.......#',
+  '#..........WW................WW..........#',
+  '#..........WW.F............F.WW..........#',
+  '#hhhhhhhhWWWW..bbWWWWWWWWbb..WWWWhhhhhhhh#',
+  '#........................................#',
   '#..F...........WW........WW...........F..#',
   '#.cccc..cccc...WW........WW...cccc..cccc.#',
   '#.cccc..cccc.......XXXX.......cccc..cccc.#',
@@ -98,7 +101,7 @@ const RT_VAULT = new Set(['b', 'n', 'k', 'd', 's']);
 const RT_WHAT = { b: 'barrier', n: 'counter', k: 'crates', d: 'dumpster', s: 'sandbags' };
 // the plan's zones (its own columns and rows): the store's walls, the cooler block in its middle, the canopy over the
 // forecourt (and how high), the highway's carriageways (rows, north edge to south edge, and the median's row)
-const RT_STORE = { i0: 8, i1: 33, j1: 11 }, RT_CORE = { i0: 18, i1: 23, j1: 7 };
+const RT_STORE = { i0: 11, i1: 30, j1: 11 }, RT_CORE = { i0: 18, i1: 23, j1: 7 };
 const RT_CANOPY = { i0: 11, i1: 30, j0: 13, j1: 26, y: 4.7 };
 const RT_ROAD = { j0: 29, j1: 38, med: 34 };
 // its carriageways' edge lines (plan rows, north edge to south edge of each: a metre of shoulder outside each)
@@ -282,7 +285,7 @@ function rtStore(i, j, x, z) {
   if (mi >= RT_CORE.i0 && jj >= 1 && jj <= RT_CORE.j1) { rtCooler(i, j, x, z); return; }
   const front = jj === RT_STORE.j1, back = jj === 0, side = mi === RT_STORE.i0, ext = front || back || side;
   const nx = side && !front && !back ? (ii < RT_W / 2 ? -1 : 1) : 0, nz = front ? 1 : back && !side ? -1 : 0;
-  const recess = side && jj >= 8 && jj <= 10 ? 'propane' : front && mi === 10 ? 'ice' : front && mi === 9 ? 'trash' : null;
+  const recess = side && jj >= 8 && jj <= 10 ? 'propane' : front && mi === 16 ? 'ice' : front && mi === 12 ? 'trash' : null;
   if (recess) {   // (a bay in the wall: its inner half full height, the header over the bay, what stands in it)
     const ox = nx * 0.25, oz = nz * 0.25, hw = nx ? 0.5 : 1, hd = nx ? 1 : 0.5;
     rtStoreBody(x - ox, z - oz, hw, hd, 0, M); rBox(hw, RT_SH - 2.2, hd, M.soot, x + ox, 2.2 + (RT_SH - 2.2) / 2, z + oz);
@@ -311,7 +314,7 @@ function rtStore(i, j, x, z) {
 // the openings in the store's walls, each with its lintel over it at door height (and the parapet over that, on the
 // outside): the front doors, the side door, the storeroom's back door, the way from the storeroom to the shop floor
 // ([column, row, column, row] in the plan, the west half's; the east half's mirrored)
-const RT_LINTELS = [[12, 11, 14, 11, 1], [8, 6, 8, 7, 1], [8, 2, 8, 3, 1], [16, 4, 17, 4, 0]];
+const RT_LINTELS = [[13, 11, 15, 11, 1], [11, 6, 11, 7, 1], [11, 1, 11, 3, 1], [16, 4, 17, 4, 0]];
 function rtLintels() {
   const M = RTM;
   for (const [a0, b0, a1, b1, ext] of RT_LINTELS) for (const s of [0, 1]) {
@@ -340,8 +343,8 @@ function rtStoreRoof(fp) {
   const top = M.roofTop, ceilM = lam(0xffffff, { map: ceil });
   const slab = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.2, z1 - z0), [top, top, top, ceilM, top, top]); slab.position.set((x0 + x1) / 2, RT_SH + 0.1, (z0 + z1) / 2); slab.castShadow = true; slab.receiveShadow = true; fp.add(slab);
   const tube = lam(0xe8ecee), hous = lam(0x9a9c9a);
-  for (const x of [-9.5, -5, 5, 9.5, -1.5, 1.5]) for (const z of [-17.5, -13.5, -10.5]) {
-    if (x === 9.5 && z === -10.5) {   // (one come down at its far end, hanging off the other)
+  for (const x of [-7.5, -4.5, 4.5, 7.5, -1.5, 1.5]) for (const z of [-17.5, -13.5, -10.5]) {
+    if (x === 7.5 && z === -10.5) {   // (one come down at its far end, hanging off the other)
       const h = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.07, 0.3), hous); h.position.set(x - 0.48, RT_SH - 0.38, z); h.rotation.z = -0.62; fp.add(h); continue;
     }
     if (Math.abs(x) < 3 && z < -12) continue;   // (none over the cooler)
@@ -358,7 +361,20 @@ function rtLotWall(i, j, x, z) {
 function rtBlock(i, j, x, z) {
   const ii = i - RT_B[0], jj = j - RT_B[1];
   if (jj <= RT_STORE.j1 && ii >= RT_STORE.i0 && ii <= RT_STORE.i1) rtStore(i, j, x, z);
+  else if (jj < RT_STORE.j1) rtCarWash(i, j);
   else rtLotWall(i, j, x, z);
+}
+// ---- the car wash in each side lot: a block-built bay under a flat roof, its roller door down at each end, the
+// brushes' gantry showing over its parapet, CAR WASH along its side; the soot of the fire licked up one end
+function rtCarWash(i, j) {
+  const M = RTM, R = rRect(i, j, 'h'), E = rExt(R), H = 3.0, west = E.cx < 0;
+  rBox(E.w, 0.3, E.d, M.base, E.cx, 0.15, E.cz); rBox(E.w, H - 0.3, E.d, M.lotW, E.cx, 0.3 + (H - 0.3) / 2, E.cz);
+  rBox(E.w + 0.3, 0.14, E.d + 0.3, M.lotCap, E.cx, H + 0.07, E.cz);
+  for (const s of [-1, 1]) { const fx = s < 0 ? E.x0 : E.x1; rBox(0.05, 2.4, E.d - 0.6, M.garageDk, fx + s * 0.03, 1.2, E.cz); for (let y = 0.3; y < 2.4; y += 0.3) rBox(0.06, 0.03, E.d - 0.62, M.lotWDk, fx + s * 0.04, y, E.cz); }
+  rBox(0.4, 0.5, E.d - 0.4, M.steel, E.cx, H + 0.39, E.cz); rCyl(0.3, 0.3, E.d - 0.8, rtTall(0x2f5f8a), E.cx, H + 0.45, E.cz, 12, Math.PI / 2, 0);
+  rtDecalSign('CAR WASH', Math.min(3.2, E.w - 0.4), 0.5, '#e9e6de', '#2c5a8a', E.cx, 2.4, E.z1 + 0.02, 0);
+  rBox(E.w * 0.4, 1.2, 0.03, M.sootDk, E.cx + (west ? 1 : -1) * E.w * 0.28, 2.2, E.z1 + 0.01);
+  rFootRect(R, E.x0, E.z0, E.x1, E.z1);
 }
 // ---- the blast walls: T-walls in a line (along the highway), HESCO baskets where they stand as blocks (the
 // checkpoint's corners, the sentry posts), two high
@@ -450,6 +466,18 @@ function rtArmyTruck(E) {
   for (const s of [-1, 1]) { rBox(0.3, 0.6, 1.4, M.oliveDk, E.cx + s * (W / 2 - 0.2), 0.55, n + 2.85); rBox(0.3, 0.55, 0.9, M.chassis, E.cx + s * (W / 2 - 0.2), 0.6, E.z1 - 3.4); }   // (between the wheels: a fuel tank, the stowage boxes)
   rFootRect(rRectOf(E), E.cx - W / 2, E.z0 + 0.02, E.cx + W / 2, E.z1 - 0.02);
 }
+// the army's trailer behind its truck: a water bowser on its own two axles, its drawbar to the truck's tow hitch, its
+// tank's walkway and filler, WATER NOT FOR DRINKING stencilled down it
+function rtTrailer(E) {
+  const M = RTM, W = E.w - 0.2, z0 = E.z0 + 0.15, z1 = E.z1 - 0.05, L = z1 - z0;
+  rBox(0.12, 0.12, 0.7, M.chassis, E.cx, 0.75, z0 - 0.05);
+  rBox(W - 0.5, 0.2, L, M.chassis, E.cx, 0.8, (z0 + z1) / 2);
+  for (const z of [z1 - 1.6, z1 - 0.7]) for (const s of [-1, 1]) { rCyl(0.45, 0.45, 0.3, M.tyreT, E.cx + s * (W / 2 - 0.2), 0.45, z, 14, 0, Math.PI / 2); rCyl(0.2, 0.2, 0.32, M.hub, E.cx + s * (W / 2 - 0.2), 0.45, z, 8, 0, Math.PI / 2); }
+  rCyl(W / 2 - 0.05, W / 2 - 0.05, L - 0.3, M.olive, E.cx, 1.75, (z0 + z1) / 2, 18, Math.PI / 2, 0);
+  for (const z of [z0 + 0.15, z1 - 0.15]) rCyl(W / 2, W / 2, 0.12, M.oliveDk, E.cx, 1.75, z, 18, Math.PI / 2, 0);
+  rBox(0.5, 0.05, L - 0.6, M.oliveDk, E.cx, 2.7, (z0 + z1) / 2); rCyl(0.22, 0.22, 0.2, M.oliveDk, E.cx, 2.8, (z0 + z1) / 2, 12);
+  rFootRect(rRectOf(E), E.cx - W / 2, E.z0, E.cx + W / 2, z1);
+}
 // a box van against the highway's fence: its cab west, the box behind, a side guard between its wheels
 function rtVan(E) {
   const M = RTM, D = E.d - 0.1, x0 = E.x0 + 0.03, x1 = E.x1 - 0.03, cab = 1.5, bx1 = x1 - cab - 0.05;
@@ -486,6 +514,10 @@ function rtTractor(E, k) {
 }
 function rtTruck(i, j) {
   const R = rRect(i, j, RT_KIND(i, j)), E = rExt(R), k = RT_KIND(i, j);
+  if (k === 'R' && E.d > 9) {   // (the army's truck with its trailer behind: the truck's 7 m, the rest the trailer)
+    const zc = E.z0 + 7, a = Object.assign({}, E, { z1: zc, d: zc - E.z0, cz: (E.z0 + zc) / 2 }), b = Object.assign({}, E, { z0: zc, d: E.z1 - zc, cz: (zc + E.z1) / 2 });
+    rtArmyTruck(a); rtTrailer(b); return;
+  }
   if (k === 'U') rtBus(E);
   else if (k === 'X') rtTractor(E, E.cx < 0 ? 1 : 0);
   else if (E.d > E.w) rtArmyTruck(E);
@@ -519,6 +551,12 @@ function rtCar(i, j) {
 // ---- the low things: a jersey barrier, sandbags, crates, pallets, the dumpster
 function rtJersey(i, j, x, z) {
   const M = RTM, H = RT_H.b;
+  if (j - RT_B[1] === 28) {   // (a T-wall of the army's line knocked flat by the pile-up: lying on its face, its foot in the air)
+    const s = RT_KIND(i - 1, j) === 'b' ? -1 : 1;
+    rBox(1, 0.62, 0.95, (i % 2) ? M.tw : M.twDk, x, 0.31, z + 0.02); rBox(1, 0.42, 0.42, M.twBase, x, 0.62 + 0.21, z - 0.25);
+    if (s > 0) rBox(0.03, 0.6, 0.9, M.twSeam, x + 0.5, 0.31, z);
+    rFoot(i, j, x - 0.5, z - 0.48, x + 0.5, z + 0.48); return;
+  }
   rBox(1, 0.32, 0.62, M.jersey, x, 0.16, z); rBox(1, H - 0.5, 0.4, M.jersey, x, 0.32 + (H - 0.5) / 2, z); rBox(1, 0.18, 0.22, M.jerseyDk, x, H - 0.09, z);
   if ((i + j) % 2) rBox(0.96, 0.05, 0.23, M.jerseyStripe, x, H - 0.02, z);
   rFoot(i, j, x - 0.5, z - 0.32, x + 0.5, z + 0.32);
@@ -603,7 +641,7 @@ function rtFloorTex() {
     speck(i0, j0, i1, j1, 5000, ['rgba(30,26,22,0.6)', 'rgba(120,112,100,0.5)', 'rgba(160,150,130,0.4)']);
     for (let k = 0; k < 6; k++) blot(i0 + 1 + rnd() * (i1 - i0 - 2), j0 + 1 + rnd() * (j1 - j0 - 2), 0.6 + rnd() * 0.8, 'rgba(58,66,72,0.55)', 0.6); }
   // the side lots: lighter, cracked, weeds along their walls, their bays
-  for (const [i0, i1] of [[1, 8], [RT_W - 8, RT_W - 1]]) {
+  for (const [i0, i1] of [[1, 11], [RT_W - 11, RT_W - 1]]) {
     R(i0, 1, i1, 11, 'rgba(96,96,94,0.35)');
     for (let k = 0; k < 18; k++) { x.strokeStyle = 'rgba(24,24,22,0.45)'; x.lineWidth = 1.4; x.beginPath(); let a = (i0 + rnd() * (i1 - i0)) * S, b = (1 + rnd() * 10) * S; x.moveTo(a, b); for (let q = 0; q < 7; q++) { a += (rnd() - 0.5) * 30; b += (rnd() - 0.5) * 30; x.lineTo(a, b); } x.stroke(); }
     speck(i0, 1, i1, 1.6, 300, ['rgba(80,96,52,0.7)', 'rgba(110,112,60,0.6)']);
@@ -832,7 +870,7 @@ function rtBuild(g) {
 }
 // the map as world/arena.js takes it (AR_MAPS)
 export const ROUTE_MAP = {
-  id: 'route', name: 'Route 9', note: 'A highway services: the store, the forecourt, the pile-up',
+  id: 'route', name: 'Route 9', note: 'A highway services, abandoned: the store in its lot, the checkpoint, the pile-up',
   plan: RT_PLAN, b: RT_B, h: RT_H, low: RT_LOW, vault: RT_VAULT, walls: '#hW', what: RT_WHAT, build: rtBuild, indoor: false, tod: null,
   under: { R: 0.55, X: 0.5 },   // (the army truck's and the tractors' chassis: rounds from your own eyes go under them, world/collision.js)
   // (its lights, only as it gets dark, lighting/lightmap.js: the canopy's cool white, the sodium lamps and floods warm)

@@ -10,15 +10,16 @@
 //    parts just inside each, round its far end, so nothing outside sees in), and wide doors east onto the yard with
 //    the tractor and its hay wagon parked out in front of them
 //  - NORTH, the Barn: close quarters. Stalls along its north wall under the hayloft, hay mows standing in it as
-//    islands, its big sliding doors at each end out of each side's corral and a door each side in its south wall into
+//    islands, its big sliding doors at each end out of each side's corral, its south wall burnt through by its ends
+//    (the fallen boards lying charred in the breach: hfBreach) and a door each side in it into
 //    the yard: the flag's north approaches, a mow just inside each so the yard never sees into it. Its roof's drawn
 //    only from your own eyes (from above you look in through where it'd be, as the cutaway does the farmhouse's)
 //  - MIDDLE, the Farmyard: the contest. Between the grain silos and the wind pumps, the flag between the two troughs
 //  - SOUTH, the Field: the long lane, the rifles'. Bales, a fence line half pulled down and culvert pipes for low
 //    cover, a hay mow out in it each side, the farmhouse's burnt shell in the very middle off the hedgerow and the corn
-//    crib against the south fence, so it's never seen end to end; a gate in the hedgerow each side, behind the wind
-//    pump, is the middle's way south
-// No line runs from the barn into the field; the longest anywhere is about 31 m, corner to corner across the field.
+//    crib against the south fence, so it's never seen end to end; a gap where the hedgerow died back each side nearer
+//    the sheds and a gate in it each side behind the wind pump are the middle's ways south
+// Hardly a line runs from the barn into the field; the longest anywhere is about 31 m, corner to corner across it.
 // What dresses it never changes the fight: on the floor only what's flat or ankle high (gravel, ruts, stubble), the
 // rest on the walls, on roofs, inside what's already solid in the plan, or out past the fences.
 
@@ -52,7 +53,7 @@ const HF_PLAN = [
   '#.......h..YY..........YY..h.......#',
   '#.......h..YY..........YY..h.......#',
   '#.......h..YY..........YY..h.......#',
-  '#mmm...mhhhhh...hhhh...hhhhhm...mmm#',
+  '#mmm...mh..hh...hhhh...hh..hm...mmm#',
   '#kk....m....................m....kk#',
   '#......m.F....OO....OO....F.m......#',
   '#..SSSSm......OO....OO......mSSSS..#',
@@ -67,7 +68,7 @@ const HF_PLAN = [
   '#..SSSSm....................mSSSS..#',
   '#......m.F.....uuuuuu.....F.m......#',
   '#kk....m........uuuu........m....kk#',
-  '#mmm...meeeeee..uuuu..eeeeeem...mmm#',
+  '#mmm...mee..ee..uuuu..ee..eem...mmm#',
   '#......TT.......uuuu.......TT......#',
   '#..F...TT.......uuuu.......TT...F..#',
   '#...............uuuu...............#',
@@ -818,6 +819,20 @@ function hfSigns() {
   for (const s of [-1, 1]) hfSign('MACHINE SHED', 2.4, 0.42, 'rgba(30,30,28,0.85)', '700 90px "Saira Extra Condensed", sans-serif', s * (Math.abs(hfX(7)) - 0.515), 3.12, hfZ(18.5), -s * Math.PI / 2, 'rgba(196,170,96,0.85)');
 }
 
+// where the fire brought the barn's south wall down at each end (the plan's gap in it, by the west and east walls):
+// its boards lying charred where they fell, flat on the ground (nothing to trip on or hide behind), and the stumps of
+// its studs along the sill
+function hfBreach() {
+  const jj = 11, j = HF_B[1] + jj;
+  for (let ii = 1; ii < HF_E; ii++) {
+    const i = HF_B[0] + ii; if (HF_KIND(i, j) !== '.' || HF_KIND(i - 1, j) === 'm' || HF_KIND(i + 1, j) === 'm') continue;
+    const inBarn = [-1, 1].some(d => { for (let k = 1; k < 4; k++) { const c = HF_KIND(i + d * k, j); if (c === 'h') return true; if (c !== '.') return false; } return false; });
+    if (!inBarn || [-1, 1].every(d => HF_KIND(i + d, j) !== 'h' && HF_KIND(i + 2 * d, j) !== 'h')) continue;
+    const x = hfX(ii), z = hfZ(jj);
+    for (let k = 0; k < 4; k++) { const b = hfBox(rr(0.9, 1.6), 0.03, 0.16, k % 2 ? HF_M.char : HF_M.barnDk, x + rr(-0.3, 0.3), 0.02 + k * 0.012, z + rr(-0.45, 0.45)); b.rotation.y = rr(-0.9, 0.9); }
+    for (const dx of [-0.3, 0.3]) hfBox(0.1, rr(0.12, 0.3), 0.1, HF_M.char, x + dx, 0.1, z);
+  }
+}
 // the whole map, into its group (g): its pieces (to be folded into a few meshes) back
 function hfBuild(g) {
   hP = g; hParts = []; FARM_MAP.flares.length = 0; FARM_MAP.shelfItems.length = 0;
@@ -846,7 +861,7 @@ function hfBuild(g) {
     else if (k === 'k') { if (hfFirst(i, j, k)) hfBench(i, j); }
     else if (k === 'w') hfWoodpile(x, z);
   }
-  hfDoors(); hfMeshFences(); hfCrops(); hfLamps(g); hfOutside(g); hfSigns(); hfOverhead(g);
+  hfDoors(); hfMeshFences(); hfCrops(); hfLamps(g); hfOutside(g); hfSigns(); hfOverhead(g); hfBreach();
   { const bx = arBoxSet('farm', g); FARM_MAP.shelfItems.forEach(m => bx.addMesh(m)); bx.done(); }   // (what's on the racks and benches, to be shot off: world/arena-boxes.js)
   const parts = hParts; hP = hParts = null; return parts;
 }

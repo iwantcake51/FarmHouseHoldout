@@ -224,7 +224,7 @@ a burst visibly runs the belt in. Once fewer rounds are left than the belt shows
 hangs off the tray, shorter with every shot. In a reload the cover's opened as the old box comes off (the belt let go),
 the fresh box comes up with its end lying loose in it, and once the box is on the end's laid over the lip onto the tray
 and drawn into the port. A teammate sees each round where yours are. At the workbench you can add sights, lasers,
-suppressors, stocks, grips and underbarrel grenades (a laser's beam is a fine line of light from its lens to its dot, the same width on screen however you look along it, never a flat strip), and change calibres with conversion kits such as AK mags for the
+suppressors (on every gun but the double barrel and the revolver: the revolver's barrel upgrade is its longer barrel, 4", 6" then 8", in the workbench and in the arena's loadouts alike, and it never takes a can), stocks, grips and underbarrel grenades (a laser's beam is a fine line of light from its lens to its dot, the same width on screen however you look along it, never a flat strip), and change calibres with conversion kits such as AK mags for the
 battle rifle (rocked in front lug first, the AK way) or 10mm for the SMG. The double barrel's sawn-off kit cuts it to a coach gun: more pellets in a wider spread, each hitting 30% harder up close, but its short barrels drop it off hard (full damage only to 2.5 m, down to a fifth of it by 7 m, where the full-length gun holds to 4 m and keeps half past 11). Down the sights it's quicker on its feet than the full-length gun too (76% of your pace against 66%). Every slug, out of any shotgun, holds its damage far further than shot but still tails off: full damage to 10 m, easing down to 60% by 26 m and never below that. Out of the sawn-off a slug drops off hard instead, as its buckshot does: full damage to 3 m and down to a fifth by 8 m. The double barrel itself was too strong early on: it's now eight pellets of 16 a barrel (from nine of 19: 256 for both barrels, from 342), its second barrel follows a touch slower (0.12 s) and each shell takes 0.5 s to load (from 0.42); still the biggest burst up close, not by so much. You can also load special rounds (hollow points, slugs, flechettes and more) and
 tune damage, fire rate, recoil and magazine size. The hand cannon's mags, the first extension and the longest alike,
 are straight sticks, no curve at all, carrying on down out of the grip's foot as one piece with it: flush with the
@@ -1216,17 +1216,21 @@ three-lane workflow and checked by tools/mall-plan.py (every cell reachable, 18 
 sees into, no spawn sees the other, no corridors one cell wide, no corner slits, nothing from the north lane sees the
 south lane, the longest sightlines three diagonals of about 25 m, 3.7 s at a sprint from spawn to the flag through the
 middle and about 5.5 s by either side lane):
-- each side spawns in an **anchor store** (red carpet west, blue east) with three ways out: north into back of house and
+- each side spawns in an **anchor store** (red carpet west, blue east) with three ways out: north into the supermarket and
   south into the food court (a shelf just inside each, round its far end, so nothing outside sees in) and a wide
   entrance east onto the concourse with a display kiosk out in front of it.
-- **North, Back of house**: close quarters. The stockroom behind the shops, shelving islands and pallets of stock, the
-  lift core in the middle, a service door into the concourse.
+- **North, the Supermarket**: close quarters. It was back of house, a stockroom corridor behind the shops; now it's the
+  mall's grocery store along its north side, a place you're in rather than a corridor between rooms: its aisles of
+  shelving and pallets of stock, pale vinyl squares underfoot, entrance mats inside its doors, the lift core in its
+  middle, its shutter forced up onto the concourse and its exit doors beside it (two ways in each side now, a pillar
+  out in front of the lift core so nothing through the doors sees down into the food court; the checks still pass:
+  nothing in the north lane sees the south, the longest lines about 25 m).
 - **Middle, the Concourse**: the contest. Shopfronts with lit sign bands, pillars, planters, the fountain court with
   the flag between its two pools.
 - **South, the Food court**: medium range. Tables with stools and the food counters for low cover, the stalls along the
   south wall, a seating island in the middle so it's never seen end to end, open to the concourse either side of it.
 - Tiled floor: metre tiles on the concourse with a dark diamond set at their corners, a checkerboard of granite
-  squares in the food court, a fine twill carpet in the stores, bare concrete back of house. A car park outside with
+  squares in the food court, a fine twill carpet in the stores, vinyl squares in the supermarket. A car park outside with
   the cars left in it. From
   above the south and east walls are drawn cut down to waist height so nothing near them is hidden; from your own eyes
   they're full height, with the ceiling over you. You vault the pallets, counters, tables, planters and pools.
@@ -1249,7 +1253,7 @@ middle and about 5.5 s by either side lane):
   and names, slatwall hung with clothes along their outer walls; lit displays on the kiosks, a directory board (the
   plan, you are here) and a bin on every pillar, bench boards round the planters; in the food court the stalls' menu
   boards, tills and tray stacks on the counters, trays left on tables, banquettes and the Food court sign along the
-  seating island and a tray return at its end; back of house the lift doors, fire extinguishers, an electrical board
+  seating island and a tray return at its end; in the supermarket the lift doors, fire extinguishers, an electrical board
   and safety posters. From your own eyes, overhead: a tiled ceiling, bulkheads down to the shop walls and a header
   over every opening (exit signs over them), sprinklers, vents, cameras and banners. Nothing on a wall stands out
   more than a quarter metre, every sign and picture sits clear of the face it's on (no z-fighting) and its words
@@ -1260,8 +1264,8 @@ people fenced and boarded up against the dead with whatever they had (sheet tin,
 then left. It's fought at the match's time of day; its yard lights (on the barn, the sheds, the wind pumps and poles in
 the hedgerow) come on at dusk. 36 by 38 m, designed with the same three-lane workflow and checked by
 tools/farm-plan.py (every cell reachable, 16 spawn spots a side that nothing outside sees into, no spawn sees the
-other, no corridors one cell wide, no corner slits, nothing in the barn sees into the field, 3.7 s at a sprint from
-spawn to the flag through the yard, about 7 s by either side lane, nothing seen further than 25 m). It used to be 42
+other, no corridors one cell wide, no corner slits, hardly anything in the barn sees into the field, 3.7 s at a sprint
+from spawn to the flag through the yard, about 6.2 to 6.7 s by either side lane, nothing seen much further than 26 m). It used to be 42
 m wide; the script still draws it at that width and leaves three columns of each half out, so the two sheds stand 6 m
 closer together. The barn is the closest fighting of the three, the field the longest (the rifles' lane), the yard in
 between:
@@ -1276,7 +1280,9 @@ between:
   it (from above you look in through where the roof would be). Hay mows stand in it as islands, a big one in the
   middle so it's never seen end to end; its big sliding doors at each end, hung on their track, open onto each side's
   corral (post-and-rail with woven wire, a hen house in it), and a door each side in its south wall, its leaf slid back,
-  opens into the yard, a mow just inside so the yard never sees in.
+  opens into the yard, a mow just inside so the yard never sees in. **Its south wall is burnt through** near each end
+  now: a breach two metres wide into the yard, the fallen boards lying charred in it (flat: nothing to trip on) and the
+  stumps of its studs along the sill, so the barn's a building with its wall down, not a room with one door.
 - **Middle, the Farmyard**: the contest. A gravel drive with its tyre ruts from the sheds' doors round the tractors,
   up to the barn doors and down past the wind pumps to the hedge gates; a grain silo in front of each barn door, the
   flag between two stock troughs (a cast-iron hand pump at the north one, the ground churned to mud round them), a
@@ -1285,7 +1291,8 @@ between:
   hide behind or trip on), low cover (big bales, a rail fence half pulled down with its rails lying in the stubble,
   culvert pipes by the dry irrigation ditch), a hay mow standing out in it each side, the farmhouse's burnt shell in the
   middle (its chimneys standing, its windows boarded, its porch boarded up) and the corn crib against the south fence;
-  a gate in the hedgerow each side, hung back on its hinges, is the yard's way down into it.
+  a gate in the hedgerow each side, hung back on its hinges, and **a gap where the hedge died back** each side nearer
+  the sheds are the yard's ways down into it (the hedgerow's a hedge with its gaps now, not a wall across the map).
 - Underfoot: packed dirt and grit over the yard and the drive, turned clods in the field and the corrals' mud, old
   straw on the barn's floor, poured concrete in the sheds.
 - Its edge: the barn's and the sheds' own outer walls, post-and-rail round the corrals with pallets, sheet tin and a car
@@ -1301,41 +1308,58 @@ between:
   and benches is its own mesh, listed on FARM_MAP.shelfItems, ready to be made shootable. You vault the bales, the fence,
   the troughs, the pipes, the woodpiles and the workbenches.
 
-**Two small maps for 1v1 and 2v2** (world/arena-small.js, laid out and checked in tools/small-plan.py): each 30 by
-22 m inside its edge, a third the size of the others, so two or four players find each other in seconds (spawn to the
-flag about 3.3 s at a sprint through the middle, 4 to 4.5 s round either edge, nothing seen further than about 25 m).
-Each is one real place, an open space with what really stands in it to fight round rather than rooms joined by doors:
-its edges are the buildings or the water round it, its corners the buildings on them. Still three ways across: along
-the north edge, through the open middle past its landmark, and along the south edge, each a different range and kind
-of cover, each edge broken in its middle so it's never seen end to end. Each spawn is the road coming in at its end,
-behind a vehicle parked across it, with two ways out round its ends; nothing outside sees in. Drawn west half
-(Blue's) and mirrored for the east (Red's), each half dressed as its own side of the place.
-- **Hawthorne Square**: a market town's square on a Saturday morning, the market half set up. North, the High
-  Street's pavement under the shops (their awnings out, the bakery, the café with its tables on the pavement, the
-  chemist, the post office), the red phone box on the corner, a dairy's delivery van at the kerb and the newspaper
-  kiosk in the middle. The square itself round the war memorial on its steps (the names of the town's dead on it,
-  the wreaths leant against it), lime trees, a bench and planters, a market stall beside each bus. South, the
-  churchyard behind its low stone wall (gravestones, the yew at the gate) on the west, the Hawthorne Arms' beer garden
-  behind its brick wall (picnic tables under parasols, a chestnut) on the east, the old pump house between them. A
-  single-decker in the county's red and cream at the stop at each end, the road closed off for the market behind
-  it. Beyond: the church's tower and spire over the shops' roofs (seen from anywhere in the square), the backs of the
-  High Street, the roads on out of town.
-- **Saltmarsh Quay**: a fishing harbour's quay at the end of the day, the boats in. North, the back lane behind
-  the harbour buildings (the fish merchants', the chandlery, the net loft: corrugated sheds and painted fronts),
-  stacks of fish boxes and the harbourmaster's pickup along it, the harbour office's porch in the middle. The quay
-  apron under the fish market's open hall on its four posts (its roof overhead from your own eyes, its lights under
-  it), the gutting benches, the scales, fish boxes stacked higher than you, each stack one merchant's colour. South,
-  the quayside along the water: bollards with their ropes, lobster pots, pallets of net floats, the crane at the
-  edge in the middle; the ice house on each north corner and the boat shed on each south. A boat hauled out on its
-  trailer across the quay road at each end. Beyond: the harbour water, boats moored off the quay, the breakwater and
-  its light, the town's terraces climbing the hill behind.
+**Two small maps, fair for every mode** (world/arena-small.js, laid out and checked in tools/small-plan.py): each 32 by
+26 m inside its edge, smaller than every other map (the Mall is 36 by 30, Yard 4 42 by 42), and fair for all of them:
+Showdown from 1v1 to 3v3, Team deathmatch 3v3 and the six-player Deathmatch (12 to 17 spawn spots a side that nothing
+on the map sees, 6 to 9 of them 1.4 m apart so a side of three starts together; 24 deathmatch spots round all three
+lanes, most out of sight of each other). Spawn to the flag about 3.7 to 3.9 s at a sprint through the middle and 4.5
+to 5 s round either edge; hardly anything seen further than 26 m, no corner slits, the north edge hardly sees the
+south, and **every way through is at least three metres wide** (the checker now reports any doorway or gap between two
+solid things two metres wide or less, and there are none). They used to be a market day and an evening on the quay; now they're **the world the game's set in**:
+each was an evacuation point the dead overran, and what you fight round is what was left when they did. Each is one
+real place, an open space with its edges the buildings or the water round it, still three ways across (north edge,
+the middle past its landmark, south edge), each spawn the road coming in at its end behind a vehicle parked across it.
+- **Hawthorne Square**: the town's evacuation point. North, the High Street's shops boarded up and sprayed over (EVAC
+  POINT →, GONE TO KESTON, NO FOOD, DONT GO IN), their awnings torn, the café's tables knocked over, a burned-out car at
+  the kerb, the army's generator humming in its box (its cables run across the setts to the tents), the newspaper kiosk
+  boarded with its last headline (STAY INDOORS, ARMY TO EVACUATE TOWN CENTRES). The army's checkpoint round the war
+  memorial: sandbags along its foot, the photos and notes of the missing taped round it, the wreaths gone brown, a
+  triage tent each side of the flag (olive canvas, red crosses), a red cross painted on a white disc round the flag for
+  the helicopters, crates of rations stacked under cargo nets, dead lime trees, HESCO either side of the south way in.
+  South, the churchyard's fresh graves under wooden crosses behind its low wall, its stone cross and yew, the
+  Hawthorne Arms' beer garden barricaded with its own tables, the old pump house between them (WATER ✓). The last
+  coach at each end (EVACUATION on its board, its door open, luggage still on its rack: rounds go under it), the road
+  closed beyond by the army's barricade (concrete blocks, razor wire, EVACUATION POINT · CLOSED) with the queue of cars
+  left in it. The church tower over the shops with HELP hung from it, dead trees round the town. Blood dried on the
+  setts, leaflets everywhere.
+- **Saltmarsh Quay**: the harbour the last boats left from. North, the back lane behind the harbour buildings
+  (shuttered, sprayed: LAST BOAT 6AM, NO FERRY, THEY CAME FROM THE SEA), a car left in the ferry queue with a case on
+  its roof, luggage dropped in heaps, the harbourmaster's pickup, the harbour office's porch boarded with the FERRY
+  SUSPENDED notice by its door. The fish market's hall turned into a **field hospital**: an ambulance across its north
+  end, the medical supplies stacked on pallets under blue tarps each side of the flag, stretchers on trestles under
+  blankets, its bays taped out and numbered on the wet slab, a red cross where the flag stands, its roof overhead
+  from your own eyes. South, the **lifeboat dragged out and left on its side** across the hospital's south end,
+  pallets of net floats, lobster pots, bollards, the crane at the quay's edge, fish boxes stacked high. A fish lorry
+  abandoned across the quay road at each end (PELLOW & SONS · FRESH FISH, HELP sprayed on its other side, its back
+  doors open), the ice house (BODIES) on each north corner and the boat shed burned out to its rafters on each south;
+  beyond, a boat sunk at its mooring, the breakwater's light, the town's terraces on the hill, some windows boarded.
 
 What stands south and east of each (between it and the camera from above) is kept low, and what's north and west
 can be tall, so nothing hides the play from above. Both are in the lobby's map picker with their own pictures.
 
+**Room to move: no squeezes.** Every map's plan is now checked for doorways and gaps between two solid things two
+metres wide or less (tools/plan_check.py: "ways two metres wide or less"), and the ways you're meant to use are three
+metres or more: on the small maps there are none left at all; on Yard 4 the spawn exits, the courtyard round its
+container, the warehouse's middle gap and the rail spur's gaps are all three metres or more; on Route 9 the store's
+back door and front doors and the ways round the car wash are. A few two-metre gaps are kept on purpose where
+widening them let the far side see straight into a spawn or opened a line of 35-40 m across the map: the slots beside
+the ends of each spawn's long container or truck (the spawn's own exits beside them are three metres), the weighbridge
+booths' gates north and south of Yard 4's flag (the flag is open six metres wide east and west), and the dog-leg just
+inside each shed's and anchor store's side doors on Harlan Farm and the Mall, which is what keeps those spawns safe.
+
 **Shoot under, and past thin things.** On every map, what has an underside lets a round from your own eyes through
-under it (world/collision.js obstUnder; each map lists its own): the buses, the delivery van, the pickup and the boats'
-trailers on the small maps, Route 9's army truck and tractors, Harlan Farm's tractors. A round fired low enough (under
+under it (world/collision.js obstUnder; each map lists its own): the coach, the fish lorries, the pickup and the
+ambulance on the small maps, Route 9's army truck and tractors, Harlan Farm's tractors. A round fired low enough (under
 the chassis, about 0.4 to 0.55 m up) goes on under; one at body height still stops on it. And what's thin stops only
 where it really stands: the fish market's posts and a tree's trunk on the small maps stop a round or a look only at
 the post or the trunk, not across the whole metre round it.
@@ -1348,34 +1372,41 @@ the evacuation. The travel stop's store gutted by fire under its roof, the army'
 forecourt under the pumps' canopy, the highway past it jammed with the pile-up nobody came back for. It's fought at the
 match's time of day; the canopy's downlights, the sodium lamps on the walls and fence poles and the checkpoint's floods
 come on at dusk, and the work lamps on the store's walls run on the army's generator day and night. 42 by 40 m,
-designed with the same three-lane workflow and checked by tools/route-plan.py (every cell reachable, 20 spawn spots a
-side that nothing outside sees into, no spawn sees the other, no corridors one cell wide, no corner slits, nothing in
-the store sees onto the highway, no line over 29 m anywhere, 4.5 s at a sprint from spawn to the flag across the
-forecourt, about 7.3-7.7 s by either side lane):
-- each side spawns in a **lot at its end**, the garage and car wash's west, the motel's car park east (the same walls,
-  dressed differently): its team together in the middle of the lot between its two wall stubs, out of every sightline
-  (each round a random spot there, teammates next to each other: world/arena.js). Three ways out: north into the side
-  lot and south onto the highway (round a wall stub just inside each, so nothing outside sees in) and a wide gate east
-  onto the forecourt with the army's truck parked across it.
+designed with the same three-lane workflow and checked by tools/route-plan.py (tools/plan_check.py: every cell
+reachable, 21 spawn spots a side that nothing out on the map sees into, no spawn sees the other, no corridors one cell
+wide, no corner slits, hardly a line from the store onto the highway, the longest about 31 m across the forecourt and
+down onto the highway, 4.7 s at a sprint from spawn to the flag across the forecourt, about 6.6 s round through the
+side lot):
+- **Opened up: a real services stop, not rooms joined by doors.** It used to be three walled bands: the store's front
+  wall ran the whole width of the map, the army's T-walls the whole width along the highway, and each spawn was a
+  walled lot with gaps in it. Now the store is a building standing in its lot (20 m of frontage, the side lot open
+  beside it with the **car wash** in it, a block-built bay under a flat roof with its roller doors down and its
+  brushes' gantry over the parapet, and cars left in it), and the army's line along the highway stands **in
+  sections**, one of them **knocked flat by the pile-up** (lying on its face, its foot in the air: you vault it), so
+  the highway's reached from the forecourt in four places.
+- each side spawns in the **garage's lot** at its end (the motel's car park east: the same walls, dressed
+  differently): the garage's wings either side and the **army's truck and its trailer** (a water bowser on its own two
+  axles behind the truck) parked across its front, two ways out round the truck's ends; its team together in the lot,
+  out of every sightline (each round a random spot there, teammates next to each other: world/arena.js).
 - **North, the Travel stop**: close quarters. A real store: painted block walls up to its flat roof, a parapet round
   it with ROUTE 9 MART along the front, lintels over its doors, its windows boarded over, the ice chest and the bin in a
   bay of the front wall and the propane cage in one in the side wall. In from the side lot by its side door or round
-  through the storeroom; gondolas either side of its front doors, the checkout, the walk-in cooler and restrooms in the
-  very middle so it's never seen end to end. From your own eyes its roof is on (stained ceiling tiles, dead strip
-  lights, one come down); from above it's cut away so you see in. Its front doors open onto the forecourt behind a
-  pump island. The boxes left on the gondolas can be shot off (a puff of dust and cardboard; they're back next round,
-  or after 25 s in a deathmatch).
-- **Middle, the Forecourt**: the contest. Past the truck, between the pump islands, onto the checkpoint under the
-  canopy ("EVAC POINT 9" painted round it): HESCO at its corners, sandbags round the flag (vaulted). The canopy's deck,
+  through the storeroom (its back door and its front doors three metres wide now); a gondola in each half, the checkout, the walk-in cooler and restrooms in the very middle so
+  it's never seen end to end. From your own eyes its roof is on (stained ceiling tiles, dead strip lights, one come
+  down); from above it's cut away so you see in. Its front doors open onto the forecourt behind a pump island, the
+  army's sentry post (HESCO) out in front of them. The boxes left on the gondolas can be shot off (a puff of dust and
+  cardboard; they're back next round, or after 25 s in a deathmatch).
+- **Middle, the Forecourt**: the contest. Past the truck, between the pump islands and the HESCO round the army's
+  generator, onto the checkpoint under the canopy ("EVAC POINT 9" painted round it): HESCO at its corners, sandbags round the flag (vaulted). The canopy's deck,
   beams and downlights are there from your own eyes; from above it's only its edge and its columns.
 - **South, the Highway**: the long lane, reworked into three real ways along it, each at least three metres across,
   each with its own cover and each broken once, staggered so none of them is the only way and nothing sees the
-  highway end to end (its longest lines about 28 m, corner to corner): the westbound's shoulder under the blast walls
-  (each slip road comes out behind the army's HESCO bunker), the median along its jersey barriers (vaulted, so you can
+  highway end to end: the westbound's shoulder under the T-walls (each gap in them comes out behind the army's HESCO
+  bunker), the median along its jersey barriers (vaulted, so you can
   cross between the carriageways anywhere) into the two semis' tractors wedged together in the very middle, and the
   eastbound along the guardrail past a school bus on its side, EVACUATION painted on it. Lane lines, a metre of
   shoulder with rumble strips each side, manholes, skid marks and scorch round the wrecks.
-- Underfoot: coarse asphalt over the highway, the lots and the car park (the same out along the highway past the
+- Underfoot: coarse asphalt over the highway, the side lots and the car park (the same out along the highway past the
   fence), poured concrete under the canopy, along the store's front and in the garage's lot, half-metre speckled
   tiles in the store under the soot.
 - Outside: the highway running on off both ends with its guardrails (the army's container roadblock across it west
@@ -1397,57 +1428,36 @@ each lane its own kind of fight, laid out as open floors broken up by islands of
 checked by a script (tools/arena-plan.py) for reachability, spawn safety, sightlines, timings and one-cell-wide spots:
 
 - **The size.** 40 by 40 metres inside the walls, almost the whole of the farm's ground.
-- **Each spawn** is a walled yard at its end with three wide exits: north into the warehouse and south onto the rail
-  spur (each three metres wide, with a wall stub two metres in from it and a two-metre way round its open end: it used
-  to be a one-metre squeeze between the stub and the wall), and east through a four-metre gate. **Nothing stands in the yard**: no container, no crates,
-  just the painted pad. What keeps eyes out is the architecture: the stubs inside the side exits, and a container
-  out in the courtyard two metres off the gate and twice as long as it is wide. **Where you start** is worked out by
-  the plan script: every open spot in the yard that no spot outside it can see (20 of them a side, over the back half
-  of the yard). So the spawns are safe by the walls alone, never by a prop parked in the spawn. Everyone in a team mode
-  starts on those spots, never off in a corner by a stub wall. In Showdown a side starts somewhere different in its
-  yard each round (drawn by the round, the same on every screen) but together: one spot drawn anywhere in the yard and
-  each teammate on the next nearest free spot to it, a little shuffled and at least 1.4 m apart, so the team stands a
-  few metres across, never spread to the yard's far corners. **No spot outside a spawn can see a spawn spot, and no spot in one spawn can see any spot in
-  the other.**
-- **The plaza door** (the flag's north approach) is three metres wide.
-- **North, the Warehouse floor: close quarters** (most sightlines 14 m or under). One big roofless hall, no rooms:
-  container stacks, wall stubs, two crate stacks of stock and a barrier across its middle, so nothing sees far, a loading bay painted inside the door
-  into the plaza (the flag's north approach).
-- **Middle, the Plaza: medium range and the contest.** Out of each spawn's gate into a courtyard between container
-  stacks, onto the open plaza and the flag in its sandbag ring, wall stubs at the ring's corners. The quickest way to
-  the flag (about 5 seconds at a sprint from the spawn; the outer lanes about 8 to 9). The way in is wide, not a
-  corridor: out of the gate onto the courtyard, round either end of the container standing out in it, two metres of
-  room all the way round. **Less clutter.** The middle was a field of props (three parallel strips of sandbags, a drum
-  on every corner): now it's the containers framing it, the wall stubs at the ring's corners and the flag's own
-  sandbag ring. **Room outside the yard.** The pocket just outside each yard's side wall, between the lane wall, the
-  yard and the courtyard, used to be a two-metre strip hemmed in by a three-wide container stack, with a jersey
-  barrier against the wall doing nothing: the barriers are gone and each stack is two wide, a cell further out, so
-  it's an open square with room to turn, not a corridor. The stack meets the courtyard's container along a whole
-  edge, as one L-shaped wall of them, never corner to corner.
-- **No hairline gaps.** Two tall things never touch at a corner alone, which left a slit of sky between them you could
-  see and shoot through (the plan script checks for it: tools/arena-plan.py, corner pinches), and every container is
-  built the full width of its cells (it used to be 3 cm narrower each side), so two stood side by side, or one against
-  a wall, meet with no seam. Each lane keeps its own few props rather than the
-  same ones everywhere: crates and a barrier in the warehouse, the platform's barriers, sandbags, a spool and one drum
-  on the rail spur.
-- **Containers are whole containers.** Each is built as a true box of cells (up to 12 long), so a stack never comes
-  out as an odd thin slab where two rows met.
-- **South, the Rail spur: long range** (most sightlines 16 to 23 m, at most about 28), the one place for a rifle: two
-  rail sidings sunk in the concrete along it, sleepers and all, each ending at a yellow buffer stop by the signal hut
-  in the very middle, the platform's edge of barriers beside them, sandbags, a cable spool, a drum and a container stack part way
-  along. A gap at the west end of the container wall, by the courtyard, is the middle's way south. **More room
-  along it.** The container wall between it and the plaza is one container deep now, not two, so the walk along its
-  south side is a two-metre strip rather than the one-metre alley it was between the wall and the stacks; a
-  container stood out from the wall in the very middle (four wide with its mirror) keeps anyone seeing the length of
-  the lane along it, and the stacks part way along reach a metre further south to cut the long diagonals.
-- **Where the rest of the map stays as it is.** Opening up the warehouse (shorter stubs, a smaller stack), thinning the
-  wall stubs at the flag ring's corners, or moving the stubs inside the spawn yards' side exits all looked better on
-  paper but each one opened a sightline of 30 m or more across a lane, let the warehouse see far more of the plaza,
-  or cut the yard's safe spawn spots from 20 to 12, so those keep their size: the warehouse is the close-quarters
-  lane on purpose, and the plaza's corner walls are what keep the north lane out of the middle.
-- **The lanes stay apart.** No spot in the north lane sees any in the south. Rotating between the outer lanes goes
-  back through your spawn (safe, slow) or across the plaza (quick, exposed).
-- **No sniper lines down the edges.** The longest straight run along any wall is 18 m (the rail's south wall).
+- **Opened up: one yard, not rooms joined by doors.** Yard 4 used to be three walled bands (a warehouse hall, a plaza
+  courtyard, the rail spur behind a wall of containers) with walled spawn yards at each end, each joined to the next
+  through a doorway. Now it's one open freight yard, the lanes made by what stands in it: the burned warehouse's south
+  wall broken into three pieces with wide gaps between them, container stacks standing free, and on the rail spur a
+  **train of container wagons left on the first siding** (bogies and couplers under each, the gaps between the wagons
+  the ways down from the middle). Drawn again with the level-design workflow and checked by tools/arena-plan.py
+  (tools/plan_check.py, shared by every map now): 17 spawn spots a side that nothing out on the map sees (10 of
+  them 1.4 m apart), no spawn
+  sees the other, no corner slits, no one-cell squeezes, hardly a line from the north lane into the south (two
+  pairs), the longest anywhere about 31 m (corner to corner across the warehouse floor). Spawn to the flag is about
+  5.5 s at a sprint through the middle and about 7 s by either side lane (it was 4.9 s and 7.6 to 9.2 s: the lanes
+  are evener now).
+- **Each spawn** is the marshalling area behind its gate: a container stack north and south of it and a long one out
+  in front, two ways out round that one's ends, each three metres wide (each leading out past a piece of the warehouse wall or a wagon, so
+  nothing far off watches the way in). Everyone in a team mode starts on those spots; in Showdown a side starts
+  together somewhere different in it each round (world/arena.js yardSpots).
+- **North, the Warehouse floor: close quarters.** What's left of the burned warehouse: its roof gone, its south wall
+  standing in three pieces with its steel frame over them, the yard office against its north wall, containers and a
+  transformer left standing on its slab, crates and a barrier. A hatched loading bay is painted inside each gap
+  either side of the middle piece (the flag's north approaches).
+- **Middle, the Weighbridge: medium range and the contest.** A container stood up in the courtyard each side (three
+  metres clear either side of it), the stacks round it, the flag on the weighbridge between its booths and their
+  sandbags, open east and west six metres wide.
+- **South, the Rail spur: the long lane.** The train along its north side, the signal box in the very middle, container
+  stacks part way along each side and in each corner, the second siding along the platform's barriers, sandbags, a
+  cable spool, drums.
+- **No hairline gaps.** Two tall things never touch at a corner alone, which would leave a slit of sky between them
+  you could see and shoot through (the plan script checks for it), and every container is built the full width of its
+  cells, so two stood side by side, or one against a wall, meet with no seam. Each is built as a true box of cells (up
+  to 12 long), so a stack never comes out as an odd thin slab where two rows met.
 - **Cover everywhere.** Containers and block walls stop you, your rounds and your sight. Jersey barriers, sandbag
   walls, crate stacks, drums and spools only stop you: you see and shoot over them, and they come up to about your
   chest. The block walls stand 2.1 m (they used to be 2.7: over everyone's head still, but you see the sky and the
@@ -1474,21 +1484,19 @@ checked by a script (tools/arena-plan.py) for reachability, spawn safety, sightl
   stronger as it gets dark, gone when anything stands in front of the lamp).
 - **The walls** are 2 m precast panels on the north and west, waist high on the south and east (the camera's sides
   from above), chain-link over all of them to 2.7 m, so the yard never feels walled in.
-- **A real place, not a test map.** The layout is exactly what it was (the plan, the cover, the sightlines and the
-  spawns are untouched, and tools/arena-plan.py passes as before); what changed is what each piece *is*, so the yard
-  reads as a working freight terminal that's been through something:
-  - **The warehouse burned out.** The north lane is its slab: its block walls broken off just over head height,
-    rubble and rebar along their tops, and its steel frame still standing over them (I-section columns at every bay,
+- **A real place, not a test map.** What each piece *is*, so the yard reads as a working freight terminal that's been
+  through something:
+  - **The warehouse burned out.** The north lane is its slab: what's left of its block walls broken off just over head
+    height, rubble and rebar along their tops, and its steel frame still standing over them (I-section columns at every bay,
     the eaves beam along the north wall and the west end, knee braces at the column heads). Racking bays are still
     painted along its north wall, the bays numbered on the wall (**BAY 1** to **BAY 4**, a callout for each stretch),
     and the cover on its floor is pallets of stock left behind, cartons on a pallet, the bottom layer still
     shrink-wrapped and strapped. The container stood against its north wall is the **yard office**, a portable cabin:
     flat steel panels on a dark skid, two windows behind security grilles with the blinds down, its door and
     nameplate, site rules on each end, an air conditioner on its roof and a floodlight's mast up off it.
-  - **Each spawn is the marshalling yard behind a gate.** The outer wall behind it is a steel sliding gate (a
+  - **Each spawn is the marshalling area behind a gate.** The outer wall behind it is a steel sliding gate (a
     corrugated leaf in a hollow-section frame, on its track, chained and padlocked, **WEST GATE** / **EAST GATE**),
-    in the same cells and as solid as the panels either side. The spawn yards' walls are finished blockwork with a
-    precast coping. A stop line and STOP are painted across each gate's way out.
+    in the same cells and as solid as the panels either side; EVAC ✗ is sprayed on the warehouse wall by it.
   - **The plaza is the weighbridge.** The flag stands on a steel checker-plate deck set flush in the pad, its panels
     jointed, its ends striped, 60 T MAX at each end; the wall stubs at its corners are the weighbridge's booths
     (blockwork under a roof slab, a door on the side away from the bridge, the window onto it boarded over so it never
@@ -1496,21 +1504,20 @@ checked by a script (tools/arena-plan.py) for reachability, spawn safety, sightl
   - **The rail spur ends at the signal box.** The hut is a signal box: roofed, its door and nameplate north, its
     windows along each siding boarded, an END OF SIDING board at each rail's end, and a colour-light signal mast up
     off its roof (the south lane's landmark). A yellow edge line runs along the platform beside each siding.
-  - **The wall between the plaza and the rail spur** (it was a run of one-metre-thin "containers") is a wall of stacked
-    interlocking concrete blocks, three courses with staggered joints and studs along its top, **SIDING 1** and
-    **SIDING 2** stencilled on its rail side.
+  - **The train on the siding**: the rails of the first siding run the yard's whole width under it, each wagon's load
+    a container standing on it, two bogies a side under each and its couplers at its ends.
   - **The containers are containers**: corrugated sides in their own colour, a frame (corner posts, top and bottom
     rails, corner castings) standing proud only where nothing's against it, doors with locking bars at whichever end is
     clear, an owner's code by a top corner and the line's name along the long ones.
-  - **The two-by-two box against the south wall is the transformer** that fed the floodlights: a green kiosk on a
-    plinth, louvred double doors, DANGER 11 000 V.
+  - **Each two-by-two box is a transformer** that fed the floodlights (one in each corner of the south wall, one left
+    standing on the warehouse floor each side): a green kiosk on a plinth, louvred double doors, DANGER 11 000 V.
   - **Outside**, the warehouse beyond the north wall has KESSLER FREIGHT · YARD 4 along its front, over the wall from
     anywhere in the yard.
 - **Signs and stencils never cut off.** Every sign's text is sized to fit its plate (the font shrunk till it does), and
   every sign on a wall is checked as the map's built to sit wholly on that wall, as high as its top, with nothing
   standing in front of it (one that wouldn't is left out and reported in the console). The old ones that didn't (the
   yard's name painted behind the office, a tag too wide for its canvas, signs the conduit ran across) are gone or
-  moved; the conduit now runs in stretches between whatever stands against the wall, turning up into the wall at each
+  moved; the yard's name is stencilled on the open ground south of the warehouse; the conduit now runs in stretches between whatever stands against the wall, turning up into the wall at each
   end instead of running into the office and the block walls.
 - **No flicker (z-fighting).** Nothing is built in the same plane as anything else it overlaps: the blockwork, the
   containers' sides, the concrete blocks and the gates are made only on the faces nothing stands against (no faces

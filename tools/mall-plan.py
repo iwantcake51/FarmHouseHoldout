@@ -13,13 +13,15 @@
 #    planter, w the fountain's rim.
 #
 # The layout: three lanes west to east, joined at the spawns and the middle; islands of cover, no corridors.
-#  - NORTH, Back of house: close quarters. The stockroom behind the shops: shelving islands and pallets, a service door
-#    into the concourse (the flag's north approach).
+#  - NORTH, the Supermarket: close quarters. The mall's grocery store along its north side (it was back of house, a
+#    corridor behind the shops; now a store you're in): its aisles of shelving and pallets of stock, the lift core in
+#    its middle, its shutter forced up and its exit doors beside it onto the concourse, a pillar out in front of the
+#    lift core so nothing through the doors sees down into the food court.
 #  - MIDDLE, the Concourse: medium range and the contest. Out of each anchor store's wide entrance past a display kiosk,
 #    pillars and planters, onto the fountain court and the flag inside its rim.
 #  - SOUTH, the Food court: medium-long, the rifles' lane but never seen end to end: tables and counters for low cover,
 #    the stalls along the south wall, a seating island in the middle; open to the concourse at its middle.
-#  - Each spawn is an anchor store (the department store) with three exits: north into back of house, south into the
+#  - Each spawn is an anchor store (the department store) with three exits: north into the supermarket, south into the
 #    food court (a shelf stub just inside each, round either end) and a wide entrance east with the kiosk out in front.
 import sys, math
 W, H = 36, 30
@@ -37,14 +39,16 @@ put('#', 0, 0, HW - 1, 0); put('#', 0, H - 1, HW - 1, H - 1); put('#', 0, 0, 0, 
 # ---- the anchor store (cols 1-6, rows 8-21): its north and south walls are the lane dividers, its east wall the
 # shopfront with a wide entrance
 put('h', 1, 7, HW - 1, 7); put('h', 1, 22, HW - 1, 22); put('h', 7, 7, 7, 22)
-gap(4, 7, 6, 7)            # north exit, into back of house, at the store's east end
+gap(4, 7, 6, 7)            # north exit, into the supermarket, at the store's east end
 put('S', 3, 10, 6, 10)     # a shelf two metres in from it, against the east wall: round its west end (a dog-leg, so nothing outside sees in)
 gap(4, 22, 6, 22)          # south exit, into the food court
 put('S', 3, 19, 6, 19)
 gap(7, 13, 7, 16)          # the entrance east onto the concourse, four metres
 
 # ---- NORTH LANE: back of house (rows 1-6): the stockroom, shelving islands and pallets
-gap(10, 7, 12, 7)          # the service door into the concourse (the flag's north approach), three metres
+gap(10, 7, 12, 7)          # the supermarket's entrance onto the concourse (the flag's north approach), its shutter forced up
+gap(14, 7, 15, 7)          # and its exit doors beside it
+put('P', 16, 10)           # a pillar out in front of the lift core (two with its mirror): nothing through the exit doors sees down into the food court
 put('S', 9, 1, 9, 3)       # shelving off the north wall
 put('S', 11, 4, 13, 4)     # a shelving island mid-room
 put('h', 16, 4, 17, 6)     # the lift core in the very middle, off the concourse wall (four wide with its mirror): round its north side, never seen end to end

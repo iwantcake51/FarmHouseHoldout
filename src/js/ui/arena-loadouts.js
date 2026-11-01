@@ -62,7 +62,7 @@ const isChoice = key => key === 'at' || key.startsWith('m:') || AL_CHOICE.some(c
 const muzMod = key => key.startsWith('m:') && !!GUN_MODS[key.slice(2)].muzzle;
 const muzKeys = ex => Object.keys(ex || {}).filter(muzMod);
 // how far each line goes on a gun (0: it takes none), as the workbench has it (upgrades/upgrades.js tierFits) with no
-// mods on: a sight up to the scopes on the guns that take them, a can on all but the double barrel, a choke on the
+// mods on: a sight up to the scopes on the guns that take them, a can on all but the double barrel and the revolver, a choke on the
 // shotguns, a loader on the revolver, the battle rifle and the double barrel, a trigger where the rate's the trigger's,
 // a mag as far as that gun's go
 function alMax(id, k) {

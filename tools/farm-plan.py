@@ -19,15 +19,18 @@
 # The layout: three lanes west to east, joined at the spawns and the middle.
 #  - NORTH, the Barn: close quarters. A long roofless barn (its roof burnt off) taking the whole north side: stalls
 #    along its north wall, hay mows standing in it as islands (one in the very middle, so it's never seen end to end),
-#    its big doors at each end out of each side's corral (a stock trailer standing in it) and a door in its south wall
-#    each side into the yard (the flag's north approaches), a mow just inside it so the yard never sees in, bales
+#    its big doors at each end out of each side's corral (a stock trailer standing in it), its south wall burnt through
+#    near each end (a breach two metres wide into the yard) and a door in it each side into the yard (the flag's north
+#    approaches), a mow just inside it so the yard never sees in, bales
 #    stacked against the wall by it so nothing through the end doors sees out of it.
 #  - MIDDLE, the Farmyard: medium range and the contest. Out of each machine shed's wide doors past its tractor and hay
 #    wagon, between the grain silo and the wind pump, onto the yard's middle and the flag between its two troughs.
 #  - SOUTH, the Field: long range, the rifles' lane. Low cover (bales, a rail fence, culvert pipes by the dry
 #    irrigation ditch), a hay mow standing out in it each side, the farmhouse's burnt shell in the very middle off the
-#    hedgerow and the corn crib against the south barricade, so it's never seen end to end; a gate in the hedgerow
-#    each side, by the farmhouse and behind the wind pump, is the middle's way south.
+#    hedgerow and the corn crib against the south barricade, so it's never seen end to end; a gap where the hedgerow
+#    died back each side nearer the sheds, and a gate in it each side by the farmhouse and behind the wind pump, are
+#    the middle's ways south. (Not a wall across the map with doors in it: a hedge with its gaps, a barn burnt
+#    through.)
 #  - Each spawn is a machine shed with three exits: north into its corral (a rack just inside, round its far end),
 #    south into the field (the same, a diesel tank outside it so nothing far down the field watches it) and wide doors
 #    east onto the yard with the tractor and wagon out in front.
@@ -57,6 +60,7 @@ put('k', 1, 12, 2, 12); put('k', 1, 25, 2, 25)   # workbenches along its north a
 put('h', 8, 0, 8, 11); put('h', 8, 11, HW - 1, 11)   # the barn's west and south walls
 gap(8, 4, 8, 7)            # its big doors west, out of the corral, four metres
 gap(14, 11, 16, 11)        # a door south into the yard (the flag's north approach), three metres
+gap(9, 11, 10, 11)         # and where the fire brought its south wall down at the west end: a breach two metres wide
 put('x', 11, 1, 11, 2); put('x', 15, 1, 15, 2)   # stalls along the north wall
 put('Y', 19, 3, 20, 6)     # the hay mow in the very middle (four wide with its mirror): round it north or south, never seen end to end
 put('Y', 15, 5, 16, 6)     # a hay mow two metres in from the south door: round either end of it (nothing in the yard sees into the barn)
@@ -76,6 +80,7 @@ put('w', 13, 20)           # a woodpile
 # ---- SOUTH LANE: the field (rows 27-36)
 put('e', 8, 26, HW - 1, 26)   # the hedgerow along the field's north side
 gap(15, 26, 16, 26)        # a gate in it each side (the middle's way south)
+gap(10, 26, 11, 26)        # and a gap in it each side nearer the sheds, where the hedge died back
 put('u', 17, 24, 20, 29)   # the burnt farmhouse in the middle, off the hedgerow (six wide with its mirror)
 put('u', 18, 30, 20, 30)
 put('u', 16, 24)           # its chimney stack, standing proud of its north-west corner

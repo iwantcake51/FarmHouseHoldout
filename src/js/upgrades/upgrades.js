@@ -109,8 +109,10 @@ export const arenaMagSteps = id => ARENA_NO_MAG.has(id) ? 0 : MAG_STEPS[id] ?? T
 // as the bolt, so a lighter trigger does nothing for them. Their own mods (Slam fire, the greased bolt) do that.
 // The double barrel fires as fast as you can pull its triggers, so it has nothing to gain either
 export const NO_TRIGGER = new Set(['pump', 'hunting', 'dbl']);
-// the guns that take no can: the double barrel's twin muzzles
-export const NO_SUPP = new Set(['dbl']);
+// the guns that take no can: the double barrel's twin muzzles, and the revolver (the gap between its cylinder and its
+// barrel vents the blast, so a can does nothing for it: its barrel line is the longer barrels, gun-mods.js longbarrel,
+// in the workbench and in the arena's loadouts alike)
+export const NO_SUPP = new Set(['dbl', 'revolver']);
 // and the ones that take no sight at all, iron sights only: none now (the LMG takes them on its feed cover's rail, as
 // far as the ACOG: game/run-state.js SCOPE_TOP); kept for any gun that comes without anywhere to put one
 export const NO_SIGHT = new Set();
