@@ -144,6 +144,7 @@
   "world/arena-farm.js",
   "world/arena-route.js",
   "world/arena-small.js",
+  "world/arena-dress.js",
   "world/arena.js",
   "world/arena-preview.js",
   "world/arena-preview-maps.js",

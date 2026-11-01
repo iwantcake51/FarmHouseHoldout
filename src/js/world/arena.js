@@ -46,6 +46,7 @@ import { MALL } from './arena-mall.js';
 import { FARM_MAP } from './arena-farm.js';
 import { ROUTE_MAP } from './arena-route.js';
 import { QUAY_MAP, SQUARE_MAP } from './arena-small.js';
+import { arDress } from './arena-dress.js';
 
 // its bounds (cells, the walls round it included), the time of day it's always fought at (mid afternoon, the sun
 // starting down and the shadows lengthening), and its plan, a row a line from north (j = z0) to south: # the outer wall, C a container (or, by
@@ -409,8 +410,9 @@ function arBuild() {
     arSigns(g);
     arOutside(parts, g);
     arWoods(g); arWallKit(parts);
-    mergeInto(g, parts);
     arSkinsOut(g);
+    arDress(g, AR_YARD4);
+    mergeInto(g, parts);
     arP = arParts = null;
   });
   if (AR_SIGN_BAD.length) console.warn('arena: signs that would hang off their walls, left out:', AR_SIGN_BAD.join(', '));
@@ -903,7 +905,7 @@ export function arenaUp(id) {
 function arBuildMap(M) {
   if (M === AR_YARD4) return arBuild();
   const g = new THREE.Group(); g.userData.still = true;
-  withSeed(4243, () => { const parts = M.build(g); mergeInto(g, parts); });
+  withSeed(4243, () => { const parts = M.build(g); arDress(g, M); mergeInto(g, parts); });
   return g;
 }
 // (the props' footprints, as their meshes stand: they're built once, so put back every match)

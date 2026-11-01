@@ -1347,6 +1347,35 @@ the middle past its landmark, south edge), each spawn the road coming in at its 
 What stands south and east of each (between it and the camera from above) is kept low, and what's north and west
 can be tall, so nothing hides the play from above. Both are in the lobby's map picker with their own pictures.
 
+**Lived in, after the end.** Every arena map is dressed as the place it was when the dead came, over the top of what
+was there, and none of it changes the fight (world/arena-dress.js, laid on each map as it's built):
+- **The floor's grime and wear**, painted on one transparent sheet over each map's own floor: the shade along the foot
+  of every wall and everything tall (where dirt gathers and the light doesn't reach), grit blown up against them,
+  cracks, oil and old stains, ash, scorch where something burned, dried blood with the smears where someone was
+  dragged away, a trail of boot prints, fallen leaves outdoors drifted against the walls, and the ash of each camp.
+- **Litter** as people left it: papers and leaflets, flattened cardboard, cans and bottles, rags, spent cases where a
+  fight was, bricks and broken planks and tyres by the walls, more of it against the walls than out in the open.
+- **Camps** in corners out of the wind: a sleeping bag, a ring of stones round the fire's charred sticks, a pot, a pack,
+  empty tins; and a body bag or two laid out by a wall.
+- **The walls and everything tall**: what was sprayed and written as the town emptied (THEY'RE INSIDE, NO WAY OUT,
+  GOD HELP US, EVAC CANCELLED, the search teams' X marks with their dates and counts, tallies of the days), bloody
+  handprints and smears, bullet holes, missing posters, soot licked up from fires, rust and water stains. Each is laid
+  flat on a real face, found by a ray from the floor in front of it, its corners checked to sit on the same face, so
+  none hangs off an edge, into a doorway or in the air.
+- **The tops of things** (what the camera from above sees most): rust, grime and standing water over the roofs of the
+  containers, lorries, buildings and stacks, and now and then what someone left up there: a tarp held down with crates,
+  jerry cans, a sleeping bag, sandbags round a lookout, a radio mast and its set.
+- **Smoke** rising from fires still burning past the north and west edges (the far side from the camera from above),
+  outdoors.
+- **What it keeps to:** nothing on the floor stands higher than a boot (the tallest, a sleeping bag or a body bag, about
+  a quarter metre), nothing it adds stops you or a round, and what's on top of tall things is already above every line
+  of sight. It's the same on every screen (seeded by the map). The floor's sheet is painted on a **worker thread** (an
+  OffscreenCanvas, its picture handed back without a copy), so the slowest part never holds up the main thread; where
+  a browser has no workers it's painted in place. The rays that find the walls and the tops are tested only against
+  what's near them (the map's pieces sorted into 2 m buckets), so dressing a map takes well under a tenth of a second.
+- Signs, posters and painted faces that were folded into a map's merged meshes kept no texture coordinates and came
+  out one flat colour (the small maps' shop names, notices and paint); merging now keeps them (core/geometry.js).
+
 **Room to move: no squeezes.** Every map's plan is now checked for doorways and gaps between two solid things two
 metres wide or less (tools/plan_check.py: "ways two metres wide or less"), and the ways you're meant to use are three
 metres or more: on the small maps there are none left at all; on Yard 4 the spawn exits, the courtyard round its

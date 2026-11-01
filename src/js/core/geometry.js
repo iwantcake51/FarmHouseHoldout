@@ -173,20 +173,24 @@ export function mergeInto(parent, list, opt) {
     groups.get(k).parts.push(o);
   });
   // the pieces of a group as one geometry (far: each piece's far shape, loGeo, those with none left off)
+  // (a textured material's pieces keep their texture coordinates: without them a sign, a poster or a painted face
+  // folded in comes out one flat colour)
   const merged = (parts, bake, far) => {
-    const pos = [], nor = [], col = []; let n = 0;
+    const pos = [], nor = [], col = [], uvs = [], tex = !bake && !!(parts[0] && parts[0].material.map); let n = 0;
     parts.forEach(o => {
       const src = far ? loGeo(o.geometry) : o.geometry; if (!src) return;
       const g = src.index ? src.toNonIndexed() : src.clone();
       g.applyMatrix4(_mergeM.multiplyMatrices(inv, o.matrixWorld));
       const a = g.attributes.position.array; pos.push(a); nor.push(g.attributes.normal.array); n += a.length;
+      if (tex) uvs.push(g.attributes.uv ? g.attributes.uv.array : new Float32Array(a.length / 3 * 2));
       if (bake) { const c = o.material.color, cs = new Float32Array(a.length); for (let i = 0; i < a.length; i += 3) { cs[i] = c.r; cs[i + 1] = c.g; cs[i + 2] = c.b; } col.push(cs); }
       g.dispose();
     });
-    const P = new Float32Array(n), N = new Float32Array(n), C = bake ? new Float32Array(n) : null; let at = 0;
-    pos.forEach((a, k) => { P.set(a, at); N.set(nor[k], at); if (C) C.set(col[k], at); at += a.length; });
+    const P = new Float32Array(n), N = new Float32Array(n), C = bake ? new Float32Array(n) : null, U = tex ? new Float32Array(n / 3 * 2) : null; let at = 0, ut = 0;
+    pos.forEach((a, k) => { P.set(a, at); N.set(nor[k], at); if (C) C.set(col[k], at); if (U) { U.set(uvs[k], ut); ut += uvs[k].length; } at += a.length; });
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(N, 3));
     if (C) geo.setAttribute('color', new THREE.BufferAttribute(C, 3));
+    if (U) geo.setAttribute('uv', new THREE.BufferAttribute(U, 2));
     return geo;
   };
   groups.forEach(({ mat, bake, cast, parts }) => {
