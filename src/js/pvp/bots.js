@@ -314,18 +314,17 @@ const BOT_TBAG = { odds: 0.3, cocky0: 0.25, far: 25, len: 9, bobs: [3, 6], wait:
 // eased in at in and out at out (per s)
 const BOT_INSP = { turn: 0.45, move: 0.5, count: 0.45, wait: [0.2, 1.6], end: 0.35, gap: [1.5, 4], cut: [0.45, 1.15], in: 5, out: 8 };
 // footsteps heard (botSense): out to run m at a sprint, walk m walking (over slow m/s), crouched quieter as yours are
-// (CROUCH.step), and how near and fresh one has to be for it to get ready for them (ready m, s: BOT_AMBUSH)
+// (CROUCH.step), and how near and fresh one has to be for it to get ready for them (ready m, s)
 // topping off in a lull (botThink): nobody seen nor shooting at it for calm s; a veteran steps into cover first from
 // anyone it's known of within known s
 const BOT_TOPOFF = { calm: 2.5, known: 10 };
 const BOT_STEP = { run: 16, walk: 8, slow: 1.3, ready: 13, fresh: 1.5 };
-// getting ready for someone it's heard coming (botThink): waiting for them crouched where it is with its gun on the
-// corner, leaned the way it'd see them (wait s, as likely as BOT_SKILL iq times wait_), else out at them first: a
-// peek or a swing (pre-peek)
+// getting ready for someone it's heard coming (botThink): out at them first, a peek or a swing (pre-peek). (It used to
+// crouch where it was and wait for them with its gun on the corner, half the time: a player heard coming round any
+// corner found a bot sat waiting behind it, which was more annoying than clever, so it no longer does)
 // walking with its aim off the way it's going: at most max (rad) of it, unless it's in one of hold's states or had
 // someone in a fight within fresh s
-const BOT_BACKPEDAL = { max: 1.75, fresh: 2, hold: ['hold', 'cover', 'peek', 'ambush', 'tbag'] };
-const BOT_AMBUSH = { wait: [2.2, 4], wait_: 0.55 };
+const BOT_BACKPEDAL = { max: 1.75, fresh: 2, hold: ['hold', 'cover', 'peek', 'tbag'] };
 const botTagged = (b, id, t) => { const e = b.dealt && b.dealt.get(id); return !!(e && t - e.t < BOT_TAG.fresh); };
 // hurt: someone it's put dmg (hp) into within mem s (or the one who's just killed a teammate, BOT_TRADE, or in
 // Deathmatch someone who's been in a fight with someone else, BOT_THIRD), and how much keener it is to push them
@@ -666,7 +665,7 @@ function botThink(b, t) {
   if (b.healing && (regen ? b.hp >= BOT_DM.healed : Q.plan === 'push' || Q.plan === 'rush' || Q.plan === 'flag' || t > b.healAt)) { b.healing = false; if (!regen) b.lowDone = true; }
   const rushing = Q.plan === 'rush' && b.hp > BOT_RUSH.minHp;
   if (T) {
-    b.tgt = T.id; b.seenT = t; b.pre = null; b.tbag = null; b.amb = null; botInspCut(b);
+    b.tgt = T.id; b.seenT = t; b.pre = null; b.tbag = null; botInspCut(b);
     const d = Math.hypot(T.x - b.x, T.z - b.z), want = st.gun(d);
     // (topping off with rounds still in it and someone turns up: it lets the reload go and fights with what it has)
     if (b.reloading && b.mag[botGunOf(b)] >= Math.max(2, (WEAP[botGunOf(b)].mag || 1) * 0.25) && d < 30) { b.reloading = false; b.relT = 0; }
@@ -705,7 +704,7 @@ function botThink(b, t) {
     // stepping out into the open; swung wide out, it keeps moving across them as it fights)
     // (a quick peek, leaned out, BOT_QPEEK: a burst from there, and back in behind it before they've settled on it,
     // to come at them again from somewhere else; not with them nearly done)
-    if ((b.state === 'peek' || b.state === 'cover' || b.state === 'ambush') && b.mv !== 'hold' && b.mv !== 'strafe') {
+    if ((b.state === 'peek' || b.state === 'cover') && b.mv !== 'hold' && b.mv !== 'strafe') {
       if (b.swing) { b.mv = 'strafe'; b.strafe = b.swing; b.path = []; b.sprint = false; b.mvT = t + rr(0.6, 1.1); }
       else { b.mv = 'hold'; b.path = []; b.sprint = false; b.leanSide = b.lpeek || botLeanSide(b, T); b.leanT = t + rr(1.1, 2); b.mvT = t + rr(0.8, 1.5); if (b.lpeek && b.coverAt && rand() < S.iq) b.qpk = t + rr(...BOT_QPEEK.fight); }
     }
@@ -785,13 +784,10 @@ function botThink(b, t) {
     if (t > g.until || b.hp < BOT_TBAG.minHp || !quiet || botDeny(b, pvpFlag())) { b.tbag = null; b.crW = 0; if (b.state === 'tbag') b.state = 'reset'; }
     else if (t >= g.at) { if (b.state !== 'tbag') { b.state = 'tbag'; b.path = Math.hypot(g.x - b.x, g.z - b.z) > 0.7 ? botPath(b, g.x, g.z) : []; b.sprint = false; } return; }
   }
-  // someone heard coming close, out of its sight (BOT_STEP): ready for them. Waiting where it is crouched, its gun on
-  // the corner they'll come round and leaned the way it'd see them; or out at them first, a peek or a swing
-  if (b.amb) { if (t > b.amb.until || b.healing) { b.amb = null; b.leanT = 0; b.state = 'reset'; } else return; }
+  // someone heard coming close, out of its sight (BOT_STEP): ready for them, out at them first, a peek or a swing
   const H = b.step && t - b.step.t < BOT_STEP.fresh && Math.hypot(b.step.x - b.x, b.step.z - b.z) < BOT_STEP.ready ? b.step : null;
   if (H && S.iq >= 0.5 && !/cover|peek|flag|rush|tbag/.test(b.state) && !los(b.x, b.z, H.x, H.z)) {
     b.step = null; b.coverAt = { x: b.x, z: b.z };
-    if (rand() < S.iq * BOT_AMBUSH.wait_) { b.amb = { x: H.x, z: H.z, until: t + rr(...BOT_AMBUSH.wait) }; b.state = 'ambush'; b.path = []; b.sprint = false; b.leanSide = botLeanSide(b, H); b.leanT = b.amb.until; return; }
     b.state = 'cover'; b.path = []; b.sprint = false; b.peekAt = t + rr(0.05, 0.25); b.coverSinceT = t; return;
   }
   // a teammate just gone down near it (BOT_TRADE): at whoever did it, now, while they're still there and hurt from it
@@ -951,13 +947,13 @@ function botAfter(b, dt, t) {
 // how far down in a crouch it is (0 to 1, eased at both ends, as yours: player/crouch.js crouchK)
 const botCrK = b => smooth(clamp(b.cr || 0, 0, 1));
 // crouching (as you do, player/crouch.js: eased down and up at CROUCH's rates): bobbing over a body (BOT_TBAG), bobbing
-// in a fight (BOT_CRSPAM), down waiting for someone it's heard (BOT_AMBUSH) or behind low cover reloading; a sprint
+// in a fight (BOT_CRSPAM), or behind low cover reloading; a sprint
 // stands it up
 function botCrouchStep(b, dt, t) {
   if (b.state === 'tbag' && b.tbag && !b.path.length) {
     const g = b.tbag; if (t > g.nextT) { b.crW = b.crW ? 0 : 1; g.nextT = t + rr(...BOT_TBAG.bob); if (!b.crW && --g.n <= 0) { b.tbag = null; b.state = 'reset'; b.thinkT = 0; } }
   } else if (b.crSpam > t && b.vis && b.mv !== 'push') { if (t > (b.bobT || 0)) { b.crW = b.crW ? 0 : 1; b.bobT = t + rr(...BOT_CRSPAM.bob); } }
-  else b.crW = b.state === 'ambush' || (b.state === 'fight' && b.vis && ((b.mv === 'hold' && b.reloading) || (b.crAcc && b.mv !== 'push' && b.mv !== 'tocover'))) ? 1 : 0;
+  else b.crW = (b.state === 'fight' && b.vis && ((b.mv === 'hold' && b.reloading) || (b.crAcc && b.mv !== 'push' && b.mv !== 'tocover'))) ? 1 : 0;
   if (b.sprint || b.dead) b.crW = 0;
   b.cr = (b.cr || 0) + (b.crW - (b.cr || 0)) * (1 - Math.exp(-dt * (b.crW > b.cr ? CROUCH.down : CROUCH.up)));
 }
@@ -1089,7 +1085,7 @@ function botAimStep(b, dt, t, T) {
     // a corner or off someone else swings about)
     const L = botKnown(b, t), on = b.path.length ? b.path[Math.min(1, b.path.length - 1)] : null;
     const mv = on && Math.hypot(on[0] - b.x, on[1] - b.z) > 0.4 ? Math.atan2(on[0] - b.x, on[1] - b.z) : Math.hypot(b.vx, b.vz) > 0.5 ? Math.atan2(b.vx, b.vz) : null;
-    const watch = L && t - L.t < (L.threat ? 20 : 8) && (b.state === 'hold' || b.state === 'cover' || b.state === 'peek' || b.state === 'search' || b.state === 'ambush' || Math.hypot(L.x - b.x, L.z - b.z) < (L.threat ? 20 : 14)) ? L : null;
+    const watch = L && t - L.t < (L.threat ? 20 : 8) && (b.state === 'hold' || b.state === 'cover' || b.state === 'peek' || b.state === 'search' || Math.hypot(L.x - b.x, L.z - b.z) < (L.threat ? 20 : 14)) ? L : null;
     if (b.sprint && mv !== null) want = mv;
     else if (watch || mv !== null) {
       // (pre-aimed, BOT_AIMPRE: at someone it knows of, straight at them if it has a line to where they are, else at the

@@ -28,6 +28,7 @@ import { updateWeaponStats, wsBench } from '../ui/weapon-stats.js';
 import { updateLoadout } from '../ui/loadout.js';
 import { benchTipUsed } from '../ui/bench-tips.js';
 import { giftClick, renderGift } from '../net/teamwork.js';
+import { ARENA } from '../world/arena.js';
 
 export let openSt = null, supplyT = 0, supplyFall = null;
 // how near a station you are: to its spot in front of it, or for one with a footprint (the workbench) to the nearest
@@ -66,6 +67,7 @@ function lookedAtStation() {
   return best;
 }
 export function nearestStation() {
+  if (ARENA.on) return null;   // (none in the arena: the farm's stations aren't there, only where they'd stand on the farm)
   if (fpOn()) return lookedAtStation();
   let best = null, bd = STATION_REACH, spot = null, sd = STATION_SPOT;
   const fx = Math.sin(P.aim), fz = Math.cos(P.aim);

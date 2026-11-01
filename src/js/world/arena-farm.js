@@ -884,6 +884,7 @@ function hfDoors() {
 export const FARM_MAP = {
   id: 'farm', name: 'Harlan Farm', note: 'A walled-in farm: the barn, the farmyard, the field',
   plan: HF_PLAN, b: HF_B, h: HF_H, low: HF_LOW, vault: HF_LOW, walls: '#hmeu', what: HF_WHAT, build: hfBuild, indoor: false, tod: null,
+  under: { R: 0.45 },   // (the tractors' bellies between their wheels: rounds from your own eyes go under, world/collision.js)
   // (its lamps, on only at night: lighting/lightmap.js; and their lens flares, put up with the map: world/arena.js arenaUp)
   lights: () => hfLampList().map(([i, j, , , , , r, col, int]) => ({ arena: true, x: hfX(i), z: hfZ(j), r, col, int })),
   flares: [],

@@ -612,8 +612,9 @@ their aim faster, and their first two rounds after a breath spread 40% less.
 - **Hits slow bots as they slow you**: about half pace from a hit, a third from a heavy one, sprint broken, worn off over
   a second and a half or two.
 - **Footsteps.** A bot hears a sprint out to 16 m and a walk to 8 m; crouch-walking is about a third as loud. Hearing
-  you coming round a corner, it gets ready: it waits crouched with its gun on the corner and leaned the way it'd see
-  you, or comes out at you first.
+  you coming round a corner, it gets ready by coming out at you first, a peek or a swing round the corner. (It used to
+  crouch where it was and wait with its gun on the corner half the time, so any corner you were heard coming round had
+  a bot sat behind it; it no longer does.)
 - **Leans, quick peeks, new angles.** Peeking, bots lean out round their cover (head and shoulder, not the whole body;
   veterans nearly always), fire a burst and pull back in rather than holding the angle, and come again from somewhere
   else (a wide swing, the other side, or round another way) rather than peeking the same spot twice.
@@ -1299,6 +1300,48 @@ between:
   of the boards and ribs, pulled forward in the depth test so it never flickers. What stands loose on the sheds' racks
   and benches is its own mesh, listed on FARM_MAP.shelfItems, ready to be made shootable. You vault the bales, the fence,
   the troughs, the pipes, the woodpiles and the workbenches.
+
+**Two small maps for 1v1 and 2v2** (world/arena-small.js, laid out and checked in tools/small-plan.py): each 30 by
+22 m inside its edge, a third the size of the others, so two or four players find each other in seconds (spawn to the
+flag about 3.3 s at a sprint through the middle, 4 to 4.5 s round either edge, nothing seen further than about 25 m).
+Each is one real place, an open space with what really stands in it to fight round rather than rooms joined by doors:
+its edges are the buildings or the water round it, its corners the buildings on them. Still three ways across: along
+the north edge, through the open middle past its landmark, and along the south edge, each a different range and kind
+of cover, each edge broken in its middle so it's never seen end to end. Each spawn is the road coming in at its end,
+behind a vehicle parked across it, with two ways out round its ends; nothing outside sees in. Drawn west half
+(Blue's) and mirrored for the east (Red's), each half dressed as its own side of the place.
+- **Hawthorne Square**: a market town's square on a Saturday morning, the market half set up. North, the High
+  Street's pavement under the shops (their awnings out, the bakery, the café with its tables on the pavement, the
+  chemist, the post office), the red phone box on the corner, a dairy's delivery van at the kerb and the newspaper
+  kiosk in the middle. The square itself round the war memorial on its steps (the names of the town's dead on it,
+  the wreaths leant against it), lime trees, a bench and planters, a market stall beside each bus. South, the
+  churchyard behind its low stone wall (gravestones, the yew at the gate) on the west, the Hawthorne Arms' beer garden
+  behind its brick wall (picnic tables under parasols, a chestnut) on the east, the old pump house between them. A
+  single-decker in the county's red and cream at the stop at each end, the road closed off for the market behind
+  it. Beyond: the church's tower and spire over the shops' roofs (seen from anywhere in the square), the backs of the
+  High Street, the roads on out of town.
+- **Saltmarsh Quay**: a fishing harbour's quay at the end of the day, the boats in. North, the back lane behind
+  the harbour buildings (the fish merchants', the chandlery, the net loft: corrugated sheds and painted fronts),
+  stacks of fish boxes and the harbourmaster's pickup along it, the harbour office's porch in the middle. The quay
+  apron under the fish market's open hall on its four posts (its roof overhead from your own eyes, its lights under
+  it), the gutting benches, the scales, fish boxes stacked higher than you, each stack one merchant's colour. South,
+  the quayside along the water: bollards with their ropes, lobster pots, pallets of net floats, the crane at the
+  edge in the middle; the ice house on each north corner and the boat shed on each south. A boat hauled out on its
+  trailer across the quay road at each end. Beyond: the harbour water, boats moored off the quay, the breakwater and
+  its light, the town's terraces climbing the hill behind.
+
+What stands south and east of each (between it and the camera from above) is kept low, and what's north and west
+can be tall, so nothing hides the play from above. Both are in the lobby's map picker with their own pictures.
+
+**Shoot under, and past thin things.** On every map, what has an underside lets a round from your own eyes through
+under it (world/collision.js obstUnder; each map lists its own): the buses, the delivery van, the pickup and the boats'
+trailers on the small maps, Route 9's army truck and tractors, Harlan Farm's tractors. A round fired low enough (under
+the chassis, about 0.4 to 0.55 m up) goes on under; one at body height still stops on it. And what's thin stops only
+where it really stands: the fish market's posts and a tree's trunk on the small maps stop a round or a look only at
+the post or the trunk, not across the whole metre round it.
+
+**The farm's stations stay on the farm.** In the arena the prompt to use a station (the workbench, the ham radio and
+the rest) no longer comes up where that station would have stood on the farm.
 
 **Route 9** is the highway map (world/arena-route.js): a highway services stop on the way out of town, abandoned in
 the evacuation. The travel stop's store gutted by fire under its roof, the army's checkpoint left standing on the

@@ -834,6 +834,7 @@ function rtBuild(g) {
 export const ROUTE_MAP = {
   id: 'route', name: 'Route 9', note: 'A highway services: the store, the forecourt, the pile-up',
   plan: RT_PLAN, b: RT_B, h: RT_H, low: RT_LOW, vault: RT_VAULT, walls: '#hW', what: RT_WHAT, build: rtBuild, indoor: false, tod: null,
+  under: { R: 0.55, X: 0.5 },   // (the army truck's and the tractors' chassis: rounds from your own eyes go under them, world/collision.js)
   // (its lights, only as it gets dark, lighting/lightmap.js: the canopy's cool white, the sodium lamps and floods warm)
   lights: () => RT_LAMPS.map(([i, j, k]) => ({ arena: true, always: k === 'w', x: cxw(RT_B[0] + i), z: cxw(RT_B[1] + j), r: k === 'c' ? 10 : k === 'f' ? 16 : k === 'w' ? 11 : 13, col: k === 'c' ? [0.86, 0.92, 1] : k === 'w' ? [1, 0.66, 0.4] : [1, 0.8, 0.52], int: k === 'c' ? 0.85 : k === 'w' ? 0.8 : 0.85 })),
   flares: RT_FLARES,   // (the floods' lens flares, filled as it's built: effects/post.js)

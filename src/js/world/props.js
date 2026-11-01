@@ -21,6 +21,9 @@ export const FURN = [], WALL_DECOR = [];
 // wide at the foot narrowing to its tip at top), for a round from your own eyes going over it (world/collision.js:
 // bulletBlockedAt)
 export const obstTop = new Map();
+// and how high its underside is off the ground where it has one (a truck's or a trailer's chassis, a tank on its stand:
+// m), so a round from your own eyes fired low enough goes under it (world/collision.js: bulletBlockedAt)
+export const obstUnder = new Map();
 export function obstacle(i, j, low, top) { if (inb(i, j)) { const k = idx(i, j); cell[k] = OBST; if (low) lowObst.add(k); if (top !== undefined) obstTop.set(k, top); else obstTop.delete(k); } }
 // ---- furniture: materials and little shape helpers, shared with stations/stations.js ----
 export const HM = {

@@ -13,7 +13,7 @@ import {
 } from './net.js';
 import { PVP_CFG_LIM, pvpCfgFix } from '../pvp/pvp.js';
 import { AR_PREVIEW, AR_PREVIEW_MALL } from '../world/arena-preview.js';
-import { AR_PREVIEW_FARM, AR_PREVIEW_ROUTE } from '../world/arena-preview-maps.js';
+import { AR_PREVIEW_FARM, AR_PREVIEW_QUAY, AR_PREVIEW_ROUTE, AR_PREVIEW_SQUARE } from '../world/arena-preview-maps.js';
 import { AR_MAPS } from '../world/arena.js';
 import { METAL } from '../barricades/planks.js';
 import { audioInit } from '../audio/audio.js';
@@ -159,8 +159,8 @@ const CFG_ROWS = {
   rounds: [['rounds', 'Rounds to win', ''], ['round', 'Round time', ' s'], ['cap', 'Flag capture', ' s'], ['kit', 'Loadouts', ''], ['kitRd', 'New loadout every', ' rounds']]
 };
 // each map's picture from above (world/arena-preview.js), and what's said under it
-const MAP_PIC = { yard: AR_PREVIEW, mall: AR_PREVIEW_MALL, farm: AR_PREVIEW_FARM, route: AR_PREVIEW_ROUTE };
-const MAP_ALT = { yard: 'Yard 4 from above: a walled freight yard with a spawn yard at each end, three lanes and the flag in the middle', mall: 'Larkspur Mall from above: an anchor store at each end, back of house, the concourse and the food court', farm: 'Harlan Farm from above: a machine shed at each end, the burnt barn north, the farmyard and its silos in the middle, the field and the farmhouse shell south', route: 'Route 9 from above: a walled lot at each end, the burnt travel stop north, the forecourt checkpoint in the middle, the highway pile-up south' };
+const MAP_PIC = { yard: AR_PREVIEW, mall: AR_PREVIEW_MALL, farm: AR_PREVIEW_FARM, route: AR_PREVIEW_ROUTE, square: AR_PREVIEW_SQUARE, quay: AR_PREVIEW_QUAY };
+const MAP_ALT = { yard: 'Yard 4 from above: a walled freight yard with a spawn yard at each end, three lanes and the flag in the middle', mall: 'Larkspur Mall from above: an anchor store at each end, back of house, the concourse and the food court', farm: 'Harlan Farm from above: a machine shed at each end, the burnt barn north, the farmyard and its silos in the middle, the field and the farmhouse shell south', route: 'Route 9 from above: a walled lot at each end, the burnt travel stop north, the forecourt checkpoint in the middle, the highway pile-up south' , square: 'Hawthorne Square from above: a market town square, the shops along the north, the war memorial in the middle, a bus at each end, the churchyard and the beer garden along the south', quay: 'Saltmarsh Quay from above: a fishing harbour quay, the fish market hall in the middle, a boat on its trailer at each end, the crane at the water\u2019s edge'};
 let mapDrawn = '';
 function cfgRender(host) {
   const on = NET.game === 'arena' && NET.on, box = $('coopArenaRow'); box.hidden = !on; if (!on) return;

@@ -3,7 +3,7 @@
 import { N } from '../core/math.js';
 import { cell, ci, cxw, FENCE, idx, inb, OBST, OPEN, openAt, WALL } from './grid.js';
 import { thinPush } from './thin-walls.js';
-import { lowObst, obstTop } from './props.js';
+import { lowObst, obstTop, obstUnder } from './props.js';
 
 export const blockArr = new Uint8Array(N * N);
 // cells a round goes through though you can't walk or see through them: the arena maps' shelving (world/arena.js), its
@@ -40,6 +40,7 @@ const BLOCK_TOP = { wall: 2.6, prop: 2.4, trunk: 0.18 };
 export const bulletBlockedAt = (x, z, y) => {
   const i = ci(x), j = ci(z); if (!inb(i, j)) return false; const k = idx(i, j); if (blockArr[k] !== 1 || SHOOT_THRU.has(k) || !inCellBox(k, x, z)) return false;
   if (cell[k] === WALL) return y < BLOCK_TOP.wall;
+  { const u = obstUnder.get(k); if (u !== undefined && y < u) return false; }   // (under a truck's chassis, a trailer's, a tank's stand)
   const o = obstTop.get(k); if (o === undefined) return y < BLOCK_TOP.prop; if (typeof o === 'number') return y < o;
   return y < o.top && Math.hypot(x - o.x, z - o.z) < Math.max(BLOCK_TOP.trunk, o.r * (o.top - y) / o.top);   // (a tree: inside its cone)
 };
