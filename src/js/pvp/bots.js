@@ -30,7 +30,7 @@
 import { angDiff, clamp, rand, rr, smooth } from '../core/math.js';
 import { NET, NET_BOT, NET_ON, netAs, netSend } from '../net/net.js';
 import { P } from '../player/player.js';
-import { BLK, BLOCK, guardCost, guardFx, guardMeets, guardThrough } from '../melee/block.js';
+import { BLK, BLOCK, guardAfter, guardCost, guardFx, guardMeets, guardThrough } from '../melee/block.js';
 import { SPRINT } from '../player/sprint.js';
 import { ADS_MOVE, ADS_SCOPE } from '../player/movement.js';
 import { CROUCH } from '../player/crouch.js';
@@ -49,7 +49,7 @@ import { BRAWL_IDS, GG_ONE, PVP, PVP_BLEED, pvpBurnNum, PVP_CLASSES, PVP_DMG, PV
 import { HOLD, HOLD_DEF } from '../player/hold.js';
 import { fireLight, fireStep, PFIRE } from './pvp-fire.js';
 import { DRAGON_MAX } from '../weapons/gun-mods.js';
-import { BOT_CYC, BOT_GUN, BOT_GY, BOT_IDLE, BOT_INSPECT, BOT_LEG, BOT_UP } from './bot-poses.js';
+import { BOT_CYC, BOT_GUN, BOT_GY, BOT_IDLE, BOT_INSPECT, BOT_LEG, BOT_SWING, BOT_UP } from './bot-poses.js';
 
 // how good they are, by the lobby's pick (NET.botSkill): how long they take to react to someone new (s), how far off
 // their aim starts on them (rad) and how fast it settles, how much their shots spread on top of the gun's own, how fast
@@ -1134,7 +1134,7 @@ function botMeleeThink(b, T, t, d, S) {
   const sk = theirs && botSwingKey(T);
   if (sk && b.guardFor !== sk) {
     b.guardFor = sk;
-    if (!mine && d < theirs && t >= (b.guardCd || 0) && (b.gst ?? 1) > 0.3 && rand() < BOT_GUARD.chance * (0.4 + 0.6 * S.iq)) {
+    if (!mine && d < theirs && t >= (b.guardCd || 0) && t >= (b.guardOkAt || 0) && (b.gst ?? 1) > 0.3 && rand() < BOT_GUARD.chance * (0.4 + 0.6 * S.iq)) {
       const nowS = performance.now() / 1000, land = botSwingLands(T, t);
       b.block = true; b.blockAt = rand() < BOT_GUARD.parry * S.iq ? nowS + Math.max(0, land - 0.1) : nowS - BLK.parry - 0.05; b.blockEnd = t + Math.max(land + 0.15, rr(...BOT_GUARD.hold)); b.mWant = Math.max(0.6, d - 0.1); return;
     }
@@ -1155,7 +1155,8 @@ function botMeleeThink(b, T, t, d, S) {
 function botMeleeSwing(b, id, M, t) {
   const wind = BOT_MELEE.wind[id] ?? 0.2, dur = Math.min(M.rate * 1.2, M.rate > 0.85 ? 0.98 : 0.64);
   b.mswing = { id, t0: t, at: t + wind, end: t + Math.max(wind + 0.18, dur), side: rand() < 0.5 ? 1 : -1, hit: false, chop: M.rate > 0.85 || id === 'wrench' };
-  b.mcd = t + M.rate * 1.3;
+  netAs(b.id, 'mw', { w: id, x: bR2(b.x), z: bR2(b.z), sd: b.mswing.side, wu: bR2(wind), du: bR2(b.mswing.end - t) });   // (to everyone else: its swing played on it there, net/avatars.js avSwing)
+  b.mcd = t + M.rate * 1.3; b.guardOkAt = b.mswing.end + guardAfter(id);   // (its guard not up again till the weapon's back across: melee/block.js)
 }
 // each frame: a swing's blow landing as it comes round, on anyone in its reach and sweep (not through a wall), as yours
 // do (pvp/pvp.js pvpMelee): the golden katana's a kill, anything else its weapon's damage, a head likelier the sharper
@@ -1183,7 +1184,7 @@ function botMeleeStep(b, t, foes) {
     }
     b.st.shots++;
     botsHear(b.id, b.x, b.z, true, null);
-    pvpSwingHeard(s.id, b.x, b.z); netAs(b.id, 'mw', { w: s.id, x: bR2(b.x), z: bR2(b.z) });   // (its swing heard, as yours is: pvp/pvp.js)
+    pvpSwingHeard(s.id, b.x, b.z);   // (its swing heard here as it comes round; everyone else hears it from 'mw', botMeleeSwing)
   }
   if (t >= s.end) b.mswing = null;
 }
@@ -1549,7 +1550,7 @@ export function botHit(id, m) {
   // (on its guard, melee/block.js: a parry costs it nothing; a block lets a share through and wears its guard down,
   // and with the last of it the guard's broken. No blood either way: the attacker's drawn the sparks)
   if (m.gk) {
-    if (m.gk === 'b') { b.gst = (b.gst ?? 1) - guardCost(m.bd || m.d); if (b.gst <= 0) { b.block = false; b.gst = 0; b.guardCd = t + BLK.broke; b.stun = Math.max(b.stun || 0, BLK.brokeStun); } }
+    if (m.gk === 'b') { b.gst = (b.gst ?? 1) - guardCost(m.bd || m.d, m.w); if (b.gst <= 0) { b.block = false; b.gst = 0; b.guardCd = t + BLK.broke; b.stun = Math.max(b.stun || 0, BLK.brokeStun); } }
     if (m.kb) { b.vx = (m.kx || 0) * m.kb; b.vz = (m.kz || 0) * m.kb; }
     if (m.d > 0) { b.last = { id: m.f, w: m.w, head: false, d: m.d, at: t, x: m.x, z: m.z, pt: 'torso', g: 0, gd: 0, fi: 0 }; b.taken.set(m.f, (b.taken.get(m.f) || 0) + m.d); b.hurtT = t; b.calm = 0; b.regen0 = null; if (b.hp <= 0) botDie(b, t); }
     return;
@@ -1673,7 +1674,17 @@ function botPose(b, dt, t, now_) {
   // yours, player/hold.js and player/look.js faceMood)
   b.adsK = (b.adsK || 0) + ((upK === 'aim' && b.vis && !b.dead ? 1 : 0) - (b.adsK || 0)) * (1 - Math.exp(-(dt || 0) * 10));
   const guard = !!b.block && !!G.bk && !b.dead;   // (its melee guard up, as yours is: melee/block.js)
-  const up = guard ? G.bk : G[upK]; let w = guard ? G.bkw : G[upK === 'run' ? 'rw' : upK === 'aim' ? 'aw' : 'hw'];
+  let up = guard ? G.bk : G[upK], w = guard ? G.bkw : G[upK === 'run' ? 'rw' : upK === 'aim' ? 'aw' : 'hw'];
+  // (a swing: its arms, body and weapon through a survivor's own swing of it, BOT_SWING, the blow landing as its own
+  // does (botMeleeSwing: wind-up to sw.at, then on through to sw.end), the way across it's going)
+  const swg = !b.dead && b.mswing, SWG = swg && BOT_SWING[swg.id];
+  if (SWG) {
+    const v = SWG.find(q => q.side === swg.side) || SWG[0], hit = swg.id === 'axe' || swg.id === 'sledge' ? 0.55 : 0.4;
+    const p = t < swg.at ? hit * clamp((t - swg.t0) / Math.max(0.05, swg.at - swg.t0), 0, 1) : hit + (1 - hit) * clamp((t - swg.at) / Math.max(0.05, swg.end - swg.at), 0, 1);
+    const fi = p * (v.f.length - 1), i = Math.min(v.f.length - 2, Math.floor(fi)), u = fi - i, A = v.f[i], B = v.f[i + 1];
+    up = A[0].map((x, n) => x + (B[0][n] - x) * u); w = A[1].map((x, n) => x + (B[1][n] - x) * u);
+    const ql = Math.hypot(w[3], w[4], w[5], w[6]) || 1; for (let n = 3; n < 7; n++) w[n] /= ql;
+  }
   const mvA = Math.atan2(b.vx, b.vz), faceW = run && upK === 'run' ? mvA : b.aim;
   // (its body turned onto where it's facing, not snapped there: a corner taken at a run swings it round over a moment)
   b.faceS = b.faceS === undefined ? faceW : b.faceS + angDiff(faceW, b.faceS) * (1 - Math.exp(-(dt || 0) * 9)); const face = b.faceS;
@@ -1698,7 +1709,7 @@ function botPose(b, dt, t, now_) {
     const la = b.lean * BOT_LEAN.tilt; j[11] = bR2(j[11] + la); j[9] = bR2(j[9] - (b.pitch || 0) * BOT_PITCH_BODY);
     // a melee swing (botMeleeSwing): the body wound back through the wind-up, whipped through the blow and easing back,
     // across the body for a slash or down from overhead for a chop, its weapon carried round with it
-    const sw = !b.dead && b.mswing;
+    const sw = !b.dead && b.mswing && !BOT_SWING[b.mswing.id];   // (only a weapon with no recorded swing: the body thrown round)
     if (sw) {
       const wu = (t - sw.t0) / Math.max(0.05, sw.at - sw.t0), af = (t - sw.at) / Math.max(0.05, sw.end - sw.at);
       const a = wu < 1 ? -smooth(clamp(wu, 0, 1)) : af < 0.35 ? -1 + 2.2 * smooth(af / 0.35) : 1.2 * (1 - smooth(clamp((af - 0.35) / 0.65, 0, 1)));

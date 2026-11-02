@@ -1227,11 +1227,11 @@ like pea-shooters). To a 100-health body, before range falloff:
   - No sound from the results coming up, and none from your loadout going back into your hands as you come back in.
 - **Damage numbers** rise straight up and out of whoever you hit, from where they stand, hidden until they're in
   place (they no longer slide in from the side).
-- **Shot through the head**, it's a beat of its own: a white crack of a flash going red on the instant, the screen
-  crushed dark from its edges in a red-black vignette with a red heart to it, a high ringing in your ears (the world's
-  sound dulled under it); then the dark draws back
-  off the middle while the world stays drained of colour and a little out of focus, the colour seeping back as the death
-  camera turns to whoever did it, all of it gone in about 2.6 seconds.
+- **Killed by a hit to the head**, a round or a blow, or with your head taken off by whatever hit you (a sledgehammer's
+  crush, a blade's split, a round that bursts it), it's a beat of its own: a quick red flash, a dark red vignette in
+  from the edges that leaves the middle of the view clear, a short ringing in your ears (the world's sound dulled
+  under it), the world drained of colour and a touch soft, the colour seeping back as the death camera turns to
+  whoever did it, all of it gone in about 1.8 seconds. It never blacks out the view.
 - **Space** skips the death camera a second after you go down: in the respawn modes you're straight back in (unless
   you've opened the loadouts), in Showdown straight on to watching a teammate. **F** opens the loadouts for your next
   life (the card says both).
@@ -1619,16 +1619,25 @@ across you as a guard (eased up over about a seventh of a second, the arms bring
 the chest turned to put the shoulder behind it).
 - **While it's up** you can't swing and you walk at 70%. Held for more than 0.6 s it drains your stamina, about an
   eighth of the tank a second, and none comes back while it's up.
-- **A blow from in front** (within about 70° either side of where you face) lands on the guard. Only 18% of it gets
-  through (45% of a fire axe's or a sledgehammer's, which beat a guard down) and it knocks some stamina out of you at
-  once, more for a harder blow. Run out and the guard's **broken**: it drops, you reel for half a second, and it can't
-  come up again for 1.2 s.
+- **A blow from in front** (within 40° either side of where you face: nothing from the sides or behind) lands on the guard. Only 18% of it gets
+  through (45% of a fire axe's or a sledgehammer's, which beat a guard down) and it knocks stamina out of you at once,
+  by the weapon: a tenth of the tank for a crowbar, 13% a machete, 15% a katana, 18% a bat, 24% a wrench, a third
+  for a fire axe and half for a sledgehammer (a zombie's by how hard it hits). Run out and the guard's **broken**: the
+  weapon's knocked down out of your guard, you stagger (the view reels and swims, a cold red vignette and a grey jolt
+  of a flash come in from the edges), and it can't come up again for 1.2 s.
+- **After a swing** the guard can't come up until the weapon's back across, longer the heavier it is: a crowbar's
+  almost at once, 0.38 s after a fire axe's swing, 0.6 s after a sledgehammer's. Bots keep to the same.
 - **A parry**: raise the guard within 0.22 s of the blow landing and none of it gets through, it costs nothing, and
-  whoever swung is thrown off: staggered and unable to swing for most of a second.
+  whoever swung is thrown off: staggered and unable to swing for most of a second. Parried, your own screen's hit: a
+  cold white flash in from the edges, **Parried** stamped over the middle, and the view swimming for a moment.
 - **Bullets go straight through** a guard. A zombie's swing lands on it the same way (a brute's harder; a crawler's
   swipe at your ankles goes under it), and a parry sends the zombie reeling.
-- **The crosshair** swaps its brackets for a shield (Kenney's Board Game Icons) while the guard's up. The shield jumps
-  with each blow it takes, flashes white on a parry and goes red when the guard breaks.
+- **The crosshair** swaps its brackets for a shield (Kenney's Board Game Icons) while the guard's up.
+  - It's filled to how much guard you've got left (your stamina): a solid shield when full, the fill draining down
+    from the top, only its outline when there's none.
+  - Just raised, while a blow would still be parried, it glows gold and stands a little bigger.
+  - A parry pops it, white, and throws a ring out off it; a blow on the guard flashes it white and jolts it.
+  - Broken, it goes red, splits in two, and its halves tip over and fall away as they fade.
 - **A blow on the guard** throws sparks off where the steel meets (a white-hot flash and its glow, sparks back toward
   whoever swung and out along the edge; a parry's twice as bright with embers that hang), rings out (a clang through
   your arms; a parry's a bright ring of steel that hangs), and slams the weapon and your fist back at you on the arm's
@@ -1639,6 +1648,13 @@ the chest turned to put the shoulder behind it).
   the more guard it has left), once per swing; a sharper bot times it to parry more often. Their guard wears down as
   it's held and with each blow it takes, breaks the same way, and comes back while it's down. They drop it once the
   blow's come, to hit back. Everyone sees a guard up and its sparks.
+- **Only in front.** The guard covers 40° either side of where you face; a blow from the side or behind lands.
+
+**Swings everyone sees.** Bots swing their melee weapons as you do: their arms, body and weapon go through a swing
+recorded off a survivor swinging each weapon, frame by frame, the blow landing on its own timing (they used to only
+twist their body). Other players' swings, in co-op and in the arena, and the bots' on a joiner's screen, are played
+the same way the moment the swing's sent, rather than left to the pose sent a few times a second (which smeared a
+third-of-a-second swing to nothing); the whoosh comes as the blow comes round.
 
 **Hit reactions on your arms.** From your own eyes, a hit on you knocks the arms and whatever they're holding: shoved
 back toward you and down, the muzzle thrown up and away from the side it came from, tipped over, shaking for a moment

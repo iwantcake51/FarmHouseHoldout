@@ -8,6 +8,7 @@ import { thinNear, thinRay } from '../world/thin-walls.js';
 import { HOUSE_FP, surfaceY } from '../world/house.js';
 import { blockArr, bulletBlocked, bulletBlockedAt, inCellBox } from '../world/collision.js';
 import { P } from '../player/player.js';
+import { netSend } from '../net/net.js';
 import { HEAVY_FIRE } from './gun-stats.js';
 import { falloff, headFade } from './ammo.js';
 import { PVP, pvpPellet, pvpRay, pvpShotEnd } from '../pvp/pvp.js';
@@ -38,7 +39,8 @@ import { tStick } from '../input/touch.js';
 import { inspectCut } from '../player/inspect.js';
 import { breakTrigger, relHeld } from './reload.js';
 import { akMags, akShot } from './akimbo.js';
-import { stamCost, SWING_AIR, TIRED } from '../melee/melee.js';
+import { HEAVY, heavySwing, stamCost, SWING_AIR, TIRED } from '../melee/melee.js';
+import { swingStarted } from '../melee/block.js';
 import { pickSwing } from '../melee/melee-anim.js';
 import { SURE_CRIT } from '../upgrades/upgrades.js';
 import { feed } from '../ui/hud-text.js';
@@ -297,6 +299,8 @@ export function fire() {
     P.stam = Math.max(0, P.stam - cost * SWING_AIR); P.stamT = 0; if (P.stam <= 0.001) { P.exh = true; }
     W8.tired = tired; const tk = !tired ? 0 : (D.cleave || 1) < 2 ? TIRED.single : 1, slow = 1 + (TIRED.cd - 1) * tk;
     W8.cd = D.rate * 1.3 / Math.max(1, S.rateMul * 0.5 + 0.5) * slow; W8.swingDur = W8.swing = Math.min(D.rate * 1.2, D.style === 'chop' ? 0.98 : 0.64) * (1 + (TIRED.swing - 1) * tk); W8.hitDone = false; W8.whoosh = false; W8.swingN = (W8.swingN || 0) + 1; W8.swingSide = pickSwing(D).side; ANIM.mStop = 0;   // one of its three swings (melee/melee-anim.js)
+    swingStarted(id, W8.swingDur);   // (the guard held off till it's back: melee/block.js)
+    netSend('mw', { w: id, x: Math.round(P.x * 100) / 100, z: Math.round(P.z * 100) / 100, sd: W8.swingSide, wu: Math.round(W8.swingDur * (heavySwing(D) ? HEAVY.hit : 0.4) * 1000) / 1000, du: Math.round(W8.swingDur * 1000) / 1000 });   // (the swing to everyone: its whoosh, and its arms on you as they see you, net/avatars.js avSwing)
     if (tired) SFX.pant();
     return;
   }

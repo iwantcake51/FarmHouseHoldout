@@ -60,9 +60,19 @@
 #xh.tgt .mBr{stroke:var(--orange)}
 #xh.tgt .mDot{fill:var(--orange)}
 #xh .mShieldSh{fill:none;stroke:rgba(0,0,0,.6);stroke-width:13;stroke-linejoin:round}
-#xh .mShield{fill:rgba(255,255,255,.14);stroke:var(--ink);stroke-width:6.5;stroke-linejoin:round;transition:fill .12s,stroke .12s}
-#xh .parry .mShield{fill:rgba(255,236,190,.85);stroke:#fff;filter:drop-shadow(0 0 6px rgba(255,210,140,.9))}
-#xh .broke .mShield{stroke:#d24a3a;fill:rgba(210,74,58,.25)}
+#xh .mShield{fill:none;stroke:var(--ink);stroke-width:6.5;stroke-linejoin:round;transition:stroke .12s}
+#xh .mShieldIn{fill:rgba(240,236,226,.62);transition:fill .12s}
+#xh .mShield.brk{stroke:#d24a3a}
+#xh .mShieldIn.brk{fill:rgba(210,74,58,.45)}
+#xh .parry .mShield{stroke:#fff;filter:drop-shadow(0 0 6px rgba(255,210,140,.9))}
+#xh .parry .mShieldIn{fill:rgba(255,236,190,.95)}
+#xh .broke .mShield{stroke:#d24a3a}
+#xh .broke .mShieldIn{fill:rgba(210,74,58,.3)}
+#xh .ready .mShield{stroke:#ffd27a;filter:drop-shadow(0 0 5px rgba(255,200,110,.85))}
+#xh .ready .mShieldIn{fill:rgba(255,214,140,.7)}
+#xh .hit .mShield{stroke:#fff}
+#xh .hit .mShieldIn{fill:rgba(255,255,255,.85)}
+#xh #xhShieldRing{fill:none;stroke:#eaf2ff;stroke-width:2.4;filter:drop-shadow(0 0 4px rgba(170,205,255,.9))}
 #xh.tgt #xhBr{filter:drop-shadow(0 0 3px rgba(var(--acc),.55))}
 /* ammo warning under the crosshair */
 #ammoWarn{position:absolute;left:50%;top:118px;transform:translateX(-50%);display:flex;align-items:center;gap:7px;padding:2px 9px 1px;white-space:nowrap;

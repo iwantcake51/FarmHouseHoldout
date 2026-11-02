@@ -25,7 +25,7 @@ import { gearOnAvatar, gearSpec } from '../player/gear.js';
 import { buildWeapon, weaponRec } from '../weapons/build-weapons.js';
 import { placeMag, remoteCycle, remoteEnd } from '../weapons/casings.js';
 import { state } from '../game/state.js';
-import { SNAP_GUN } from './avatars.js';
+import { SNAP_GUN, swingNow } from './avatars.js';
 import { camFocus } from './spectate.js';
 import { HSH, placeLoader, SL_RND, SLM } from '../player/hold-loaders.js';
 import { HOLD, HOLD_DEF } from '../player/hold.js';
@@ -275,7 +275,7 @@ export function buildArsenal(a, lo, lk) {
 const ARS_KICK = { back: 0.045, up: 0.012, flip: 0.09 };
 const ARS_KICK_END = 0.36;
 // every frame: their weapons out where they hold them (eased), the moving parts as they last said, what's stowed
-const _aQ = new THREE.Quaternion();
+const _aQ = new THREE.Quaternion(), _swP = new V3(), _aqS = new THREE.Quaternion();
 export function arsenalFrame(p, a, rdt) {
   if (!a.held) return;
   const k = 1 - Math.exp(-rdt * 18), out = new Set();
@@ -284,6 +284,9 @@ export function arsenalFrame(p, a, rdt) {
     if (e[8] && e[8].length === h.moving.length * 8) h.parts = e[8];
     const g = h.g, first = !g.visible || !h.bp; g.visible = !p.dead;
     _arP.set(e[1], e[2], e[3]); _aQ.set(e[4], e[5], e[6], e[7]);
+    // (a melee swing under way: the weapon where the swing has it, net/avatars.js swingNow, not eased after its pose)
+    const SW = h.D && h.D.melee && swingNow(p);
+    if (SW) { const k = SW.k; _arP.lerp(_swP.set(SW.w[0], SW.w[1], SW.w[2]), k); _aQ.slerp(_aqS.set(SW.w[3], SW.w[4], SW.w[5], SW.w[6]), k); if (h.bp) { h.bp.copy(_arP); h.bq.copy(_aQ); } }
     if (first) { h.bp = _arP.clone(); h.bq = _aQ.clone(); } else { h.bp.lerp(_arP, k); h.bq.slerp(_aQ, k); }   // (eased on its own, so a shot's kick put on it below never carries over)
     g.position.copy(h.bp); g.quaternion.copy(h.bq);
     if (h.parts) h.moving.forEach((o, i) => { const b = i * 8, v = h.parts; o.position.set(v[b], v[b + 1], v[b + 2]); o.rotation.set(v[b + 3], v[b + 4], v[b + 5]); o.scale.z = v[b + 6] || 1; o.visible = !!v[b + 7]; });

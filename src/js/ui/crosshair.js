@@ -1,6 +1,6 @@
 // The crosshair.
 
-import { BLOCK } from '../melee/block.js';
+import { BLK, BLOCK } from '../melee/block.js';
 import { $, replay } from '../core/dom.js';
 import { kbd } from '../input/keybinds.js';
 import { cam, FP_CAM, GUN_Y, V3 } from '../core/renderer.js';
@@ -264,8 +264,19 @@ export function updateCrosshair(rdt, D) {
       // red as it's broken: melee/block.js)
       { const gk = smooth(BLOCK.k), sk = BLOCK.shake * BLOCK.shake, t = performance.now() / 1000;
         const jx = (BLOCK.sx * 6 + Math.sin(t * 61) * 2.2) * sk, jy = (BLOCK.sy * 5 + Math.cos(t * 53) * 1.8) * sk - 1.5 * sk, sc = (0.8 + 0.2 * gk) * (1 + 0.22 * sk), rot = BLOCK.sx * 18 * sk;
-        const key = gk.toFixed(2) + ':' + jx.toFixed(1) + ':' + jy.toFixed(1) + ':' + (BLOCK.flash > 0.3) + ':' + (BLOCK.broke > 0);
-        if (cache.xhSh !== key) { cache.xhSh = key; const el = $('xhShield'); el.setAttribute('opacity', gk.toFixed(2)); el.setAttribute('transform', `translate(${jx.toFixed(1)} ${jy.toFixed(1)}) rotate(${rot.toFixed(1)}) scale(${sc.toFixed(3)})`); el.classList.toggle('parry', BLOCK.flash > 0.3); el.classList.toggle('broke', BLOCK.broke > 0 && gk > 0.05); }
+        // (raised just now, still in time to parry: it glows gold, a little bigger; a parry pops it and throws a ring out
+        // off it; a blow on the guard flashes it white)
+        const ready = BLOCK.on && t - BLOCK.at < BLK.parry, pop = BLOCK.pop, scP = sc * (1 + (ready ? 0.12 : 0) + 0.35 * pop * pop + 0.1 * BLOCK.hit);
+        const key = gk.toFixed(2) + ':' + jx.toFixed(1) + ':' + jy.toFixed(1) + ':' + (BLOCK.flash > 0.3) + ':' + (BLOCK.broke > 0) + ':' + ready + ':' + pop.toFixed(2) + ':' + (BLOCK.hit > 0.3);
+        if (cache.xhSh !== key) { cache.xhSh = key; const el = $('xhShield'); el.setAttribute('opacity', Math.max(gk, pop).toFixed(2)); el.setAttribute('transform', `translate(${jx.toFixed(1)} ${jy.toFixed(1)}) rotate(${rot.toFixed(1)}) scale(${scP.toFixed(3)})`); el.classList.toggle('parry', BLOCK.flash > 0.3); el.classList.toggle('broke', BLOCK.broke > 0 && gk > 0.05); el.classList.toggle('ready', ready && !(BLOCK.flash > 0.3)); el.classList.toggle('hit', BLOCK.hit > 0.3 && !(BLOCK.flash > 0.3));
+          const rg = $('xhShieldRing'); rg.setAttribute('r', (12 + (1 - pop) * 22).toFixed(1)); rg.setAttribute('opacity', (pop * pop).toFixed(2)); }
+        // (filled to how much guard you've left, your stamina: full, a solid shield; draining down from the top; empty,
+        // its outline alone)
+        { const sm = stamMax(), f = clamp(P.stam / (sm || 1), 0, 1), fk = f.toFixed(2); if (cache.xhShF !== fk) { cache.xhShF = fk; const r = $('xhShFill'), h = 58 * f; r.setAttribute('y', (29 - h).toFixed(1)); r.setAttribute('height', h.toFixed(1)); } }
+        // (broken: its halves split, tip over and fall away, fading: BLOCK.shatter from 1 down)
+        { const b = BLOCK.shatter || 0, bk = b.toFixed(2); if (cache.xhShB !== bk) { cache.xhShB = bk; const u = 1 - b, e = u * u, g = $('xhShBreak'); g.setAttribute('opacity', (b > 0 ? Math.min(1, b * 1.6) : 0).toFixed(2));
+          $('xhShBL').setAttribute('transform', `translate(${(-26 * u).toFixed(1)} ${(70 * e - 6 * u).toFixed(1)}) rotate(${(-38 * u).toFixed(1)})`);
+          $('xhShBR').setAttribute('transform', `translate(${(26 * u).toFixed(1)} ${(80 * e - 4 * u).toFixed(1)}) rotate(${(44 * u).toFixed(1)})`); } }
         XHM.gk = gk; }
       const k = XHM.s.toFixed(3) + ':' + XHM.r.toFixed(1) + ':' + Math.round(rd * 50) + ':' + (XHM.gk || 0).toFixed(2);
       if (cache.xhBr !== k) { cache.xhBr = k; const b = $('xhBr'); b.setAttribute('transform', `rotate(${XHM.r.toFixed(1)}) scale(${XHM.s.toFixed(3)})`); b.style.opacity = ((0.45 + 0.55 * smooth(rd)) * (1 - (XHM.gk || 0))).toFixed(2); }

@@ -38,7 +38,7 @@ import { burst, bloodSpurt, gibs } from '../effects/particles.js';
 import { BLOOD_KEEP, bloodMapClear, splatLater, spray } from '../effects/blood-map.js';
 import { wallBloodClear, wallSpray } from '../effects/wall-blood.js';
 import { addBlood, BODY_BLOOD, bloodWipe } from '../effects/body-blood.js';
-import { avatarHit, heardFrom } from '../net/avatars.js';
+import { avatarHit, avSwing, heardFrom } from '../net/avatars.js';
 import { goreAt, goreEye } from '../ui/screen-blood.js';
 import { SFX } from '../audio/sfx.js';
 import { ANIM } from '../player/animation.js';
@@ -542,7 +542,6 @@ const MELEE_BLOOD = { you: 0.04, blade: 0.26, blunt: 0.18 };
 export function pvpMelee(D, id) {
   if (!PVP.on || PVP.ph !== 'live') return 0;
   PVP.prot = 0;
-  netSend('mw', { w: id, x: Math.round(P.x * 100) / 100, z: Math.round(P.z * 100) / 100 });   // (the swing heard by whoever's near: NET_ON.mw)
   let n = 0;
   for (const p of NET.peers.values()) {
     if (p.dead || !pvpFoe(p) || !p.av) continue;
@@ -621,7 +620,7 @@ NET_ON.ph = m => {
   ledger(PVP.life.taken, m.f, m.d); P.hp -= m.d;
   // (on your guard, melee/block.js: the shield jolted, sparks, a share of your stamina, and only what got through)
   if (m.gk) {
-    guardHitYou(m.gk === 'p' ? 'parry' : 'block', m.bd || m.d, m.x, m.z);
+    guardHitYou(m.gk === 'p' ? 'parry' : 'block', m.bd || m.d, m.x, m.z, m.w);
     if (m.kb) { P.kbx = (m.kx || 0) * m.kb; P.kbz = (m.kz || 0) * m.kb; }
     if (m.d > 0) { PVP.calm = 0; PVP.regen0 = null; PVP.last = { id: m.f, w: m.w, head: false, d: m.d, at: performance.now(), x: m.x, z: m.z, pt: 'torso', g: 0, gd: 0, fi: 0 }; }
     return;
@@ -698,7 +697,7 @@ export function pvpSwingHeard(w, x, z) {
 }
 // a blow meeting someone's guard, seen by everyone else: its sparks and ring
 NET_ON.gx = m => { if (PVP.on && state !== 'title' && m.f !== NET.id) guardFx(m.x, 1.3, m.z, m.nx, m.nz, !!m.p); };
-NET_ON.mw = m => { if (PVP.on && state !== 'title' && m.f !== NET.id) pvpSwingHeard(m.w, m.x, m.z); };
+NET_ON.mw = m => { if (state === 'title' || m.f === NET.id) return; avSwing(m); setTimeout(() => pvpSwingHeard(m.w, m.x, m.z), (m.wu || 0) * 850); };   // (their arms through the swing as it happens, and its whoosh as it comes round: net/avatars.js)
 // someone else bleeding where they were hit (not on the shooter's screen: they've drawn it already)
 NET_ON.pb = m => {
   if (!PVP.on || m.sh === NET.id || state === 'title') return;
@@ -714,7 +713,7 @@ NET_ON.pb = m => {
 // middle outwards while the world stays drained of colour and a touch out of focus, the colour seeping back as the
 // death camera turns to whoever did it (game/view-cam.js KILL_CAM: round at about 0.9 s) and all of it gone by the time
 // it's on them (HEAD_FX: seconds, styles/pvp.css #pvpHead for the layers' own curves)
-const HEAD_FX = { len: 2.6, ring: 0.55 };
+const HEAD_FX = { len: 1.8, ring: 0.4 };
 let headFxEl = null, headFxT = 0;
 function headBlack() {
   if (!headFxEl) {
@@ -742,7 +741,9 @@ export function pvpDied() {
   const hb = !!(L && L.head && L.d >= 60);
   const m = { k: L ? L.id : '', v: NET.id, w: L ? L.w : '', hs: L && L.head ? 1 : 0, hb: hb ? 1 : 0, x: Math.round(P.x * 100) / 100, z: Math.round(P.z * 100) / 100, dm: L ? Math.round(Math.hypot(P.x - L.x, P.z - L.z)) : 0, pt: L ? L.pt : '', g: L ? L.g || 0 : 0, as: pvpAssists(L ? L.id : ''), gd: L && L.gd ? 1 : 0, fi: L && L.fi ? 1 : 0 };   // (gd: by a golden weapon, Gun game's last two: you go to gold, pvpKilled)   // (dm: how far off they were, m; pt: where the last one went in)
   netSend('pk', m); pvpKilled(m);
-  if (m.hs) headBlack();   // (a headshot: black at once, PVP head black)
+  // (a blow or a round to the head, or your head taken off whatever hit it: a sledgehammer's crush, a blade's split, a
+  // round that bursts it; the headshot's own beat over the screen, as a round's)
+  { const Wk = WEAP[m.w] || {}, gone = !m.fi && (m.hb || ((m.hs || m.gd) && Wk.melee && !Wk.blunt) || m.w === 'sledge'); if (m.hs || gone) headBlack(); }
   PVP.killer = L && L.id !== NET.id ? L.id : ''; PVP.killAt = performance.now();   // (the death camera goes to them: pvpKiller)
   PVP.respawn = PVP.mode === 'rounds' ? 0 : PVP_T.respawn; PVP.hold = false;   // (the class picker only if you ask for it: its key, on the card)
 }

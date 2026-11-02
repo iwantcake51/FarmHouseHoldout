@@ -3,6 +3,7 @@
 // in between), with the weapon they're holding in their hands and their name over their head. Their shots are drawn
 // and heard here too: the tracer, the flash and the bang, quieter the further off they are.
 
+import { BOT_SWING, BOT_UP } from '../pvp/bot-poses.js';
 import { BLOCK } from '../melee/block.js';
 import { $ } from '../core/dom.js';
 import { cam, FP_CAM, GUN_Y, scene, V3 } from '../core/renderer.js';
@@ -345,6 +346,8 @@ export function updateAvatars(rdt) {
       const rot = i < POSE_N * 6 && i % 6 >= 3, want = i === 0 ? t[0] + (p.vx || 0) * ahead : i === 2 ? t[2] + (p.vz || 0) * ahead : t[i];
       c[i] = first ? want : rot ? c[i] + angDiff(want, c[i]) * k : c[i] + (want - c[i]) * (Math.abs(want - c[i]) > 3 ? 1 : k);
     }
+    // (swinging a melee weapon: its swing played here through, from the moment they swung it, as they swung it: avSwing)
+    { const S = swingNow(p); if (S) BOT_UP.forEach((ji, n) => { const rot = ji < POSE_N * 6 && ji % 6 >= 3; c[ji] += (rot ? angDiff(S.u[n], c[ji]) : S.u[n] - c[ji]) * S.k; }); }
     const set = (o, n) => { const b = n * 6; o.position.set(c[b], c[b + 1], c[b + 2]); o.rotation.set(c[b + 3], c[b + 4], c[b + 5]); };
     // down, they go down as a ragdoll here as they did on their own screen (player/player-ragdoll.js), thrown on the way
     // they were going and a little off their facing, and lie where they fell; up again, their pose takes over
@@ -441,4 +444,23 @@ NET_ON.shot = m => {
 };
 // a recorded sound from somewhere on the farm: quieter and duller the further it is from you, and off to its side
 // (earFrom, audio/spatial.js: the further, the quieter and duller; through the house's walls, muffled)
+// someone's melee swing ('mw', from their weapons/firing.js, or a bot's on the host): their arms, body and weapon
+// played through a survivor's own swing of that weapon (pvp/bot-poses.js BOT_SWING) here, as it happens, rather than
+// left to the pose they send a few times a second, which smears a swing a third of a second long to nothing.
+// wu: how long till the blow lands, du: the whole swing (s); sd: the way across it goes
+export function avSwing(m) {
+  const p = NET.peers.get(m.f); if (!p || !BOT_SWING[m.w]) return;
+  const wu = m.wu || 0.2; p.msw = { w: m.w, sd: m.sd || 1, t0: performance.now() / 1000, wu, du: Math.max(wu + 0.12, m.du || 0.5) };
+}
+// where their swing's got to: its upper body (u: BOT_UP's joints) and weapon (w), and how much of it's on them (k:
+// eased in over its first moment and out over its last); null when they're not swinging
+export function swingNow(p) {
+  const S = p.msw; if (!S) return null;
+  const tt = performance.now() / 1000 - S.t0; if (tt > S.du || p.dead) { p.msw = null; return null; }
+  const V = BOT_SWING[S.w], v = V.find(q => q.side === S.sd) || V[0], hit = S.w === 'axe' || S.w === 'sledge' ? 0.55 : 0.4;
+  const pr = tt < S.wu ? hit * tt / S.wu : hit + (1 - hit) * clamp((tt - S.wu) / (S.du - S.wu), 0, 1);
+  const fi = pr * (v.f.length - 1), i = Math.min(v.f.length - 2, Math.floor(fi)), u = fi - i, A = v.f[i], B = v.f[i + 1];
+  const w = A[1].map((x, n) => x + (B[1][n] - x) * u), ql = Math.hypot(w[3], w[4], w[5], w[6]) || 1; for (let n = 3; n < 7; n++) w[n] /= ql;
+  return { k: smooth(clamp(Math.min(tt / 0.05, (S.du - tt) / 0.08), 0, 1)), u: A[0].map((x, n) => x + (B[0][n] - x) * u), w };
+}
 export function heardFrom(name, x, z, vol, far) { playS(name, { at: [x, z], vol: vol ?? 1, jit: 0.06, tone: 3, verb: roomNow() ? 0.4 : 0, far: !!far }); }   // (in the farmhouse or a hall, ringing: audio/samples.js)
