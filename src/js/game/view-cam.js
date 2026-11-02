@@ -976,6 +976,19 @@ export const SCOPE_V = { on: false, kind: '', eye: new V3(), obj: new V3(), dir:
 const BOX = { x: 0, y: 0, vx: 0, vy: 0, k: 70, d: 10 };
 // how far (metres) your eye can be off a scope's axis and still see all of its picture
 const EYEBOX = 0.0095;
+// watching someone from their own eyes (net/avatars.js specFp): the scope or ACOG on the gun in their hands, left here
+// each frame by net/spec-vm.js specScope (its sight, how far down it they are: w), for SCOPE_V as your own is, so what's
+// down their scope (its picture, its reticle, its glass) shows as it does down yours
+export const SPEC_SIGHT = { on: false, obj: null, O: null, w: 0, eye: new V3(), front: new V3() };
+function specScopeV(c) {
+  const G = SPEC_SIGHT, S = SCOPE_V; S.on = G.on && G.w > 0.05; G.on = false; if (!S.on) return;
+  const O = G.O; S.kind = O.kind; S.src = G.obj; S.eye.copy(G.eye); S.obj.copy(G.front); S.dir.subVectors(G.front, G.eye).normalize(); S.r = O.r; S.hw = O.hw || 0; S.hh = O.hh || 0;
+  G.obj.matrixWorld.extractBasis(S.ux, S.uy, _vcH); S.ux.normalize(); S.uy.normalize();
+  S.mag = O.kind === 'acog' ? SCOPE_ACOG : (SCOPES[O.tier] || SCOPES[3]).mag;
+  // (their eye off the scope's axis, as yours is worked out: down it, it's on it; coming up to it, the tube's shadow)
+  c.updateMatrixWorld(true); _vcH.subVectors(c.position, S.eye); _vcH.addScaledVector(S.dir, -_vcH.dot(S.dir)); c.matrixWorld.extractBasis(_vcD, _faV, _vcZ);
+  S.off.set(_vcH.dot(_vcD) / EYEBOX, _vcH.dot(_faV) / EYEBOX); S.a = 1; S.w = G.w;
+}
 // down the sights of anything but a scope, there's no crosshair: you aim with the sights themselves (ui/crosshair.js)
 export const fpSighted = () => fpOn() && V.sw > 0.55;
 const GLASS_SEE = { on: false };
@@ -1168,7 +1181,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
   }
   // (from a teammate's eyes, the camera's already where theirs is: net/avatars.js, specFp; their sights' glass clear to
   // look through, as yours is from your own eyes)
-  if (specFpOn()) { SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(true); SPRITE_AIM.w = 0; selfClip(false); return; }
+  if (specFpOn()) { specScopeV(c); V.sw = 0; sightHide([]); glassSee(true); SPRITE_AIM.w = 0; selfClip(false); return; }
   if (fpOn() && (P.dead || QUIT_CAM.on)) { fpDeathCam(rdt, c); SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0; selfClip(false); c.updateMatrixWorld(true); return; }
   if (fpOn()) {
     // the eyes: on the head, the way it faces. Your own movement's taken as it comes; the head's sway about you (each

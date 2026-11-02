@@ -16,7 +16,7 @@ import { WEAP } from '../weapons/gun-stats.js';
 import { EJECT, remoteCycle } from '../weapons/casings.js';
 import { BOLT_KNOB } from '../weapons/gun-models.js';
 import { SPEC_VM_POSE } from './spec-vm-poses.js';
-import { FPV } from '../game/view-cam.js';
+import { FPV, SPEC_SIGHT } from '../game/view-cam.js';
 import { SET } from '../ui/settings.js';
 
 // how quickly it eases into and out of each (per second): down the sights and back, onto a run, into a reload; and
@@ -168,6 +168,16 @@ export function specKick(p, a, rdt) {
   for (const sd of ['L', 'R']) _svfw[sd].applyMatrix4(_svwG);
   a.upper.updateMatrixWorld(true); _svm.copy(a.upper.matrixWorld).invert();
   for (const sd of ['L', 'R']) { const arm = sd === 'L' ? a.armL : a.armR; reach(arm, sd, _svv.copy(_svfw[sd]).applyMatrix4(_svm), _svroll[sd]); arm.updateMatrixWorld(true); }
+}
+// the scope or ACOG on the gun in the hands of whoever's watched from their eyes, for what's down it to be drawn as down
+// yours (game/view-cam.js SPEC_SIGHT): its sight, and how far down it they are (a bot's eased aim, a player's sent one)
+export function specScope(p, a) {
+  const H = svHeld(p, a); if (!H || H.D.melee || H.D.akimbo) return;
+  let opt = null; H.h.g.traverse(o => { if (!opt && o.userData.optic) opt = o; });
+  const O = opt && opt.userData.optic; if (!O || (O.kind !== 'scope' && O.kind !== 'acog')) return;
+  opt.updateMatrixWorld(true);
+  SPEC_SIGHT.eye.set(O.x, O.y, O.zr).applyMatrix4(opt.matrixWorld); SPEC_SIGHT.front.set(O.x, O.y, O.zf).applyMatrix4(opt.matrixWorld);
+  SPEC_SIGHT.obj = opt; SPEC_SIGHT.O = O; SPEC_SIGHT.w = a.svm ? a.svm.ads : clamp(p.fc ? p.fc[3] : 0, 0, 1); SPEC_SIGHT.on = true;
 }
 // how wide a bot's eyes see, as yours do: drawn in down the sights, a touch wider at a run (game/view-cam.js FPV)
 export const specVmFov = a => { const S = a.svm || {}; return (SET.fov || 75) * (1 - FPV.ads * (S.ads || 0)) * (1 + FPV.sprint * (S.run || 0)); };

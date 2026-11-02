@@ -65,7 +65,7 @@ export function swingStarted(id, dur) {
 }
 // ---- a heavy blow (MCHARGE): hold the swing button past the wind-up and the blow's held there, gathering, the arm
 // back and trembling, a little stamina going a second; let go and it comes down, up to MCHARGE.dmg harder at full
-// (MCHARGE.full s; W8.chgK, its own: W8.heavyK is a heavy gun's slowdown, which eases off on its own), and at full a blow that meets a guard breaks it. Right click while it's held is a feint: the blow's
+// (MCHARGE.full s; W8.chgK, its own: W8.heavyK is a heavy gun's slowdown, which eases off on its own), and at full a blow can't be blocked, only parried: it goes through a guard held up, all of it, and breaks it. Right click while it's held is a feint: the blow's
 // dropped (a little stamina for it) and the guard can come straight up, to bait a parry and punish it
 // a running attack: a swing thrown out of a sprint (faster than RUNATK.speed m/s) lunges you on along it (RUNATK.lunge
 // m/s thrown forward, easing off as a shove does), hits RUNATK.dmg as hard and costs RUNATK.stam more of the tank

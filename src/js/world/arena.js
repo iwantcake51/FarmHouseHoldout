@@ -52,7 +52,7 @@ import { arDress } from './arena-dress.js';
 // its bounds (cells, the walls round it included), the time of day it's always fought at (mid afternoon, the sun
 // starting down and the shadows lengthening), and its plan, a row a line from north (j = z0) to south: # the outer wall, C a container (or, by
 // its shape, a run one deep the wall of stacked concrete blocks, the six by three the yard office, the two by two the transformer: arContainer),
-// h block walls (the warehouse, the hut, the spawn yards', the baffles, the stubs), b a jersey barrier, s sandbags (never vaulted: round them), k crate stacks (vaulted over: VAULT_LOW), o a drum, r a cable
+// h block walls (the warehouse, the hut, the spawn yards', the baffles, the stubs), b a jersey barrier, s sandbags (vaulted over, as the barriers are), k crate stacks (vaulted over: VAULT_LOW), o a drum, r a cable
 // spool; A and B each side's spawn, F the spots a free-for-all spawns from (on the floor)
 export const ARENA = { on: false, map: 'yard', x0: 1, x1: 42, z0: 1, z1: 42, tod: 15.6, indoor: false };
 const AR_PLAN = [
@@ -104,7 +104,7 @@ const AR_PLAN = [
 const AR_H = { '#': 3.2, C: 2.6, h: 2.1, b: 1.1, s: 1.15, k: 1.0, o: 1.05, r: 1.1 };
 const AR_LOW = new Set(['b', 's', 'o', 'r', 'k']);
 // (and what's vaulted: the sandbags, the crate stacks and the jersey barriers, chest high, a head showing over them)
-const AR_VAULT = new Set(['k', 'b']);   // (the sandbag walls aren't: you go round them)
+const AR_VAULT = new Set(['k', 'b', 's']);   // (the sandbag walls too: chest high, hopped over like the barriers)
 // the sandbag walls' cells, while the arena's up: hopped over like the farm's fence (player/vaulting.js)
 export const VAULT_LOW = new Set();
 // the maps: each its plan and where it stands on the grid ([x0, z0, x1, z1] cells), how tall each kind in it is, which
@@ -112,7 +112,7 @@ export const VAULT_LOW = new Set();
 // its group), its fixed lights, and, indoors, the hour it's always at (its own lights on). Picked with the match's
 // settings (pvp/pvp.js PVP.cfg.map, the lobby's map picker: net/lobby.js)
 const AR_YARD4 = { id: 'yard', name: 'Yard 4', note: 'A freight yard, overrun: the burned warehouse, the weighbridge, the train on the siding', plan: AR_PLAN, b: [1, 1, 42, 42], h: AR_H, low: AR_LOW, vault: AR_VAULT, walls: '#h',
-  what: { k: 'crates', b: 'barrier' }, build: null, indoor: false, tod: null, lights: () => AR_LIGHTS(), flares: [] };
+  what: { k: 'crates', b: 'barrier', s: 'sandbags' }, build: null, indoor: false, tod: null, lights: () => AR_LIGHTS(), flares: [] };
 export const AR_MAPS = { yard: AR_YARD4, mall: MALL, farm: FARM_MAP, route: ROUTE_MAP, square: SQUARE_MAP, quay: QUAY_MAP };
 export const AR_MAP_IDS = Object.keys(AR_MAPS);
 let AR_CUR = AR_YARD4;

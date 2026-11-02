@@ -113,7 +113,7 @@ const KIT_ODDS = { mod: 0.4, burst: 0.6, need: 0.6, sight: 0.6, laser: 0.4, ligh
 // (cap: how many attachments and mods all told at most, Gun game's GG_ATT; keen: each drawn half again as often)
 function kitGun(id, cap = Infinity, keen = false) {
   const D = WEAP[id], gt = {}, mods = [], K = keen ? Object.fromEntries(Object.entries(KIT_ODDS).map(([k, v]) => [k, Math.min(0.9, v * 1.5)])) : KIT_ODDS;
-  for (const m in GUN_MODS) { const M = GUN_MODS[m]; if (M.w === id && !M.need && !KIT_NO_MOD.has(m) && rand() < (K[m] ?? K.mod)) mods.push(m); }
+  for (const m in GUN_MODS) { const M = GUN_MODS[m]; if (M.w === id && !M.need && !KIT_NO_MOD.has(m) && rand() < (keen && /^akimbo/.test(m) ? GG_AKIMBO : K[m] ?? K.mod)) mods.push(m); }
   const locks = new Set(mods.flatMap(m => GUN_MODS[m].locks || [])), muzzle = mods.some(m => GUN_MODS[m].muzzle);
   // (each at any of its levels, 1 up to as far as that line goes on this gun: KIT_LV; never the powder or a tune-up)
   const lvl = n => 1 + Math.floor(rand() * Math.max(1, n));
@@ -156,6 +156,8 @@ export const BRAWL_IDS = ['crowbar', 'machete', 'bat', 'katana', 'wrench', 'axe'
 const GG = ['ar', 'scar', 'lmg', 'sub', 'smg', 'auto12', 'pump', 'dbl', 'deagle', 'pistol', 'revolver', 'katana'];
 const GG_ATT = 5, GG_KNIFE = 'machete', GG_RESERVE = 12;
 export const GG_ONE = 999;
+// (a gun in each hand on Gun game's rungs only now and then: GG_AKIMBO of the time, where any other mod's drawn keen)
+const GG_AKIMBO = 0.12;
 const ggRoll = () => GG.slice(0, -2).map(id => kitGun(id, GG_ATT, true));
 const ggTop = () => GG.length - 1;
 function ggKit(lv) {
@@ -427,7 +429,7 @@ function pvpLoadout() {
   W8.gold = {}; if (C.meleeGold) W8.gold[C.melee] = 1; for (const [id, , , , ex] of C.guns) if (ex && ex.gold) W8.gold[id] = 1;   // (Gun game's golden two: effects/gold.js)
   ['akMag', 'spent', 'hudSpent', 'open', 'held'].forEach(k => { if (W8[k]) W8[k] = {}; });
   for (const k in W8.reserve) W8.reserve[k] = 0;
-  W8.reloading = null; W8.akRel = null; W8.burstLeft = 0; W8.cd = 0; W8.swing = 0;
+  W8.reloading = null; W8.akRel = null; W8.burstLeft = 0; W8.cd = 0; W8.swing = 0; W8.chgOn = false; W8.chgK = 0;
   let first = null;
   for (const [id, gt, mods, lv] of C.guns) { const s = WEAP[id].slot; W8.slot[s] = id; W8.owned.push(id); W8.gt[id] = Object.assign({}, gt); W8.own[id] = Object.assign({}, gt); if (mods) W8.mods[id] = mods.slice(); if (lv) { W8.modLv = W8.modLv || {}; Object.assign(W8.modLv, lv); } if (!first) first = s; }   // (lv: each mod's level, a random loadout's)
   for (const [id] of C.guns) if (!arenaMagSteps(id)) { delete W8.gt[id].mag; delete W8.own[id].mag; }   // (no longer belt for the LMG here, whatever a loadout kept from before says: upgrades/upgrades.js arenaMagSteps)
@@ -585,10 +587,10 @@ export function pvpMelee(D, id) {
     // throws you off; a block lets a share through and knocks the wind out of them. Not the golden katana's)
     const gk = !D.gold && !W8.ripo && guardMeets(p.bk > -50, p.bkAt, p.vw ? p.vw[0] : 0, g.x, g.z, P.x, P.z);   // (a riposte goes through any guard: melee/block.js RIPOSTE)
     if (gk) {
-      const full = Math.round(pvpMeleeDmg(M, false) * mul), cx = g.x - ux * 0.42, cz = g.z - uz * 0.42, brk = gk === 'block' && swingFull();   // (a heavy blow at full breaks a guard: melee/block.js CHARGE)
+      const full = Math.round(pvpMeleeDmg(M, false) * mul), cx = g.x - ux * 0.42, cz = g.z - uz * 0.42, brk = gk === 'block' && swingFull();   // (a heavy blow at full can't be blocked, only parried: it goes straight through a guard held up, all of it, and breaks it: melee/block.js CHARGE)
       guardFx(cx, 1.3, cz, -ux, -uz, gk === 'parry'); netSend('gx', { x: Math.round(cx * 100) / 100, z: Math.round(cz * 100) / 100, nx: Math.round(-ux * 100) / 100, nz: Math.round(-uz * 100) / 100, p: gk === 'parry' ? 1 : 0 });
-      pvpSend(p, gk === 'parry' ? 0 : Math.max(1, Math.round(full * guardThrough(id) * (brk ? 1.6 : 1))), 'torso', id, false, { gk: gk === 'parry' ? 'p' : 'b', bd: full, kb: gk === 'parry' ? 0 : (M.kb || 0) * 0.4 + 1 + (brk ? 3 : 0), dx: ux, dz: uz, gb: brk });
-      if (gk === 'parry') parriedYou(); else { setShake(Math.max(shake, 0.2)); const thr = Math.max(1, Math.round(full * guardThrough(id) * (brk ? 1.6 : 1))); if (p.bot) pvpGuardBleed(g.x, g.z, ux, uz, thr, NET.id); else hitBleed(g.x, 1.2, g.z, ux, uz, thr, false, false, false, null); }   // (a player's own game bleeds them for the others: NET_ON.ph)
+      pvpSend(p, gk === 'parry' ? 0 : Math.max(1, Math.round(full * (brk ? 1 : guardThrough(id)))), 'torso', id, false, { gk: gk === 'parry' ? 'p' : 'b', bd: full, kb: gk === 'parry' ? 0 : (M.kb || 0) * 0.4 + 1 + (brk ? 3 : 0), dx: ux, dz: uz, gb: brk });
+      if (gk === 'parry') parriedYou(); else { setShake(Math.max(shake, 0.2)); const thr = Math.max(1, Math.round(full * (brk ? 1 : guardThrough(id)))); if (p.bot) pvpGuardBleed(g.x, g.z, ux, uz, thr, NET.id); else hitBleed(g.x, 1.2, g.z, ux, uz, thr, false, false, false, null); }   // (a player's own game bleeds them for the others: NET_ON.ph)
       n++; continue;
     }
     // (the golden katana: one blow, any blow, Gun game's last weapon; its blood gold, effects/gold.js)

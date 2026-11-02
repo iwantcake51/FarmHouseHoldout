@@ -102,7 +102,7 @@ function renderSeats() {
       // (its side's badge, up in the corner; where you can move them, the badge is the switch: ⇄)
       const can = (me || NET.host) && !NET.inGame, tag = document.createElement(can ? 'button' : 'span'), to = sd === 'B' ? 'Blue' : 'Red';
       tag.className = 'sSide' + (can ? ' sw' : ''); tag.textContent = (sd === 'B' ? 'Red' : 'Blue') + (can ? ' ⇄' : '');
-      if (can) { tag.type = 'button'; tag.title = 'Move to ' + to + ' (swaps with someone there if it\'s full)'; tag.setAttribute('aria-label', 'Move ' + (me ? 'yourself' : p.name || 'them') + ' to ' + to); tag.onclick = () => netSwitchSide(p.id); }
+      if (can) { tag.type = 'button'; tag.title = 'Move to ' + to + ' (the sides needn\'t be even: 2v4 is fine; swaps with someone there if it\'s full)'; tag.setAttribute('aria-label', 'Move ' + (me ? 'yourself' : p.name || 'them') + ' to ' + to); tag.onclick = () => netSwitchSide(p.id); }
       li.appendChild(tag);
     }
     // your own: a button to change how you look, there and then (the Character menu over the lobby: ui/look-menu.js)

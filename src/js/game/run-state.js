@@ -229,9 +229,12 @@ export const magSize = id => Math.max(1, Math.round(W(id).mag * S.magMul));
 // how the weapon in your hands sets your pace: a blade or a bat is lighter than nothing much (the two-handers less so);
 // primaries weigh you down by their calibre, how many rounds they hold and every attachment bolted on. Sidearms don't
 // count, but a bigger magazine than its own slows you with any gun (MAG_WALK)
+// Gun game's golden katana (its last rung, pvp/pvp.js GG) carried a little quicker than the plain one: the run in on
+// whoever's left, for you and for a bot alike (pvp/bots.js botCarry)
+export const GOLD_PACE = 1.06;
 export function carryMul(id) {
   const D = id && W(id); if (!D) return 1;
-  if (D.melee) return D.carry ?? (D.two ? 1.03 : 1.07);   // (carry: the arena's own pace for each, pvp/pvp.js PVP_MELEE)
+  if (D.melee) return (D.carry ?? (D.two ? 1.03 : 1.07)) * (W8.gold && W8.gold[id] ? GOLD_PACE : 1);   // (carry: the arena's own pace for each, pvp/pvp.js PVP_MELEE)
   const big = (D.magX > 1.01 ? 1 - MAG_WALK * Math.log2(D.magX) : 1) * (1 - (D.heft || 0));   // (heft: a heavy part's weight, weapons/gun-mods.js)
   if (D.slot !== 'long' && D.slot !== 'auto') return big;
   const gt = W8.gt[id] || {}, att = ['supp', 'choke', 'sight', 'laser', 'light'].reduce((n, k) => n + (gt[k] || 0), 0) + (gunAtt(id, 'bayonet') ? 1 : 0);

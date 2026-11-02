@@ -44,12 +44,15 @@ export const sampleX = a => -HALF + (a + 0.5) / FR;
 // its slit and its bars as they really are: zombies/zombie-visuals.js)
 export function los(x0, z0, x1, z1, thru) {
   if (THIN.n && thinHit(x0, z0, x1, z1) <= 1) return false;   // the inside walls (world/thin-walls.js)
-  const dx = x1 - x0, dz = z1 - z0, d = Math.hypot(dx, dz), steps = Math.ceil(d / 0.33);
-  const si = ci(x0), sj = ci(z0), ti = ci(x1), tj = ci(z1);
-  for (let s = 1; s < steps; s++) {
-    const i = ci(x0 + dx * s / steps), j = ci(z0 + dz * s / steps);
+  // (every cell the line passes through, in order, walked cell to cell (not sampled along it, which stepped over a
+  // wall's corner the line only clipped, or a thin wall between two samples, and saw through it)
+  const dx = x1 - x0, dz = z1 - z0, ti = ci(x1), tj = ci(z1);
+  let i = ci(x0), j = ci(z0);
+  const si = dx > 0 ? 1 : -1, sj = dz > 0 ? 1 : -1, tdx = dx ? Math.abs(1 / dx) : Infinity, tdz = dz ? Math.abs(1 / dz) : Infinity;
+  let tx = dx ? (dx > 0 ? (i + 1 - HALF - x0) : (x0 - (i - HALF))) * tdx : Infinity, tz = dz ? (dz > 0 ? (j + 1 - HALF - z0) : (z0 - (j - HALF))) * tdz : Infinity;
+  for (let n = 0; n < 4 * N; n++) {
+    if (tx < tz) { if (tx > 1) return true; i += si; tx += tdx; } else { if (tz > 1) return true; j += sj; tz += tdz; }
     if (i === ti && j === tj) return true;
-    if (i === si && j === sj) continue;
     if (i < 0 || j < 0 || i >= N || j >= N) return false;
     if (blockArr[j * N + i] && boxHitT(j * N + i, x0, z0, dx, dz, 0, 1) !== Infinity) return false;   // (a tall piece of furniture only where it stands: world/collision.js)
     const ob = openAt[j * N + i]; if (ob && shutN(ob) >= 2 && !(thru && ob.grate)) return false;   // two or more boards (or a plated grate) shut out sight and light

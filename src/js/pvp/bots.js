@@ -37,7 +37,7 @@ import { SPRINT } from '../player/sprint.js';
 import { ADS_MOVE, ADS_SCOPE } from '../player/movement.js';
 import { CROUCH } from '../player/crouch.js';
 import { WEAP } from '../weapons/gun-stats.js';
-import { curId, W, W8 } from '../game/run-state.js';
+import { curId, GOLD_PACE, W, W8 } from '../game/run-state.js';
 import { SLOTS } from '../weapons/slots.js';
 import { tracerPower } from '../effects/tracers.js';
 import { ARENA, arenaSpawn } from '../world/arena.js';
@@ -73,8 +73,8 @@ import { BOT_CYC, BOT_GUN, BOT_GY, BOT_IDLE, BOT_INSPECT, BOT_LEG, BOT_SWING, BO
 // (of a full one: a recruit leaves it half gone, a veteran tops off after a round or two, BOT_TOPOFF); crAcc, how
 // likely it crouches to steady its aim far off (BOT_CRACC)
 // The Terminator's extras (the others go without, as 1 or nothing): hs, how many of its hits aimed at a head land
-// there; reach, how much further than its gun's usual reach it fires (BOT_REACH); farK, mvK, gunK, how much of the
-// spread a long range, its own moving and its gun's own looseness put on its shots; think, how much sooner it thinks
+// there; reach, how much further than its gun's usual reach it fires (BOT_REACH); farK, how much of the
+// spread a long range puts on its shots (its own moving, its gun's looseness and its kick count in full, as yours do); think, how much sooner it thinks
 // and senses again; peekK, how much shorter its peeks and the gaps between them are (BOT_QPEEK, BOT_PEEK, BOT_COVER);
 // qpkAll, back in after a burst from a stepped-out peek too, not only a leaned one; crK, how likely it is to bob in a
 // crouch once a fight's on (BOT_CRSPAM k), bob, each bob down or up (s); leanSpam, leaning one way and the other mid
@@ -86,7 +86,9 @@ import { BOT_CYC, BOT_GUN, BOT_GY, BOT_IDLE, BOT_INSPECT, BOT_LEG, BOT_SWING, BO
 // fewer heads, head) and sharpen up as it falls, so neither the bots nor you run away with it. And a warm-up on every
 // new target: for warmT s after it reacts, its shots spread by warm more (by skill: Recruit, Regular, Veteran,
 // Terminator), easing off, and it finds the head warmHead as often, so whoever's quicker to react still wins it
-const BOT_FAIR = { win: 0.14, lose: 0.1, react: 0.35, sig: 0.45, head: 0.35, warm: [0.05, 0.035, 0.02, 0], warmT: 0.45, warmHead: 0.5 };
+// (the Terminator too gets its warm-up, its last warm and termHead of the heads at first: never a pre-aimed corner
+// it's on you at once and through the head, however ready it was; and never quicker to react than reactMin, BOT_SKILL)
+const BOT_FAIR = { win: 0.14, lose: 0.1, react: 0.35, sig: 0.45, head: 0.35, warm: [0.05, 0.035, 0.02, 0.016], warmT: 0.45, warmHead: 0.5, termHead: 0.4 };
 const ADAPT = new Map();
 export function botsAdapt(k, v) {
   if (!k || !v || k === v) return;
@@ -100,8 +102,8 @@ const BOT_SKILL = [
   { react: [0.34, 0.55], err: 0.24, settle: 3, sig: 0.06, turn: 3.6, view: 32, fov: 1.1, head: 0.09, iq: 0.35, team: 0.25, sneak: 0, flank: 0, gate: 0.12, track: [3.8, 4.6], wob: 0.016, tap: 1.1, hit: [0.2, 0.32], pre: 0.15, ctrl: 1.2, lead: 0, leadK: 1, dodge: null, crch: 0, sharp: 0, top: 0.5, crAcc: 0.1 },
   { react: [0.22, 0.36], err: 0.19, settle: 4, sig: 0.045, turn: 4.6, view: 38, fov: 1.25, head: 0.13, iq: 0.7, team: 0.7, sneak: 0.35, flank: 0.12, gate: 0.075, track: [4.8, 6], wob: 0.011, tap: 0.9, hit: [0.13, 0.22], pre: 0.5, ctrl: 0.9, lead: 0, leadK: 1, dodge: null, crch: 0, sharp: 0, top: 0.75, crAcc: 0.3 },
   { react: [0.1, 0.17], err: 0.09, settle: 7.5, sig: 0.017, turn: 6.2, view: 50, fov: 1.5, head: 0.2, iq: 1, team: 1, sneak: 0.5, flank: 0.25, gate: 0.032, track: [7.5, 9], wob: 0.004, tap: 0.7, hit: [0.06, 0.11], pre: 0.9, ctrl: 0.4, lead: 0.11, leadK: 0.35, dodge: [0.22, 0.5], crch: 0.45, sharp: 1, top: 0.95, crAcc: 0.85 },
-  { react: [0.13, 0.2], err: 0.04, settle: 13, sig: 0.008, turn: 7, view: 75, fov: 1.75, head: 0.3, iq: 1, team: 1, sneak: 0, flank: 0.3, gate: 0.018, track: [11, 13], wob: 0.0025, tap: 0.62, hit: [0.04, 0.075], pre: 1, ctrl: 0.12, lead: 0.07, leadK: 0.05, dodge: [0.12, 0.3], crch: 0.5, sharp: 1, top: 0.98, crAcc: 1,
-    hs: 0.62, reach: 1.7, farK: 0.14, mvK: 0.32, gunK: 0.32, think: 0.55, peekK: 0.55, qpkAll: 1, crK: 0.45, bob: [0.09, 0.18], leanSpam: 1, run: 1, angles: 1, burn: 1 }
+  { react: [0.16, 0.22], reactMin: 0.2, err: 0.065, settle: 13, sig: 0.013, turn: 7, view: 75, fov: 1.75, head: 0.3, iq: 1, team: 1, sneak: 0, flank: 0.3, gate: 0.018, track: [11, 13], wob: 0.0025, tap: 0.62, hit: [0.04, 0.075], pre: 1, ctrl: 0.4, lead: 0.07, leadK: 0.05, dodge: [0.12, 0.3], crch: 0.5, sharp: 1, top: 0.98, crAcc: 1,
+    hs: 0.5, reach: 1.7, farK: 0.5, think: 0.55, peekK: 0.55, qpkAll: 1, crK: 0.15, bob: [0.2, 0.36], leanSpam: 1, run: 1, angles: 1, burn: 1 }
 ];
 export const BOT_SKILLS = ['Recruit', 'Regular', 'Veteran', 'Terminator', 'Random'];   // (Random: each bot its own of the first three, drawn as it sits down: net/net.js)
 export const BOT_RANDOM = 4;   // (the lobby's pick that's Random)
@@ -129,7 +131,7 @@ const BOT_MOVE = { base: 3, sprint: 1.75 };
 // (player/movement.js ADS_MOVE), a magnified scope less again
 function botCarry(b, id) {
   const D = WEAP[id]; if (!D) return 1;
-  if (D.melee) return PVP_MELEE[id] ? PVP_MELEE[id].carry : D.two ? 1.03 : 1.07;   // (the arena's own pace for each: pvp/pvp.js PVP_MELEE)
+  if (D.melee) return (PVP_MELEE[id] ? PVP_MELEE[id].carry : D.two ? 1.03 : 1.07) * (b.gold && b.gold[id] ? GOLD_PACE : 1);   // (the golden katana a touch quicker, as yours)   // (the arena's own pace for each: pvp/pvp.js PVP_MELEE)
   if (D.slot !== 'long' && D.slot !== 'auto') return 1;
   const gt = (b.gt && b.gt[id]) || {}, att = ['supp', 'choke', 'sight', 'laser', 'light'].reduce((n, k) => n + (gt[k] ? 1 : 0), 0);
   const cal = D.ammo === 'rifle' ? 0.05 : D.ammo === 'shells' ? 0.04 : 0.025, mag = Math.min(0.07, (D.mag || 1) / 30 * 0.03);
@@ -150,7 +152,7 @@ const BOT_TUNNEL = 0.5;
 // its gun's kick (each one's, and how far a held trigger walks off with it, up to sprayMax, and how fast that comes
 // back off the trigger, off s after its last shot, recover per s); its first shots after a breath (first of them,
 // rested s apart) steadier, by firstK
-const BOT_ACC = { move: 0.009, sprint: 0.05, near: 12, far: 0.0006, kick: 0.004, spray0: 0.003, sprayKick: 0.0035, sprayMax: 0.08, off: 0.13, recover: 0.17, first: 2, rested: 0.3, firstK: 0.6 };
+const BOT_ACC = { move: 0.009, sprint: 0.05, near: 12, far: 0.0006, kick: 0.004, spray0: 0.003, sprayKick: 0.0035, shake: 0.006, sprayMax: 0.08, off: 0.13, recover: 0.17, first: 2, rested: 0.3, firstK: 0.6 };
 // its trigger held with an automatic (rounds: close in, mid range, far, and past far a few taps), and the breath between
 // bursts: rest s, and longer by reset s for each radian its spray had walked off, so the next burst starts on them again.
 // The auto shotgun the same by its own ranges (sg: shells held close in, mid range, and past sgMidD one at a time)
@@ -166,11 +168,14 @@ function botSight(sight, d) {
   return (1 + 0.3 * z) * (1 - far) + (1 - 0.1 * z) * far;
 }
 // firing from the hip close in (m: anyone nearer, a shotgun's nearer still), a little looser
-const BOT_HIP = { near: 6, shells: 9, spread: 0.02 };
+// from the hip it fires as you do (weapons/firing.js spreadOf): the gun's own cone, hip of it, open run more at a
+// walk, first of it for a first shot standing, and by spray more as its string goes on; that cone's half-width taken
+// as its aim's spread (cone)
+const BOT_HIP = { near: 6, shells: 9, hip: 1.3, run: 1.6, first: 0.55, spray: 1.3, cone: 0.5 };
 // where on someone it aims, each new target and each burst: their head (likelier the better it is), their legs now and
 // then, else their middle; and how high each is (m), its eyes' own height, for how far it looks up or down
 const BOT_PART_Y = { head: 1.6, torso: 1.15, legs: 0.55 }, BOT_EYE = 1.56;
-function botAimPart(b) { const T = b.vis, r = rand(), h = botSk(b).head * 2.5 * (T ? 1 - BOT_FAIR.head * botFair(b, T.id) : 1) * (!botSk(b).angles && botNow() - (b.acqT ?? -9) < BOT_FAIR.warmT ? BOT_FAIR.warmHead : 1); b.aimPart = r < h ? 'head' : r < h + 0.15 ? 'legs' : 'torso'; }
+function botAimPart(b) { const T = b.vis, r = rand(), h = botSk(b).head * 2.5 * (T ? 1 - BOT_FAIR.head * botFair(b, T.id) : 1) * (botNow() - (b.acqT ?? -9) < BOT_FAIR.warmT ? botSk(b).angles ? BOT_FAIR.termHead : BOT_FAIR.warmHead : 1); b.aimPart = r < h ? 'head' : r < h + 0.15 ? 'legs' : 'torso'; }
 const BOT_NAMES = ['Hollis', 'Ruth', 'Marek', 'Juno', 'Dacey', 'Ozzie', 'Teague', 'Wren', 'Abel', 'Noor', 'Sully', 'Kit'];
 export const botName = used => { const free = BOT_NAMES.filter(n => !used.has(n)); return (free.length ? free : BOT_NAMES)[Math.floor(rand() * (free.length || BOT_NAMES.length))]; };
 
@@ -333,7 +338,7 @@ function botSense(b, foes, t) {
         const ready = off < BOT_REACT.on && (expect || (b.pre && t < b.pre.until && Math.hypot(b.pre.x - f.x, b.pre.z - f.z) < 4));
         const k = 1 + BOT_REACT.side * clamp(off / S.fov, 0, 1.5) + (expect ? -BOT_REACT.expect : BOT_REACT.surprise) + (d < 8 && !expect ? BOT_REACT.close : 0) - (ready ? BOT_REACT.ready : 0);
         const fr = botFair(b, f.id); b.acqT = t;   // (BOT_FAIR: eased off or sharpened on this one; and its warm-up from now)
-        b.react = t + rr(...S.react) * Math.max(0.45, k) * (1 + BOT_FAIR.react * fr); b.err = S.err * (0.8 + 0.6 * clamp(off / S.fov, 0, 1)) * (expect ? 0.6 : 1) * (ready ? 0.7 : 1) * (1 + BOT_FAIR.sig * fr) * (rand() < 0.5 ? -1 : 1);
+        b.react = t + Math.max(S.reactMin || 0, rr(...S.react) * Math.max(0.45, k) * (1 + BOT_FAIR.react * fr)); b.err = S.err * (0.8 + 0.6 * clamp(off / S.fov, 0, 1)) * (expect ? 0.6 : 1) * (ready ? 0.7 : 1) * (1 + BOT_FAIR.sig * fr) * (rand() < 0.5 ? -1 : 1);
         botAimPart(b); if (f.id !== b.tgt) b.tunnel = rand() < BOT_TUNNEL;
         botHeatAdd(b.side, f.x, f.z, BOT_ANGLE.seen);   // (one of them come this way: BOT_HEAT)
       }
@@ -1206,8 +1211,11 @@ function botMeleeThink(b, T, t, d, S) {
       // 0.16 s before the blow lands, near enough all the way up as it lands (b.blockPlan), and up from then as everyone sees it; a plain block
       // goes up now)
       const end = t + Math.max(land + 0.15, rr(...BOT_GUARD.hold)); b.mWant = Math.max(0.6, d - 0.1);
-      if (rand() < BOT_GUARD.parry * S.iq && land > 0.18) b.blockPlan = { at: t + land - 0.16, end };
-      else { b.block = true; b.blockAt = nowS; b.blockEnd = end; }
+      // (a heavy blow gathered at it can't be blocked, only parried, melee/block.js MCHARGE: it goes for the parry
+      // twice as keenly, and failing that holds no guard up for it to smash through)
+      const heavy = T.id === NET.id ? !!W8.chgOn : !!((BOTS.get(T.id) || {}).mswing || {}).hv;
+      if (rand() < BOT_GUARD.parry * S.iq * (heavy ? 2 : 1) && land > 0.18) b.blockPlan = { at: t + land - 0.16, end };
+      else if (!heavy) { b.block = true; b.blockAt = nowS; b.blockEnd = end; }
       return;
     }
   }
@@ -1292,9 +1300,9 @@ function botMeleeStep(b, t, foes) {
       if (gk) {
         const ux = dx / (d || 1), uz = dz / (d || 1), full = Math.round(pvpMeleeDmg(M, false) * mul), cx = f.x - ux * 0.42, cz = f.z - uz * 0.42;
         guardFx(cx, 1.3, cz, -ux, -uz, gk === 'parry'); netAs(b.id, 'gx', { x: bR2(cx), z: bR2(cz), nx: bR2(-ux), nz: bR2(-uz), p: gk === 'parry' ? 1 : 0 });
-        botDeal(b, f, gk === 'parry' ? 0 : Math.max(1, Math.round(full * guardThrough(s.id) * (brk ? 1.6 : 1))), 'torso', s.id, false, { gk: gk === 'parry' ? 'p' : 'b', bd: full, kb: gk === 'parry' ? 0 : (M.kb || 0) * 0.4 + 1 + (brk ? 3 : 0), kx: ux, kz: uz, gb: brk });
+        botDeal(b, f, gk === 'parry' ? 0 : Math.max(1, Math.round(full * (brk ? 1 : guardThrough(s.id)))), 'torso', s.id, false, { gk: gk === 'parry' ? 'p' : 'b', bd: full, kb: gk === 'parry' ? 0 : (M.kb || 0) * 0.4 + 1 + (brk ? 3 : 0), kx: ux, kz: uz, gb: brk });
         if (gk === 'parry') { s.end = t; b.mcd = Math.max(b.mcd || 0, t + BLK.parryLock); b.stun = Math.max(b.stun || 0, BLK.parryStun * 0.6); }
-        else if (BOTS.has(f.id)) pvpGuardBleed(f.x, f.z, ux, uz, Math.max(1, Math.round(full * guardThrough(s.id) * (brk ? 1.6 : 1))), b.id);   // (a bot's guard: the host bleeds it for everyone; a player's own game does theirs)
+        else if (BOTS.has(f.id)) pvpGuardBleed(f.x, f.z, ux, uz, Math.max(1, Math.round(full * (brk ? 1 : guardThrough(s.id)))), b.id);   // (a bot's guard: the host bleeds it for everyone; a player's own game does theirs)
         n++; continue;
       }
       const head = rand() < M.head * (0.6 + 0.6 * S.iq) * (1 - BOT_FAIR.head * botFair(b, f.id));
@@ -1620,21 +1628,26 @@ const botReaim = (id, t) => { const w = crWatch.get(id); return !!w && t - w.t <
 // a shot: each round (or pellet) along where it's aiming, off by how steady it is, stopping at the first wall; anyone
 // on that line takes it as a player's would (pvp/pvp.js: by where it lands, a head double, low cover keeping most of a
 // body out of it), and everyone sees and hears it
+const BOT_MUZ = 0.55;   // (how far ahead of its eye the round leaves its barrel, m)
 function botShoot(b, id, D, foes, d) {
   const S = botSk(b), pel = D.pellets || 1, shells = D.ammo === 'shells', gt = b.gt[id] || {};
   b.mag[id]--; b.st.shots++;
   const moving = Math.hypot(b.vx, b.vz), T = b.vis, tv = T ? Math.hypot(T.vx, T.vz) : 0;
-  const sig = (S.sig + (pel > 1 ? 0 : ((D.spread || 0.03) * 0.5 + (botNow() < (b.hipT || 0) ? BOT_HIP.spread : 0)) * (S.gunK ?? 1)) + moving * BOT_ACC.move * (S.mvK ?? 1) + (b.sprint ? BOT_ACC.sprint : 0) + b.spray + Math.min(BOT_LEAD.max, tv * BOT_LEAD.k) * S.leadK
-    + Math.max(0, d - BOT_ACC.near) * BOT_ACC.far * (S.farK ?? 1) + (D.kick || 1) * BOT_ACC.kick * (S.gunK ?? 1)
+  const mv = clamp(moving / 3, 0, 1), hip = botNow() < (b.hipT || 0) ? (D.spread || 0.03) * BOT_HIP.hip * (D.hipK || 1) * (1 + mv * BOT_HIP.run * (D.mobile || 1)) * (b.firstN === 0 && mv < 0.15 ? BOT_HIP.first : 1) * (1 + BOT_HIP.spray * b.spray / BOT_ACC.sprayMax) * BOT_HIP.cone : 0;
+  const sig = (S.sig + (pel > 1 ? 0 : ((D.spread || 0.03) * 0.5 + hip)) + moving * BOT_ACC.move + (b.sprint ? BOT_ACC.sprint : 0) + b.spray + Math.min(BOT_LEAD.max, tv * BOT_LEAD.k) * S.leadK
+    + Math.max(0, d - BOT_ACC.near) * BOT_ACC.far * (S.farK ?? 1) + (D.kick || 1) * BOT_ACC.kick
     + (BOT_FAIR.warm[botSkIdx(b)] || 0) * Math.exp(-(botNow() - (b.acqT ?? -9)) / BOT_FAIR.warmT)) * (1 + BOT_FAIR.sig * (T ? botFair(b, T.id) : 0)) * botSight(gt.sight || 0, d) * (1 - (1 - CROUCH.spread) * botCrK(b));   // (crouched, steadier, as you are)
   // (its first shots after a breath steadier: BOT_ACC first)
   const t = botNow(); if (t - (b.lastShotT ?? -9) > BOT_ACC.rested) b.firstN = 0; b.lastShotT = t;
-  const common = botGauss() * sig * (b.firstN++ < BOT_ACC.first ? BOT_ACC.firstK : 1); b.spray = Math.min(BOT_ACC.sprayMax, b.spray + (BOT_ACC.spray0 + (D.kick || 1) * BOT_ACC.sprayKick) * S.ctrl);   // (a kicking gun's held trigger walking off further, the less so the better it is)
-  const E = botEye(b), ox = E[0] + Math.sin(b.aim) * 0.55, oz = E[1] + Math.cos(b.aim) * 0.55, oy = 1.36 - CROUCH.drop * botCrK(b), on = new Map(), ends = [];
+  const common = botGauss() * sig * (b.firstN++ < BOT_ACC.first ? BOT_ACC.firstK : 1); b.spray = Math.min(BOT_ACC.sprayMax, b.spray + (BOT_ACC.spray0 + (D.kick || 1) * BOT_ACC.sprayKick + (D.shake || 0) * BOT_ACC.shake) * (D.sprayK || 1) * S.ctrl);   // (and by the gun's own kick, as yours opens: weapons/firing.js W8.spray)   // (a kicking gun's held trigger walking off further, the less so the better it is)
+  const E = botEye(b), ox = E[0] + Math.sin(b.aim) * BOT_MUZ, oz = E[1] + Math.cos(b.aim) * BOT_MUZ, oy = 1.36 - CROUCH.drop * botCrK(b), on = new Map(), ends = [];
   const fire = b.rd && b.rd[id] === 'fire', reachT = fire ? DRAGON_MAX : 70;   // (dragon's breath: nothing past DRAGON_MAX, weapons/rounds.js)
   for (let k = 0; k < pel; k++) {
     const a = b.aim + common + (pel > 1 ? (rand() * 2 - 1) * D.spread * (gt.choke ? 0.8 : 1) * 0.85 : 0), dx = Math.sin(a), dz = Math.cos(a);
-    let wallT = 70; for (let s = 0.3; s < 70; s += 0.08) { const x = ox + dx * s, z = oz + dz * s; if (bulletBlocked(x, z) || !inb(ci(x), ci(z))) { wallT = s; break; } }
+    // (the first wall from its eye, not from its muzzle: a wall within the gun's length in front of it, or between its
+    // eye and where the round leaves the barrel, stops the round there, never letting it start out past the wall;
+    // walls along the way looked for finely enough that a thin one met at a slant isn't stepped over)
+    let wallT = 70; for (let s = 0.05; s < 70 + BOT_MUZ; s += 0.05) { const x = E[0] + dx * s, z = E[1] + dz * s; if (bulletBlocked(x, z) || !inb(ci(x), ci(z))) { wallT = Math.max(0.02, s - BOT_MUZ); break; } }
     let hit = null, ht = wallT, rel = 0;
     for (const f of foes) { const vx = f.x - ox, vz = f.z - oz, tt = vx * dx + vz * dz, off = vx * dz - vz * dx; if (tt > 0.2 && tt < ht && tt < reachT && off * off < PVP_R * PVP_R) { hit = f; ht = tt; rel = off / PVP_R; } }
     let endK = wallT < 70 ? 1 : 3, ey = oy + rr(-0.2, 0.05);
@@ -1790,7 +1803,11 @@ const BOT_HZ = 15, BOT_TAU = Math.PI * 2, BOT_LEAN = { tilt: 0.3, hip: 0.62, off
 // from, round what it's behind
 function botEye(b) {
   const l = (b.lean || 0) * BOT_LEAN.off; if (Math.abs(l) < 0.05) return [b.x, b.z];
-  const x = b.x - Math.cos(b.aim) * l, z = b.z + Math.sin(b.aim) * l; return bulletBlocked(x, z) ? [b.x, b.z] : [x, z];
+  // (and nothing between its body and its leaned-out eye: leaning against a thin wall never puts its eye, or its gun,
+  // out the far side of it)
+  const x = b.x - Math.cos(b.aim) * l, z = b.z + Math.sin(b.aim) * l;
+  for (let k = 1; k <= 4; k++) if (bulletBlocked(b.x + (x - b.x) * k / 4, b.z + (z - b.z) * k / 4)) return [b.x, b.z];
+  return [x, z];
 }
 // which way to lean to see T round what it's behind: the side that sees them and the other doesn't, else neither
 function botLeanSide(b, T) {

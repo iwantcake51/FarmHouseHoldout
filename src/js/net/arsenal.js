@@ -167,10 +167,12 @@ export function teamWeapon(lo, id) {
 }
 // what never moves folded into a mesh or two, under each part that does (and under the holder): a teammate's rifle is
 // a handful of draws, not a hundred
+// (a scope's eyepiece glass and a sight's reticle pane kept as they are, each its own: what's down a scope is drawn into
+// that glass, and a dot or a hologram onto that pane, from the eyes of whoever's holding it, effects/scope-view.js)
 export function foldStatic(root, moving) {
   const stop = new Set(moving), span = spanOf(root);   // (the whole gun's reach: its far version goes over as one, core/geometry.js)
   for (const node of [root, ...moving]) {
-    const parts = []; (function walk(o) { o.children.forEach(c => { if (stop.has(c)) return; if (c.isMesh && c.visible && !c.userData.isFlash) { c.castShadow = true; parts.push(c); } walk(c); }); })(node);
+    const parts = []; (function walk(o) { o.children.forEach(c => { if (stop.has(c)) return; if (c.isMesh && c.visible && !c.userData.isFlash && !c.userData.lens && !c.userData.reticlePane) { c.castShadow = true; parts.push(c); } walk(c); }); })(node);
     if (parts.length > 1) mergeInto(node, parts, { lod: true, span });
   }
 }

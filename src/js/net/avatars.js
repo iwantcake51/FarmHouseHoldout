@@ -29,7 +29,7 @@ import { stepRagdoll } from '../zombies/deaths.js';
 import { xray } from '../effects/outlines.js';
 import { fpOn, FPV, isoOn, specFpOn } from '../game/view-cam.js';
 import { FP_PIV, lookTurn } from '../player/hold.js';
-import { avatarAction, specKick, specVm, specVmFov } from './spec-vm.js';
+import { avatarAction, specKick, specScope, specVm, specVmFov } from './spec-vm.js';
 import { flipOf, gunMeshes, X } from '../weapons/gun-materials.js';
 import { EJECT, ejectFrom, remoteEject, remoteRack } from '../weapons/casings.js';
 import { flashes } from '../weapons/explosives.js';
@@ -193,6 +193,7 @@ function specFp(p, a, rdt) {
   // your own eyes with that weapon, aiming, running, reloading, kicking and working its action as yours do; a player's
   // are as their view sent them, each shot's kick put on top: net/spec-vm.js)
   if (bot) specVm(p, a, rdt); else specKick(p, a, rdt);
+  specScope(p, a);   // (a scope on it: what's down it drawn as down yours, game/view-cam.js SPEC_SIGHT)
 }
 
 // ---- their survivors

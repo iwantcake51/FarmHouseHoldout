@@ -200,8 +200,10 @@ export const netRoster = () => [{ id: NET.id, name: netName(), look: LOOK.cur, i
 export const netAllReady = () => [...NET.peers.values()].every(p => p.ready);
 const rosterOut = () => { sidesFill(); NET.acfg = pvpCfgFix(NET.acfg); netOut({ t: 'roster', f: NET.id, list: netRoster(), view: NET.view, rm: NET.runMode, gm: NET.game, am: NET.arena, bs: NET.botSkill, ac: NET.acfg, sd: NET.sides }, null); frMet(netRoster()); };
 // ---- the arena's sides in the lobby (the team modes): someone new goes to the side with fewer on it; anyone can switch
-// themselves (the host says yes, if there's room: SIDE_MAX), and the host can move a bot
-const SIDE_MAX = 3;
+// themselves (the host says yes, if there's room: sideMax), and the host can move a bot. The sides needn't be even: a
+// side holds anyone up to all but one seat (2v4, 1v5, 2v3...), so an uneven fight's there for the picking; full, a move
+// there is a swap
+const sideMax = () => netMax() - 1;
 function sidesFill() {
   if (!NET.host) return;
   const ids = netRoster().map(r => r.id), n = { A: 0, B: 0 };
@@ -218,7 +220,7 @@ export function netSwitchSide(id) {
   // down); none, and only the host's say-so (moving someone, or themselves) swaps a person, the last to have joined;
   // someone asking for themselves with only people over there is told to ask the host
   let back = null;
-  if (Object.values(NET.sides).filter(s => s === to).length >= SIDE_MAX) {
+  if (Object.values(NET.sides).filter(s => s === to).length >= sideMax()) {
     const there = netRoster().filter(r => NET.sides[r.id] === to && r.id !== id).sort((a, b) => b.idx - a.idx);
     back = (there.find(r => r.bot) || (!swFromPeer ? there[0] : null) || {}).id || null;
     if (!back) { NET.status = 'That side is full: ask the host to swap you'; SFX.deny(); lobbyRender(); if (swFromPeer) netTo(id, 'swno', {}); return; }
@@ -322,6 +324,11 @@ export function netStart() {
   if (!netAllReady()) { const w = [...NET.peers.values()].filter(p => !p.ready).map(p => p.name); NET.status = 'Waiting for ' + w.join(' and ') + ' to get ready'; SFX.deny(); lobbyRender(); return false; }
   NET.houseSeed = (Math.random() * 2147483647) | 0;   // everyone's farmhouse laid out alike (world/interior.js)
   sidesFill(); NET.acfg = pvpCfgFix(NET.acfg);
+  // (a team game needs someone on each side, however few: uneven's fine, a side with nobody on it isn't a match)
+  if (NET.game === 'arena' && (NET.arena === 'tdm' || NET.arena === 'rounds')) {
+    const on = netRoster().map(r => NET.sides[r.id]);
+    if (!on.includes('A') || !on.includes('B')) { NET.status = 'Both sides need someone on them'; SFX.deny(); lobbyRender(); return false; }
+  }
   NET.teams = NET.game === 'arena' ? (NET.arena === 'ffa' || PVP_RULES.has(NET.arena) ? pvpTeams(netRoster(), 'ffa') : Object.assign({}, NET.sides)) : null;   // (Snipers only, Brawl and Gun game are everyone for themselves too)   // (the arena's sides as the lobby has them, everyone's the same)
   netSend('start', { roster: netRoster(), house: NET.houseSeed, view: NET.view, rm: NET.runMode, gm: NET.game, am: NET.arena, tm: NET.teams, ac: NET.acfg }); netBegin();
   return true;

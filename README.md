@@ -481,7 +481,7 @@ the pickups feed) is put away. The host picks one of three modes:
   point furthest from everyone else, and you can change class while you wait.
 - **Team deathmatch.** Two sides, Blue and Red, as the lobby has them (Sides, below). Each side
   starts at its own end and respawns there. The first side to 20 kills wins.
-- **Showdown.** Two sides (1v1 up to 3v3), one life a round, first side to 5 rounds. Health doesn't come back:
+- **Showdown.** Two sides (1v1 up to 3v3, or uneven: 2v4, 1v5, 2v3), one life a round, first side to 5 rounds. Health doesn't come back:
   what you lose stays lost till the next round. Go down and the view dips to black and comes up on a teammate still
   standing, stepping between them with Q and E, bots included, and from their own eyes in first person. Once your
   whole side is down, the camera goes to the enemy who took the last of you down (whoever killed your last teammate,
@@ -557,7 +557,7 @@ has its kick cross clear of its side's badge.
 | Recruit | 0.42–0.7 s | about 16° | 30 m | 8% of hits | Hardly minds what range its gun's good at, rarely flanks, runs everywhere (you hear it coming), barely plays as a side |
 | Regular | 0.28–0.45 s | about 13° | 36 m | 11% | In between |
 | Veteran | 0.17–0.3 s | about 10° | 42 m | 15% | Keeps to its gun's range (a shotgun pressing in, a rifle keeping back), flanks more, walks in quietly on someone it knows is there, spreads over the lanes with its side and goes where a teammate fell |
-| Terminator | 0.13–0.2 s | about 2.5° | 75 m | about 60% of hits | Everything a veteran does, cranked up: lasers you from far off, quick-peeks everything, crouches and leans mid fight, runs everywhere, holds the angles you come through in Showdown, and never re-peeks an angle it was shot from (below) |
+| Terminator | 0.2–0.22 s (never under 0.2) | about 4° | 75 m | about half its hits | Everything a veteran does, cranked up: lasers you from far off, quick-peeks everything, crouches and leans mid fight, runs everywhere, holds the angles you come through in Showdown, and never re-peeks an angle it was shot from (below) |
 
 **Crouching or standing up** moves your head out from where a bot was aiming: for 0.45 s after, a bot aiming at the
 head finds it only a sixth as often (the rounds go where it was), until it's found it again.
@@ -642,6 +642,16 @@ their aim faster, and their first two rounds after a breath spread 40% less.
   just as it steadies you, and a crouched bot's harder to hit, behind low cover hidden from other bots.
 - **Down the sights they look it**: the head tips over onto the stock and the face screws up to aim, from outside and
   from their own eyes when you spectate.
+- **No shots through walls.** A bot's round looks for walls from its eyes, not from its muzzle half a metre ahead, and
+  finely enough not to step over a thin wall met at a slant; and leaning against a thin wall never puts its eye out the
+  far side. A wall within its gun's length in front of it stops its round there.
+- **From the hip as you do.** A bot firing from the hip close in gets your hip-fire cone: the gun's own, opened at a
+  walk, tighter for a first shot standing still and opening as its string goes on. Each gun's own kick walks its aim off
+  as it holds the trigger, as yours does.
+- **Watching down their scope.** Spectating someone from their own eyes with a scope or an ACOG up, what's down it
+  shows as it does down yours: the magnified picture, the reticle, the glass and the blur round it. Their red dot's dot
+  and holographic sight's reticle show in the window too (the pieces they're drawn on aren't folded into the rest of
+  their gun any more).
 - **Top off in a lull**: nobody seen or shooting at them for a couple of seconds, they reload a part-empty mag
   (veterans almost any time, recruits only when it's half gone), a veteran stepping into cover first; topping off with
   rounds still in it, they drop the reload to fight anyone who turns up.
@@ -653,18 +663,20 @@ their aim faster, and their first two rounds after a breath spread 40% less.
 
 **Terminator: harder than Veteran, everything cranked up.** A fifth pick under **Bots** (pvp/bots.js, the fourth row of
 BOT_SKILL and the Terminator's own knobs on it):
-- **Lasers you from far off.** It reacts in 0.13–0.2 s (quick, not superhuman), its first aim is about a quarter as far off you as a veteran's
-  and settles twice as fast, it turns a little quicker than a veteran, and it sees out to 75 m across a wider view. Its shots
-  hardly spread: a fifth of the spread its own moving and its gun's looseness add, a twelfth of what range adds, and
-  almost none from a held trigger. It fires 70% further past each gun's usual reach.
-- **Mostly headshots.** It aims at the head, and about three in five of the hits it lands that way are in the head (a
-  veteran's land there at most half the time). It's a touch looser than it was (its aim, spread and recoil control),
+- **Lasers you from far off.** It reacts in 0.16–0.22 s and never in under 0.2 s, however ready it was for you (even
+  holding the corner you come round, pre-aimed): a human's quick reaction, not an instant one. Its first aim is under
+  three quarters as far off you as a veteran's and settles faster, it turns a little quicker than a veteran, and it sees
+  out to 75 m across a wider view. Spread and recoil hit it as they hit you: its own moving, its gun's looseness and kick,
+  and a held trigger walking its aim off all count in full (it holds a trigger down no better than a veteran), only
+  half of what range adds. Its first shots on someone new are a touch looser and go for the head less, as everyone
+  else's do. It fires 70% further past each gun's usual reach.
+- **Mostly headshots.** It aims at the head, and about half the hits it lands that way are in the head. It's a touch looser than it was (its aim, spread and recoil control),
   so it takes a little longer to put you down, but it's still sharper than a Veteran on every count. Low cover still takes its rounds as it does anyone's.
 - **Quick-peeks everything.** Its peeks, the gaps between them and its time holding a corner are all about half as long.
   After a burst from a stepped-out peek it's straight back in behind its cover, as it already was from a lean, and comes
   again from somewhere else.
-- **Crouches and leans.** Once a fight's on it bobs in a crouch about half the time (less than it used to), each bob a
-  tenth to a fifth of a second. It also leans one way and the other every fifth to a third of a second, always to a side
+- **Crouches and leans.** Once a fight's on it sometimes bobs in a crouch (about a third as often as it used to),
+  each bob a fifth to a third of a second. It also leans one way and the other every fifth to a third of a second, always to a side
   it can still see you from, at any walking pace and quicker to lean over than anyone else.
 - **Runs everywhere.** It sprints wherever it's going (looking, flanking, searching, going after someone, out to its
   first spot of a round) and never walks in quietly. It still puts its gun up to fight, as you have to.
@@ -1143,6 +1155,9 @@ like pea-shooters). To a 100-health body, before range falloff:
 - Their name shows only while you're aiming at them or looking right at them, in plain sight. From your own eyes
   that means near the middle of the view (more leeway close up); from above, your crosshair on the ground close to
   them. It shows in red, a little see-through, never with their health, and never pinned to the edge of the screen.
+  "In plain sight" is worked out cell by cell along the whole line between you (lighting/lightmap.js los): it used to
+  be tested every third of a metre, which could step over the corner of a wall the line only clipped, or a thin wall,
+  and show their name (and its red dot on your crosshair) through it.
   Your own side keeps its outlines, names and health bars in its colour, and your teammates are shown through walls
   while they're alive, gone the moment they go down: from your own eyes as the thin line round them that the last
   zombies of a wave get (just their outline, not their gun or pack filled in through the wall), from above as a
@@ -1569,7 +1584,9 @@ Deathmatch: everyone for themselves, back in a few seconds after going down.
   - Everyone also carries a machete. A machete kill doesn't move you up, but it puts the person you killed back one
     gun.
   - **The golden revolver** holds one round per load, with a dozen spare, and any hit kills. Its tracer is gold.
-  - **The golden katana** kills with one blow, any blow, and a kill with it wins the match. If the clock runs out
+  - **The golden katana** kills with one blow, any blow, and a kill with it wins the match. You carry it 6% quicker
+    than the plain katana (bots too).
+  - A rung's gun comes as a pair, one in each hand, only now and then: 12% of the time where the gun has one. If the clock runs out
     first, whoever is furthest up wins.
   - Reaching either golden weapon brings a big gold call over the screen with a fanfare. When anyone else reaches
     one, everyone in the server sees a gold notice across the top of the screen: their name, which golden weapon,
@@ -1711,8 +1728,11 @@ the chest turned to put the shoulder behind it).
   rising ring when it's full; it eats a tenth of your stamina a second while held, 2.5 s at most). While it's held the
   view shakes with the strain, more as it gathers, and the weapon and your arms tremble; the pose holds steady through
   it (no new swing starts under it however long it's held). Let go to bring it
-  down: up to twice as hard the longer it was held (double damage at full), and one at full **breaks a guard** outright (and gets 1.6× as much
-  through it). Tap it for a quick swing as before. Others see the wind-up and the release on your avatar.
+  down: up to twice as hard the longer it was held (double damage at full), and one at full **can't be blocked, only parried**: it goes through
+  a guard held up, every bit of its damage, and breaks it, while a parry timed to it still turns it aside as it would
+  any blow. Bots know it: against a charged blow they go for the parry twice as keenly and otherwise don't put a guard
+  up for it to smash through. A charge cut off by dying, a respawn or a weapon put away lets go (it used to stay held,
+  the crosshair stuck on its brackets and no swing ever starting again). Tap it for a quick swing as before. Others see the wind-up and the release on your avatar.
 - **Feints.** While it's winding up, raise your guard (right click) to pull the blow: a quick feint that costs a little
   stamina and baits a guard or a parry out of whoever's watching.
 - **Dashing.** With a melee weapon out, press **Space** while moving (forward, back or to either side) and you dash a
@@ -1857,7 +1877,8 @@ side lot):
   truck and trailer were shortened a metre at each end); its team together in the lot,
   out of every sightline (each round a random spot there, teammates next to each other: world/arena.js).
 - **North, the Travel stop**: close quarters. A real store: painted block walls up to its flat roof, a parapet round
-  it with ROUTE 9 MART along the front, lintels over its doors, its windows boarded over, the ice chest and the bin in a
+  it with ROUTE 9 MART along the front, lintels over its doors, its windows boarded over (NO FUEL and EVAC → NORTH sprayed on the plywood itself, never
+  out over a door or a bay), the ice chest and the bin in a
   bay of the front wall and the propane cage in one in the side wall. In from the side lot by its side door or round
   through the storeroom (its back door and its front doors three metres wide now). Laid out as a convenience store:
   in each half a gondola aisle running front to back (two metres to the side wall, three to the middle, its back
@@ -1939,10 +1960,9 @@ checked by a script (tools/arena-plan.py) for reachability, spawn safety, sightl
 - **The two halves** mirror each other, so neither side is better off: west against east, each spawn a hatched box
   painted plain white on the concrete (the sides swap ends in Showdown, so neither colour's on it). Eighteen spots
   spread round all three lanes are Deathmatch's spawns.
-- **Vaulting.** The pallets of stock (waist high) and the jersey barriers can be vaulted like
-  the farm's fence: walk up to one (a **Vault the crates** or **Vault the barrier** prompt shows) and press the vault
-  key, or sprint into it. **The sandbag walls can't be vaulted** (they used to be): you see and shoot over them, but
-  you go round them. Nothing else of the farm's is in your bag: no planks.
+- **Vaulting.** The pallets of stock (waist high), the jersey barriers and the sandbag walls can be vaulted like
+  the farm's fence: walk up to one (a **Vault the crates**, **Vault the barrier** or **Vault the sandbags** prompt
+  shows) and press the vault key, or sprint into it. Nothing else of the farm's is in your bag: no planks.
 - **Hitboxes fit the props.** A spool, a crate stack or a drum stops you and your rounds only where it really is, not
   across its whole metre of floor.
 - **The light** in Showdown is set once a round and holds still through it (the clock doesn't run during a round):
@@ -2015,7 +2035,9 @@ checked by a script (tools/arena-plan.py) for reachability, spawn safety, sightl
   - On the camera's sides, only low things: a rail line with a flatcar, pallets, a forklift and a line of barriers.
   - From your own eyes the crane and the stacks make a skyline over the walls.
 
-**Six players.** The arena takes up to six (survival still four), so 3v3 in the team modes. The lobby shows six seats
+**Six players.** The arena takes up to six (survival still four), so up to 3v3 in the team modes. The sides needn't be
+even: a side holds anyone up to five, so you can move yourself or a bot over with the side badge for 2v4, 1v5 or 2v3
+(a full side swaps instead). A team game won't start with nobody on one side. The lobby shows six seats
 when the game's set to the arena, and the two new seats have their own colours. A lobby with more than four people in
 it can't be switched to survival.
 

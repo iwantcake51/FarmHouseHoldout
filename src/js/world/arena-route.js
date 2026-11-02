@@ -816,8 +816,10 @@ function rtSigns(g) {
   // the store's name along its front's parapet; sprayed on the plywood over its windows; on its side wall
   rtSign(g, 'ROUTE 9 MART', 9, 0.6, null, '#a8302a', 0, RT_SH + 0.45, RZ(RT_STORE.j1) + 0.506, 0, false, null, 'letters');
   const zF = RZ(RT_STORE.j1) + 0.296;
-  rtSign(g, 'NO FUEL', 1.8, 0.6, null, '#161616', -4.2, 1.55, zF, 0);
-  rtSign(g, 'EVAC → NORTH', 2.4, 0.55, null, '#161616', 3.8, 1.55, zF, 0);
+  // (the plywood runs x -4..4 between the ice boxes' bays, its middle x -2..2 behind the blast-wall baskets stood against
+  // it; each line sprayed on a stretch you can see, x 2..4 either side, never out over a bay or a door)
+  rtSign(g, 'NO FUEL', 1.55, 0.5, null, '#161616', -3.0, 1.55, zF, 0);
+  rtSign(g, 'EVAC → NORTH', 1.7, 0.42, null, '#161616', 3.0, 1.55, zF, 0);
   rtSign(g, 'DEAD INSIDE', 1.8, 0.55, null, '#b0281e', RX(RT_STORE.i0) - 0.506, 1.6, (RZ(4) + RZ(5)) / 2, -Math.PI / 2);
   // the garage's: over each bay on its fascia, over the office door
   const xG = RX(0) + 0.526;
