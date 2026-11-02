@@ -24,6 +24,7 @@ import { ci, cxw, idx } from './grid.js';
 import { cellBox } from './collision.js';
 import { fpOn } from '../game/view-cam.js';
 import { arBoxSet } from './arena-boxes.js';
+import { whenFonts } from './sign-art.js';
 import { MALL_ANCHORS, MALL_STORES, mallAdTex, mallBannerTex, mallCeilTex, mallDirTex, mallMenuTex, mallShopTex, mallSignBoard, mallSignTex } from './arena-mall-art.js';
 
 // its plan, a row a line from north to south (tools/mall-plan.py prints it): # the outer wall, h shop and service
@@ -40,7 +41,7 @@ const MALL_PLAN = [
   '#..........F....hhhh....F..........#',
   '#hhh...hhh...h..hhhh..h...hhh...hhh#',
   '#A.....h....................h.....B#',
-  '#......h.F..Pp........pP..F.h......#',
+  '#......h.F..P..........P..F.h......#',
   '#..SSSSh.......FP..PF.......hSSSS..#',
   '#......h..KK..P......P..KK..h......#',
   '#.A....h..KK............KK..h....B.#',
@@ -51,15 +52,15 @@ const MALL_PLAN = [
   '#.A....h..KK............KK..h....B.#',
   '#......h..KK..P......P..KK..h......#',
   '#..SSSSh....................hSSSS..#',
-  '#......h.F..pP........Pp..F.h......#',
+  '#......h.F...P........P...F.h......#',
   '#A.....h....................h.....B#',
   '#hhh...hhhhhh..hhhhhh..hhhhhh...hhh#',
   '#...............hhhh...............#',
-  '#..........T....hhhh....T..........#',
-  '#.cc........F.T.hhhh.T.F........cc.#',
+  '#...............hhhh...............#',
+  '#cc.........FT..hhhh..TF.........cc#',
   '#.......h.......hhhh.......h.......#',
-  '#...F...h.ccc..........ccc.h...F...#',
-  '#.......h......F....F......h.......#',
+  '#...F...h..................h...F...#',
+  '#.......h..ccc.F....F.ccc..h.......#',
   '####################################'
 ];
 // where it stands on the grid (cells, the walls included): centred on the grid's middle like Yard 4, so the flag's in
@@ -252,6 +253,7 @@ function mTexMat(key, make, glow) {
   if (mTexCache.has(key)) return mTexCache.get(key);
   const t = make(), m = new THREE.MeshLambertMaterial(glow ? { color: 0x303030, map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.8 } : { map: t });
   if (glow) m.userData.glow = true;
+  whenFonts(() => { const t2 = make(); t.dispose(); m.map = t2; if (glow) m.emissiveMap = t2; m.needsUpdate = true; });   // (made again once the web faces are in: world/sign-art.js)
   const L = lit(m, 'tree'); mTexCache.set(key, L); return L;
 }
 let mTexParts = null, mUpTex = null;
@@ -309,16 +311,21 @@ function mallShops() {
 function mallDress(g) {
   const r = seeded(9131), L = MALL_DRESS.lift, cx = cxw(MALL_B[0] + 17.5);   // (the middle, east to west)
   mallShops();
+  const dirDone = { w: false, e: false }; let pillarN = 0;
   for (let j = MALL_B[1]; j <= MALL_B[3]; j++) for (let i = MALL_B[0]; i <= MALL_B[2]; i++) {
     const k = MALL_KIND(i, j), x = cxw(i), z = cxw(j), ii = i - MALL_B[0], jj = j - MALL_B[1];
     // the kiosks' displays, in their bezels (mallKiosk)
     if (k === 'K') for (const s of [-1, 1]) if (MALL_KIND(i + s, j) !== 'K') mPic(0.8, 0.9, mTexMat('ad' + ((jj + ii) % 3), () => mallAdTex((jj + ii) % 3), true), x + s * (0.505 + L), 1.1, z, [s, 0]);
-    // each pillar: the directory on the face toward the middle, a bin on the face away from it
+    // the pillars: bare stone, as a mall's are, with one directory each side of the concourse (the first pillar met on
+    // that side, toward the middle) and a bin on every other one, on the face away from the middle
     if (k === 'P') {
-      const s = x < cx ? 1 : -1, dd = [s, 0], db = [-s, 0];
-      mOnFace(dd, 0.72, 1.24, 0.03, mDressMat.dk, x, 1.36, z, 0.45);
-      mPic(0.64, 1.12, mTexMat('dir' + ii + ',' + jj, () => mallDirTex(MALL_PLAN, ii, jj), true), x + s * (0.48 + L), 1.36, z, dd);
-      mOnFace(db, 0.42, 0.8, 0.24, mDressMat.bin, x, 0.4, z, 0.45); mOnFace(db, 0.44, 0.05, 0.26, mDressMat.binTop, x, 0.825, z, 0.44); mOnFace(db, 0.26, 0.05, 0.01, mDressMat.till, x, 0.72, z, 0.69);
+      const s = x < cx ? 1 : -1, dd = [s, 0], db = [-s, 0], side = s > 0 ? 'w' : 'e'; pillarN++;
+      if (!dirDone[side]) {
+        dirDone[side] = true;
+        mOnFace(dd, 0.72, 1.24, 0.03, mDressMat.dk, x, 1.36, z, 0.45);
+        mPic(0.64, 1.12, mTexMat('dir' + ii + ',' + jj, () => mallDirTex(MALL_PLAN, ii, jj), true), x + s * (0.48 + L), 1.36, z, dd);
+      }
+      if (pillarN % 2 === 0) { mOnFace(db, 0.42, 0.8, 0.24, mDressMat.bin, x, 0.4, z, 0.45); mOnFace(db, 0.44, 0.05, 0.26, mDressMat.binTop, x, 0.825, z, 0.44); mOnFace(db, 0.26, 0.05, 0.01, mDressMat.till, x, 0.72, z, 0.69); }
     }
     // a planter's rim: bench boards round it
     if (k === 'p') { for (const s of [-1, 1]) { mBox(0.95, 0.05, 0.16, mDressMat.wood, x, 0.73, z + s * 0.395); mBox(0.16, 0.05, 0.63, mDressMat.wood, x + s * 0.395, 0.73, z); } }

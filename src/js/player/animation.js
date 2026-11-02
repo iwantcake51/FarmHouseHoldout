@@ -36,6 +36,7 @@ import { agReset, agState, locoPose, locoWeights } from './anim-graph.js';
 import { leanBody, leanStep } from './lean.js';
 import { CR, CROUCH, crouchK, crouchLegs, crouchStep, crouchStride } from './crouch.js';
 import { ARENA } from '../world/arena.js';
+import { goldFallStep } from '../effects/gold.js';
 const _lp = { lx: 0, rx: 0, lz: 0, rz: 0, kl: 0, kr: 0, hx: 0, hz: 0, twist: 1 };
 
 // ---- player animation: eased facing, hips that follow your feet, bob, sway, limp, recoil, reloads, swings ----
@@ -216,7 +217,8 @@ function animatePlayer(dt, rdt) {
   const pm = PM, D = W(curId()) || W('pistol'), now = performance.now() / 1000;
   if (P.dead) inspectCut();   // (player/inspect.js)
   if (P.dead) agReset();   // (a ragdoll or the fall: nothing to hand over from, coming back up)
-  if (P.dead) { if (PRAG.me) { if (!PM.g.userData.goldLock) stepRagdoll(PRAG.me, (P.deathDt || 0) * PRAG.step); dropFall(P.deathDt || 0); } else animateDeath(P.deathDt || 0); return; }   // (gone down as a ragdoll: player/player-ragdoll.js)
+  // (gone down as a ragdoll: player/player-ragdoll.js; gone to gold, a statue toppling: effects/gold.js)
+  if (P.dead) { if (PRAG.me) { if (!PM.g.userData.goldLock) stepRagdoll(PRAG.me, (P.deathDt || 0) * PRAG.step); else goldFallStep(PM.g, (P.deathDt || 0) * PRAG.step); dropFall(P.deathDt || 0); } else animateDeath(P.deathDt || 0); return; }
   if (P.vault) ANIM.postVault = 0.45; else ANIM.postVault = Math.max(0, (ANIM.postVault || 0) - rdt);
   sprintAnim(rdt);   // (player/sprint.js)
   pm.shinL.rotation.x = pm.shinR.rotation.x = 0;   // the knees straight, unless the stride or a landing bends them below

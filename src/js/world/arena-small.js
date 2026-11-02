@@ -31,10 +31,12 @@
 import { rand, rr, seeded } from '../core/math.js';
 import { floorMat } from './floors.js';
 import { lam, lit } from '../core/shaders.js';
-import { box } from '../core/geometry.js';
+import { box, mergeInto } from '../core/geometry.js';
+import { hemi, sun } from '../core/renderer.js';
 import { ci, cxw, idx } from './grid.js';
 import { cellBox } from './collision.js';
 import { fpOn } from '../game/view-cam.js';
+import { liveTex, paintNotice, paintSign, paintSpray } from './sign-art.js';
 
 // ---- the plans (tools/small-plan.py prints them): # the edge, h a building, a tent or the pump house, V a vehicle
 // (the coach, the lorry, the pickup, the ambulance: rounds go under them), U one on its side or with no underside (the
@@ -45,39 +47,39 @@ import { fpOn } from '../game/view-cam.js';
 // a bollard (seen and shot over); A and B each side's spawn, F the free-for-all spots
 const SQ_PLAN = [
   '################################',
-  '#hhhhF..c..F...MM...F..c..Fhhhh#',
-  '#hhhh.c..F...F.MM.F...F..c.hhhh#',
+  '#hhhhF..cc.F...MM...F.cc..Fhhhh#',
+  '#hhhh....F...F.MM.F...F....hhhh#',
   '#hhhh......................hhhh#',
-  '#hhhhF.ccc.UU......UU.ccc.Fhhhh#',
-  '#hhhh..ccc.UUk....kUU.ccc..hhhh#',
+  '#hhhhF..ccc..........ccc..Fhhhh#',
+  '#hhhh...ccc..........ccc...hhhh#',
   '#.............MMMM.............#',
-  '#........XX...MMMM...XX........#',
+  '#.............MMMM.............#',
   '#.....VV......MMMM......VV.....#',
-  '#....AVV.F..T......T..F.VVB....#',
-  '#....AVV......s..s......VVB....#',
-  '#...AAVV...hh......hh...VVBB...#',
+  '#....AVV.F............F.VVB....#',
+  '#....AVV................VVB....#',
+  '#...AAVV...hh..ss..hh...VVBB...#',
   '#...AAVV...hhF....Fhh...VVBB...#',
   '#...AAVV...hh......hh...VVBB...#',
   '#...AAVV...hh......hh...VVBB...#',
-  '#....AVV......s..s......VVB....#',
-  '#....AVV.F...T....T...F.VVB....#',
+  '#....AVV................VVB....#',
+  '#....AVV.F.....ss.....F.VVB....#',
   '#.....VV................VV.....#',
-  '#............H....H............#',
-  '#.....www..w.H....H.w..www.....#',
-  '#hhhh.....M....FF....M.....hhhh#',
-  '#hhhh..g...gF......Fg...g..hhhh#',
+  '#..............................#',
+  '#.......ww..ww....ww..ww.......#',
+  '#hhhhwww.......FF.......wwwhhhh#',
+  '#hhhh.......F......F.......hhhh#',
   '#hhhh.F.T......hh......T.F.hhhh#',
-  '#hhhh....g...g.hh.g...g....hhhh#',
-  '#hhhh.....F....hh....F.....hhhh#',
+  '#hhhh..........hh..........hhhh#',
+  '#hhhh....gF.g..hh..g.Fg....hhhh#',
   '################################'
 ];
 const QY_PLAN = [
   '################################',
-  '#hhh...k.VVV...MM...VVV.k...hhh#',
+  '#hhh....kVVV...MM...VVVk....hhh#',
   '#hhh.F..FVVV.F.MM.F.VVVF..F.hhh#',
   '#hhh........................hhh#',
-  '#hhh..cccc.F........F.cccc..hhh#',
-  '#hhh..cccc............cccc..hhh#',
+  '#hhhcccc...F........F...cccchhh#',
+  '#hhhcccc................cccchhh#',
   '#............kVVVVk............#',
   '#...F....XX...VVVV...XX....F...#',
   '#.....VV................VV.....#',
@@ -91,12 +93,12 @@ const QY_PLAN = [
   '#....AVV....P......P....VVB....#',
   '#.....VV................VV.....#',
   '#............UUUUUU............#',
-  '#.....wwwX.w.UUUUUU.w.Xwww.....#',
-  '#hhh.....X.....FF.....X.....hhh#',
+  '#........X...UUUUUU...X........#',
+  '#hhhwww..X.....FF.....X..wwwhhh#',
   '#hhh..k.....F......F.....k..hhh#',
   '#hhh..F.....k......k.....F..hhh#',
   '#hhh......F....MM....F......hhh#',
-  '#hhh.o...o...o.MM.o...o...o.hhh#',
+  '#hhh..o...o....MM....o...o..hhh#',
   '################################'
 ];
 // where each stands on the grid (cells, the edge included): centred on the grid's middle, so the flag's in the same
@@ -136,7 +138,7 @@ const smFirst = (i, j, k) => smKIND(i - 1, j) !== k && smKIND(i, j - 1) !== k;
 const smTall = c => lit(new THREE.MeshLambertMaterial({ color: c }), 'tree');
 const smGlowM = c => new THREE.MeshBasicMaterial({ color: c });
 const smTexM = (t, isTall) => isTall ? lit(new THREE.MeshLambertMaterial({ map: t }), 'tree') : lam(0xffffff, { map: t });
-function smCanvas(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.anisotropy = 4; t.colorSpace = THREE.SRGBColorSpace; return t; }
+function smCanvas(w, h, draw) { return liveTex(w, h, draw); }   // (painted again once the web fonts are in: world/sign-art.js)
 // a picture on a face (d: [dx, dz] the way it faces), w by h, its middle at (x, y, z)
 function smPic(w, h, mat, x, y, z, d) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); m.position.set(x, y, z); m.rotation.y = Math.atan2(d[0], d[1]); m.receiveShadow = true; return smPush(m); }
 // a box along x or z (for what's drawn west to east and turned for the other way)
@@ -196,7 +198,8 @@ function smSlabs(x, P, r, i0, j0, i1, j1, base) {
 function smGrime(x, P, r, n, col) { for (let k = 0; k < n; k++) { const R = (0.2 + r() * 1.2) * P, g = x.createRadialGradient(0, 0, 0, 0, 0, R); g.addColorStop(0, `rgba(${col},0.22)`); g.addColorStop(1, `rgba(${col},0)`); x.save(); x.translate(r() * SM_W * P, r() * SM_D * P); x.scale(1, 0.4 + r()); x.fillStyle = g; x.beginPath(); x.arc(0, 0, R, 0, 7); x.fill(); x.restore(); } }
 // a text sign (glow: lit from inside)
 function smSignTex(text, bg, fg, w, font = 'Georgia') {
-  return smCanvas(Math.round(w * 128), 96, (x, W, H) => { x.fillStyle = bg; x.fillRect(0, 0, W, H); x.strokeStyle = 'rgba(255,255,255,0.35)'; x.lineWidth = 4; x.strokeRect(6, 6, W - 12, H - 12); x.fillStyle = fg; let s = 58; x.font = `600 ${s}px ${font}`; while (x.measureText(text).width > W - 40 && s > 18) { s -= 2; x.font = `600 ${s}px ${font}`; } x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(text, W / 2, H / 2 + 2); });
+  // (a painted board: world/sign-art.js; the old shopfronts' slab serif, the official ones' plain face)
+  return smCanvas(Math.round(Math.min(8, w) * 160), 128, (x, W, H) => paintSign(x, W, H, { text, bg, fg, face: font === 'Arial' ? 'road' : 'slab', under: '#6a5a4a', wear: 0.55 }));
 }
 
 // ---- what the end of the world left on both maps: boards over the windows, paint on the walls, the army's kit
@@ -217,12 +220,7 @@ function smBoards(w, h, x, y, z, d, isTall = true) {
 }
 // paint sprayed on a wall: words in a hurried hand (red, white or black), drawn into its own picture
 function smSprayTex(text, col, w) {
-  return smCanvas(Math.round(w * 128), 128, (x, W, H) => {
-    const r = seeded(text.length * 97 + w * 13); let s = 92; x.font = `700 ${s}px "Permanent Marker", "Marker Felt", "Comic Sans MS", cursive`;
-    while (x.measureText(text).width > W - 24 && s > 18) { s -= 3; x.font = `700 ${s}px "Permanent Marker", "Marker Felt", "Comic Sans MS", cursive`; }
-    x.fillStyle = col; x.textAlign = 'center'; x.textBaseline = 'middle'; x.save(); x.translate(W / 2, H / 2); x.rotate((r() - 0.5) * 0.08); x.fillText(text, 0, 0); x.restore();
-    for (let k = 0; k < 10; k++) { const dx = 20 + r() * (W - 40), dy = H / 2 + s * 0.3; x.fillRect(dx, dy, 2 + r() * 2, 8 + r() * 26); }   // (the drips)
-  });
+  return smCanvas(Math.round(Math.min(6, w) * 160), 160, (x, W, H) => paintSpray(x, W, H, { text, col }));
 }
 function smSpray(text, col, w, h, x, y, z, d) { const m = smPic(w, h, new THREE.MeshLambertMaterial({ map: smSprayTex(text, col, w / h), transparent: true, alphaTest: 0.15, polygonOffset: true, polygonOffsetFactor: -2 }), x + d[0] * 0.02, y, z + d[1] * 0.02, d); lit(m.material, 'tree'); return m; }
 // a run of sandbags along x or z, w long, n courses (each bag laid over the joint below)
@@ -244,15 +242,38 @@ function smLuggage(x, z) {
 }
 // a car burned out where it stood (L along x, W across), or one left in a queue with its doors shut, a case on its roof
 function smCar(R, burnt, col) {
-  const L = R.w - 0.25, W = Math.min(1.75, R.d - 0.3), cx = R.cx, cz = R.cz, body = burnt ? smAPOC.sootLo : lam(col), y0 = burnt ? 0.12 : 0.28;
+  if (burnt) { smCarBurnt(R); return; }
+  const L = R.w - 0.25, W = Math.min(1.75, R.d - 0.3), cx = R.cx, cz = R.cz, body = lam(col), y0 = 0.28;
   smBx(L, 0.62, W, body, cx, y0 + 0.31, cz); smBx(L * 0.55, 0.5, W - 0.12, body, cx - L * 0.04, y0 + 0.86, cz);
-  smBx(L * 0.55 + 0.02, 0.38, W - 0.16, burnt ? smSH.dark : smSH.glassLo, cx - L * 0.04, y0 + 0.86, cz);
-  if (burnt) { for (let k = 0; k < 7; k++) smBx(rr(0.2, 0.6), 0.03, rr(0.2, 0.5), smAPOC.rust, cx + rr(-L / 2 + 0.3, L / 2 - 0.3), y0 + 0.63, cz + rr(-W / 2 + 0.2, W / 2 - 0.2)); for (const xx of [cx - L / 2 + 0.55, cx + L / 2 - 0.55]) for (const s of [-1, 1]) { const t = smCy(0.22, 0.22, 0.12, smSH.hub, xx, 0.22, cz + s * (W / 2 - 0.08), 10); t.rotation.x = Math.PI / 2; } }
-  else {
-    for (const xx of [cx - L / 2 + 0.65, cx + L / 2 - 0.65]) for (const s of [-1, 1]) { const t = smCy(0.31, 0.31, 0.2, smSH.tyre, xx, 0.31, cz + s * (W / 2 - 0.06), 14); t.rotation.x = Math.PI / 2; }
-    smBx(0.8, 0.05, 1.1, smSH.iron, cx - L * 0.04, y0 + 1.13, cz); smBx(0.7, 0.32, 0.5, smAPOC.case[Math.floor(rand() * 5)], cx - L * 0.04, y0 + 1.32, cz - 0.15);
-    for (const s of [-1, 1]) smBx(0.14, 0.1, 0.3, lam(0xe8e2c0), cx + s * (L / 2 + 0.01), y0 + 0.5, cz + (W / 2 - 0.3));
+  smBx(L * 0.55 + 0.02, 0.38, W - 0.16, smSH.glassLo, cx - L * 0.04, y0 + 0.86, cz);
+  for (const xx of [cx - L / 2 + 0.65, cx + L / 2 - 0.65]) for (const s of [-1, 1]) { const t = smCy(0.31, 0.31, 0.2, smSH.tyre, xx, 0.31, cz + s * (W / 2 - 0.06), 14); t.rotation.x = Math.PI / 2; }
+  smBx(0.8, 0.05, 1.1, smSH.iron, cx - L * 0.04, y0 + 1.13, cz); smBx(0.7, 0.32, 0.5, smAPOC.case[Math.floor(rand() * 5)], cx - L * 0.04, y0 + 1.32, cz - 0.15);
+  for (const s of [-1, 1]) smBx(0.14, 0.1, 0.3, lam(0xe8e2c0), cx + s * (L / 2 + 0.01), y0 + 0.5, cz + (W / 2 - 0.3));
+}
+// a car burned out at the kerb: what's left once the fire's done. Sat down on its bare rims (the tyres burned away),
+// the paint gone to rust brown and ash grey (palest on the roof and the bonnet, where it burned hottest), the glass
+// gone so the cabin's an empty frame of pillars under the roof, the seats' springs dark inside, the bonnet sprung up at
+// the front where the engine went, the wheel arches black. Its primary shape's still a car's at a glance
+const SM_BURNT = { rust: lam(0x5e3a26), rustLt: lam(0x7a5236), ash: lam(0x8e8a80), soot: lam(0x221e1c), rim: lam(0x4a4440) };
+function smCarBurnt(R) {
+  const M = SM_BURNT, L = R.w - 0.3, W = Math.min(1.7, R.d - 0.32), cx = R.cx, cz = R.cz, y0 = 0.08, hood = L * 0.28, cab = L * 0.5;
+  // (the body: sills black, the flanks rust, the deck pale where it burned hottest)
+  smBx(L, 0.16, W - 0.06, M.soot, cx, y0 + 0.08, cz);
+  smBx(L, 0.44, W, M.rust, cx, y0 + 0.38, cz);
+  smBx(L - 0.04, 0.04, W - 0.04, M.ash, cx, y0 + 0.62, cz);
+  for (const xx of [cx - L / 2 + 0.6, cx + L / 2 - 0.6]) for (const s of [-1, 1]) {
+    smBx(0.62, 0.3, 0.04, M.soot, xx, y0 + 0.3, cz + s * (W / 2 + 0.005));   // (the arch, black)
+    const t = smCy(0.2, 0.2, 0.1, M.rim, xx, 0.2, cz + s * (W / 2 - 0.12), 10); t.rotation.x = Math.PI / 2;   // (the bare rim, down on the road)
   }
+  // (the cabin: four pillars and the roof, nothing between them, the seats' frames dark within)
+  const c0 = cx - L * 0.06, ch = 0.5, cy = y0 + 0.64 + ch / 2;
+  for (const dx of [-cab / 2 + 0.05, cab / 2 - 0.05]) for (const s of [-1, 1]) smBx(0.07, ch, 0.07, M.rust, c0 + dx, cy, cz + s * (W / 2 - 0.12));
+  for (const s of [-1, 1]) smBx(0.07, ch * 0.8, 0.06, M.rust, c0, cy - ch * 0.08, cz + s * (W / 2 - 0.12));
+  smBx(cab, 0.05, W - 0.2, M.ash, c0, y0 + 0.64 + ch, cz);
+  for (const dx of [-0.25, 0.3]) smBx(0.42, 0.26, W - 0.45, M.soot, c0 + dx, y0 + 0.78, cz);
+  // (the bonnet sprung up at the front, the engine bay black under it)
+  smBx(hood - 0.1, 0.06, W - 0.3, M.soot, cx + L / 2 - hood / 2, y0 + 0.62, cz);
+  const b = smBx(hood, 0.04, W - 0.12, M.rustLt, cx + L / 2 - hood / 2 - 0.05, y0 + 0.74, cz); b.rotation.z = 0.22;
 }
 
 // ======================================================================================================================
@@ -285,7 +306,7 @@ function sqFloor() {
       x.fillStyle = SQM.road; x.fillRect(i0 * P, 6 * P, (i1 - i0) * P, 14 * P);
       for (let k = 0; k < 600; k++) { x.fillStyle = `rgba(${r() < 0.5 ? '90,90,92' : '40,40,42'},0.5)`; x.fillRect(i0 * P + r() * (i1 - i0) * P, 6 * P + r() * 14 * P, 2, 2); }
       const bx0 = (s ? SM_W - 8.2 : 5.8) * P; x.strokeStyle = 'rgba(228,190,52,0.85)'; x.lineWidth = 4; x.strokeRect(bx0, 7.8 * P, 2.4 * P, 10.4 * P);
-      x.save(); x.translate((s ? SM_W - 3 : 3) * P, 13 * P); x.rotate(s ? Math.PI / 2 : -Math.PI / 2); x.fillStyle = 'rgba(232,230,220,0.55)'; x.font = `bold ${P * 1.6}px Arial`; x.textAlign = 'center'; x.fillText('EVAC', 0, P * 0.5); x.restore();
+      x.save(); x.translate((s ? SM_W - 3 : 3) * P, 13 * P); x.rotate(s ? Math.PI / 2 : -Math.PI / 2); x.fillStyle = 'rgba(232,230,220,0.55)'; x.font = `800 ${P * 1.6}px "Saira Extra Condensed", sans-serif`; x.textAlign = 'center'; x.fillText('EVAC', 0, P * 0.5); x.restore();
     }
     // the churchyard (west): grass worn to mud between the fresh graves, its gravel path; the beer garden (east): gravel
     x.fillStyle = 'rgb(80,98,58)'; x.fillRect(5 * P, 20 * P, 10 * P, 5 * P);
@@ -402,7 +423,11 @@ function sqMemorial(R) {
   for (let k = 0; k < 3; k++) smBx(R.w - 0.3 - k * 0.5, 0.22, R.d - 0.3 - k * 0.4, k ? smSH.stoneDk : smSH.stone, R.cx, 0.11 + k * 0.22, R.cz);
   smBx(1.4, 1.8, 1.0, smSH.stone, R.cx, 1.56, R.cz); smBx(1.6, 0.2, 1.2, smSH.stoneDk, R.cx, 2.55, R.cz);
   smBx(0.35, 2.6, 0.35, smSH.stone, R.cx, 3.95, R.cz); smBx(1.3, 0.35, 0.35, smSH.stone, R.cx, 4.5, R.cz);
-  const ins = smCanvas(256, 256, (x, W, H) => { x.fillStyle = '#b8b2a3'; x.fillRect(0, 0, W, H); x.fillStyle = '#3a362e'; x.textAlign = 'center'; x.font = '600 26px Georgia'; x.fillText('TO THE MEN OF', W / 2, 46); x.fillText('HAWTHORNE', W / 2, 78); x.font = '18px Georgia'; for (let k = 0; k < 7; k++) x.fillText(['A. ASHWORTH', 'J. BRIDGES', 'T. COLLINS', 'W. DARBY', 'H. ELLIS', 'R. FENWICK', 'S. GREAVES'][k], W / 2, 112 + k * 20); });
+  const ins = smCanvas(256, 256, (x, W, H) => { x.fillStyle = '#b8b2a3'; x.fillRect(0, 0, W, H); x.textAlign = 'center';
+    // (cut into the stone: each letter's shadow above it, its lit edge below)
+    const cut = (t, y, f) => { x.font = f; x.fillStyle = 'rgba(40,36,30,0.85)'; x.fillText(t, W / 2, y); x.fillStyle = 'rgba(232,226,212,0.35)'; x.fillText(t, W / 2, y + 1.5); x.fillStyle = 'rgba(70,64,54,0.9)'; x.fillText(t, W / 2, y + 0.5); };
+    cut('TO THE MEN OF', 46, `700 26px ${'"Bitter", Georgia, serif'}`); cut('HAWTHORNE', 78, `700 26px ${'"Bitter", Georgia, serif'}`);
+    ['A. ASHWORTH', 'J. BRIDGES', 'T. COLLINS', 'W. DARBY', 'H. ELLIS', 'R. FENWICK', 'S. GREAVES'].forEach((t, k) => cut(t, 112 + k * 20, `600 17px ${'"Bitter", Georgia, serif'}`)); });
   for (const s of [-1, 1]) smPic(1.1, 1.1, smTexM(ins, true), R.cx, 1.6, R.cz + s * 0.505, [0, s]);
   // the missing: photos and notes taped round the pedestal (on its faces)
   const notes = smCanvas(256, 256, (x, W, H) => { const r = seeded(77); for (let k = 0; k < 16; k++) { x.save(); x.translate(20 + r() * 210, 20 + r() * 210); x.rotate((r() - 0.5) * 0.5); x.fillStyle = r() < 0.5 ? '#e8e4da' : '#d8cfa8'; x.fillRect(-22, -28, 44, 56); x.fillStyle = r() < 0.6 ? `hsl(${r() * 40},20%,${30 + r() * 20}%)` : '#555'; x.fillRect(-16, -22, 32, 26); x.fillStyle = '#333'; for (let l = 0; l < 3; l++) x.fillRect(-16, 10 + l * 6, 20 + r() * 12, 2); x.restore(); } });
@@ -416,7 +441,7 @@ function sqKiosk(R) {
   smBx(R.w, 2.4, R.d, SQM.kiosk, R.cx, 1.2, R.cz); smBx(R.w + 0.3, 0.12, R.d + 0.3, SQM.kioskDk, R.cx, 2.5, R.cz); const rf = smPush(new THREE.Mesh(new THREE.ConeGeometry(Math.max(R.w, R.d) * 0.75, 0.8, 4), SQM.kioskDk)); rf.position.set(R.cx, 2.95, R.cz); rf.rotation.y = Math.PI / 4;
   smBoards(R.w - 0.4, 0.8, R.cx, 1.55, R.z1, [0, 1]);
   smPic(R.w - 0.2, 0.3, smTexM(smSignTex('NEWS', '#1f3d2a', '#d8ccb0', R.w - 0.2), true), R.cx, 2.2, R.z1 + 0.01, [0, 1]);
-  const hl = smCanvas(256, 160, (x, W, H) => { x.fillStyle = '#efeadc'; x.fillRect(0, 0, W, H); x.fillStyle = '#111'; x.textAlign = 'center'; x.font = 'bold 30px Arial'; x.fillText('STAY INDOORS', W / 2, 52); x.font = 'bold 22px Arial'; x.fillText('ARMY TO EVACUATE', W / 2, 92); x.fillText('TOWN CENTRES', W / 2, 120); });
+  const hl = smCanvas(384, 240, (x, W, H) => paintNotice(x, W, H, { title: 'STAY INDOORS', lines: ['Army to evacuate', 'town centres', 'Bulletins hourly'] }));
   smPic(0.7, 0.45, smTexM(hl, true), R.cx + (R.cx < 0 ? -0.5 : 0.5), 0.9, R.z1 + 0.01, [0, 1]);
 }
 // the churchyard's stone cross (and, east, the beer garden's chestnut gone with it: the same cross, the pub's own war
@@ -506,7 +531,7 @@ function sqEdges() {
   // the church's tower and spire, north-west over the shops' roofs: the landmark you see from anywhere in the square
   { const cx = smX0 + 5, cz = smZ0 - 7; smBx(3.4, 13, 3.4, smSH.stone, cx, 6.5, cz); smBx(3.7, 0.4, 3.7, smSH.stoneDk, cx, 13.1, cz); const sp = smPush(new THREE.Mesh(new THREE.ConeGeometry(2.3, 6.5, 4), smSH.slate)); sp.position.set(cx, 16.5, cz); sp.rotation.y = Math.PI / 4;
     for (const [dx, dz] of [[0, 1.71], [1.71, 0]]) { const c = smPush(new THREE.Mesh(new THREE.CircleGeometry(0.7, 20), lam(0xd8d2c4))); c.position.set(cx + dx, 10.5, cz + dz); c.rotation.y = dx ? Math.PI / 2 : 0; }
-    const ban = smCanvas(128, 512, (x, W, H) => { x.fillStyle = '#e8e4da'; x.fillRect(0, 0, W, H); x.fillStyle = '#b2271f'; x.font = 'bold 96px Arial'; x.textAlign = 'center'; ['H', 'E', 'L', 'P'].forEach((c, k) => x.fillText(c, W / 2, 110 + k * 112)); });
+    const ban = smCanvas(160, 640, (x, W, H) => { x.fillStyle = '#e2ddd0'; x.fillRect(0, 0, W, H); for (let k = 0; k < 7; k++) { x.fillStyle = `rgba(120,108,90,${0.06 + 0.05 * (k % 2)})`; x.fillRect(0, k * H / 7 + 10, W, 6); } paintSpray(x, W, H, { text: 'H\nE\nL\nP', col: '#b2271f', tilt: 0 }); });   // (a bedsheet, sprayed)
     smPic(1.2, 4.6, smTexM(ban, true), cx, 7.4, cz + 1.73, [0, 1]);
     smBx(9, 6, 6, smSH.stone, cx + 6, 3, cz - 1); const r1 = smBx(9.4, 0.18, 4.2, smSH.slate, cx + 6, 6.9, cz - 2.4); r1.rotation.x = 0.7; const r2 = smBx(9.4, 0.18, 4.2, smSH.slate, cx + 6, 6.9, cz + 0.4); r2.rotation.x = -0.7; }
   // the backs of the High Street behind the shops: a second row of roofs (north, behind from above), smoke off one
@@ -557,9 +582,8 @@ function squareBuild(g) {
   for (const [x, z] of SQ_LAMPS) smLampPost(x, z);
   const parts = smPARTS; smG = smPARTS = null; return parts;
 }
-// the lamps (world), lit as it gets dark: at the corner shops' kerb, at the coaches' ends, at the memorial's front
-// corners, at the churchyard's gate (each in a cell beside cover)
-const SQ_LAMPS = [[-10.4, -6.4], [10.4, -6.4], [-9.5, -5.1], [9.5, -5.1], [-2.2, -3.8], [2.2, -3.8], [-6.4, 6.6], [6.4, 6.6]];
+// the lamps (world), lit as it gets dark: at the corner shops' kerb and at the memorial's front corners, no more
+const SQ_LAMPS = [[-10.4, -6.4], [10.4, -6.4], [-2.2, -3.8], [2.2, -3.8]];
 
 // ======================================================================================================================
 // SALTMARSH QUAY
@@ -590,7 +614,7 @@ function qyFloor() {
     for (const s of [0, 1]) { const i0 = s ? SM_W - 9 : 0; x.fillStyle = QYM.lane; x.fillRect(i0 * P, 6 * P, 9 * P, 14 * P); }
     for (let k = 0; k < 1800; k++) { x.fillStyle = `rgba(${r() < 0.5 ? '95,95,98' : '50,50,52'},0.5)`; x.fillRect(r() * SM_W * P, r() * 6 * P, 2, 2); }
     // the ferry queue's lane markings along the back lane: FERRY painted at each end
-    for (const s of [0, 1]) { x.save(); x.translate((s ? SM_W - 7 : 7) * P, 2.4 * P); x.fillStyle = 'rgba(232,230,220,0.5)'; x.font = `bold ${P * 0.9}px Arial`; x.textAlign = 'center'; x.fillText('FERRY', 0, 0); x.restore(); }
+    for (const s of [0, 1]) { x.save(); x.translate((s ? SM_W - 7 : 7) * P, 2.4 * P); x.fillStyle = 'rgba(232,230,220,0.5)'; x.font = `800 ${P * 0.9}px "Saira Extra Condensed", sans-serif`; x.textAlign = 'center'; x.fillText('FERRY', 0, 0); x.restore(); }
     x.strokeStyle = 'rgba(228,190,52,0.7)'; x.lineWidth = 4; x.setLineDash([P * 0.8, P * 0.5]); x.beginPath(); x.moveTo(4 * P, 3 * P); x.lineTo((SM_W - 4) * P, 3 * P); x.stroke(); x.setLineDash([]);
     // the quay's edge: granite setts along the water, a yellow line inside them
     smSetts(x, P, r, 1, 23.6, SM_W - 1, 25, 'rgb(142,136,124)', 0.35, 'rgba(60,56,50,0.5)');
@@ -600,7 +624,7 @@ function qyFloor() {
     x.fillStyle = 'rgba(64,76,82,0.45)'; x.fillRect(10 * P, 8 * P, 12 * P, 10 * P);
     x.fillStyle = 'rgba(40,40,40,0.6)'; for (let i = 10.5; i < 21.5; i += 1.5) x.fillRect(i * P, 12.9 * P, 0.8 * P, 0.15 * P);
     x.strokeStyle = 'rgba(232,230,220,0.55)'; x.lineWidth = 3; let bay = 1;
-    for (const [i0, j0] of [[13.2, 9.2], [17.2, 9.2], [13.2, 14.6], [17.2, 14.6]]) { x.strokeRect(i0 * P, j0 * P, 1.6 * P, 2.2 * P); x.fillStyle = 'rgba(232,230,220,0.55)'; x.font = `bold ${P * 0.4}px Arial`; x.fillText(String(bay++), (i0 + 0.15) * P, (j0 + 0.5) * P); }
+    for (const [i0, j0] of [[13.2, 9.2], [17.2, 9.2], [13.2, 14.6], [17.2, 14.6]]) { x.strokeRect(i0 * P, j0 * P, 1.6 * P, 2.2 * P); x.fillStyle = 'rgba(232,230,220,0.55)'; x.font = `800 ${P * 0.4}px "Saira Extra Condensed", sans-serif`; x.fillText(String(bay++), (i0 + 0.15) * P, (j0 + 0.5) * P); }
     x.fillStyle = 'rgba(170,40,34,0.7)'; x.fillRect(15.4 * P, 12.0 * P, 1.2 * P, 2.0 * P); x.fillRect(15.0 * P, 12.4 * P, 2.0 * P, 1.2 * P);
     // puddles, rust, fish scales, blood
     for (let k = 0; k < 34; k++) { const R = (0.3 + r() * 1.2) * P, g = x.createRadialGradient(0, 0, 0, 0, 0, R); g.addColorStop(0, 'rgba(66,86,96,0.45)'); g.addColorStop(1, 'rgba(66,86,96,0)'); x.save(); x.translate(r() * SM_W * P, (6 + r() * 17) * P); x.scale(1, 0.5); x.fillStyle = g; x.beginPath(); x.arc(0, 0, R, 0, 7); x.fill(); x.restore(); }
@@ -632,14 +656,32 @@ function qyNorth() {
 function qyCorner(R) {
   const north = R.cz < 0, west = R.cx < 0, H = north ? 5.2 : 3.2, fx = west ? R.x1 : R.x0, dX = west ? 1 : -1;
   if (north) {
+    // (the ice house: rendered walls on a dark plinth, its loading door white with frost, the ice chute down its side,
+    // two small barred windows high up, a gutter and a downpipe, its roof's corrugated edge)
     smBx(R.w, H, R.d, QYM.render[0], R.cx, H / 2, R.cz);
+    smBx(R.w + 0.06, 0.55, R.d + 0.06, smSH.stoneLoDk, R.cx, 0.28, R.cz);
     const rf = smBx(R.w + 0.3, 0.12, R.d + 0.3, QYM.roof, R.cx, H + 0.06, R.cz); rf.rotation.z = west ? 0.12 : -0.12;
-    smBx(0.06, 2.2, 1.6, QYM.shedDk, fx + dX * 0.02, 1.1, R.cz); smPic(2.4, 0.5, smTexM(smSignTex('ICE', '#2f6aa0', '#ffffff', 2.4, 'Arial'), true), fx + dX * 0.06, 3.4, R.cz, [dX, 0]);
+    for (let k = 0; k < (R.d + 0.3) / 0.25; k++) smBx(0.08, 0.1, 0.06, QYM.shedDk, fx + dX * 0.16, H - 0.02 + (west ? -0.06 : 0.06) * 0, R.z0 - 0.15 + k * 0.25 + 0.12);
+    smBx(0.06, 2.2, 1.6, QYM.shedDk, fx + dX * 0.02, 1.1, R.cz); smBx(0.04, 1.4, 1.5, lam(0xe6ecef), fx + dX * 0.06, 0.8, R.cz);   // (the door, frost up its lower half)
+    for (const zz of [R.cz - 1.2, R.cz + 1.2]) { smBx(0.05, 0.5, 0.6, smSH.glassLo, fx + dX * 0.03, H - 1.0, zz); for (let b = -1; b <= 1; b++) smBx(0.04, 0.5, 0.03, smSH.iron, fx + dX * 0.06, H - 1.0, zz + b * 0.18); }
+    smBx(0.12, H - 0.2, 0.12, QYM.shedDk, fx + dX * 0.08, (H - 0.2) / 2, R.z1 - 0.15); smBx(0.18, 0.12, R.d, QYM.shedDk, fx + dX * 0.1, H - 0.1, R.cz);   // (the downpipe and the gutter)
+    const ch = smBx(0.7, 0.12, 2.6, QYM.steel, fx + dX * 0.45, 2.2, R.cz + (R.cz < 0 ? 1.6 : -1.6)); ch.rotation.x = 0.5;   // (the ice chute)
+    smPic(2.4, 0.5, smTexM(smSignTex('ICE', '#2f6aa0', '#ffffff', 2.4, 'Arial'), true), fx + dX * 0.06, 3.4, R.cz, [dX, 0]);
     smSpray('BODIES', '#b2271f', 2.6, 0.6, fx + dX * 0.05, 2.5, R.cz, [dX, 0]);
   } else {
-    smBx(R.w, H, R.d, smAPOC.soot, R.cx, H / 2, R.cz);
+    // (the boat shed, burned out and open to the sky: its charred plank walls (some burned short), the floor black with
+    // ash, the boat that was on its cradle inside burned to its ribs, its roof gone to a few charred rafters and one
+    // fallen in)
+    const T = 0.22;
+    for (const [w, d, x, z] of [[R.w, T, R.cx, R.z0 + T / 2], [R.w, T, R.cx, R.z1 - T / 2], [T, R.d, R.x0 + T / 2, R.cz], [T, R.d, R.x1 - T / 2, R.cz]]) smBx(w, H, d, smAPOC.soot, x, H / 2, z);
     for (let k = 0; k < R.w / 0.3; k++) smBx(0.06, H - rr(0, 1.2), 0.04, smSH.dark, R.x0 + k * 0.3 + 0.15, (H - 0.6) / 2, R.z0 - 0.01);
-    for (let k = 0; k < 5; k++) { const rf = smBx(0.1, 0.12, R.w + 0.3, smSH.dark, R.cx, H + 0.4, R.z0 + 0.5 + k * (R.d - 1) / 4); rf.rotation.y = Math.PI / 2; rf.rotation.x = rr(-0.15, 0.15); }
+    for (let k = 0; k < R.d / 0.3; k++) smBx(0.04, H - rr(0, 1.4), 0.06, smSH.dark, fx + dX * 0.01, (H - 0.6) / 2, R.z0 + k * 0.3 + 0.15);
+    smBx(R.w - 2 * T, 0.06, R.d - 2 * T, smSH.dark, R.cx, 0.03, R.cz);   // (the ash floor inside)
+    for (let k = 0; k < 4; k++) { const rf = smBx(0.1, 0.12, R.w + 0.3, smSH.dark, R.cx, H + 0.4, R.z0 + 0.5 + k * (R.d - 1) / 3); rf.rotation.y = Math.PI / 2; rf.rotation.x = rr(-0.15, 0.15); }
+    { const fb = smBx(0.14, 0.14, R.d * 0.9, smSH.dark, R.cx + 0.3, H * 0.5, R.cz); fb.rotation.x = 0.55; fb.rotation.z = 0.2; }   // (a rafter come down)
+    // (the boat inside: its keel on the cradle and its blackened ribs standing up off it)
+    smBx(0.18, 0.2, R.d * 0.75, smAPOC.soot, R.cx, 0.45, R.cz); for (const zz of [R.cz - R.d * 0.3, R.cz + R.d * 0.3]) smBx(1.2, 0.35, 0.18, smSH.dark, R.cx, 0.2, zz);
+    for (let k = 0; k < 7; k++) { const zz = R.cz - R.d * 0.32 + k * R.d * 0.105, sp = 0.55 + 0.25 * Math.sin(k / 6 * Math.PI); for (const sd of [-1, 1]) { const rb = smBx(0.08, 1.1, 0.08, smSH.dark, R.cx + sd * sp * 0.6, 0.9, zz); rb.rotation.z = -sd * 0.45; } }
     smBx(0.06, 2.4, 2.0, smSH.dark, fx + dX * 0.02, 1.2, R.cz);
   }
 }
@@ -680,7 +722,7 @@ function qyOffice(R) {
   smBx(R.w, 2.6, R.d, QYM.render[2], R.cx, 1.3, R.cz); const rf = smBx(R.w + 0.4, 0.12, R.d + 0.4, QYM.roof, R.cx, 2.75, R.cz); rf.rotation.x = 0.15;
   smBx(1.0, 2.1, 0.06, QYM.shedDk, R.cx, 1.05, R.z1 + 0.02); smBoards(0.9, 1.9, R.cx, 1.05, R.z1 + 0.03, [0, 1]);
   smPic(R.w - 0.2, 0.4, smTexM(smSignTex('HARBOUR OFFICE', '#1f3a4a', '#d8ccb0', R.w - 0.2, 'Arial'), true), R.cx, 2.35, R.z1 + 0.04, [0, 1]);
-  const notice = smCanvas(256, 192, (x, W, H) => { x.fillStyle = '#efeadc'; x.fillRect(0, 0, W, H); x.fillStyle = '#111'; x.textAlign = 'center'; x.font = 'bold 26px Arial'; x.fillText('FERRY SUSPENDED', W / 2, 44); x.font = '18px Arial'; ['Last sailing 06:00', 'One bag per person', 'No pets  No vehicles', 'By order'].forEach((l, k) => x.fillText(l, W / 2, 84 + k * 26)); });
+  const notice = smCanvas(384, 288, (x, W, H) => paintNotice(x, W, H, { title: 'FERRY SUSPENDED', lines: ['Last sailing 06:00', 'One bag per person', 'No pets, no vehicles', 'By order'] }));
   smPic(0.6, 0.45, smTexM(notice, true), R.cx + 0.7, 1.4, R.z1 + 0.04, [0, 1]);
 }
 function qyCrane(R) {
@@ -737,6 +779,98 @@ function qyMarketRoof(g) {
   r.traverse(o => { o.castShadow = false; }); r.visible = false; g.add(r); qyRoof = r;
 }
 function qyTick() { if (qyRoof) qyRoof.visible = fpOn(); }
+// ---- the harbour water and what's on it
+// the water past the quay: a surface of its own (its ripples rolling, darker and greener the further out from the
+// wall, the sky caught in it at a glancing look, the sun's glints off the ripples, a band of foam slapping at the foot
+// of the wall), lit as the farm's own light is (the sky's and the sun's, read each frame: core/renderer.js)
+const QY_WATER_VS = `varying vec3 vW; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`;
+const QY_WATER_FS = `uniform float uT; uniform vec3 uSky; uniform vec3 uSun; uniform vec3 uSunDir; uniform vec3 uDeep; uniform vec3 uShal; uniform float uWall;
+varying vec3 vW;
+float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float n2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h2(i), h2(i + vec2(1.0, 0.0)), f.x), mix(h2(i + vec2(0.0, 1.0)), h2(i + vec2(1.0, 1.0)), f.x), f.y); }
+float hgt(vec2 p) { return n2(p * 0.7 + vec2(uT * 0.22, uT * 0.08)) * 0.6 + n2(p * 1.9 - vec2(uT * 0.35, -uT * 0.27)) * 0.3 + n2(p * 5.2 + uT * 0.7) * 0.1; }
+void main() {
+  vec2 p = vW.xz; float e = 0.06, h = hgt(p);
+  vec3 n = normalize(vec3((h - hgt(p + vec2(e, 0.0))) * 1.6, e, (h - hgt(p + vec2(0.0, e))) * 1.6));
+  vec3 v = normalize(cameraPosition - vW), L = normalize(uSunDir);
+  float fr = pow(1.0 - max(dot(n, v), 0.0), 4.0), sp = pow(max(dot(reflect(-L, n), v), 0.0), 90.0);
+  vec3 base = mix(uShal, uDeep, smoothstep(0.0, 16.0, vW.z - uWall));
+  vec3 col = base * (0.25 + 0.75 * uSky) + uSky * fr * 0.45 + uSun * sp * 1.3;
+  float foam = (1.0 - smoothstep(0.0, 1.1, vW.z - uWall)) * (0.45 + 0.55 * n2(p * 3.5 + uT * 0.9));
+  col = mix(col, vec3(0.82, 0.86, 0.84) * (0.35 + 0.65 * uSky), clamp(foam, 0.0, 1.0) * 0.6);
+  gl_FragColor = vec4(col, 1.0);
+}`;
+const _qyC = new THREE.Color();
+function qyWater() {
+  const m = new THREE.ShaderMaterial({ vertexShader: QY_WATER_VS, fragmentShader: QY_WATER_FS, uniforms: { uT: { value: 0 }, uSky: { value: new THREE.Vector3(0.6, 0.6, 0.6) }, uSun: { value: new THREE.Vector3(0.8, 0.7, 0.6) }, uSunDir: { value: new THREE.Vector3(0.3, 1, 0.2) }, uDeep: { value: new THREE.Vector3(0.07, 0.17, 0.2) }, uShal: { value: new THREE.Vector3(0.16, 0.3, 0.3) }, uWall: { value: smZ1 + 0.4 } } });
+  const w = new THREE.Mesh(new THREE.PlaneGeometry(140, 70, 1, 1), m); w.rotation.x = -Math.PI / 2; w.position.set(0, -1.6, smZ1 + 35); smG.add(w);
+  w.onBeforeRender = () => {
+    const U = m.uniforms; U.uT.value = performance.now() / 1000;
+    _qyC.copy(hemi.color).multiplyScalar(hemi.intensity); U.uSky.value.set(_qyC.r, _qyC.g, _qyC.b);
+    _qyC.copy(sun.color).multiplyScalar(sun.intensity); U.uSun.value.set(_qyC.r, _qyC.g, _qyC.b); U.uSunDir.value.copy(sun.position).normalize();
+  };
+}
+// the quay wall's face over the water: old tyres hung on chains for fenders, a band of weed and wet where the tide
+// comes and goes
+function qyWallFace() {
+  const fz = smZ1 + 0.42, tyre = lam(0x1c1c1e), weed = lam(0x2f4a2c), wet = lam(0x3c4442);
+  smBx(smX1 - smX0 + 30, 0.35, 0.05, weed, 0, -1.45, fz); smBx(smX1 - smX0 + 30, 0.4, 0.04, wet, 0, -1.05, fz - 0.005);
+  for (let x = smX0 + 1.6; x < smX1 - 1; x += 3.1) {
+    const t = smPush(new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.13, 6, 14), tyre)); t.position.set(x, -0.55, fz + 0.12); t.castShadow = true;
+    smBx(0.03, 0.55, 0.03, smSH.iron, x, -0.05, fz + 0.06);
+  }
+}
+// a fishing boat at its mooring (x, z its middle, c its colour, sunk to its wheelhouse or afloat, a its swing on the
+// tide): a hull to a bow (its colour, a white band along its top, red under the water line), its deck, the
+// wheelhouse aft with its windows and its roof, the mast and its boom, the net drum, buoys and old tyres along its
+// sides, a fish box or two, its name; tied off to the quay. Afloat it rides the swell (QY_BOB), each its own way
+const QY_BOAT = [0x2f5a8a, 0x8a2e26, 0x2f6a4a, 0x2a3a4a], QY_NAMES = ['MORNING STAR', 'KESTREL', 'GOOD HOPE', 'MARY ANN'], QY_BOB = { y: 0.06, pitch: 0.02, roll: 0.035 };
+function qyBoat(x, z, c, sunk, a) {
+  const g = new THREE.Group(), list = [], L = 6.6, W = 2.3, D = 1.15, base = sunk ? -2.2 : -1.6 + 0.35;
+  g.position.set(x, base, z); g.rotation.y = a; if (sunk) { g.rotation.z = 0.22; g.rotation.x = -0.05; }
+  const add = m => { g.add(m); list.push(m); m.castShadow = m.receiveShadow = true; return m; };
+  const bx = (w, h, d, mat, px, py, pz) => add(box(g, w, h, d, mat, px, py, pz));
+  // (its hull, seen from above: a square stern, the sides drawn in to a point at the bow, toward the quay)
+  const sh = new THREE.Shape(); sh.moveTo(-W / 2, L / 2); sh.lineTo(W / 2, L / 2); sh.lineTo(W / 2, -L / 2 + 2.2); sh.quadraticCurveTo(W / 2 - 0.1, -L / 2 + 0.6, 0, -L / 2); sh.quadraticCurveTo(-W / 2 + 0.1, -L / 2 + 0.6, -W / 2, -L / 2 + 2.2); sh.lineTo(-W / 2, L / 2);
+  const hull = (mat, d, y, k) => { const ge = new THREE.ExtrudeGeometry(sh, { depth: d, bevelEnabled: false, curveSegments: 8 }); ge.rotateX(Math.PI / 2); ge.scale(k, 1, k); const m = add(new THREE.Mesh(ge, mat)); m.position.y = y; return m; };
+  hull(lam(0xa8322a), 0.5, -0.45, 0.94); hull(lam(QY_BOAT[c]), D - 0.4, D - 0.4 - 0.05, 1); hull(lam(0xe6e2d6), 0.14, D - 0.4 + 0.09, 1.02);   // (antifouling, topsides, the white rubbing band)
+  hull(lam(0x7a6a52), 0.04, D - 0.38, 0.9);   // (the deck)
+  // the wheelhouse, its windows round, its roof and its lamp
+  const wz = L / 2 - 1.7; bx(1.6, 1.25, 1.5, lam(0xe0dcd0), 0, D - 0.3 + 0.62, wz); bx(1.64, 0.36, 1.54, smSH.glass, 0, D - 0.3 + 0.95, wz); bx(1.8, 0.1, 1.7, lam(QY_BOAT[c]), 0, D - 0.3 + 1.3, wz); bx(0.12, 0.2, 0.12, smGlowM(0xffe2a0), 0.6, D - 0.3 + 1.45, wz + 0.6);
+  // the mast forward of it, its boom, the net drum on the stern, the fish boxes, the buoys and tyres down its sides
+  { const m = add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 4.4, 6), lam(0x8a8478))); m.position.set(0, D - 0.3 + 2.2, wz - 1.2); }
+  { const bm = add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 3.0, 6), lam(0x8a8478))); bm.rotation.x = Math.PI / 2 - 0.35; bm.position.set(0, D - 0.3 + 1.6, wz - 2.4); }
+  { const dr = add(new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1.4, 12), lam(0x2a6a5a))); dr.rotation.z = Math.PI / 2; dr.position.set(0, D - 0.3 + 0.45, L / 2 - 0.5); }
+  for (const [px, pz, cl] of [[-0.5, -0.6, 0x2f6aa0], [0.45, -0.2, 0xd8b23a], [-0.4, 0.3, 0x2f6aa0]]) bx(0.55, 0.28, 0.4, lam(cl), px, D - 0.3 + 0.14, pz);
+  for (const sd of [-1, 1]) for (let k = 0; k < 3; k++) { const pz = -1.2 + k * 1.4; if (k === 1) { const t = add(new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.08, 6, 12), lam(0x1c1c1e))); t.rotation.y = Math.PI / 2; t.position.set(sd * (W / 2 + 0.06), D - 0.65, pz); } else { const b = add(new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), lam(0xe0662a))); b.position.set(sd * (W / 2 + 0.12), D - 0.7, pz); } }
+  // its name, on each side of the bow
+  for (const sd of [-1, 1]) { const pm = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.3), smTexM(smSignTex(QY_NAMES[c], QY_BOAT[c] === 0x2a3a4a ? '#2a3a4a' : '#' + QY_BOAT[c].toString(16).padStart(6, '0'), '#ffffff', 1.7, 'Arial'), true)); pm.position.set(sd * (W / 2 + 0.01), D - 0.55, -L / 2 + 2.4); pm.rotation.y = sd * Math.PI / 2; g.add(pm); }
+  smG.add(g); mergeInto(g, list);
+  // (tied off to the quay: a line from its bow to the wall)
+  const qz = smZ1 + 0.3, bwx = x + Math.sin(a) * (-L / 2), bwz = z - Math.cos(a) * (L / 2), cv = new THREE.CatmullRomCurve3([new THREE.Vector3(bwx, base + D - 0.2, bwz), new THREE.Vector3((bwx + x) / 2, -1.1, (bwz + qz) / 2), new THREE.Vector3(x + 0.3, 0.45, qz)]);
+  const rope = new THREE.Mesh(new THREE.TubeGeometry(cv, 12, 0.03, 4), QYM.rope); smG.add(rope);
+  if (sunk) return;
+  const ph = rand() * 6.28, s0 = g.position.y, rx = g.rotation.x, rz = g.rotation.z, kid = g.children[0];
+  if (kid) kid.onBeforeRender = () => { const t = performance.now() / 1000 + ph; g.position.y = s0 + Math.sin(t * 0.9) * QY_BOB.y; g.rotation.x = rx + Math.sin(t * 0.7) * QY_BOB.pitch; g.rotation.z = rz + Math.sin(t * 0.55 + 1) * QY_BOB.roll; };
+}
+// gulls: a few stood about on the bollards and the boats' wheelhouses, and three wheeling high over the water, wings
+// beating now and then as they go round (QY_GULL: how high, how wide a circle, how fast)
+const QY_GULL = { y: [9, 13], r: [6, 11], w: [0.25, 0.45] };
+function qyGull(parent, flying) {
+  const g = new THREE.Group(), wht = lam(0xeeece6), grey = lam(0x9aa0a4), dk = lam(0x2a2a2a);
+  box(g, 0.14, 0.14, 0.42, wht, 0, 0, 0); box(g, 0.1, 0.1, 0.12, wht, 0, 0.08, -0.22); box(g, 0.04, 0.03, 0.08, lam(0xe0b030), 0, 0.07, -0.31);
+  const wl = new THREE.Group(), wr = new THREE.Group(); wl.position.x = -0.07; wr.position.x = 0.07; g.add(wl, wr);
+  box(wl, 0.5, 0.02, 0.18, grey, -0.25, 0, 0.02); box(wl, 0.1, 0.021, 0.16, dk, -0.47, 0, 0.03); box(wr, 0.5, 0.02, 0.18, grey, 0.25, 0, 0.02); box(wr, 0.1, 0.021, 0.16, dk, 0.47, 0, 0.03);
+  if (!flying) { wl.rotation.z = -1.2; wr.rotation.z = 1.2; wl.position.y = wr.position.y = 0.04; }
+  parent.add(g); return { g, wl, wr };
+}
+function qyGulls() {
+  for (const [x, z, y] of [[smXc(4), smZ1 - 0.5, 0.6], [smXc(13), smZ1 - 0.5, 0.6], [6, smZ1 + 4.4 + 1.7, 0.55 + 1.1 + 0.05]]) { const G = qyGull(smG, false); G.g.position.set(x, y + 0.08, z); G.g.rotation.y = rr(0, 6.28); }
+  for (let k = 0; k < 3; k++) {
+    const G = qyGull(smG, true), ph = rand() * 6.28, y = rr(...QY_GULL.y), r = rr(...QY_GULL.r), w = rr(...QY_GULL.w) * (rand() < 0.5 ? 1 : -1), cx = rr(-8, 8), cz = smZ1 + rr(8, 16);
+    G.g.children[0].onBeforeRender = () => { const t = performance.now() / 1000, a = ph + t * w; G.g.position.set(cx + Math.cos(a) * r, y + Math.sin(t * 0.6 + ph) * 0.6, cz + Math.sin(a) * r); G.g.rotation.y = -a + (w > 0 ? 0 : Math.PI); G.g.rotation.z = (w > 0 ? 1 : -1) * 0.3; const f = Math.sin(t * 9 + ph) * Math.max(0, Math.sin(t * 0.8 + ph * 2)) * 0.6; G.wl.rotation.z = f; G.wr.rotation.z = -f; };
+  }
+}
 // the edges: the harbour buildings north (qyNorth); the quay's edge south, its granite coping, ladders and lifebuoys,
 // the harbour water beyond, a boat half sunk at its mooring, the breakwater and its light; at each end the quay road
 // closed by the army's barricade, the cars queued beyond
@@ -745,11 +879,13 @@ function qyEdges() {
   for (let i = SM_B[0] + 1; i < SM_B[2]; i++) { const x = cxw(i); smBx(1, 0.35, 1, smSH.stoneLo, x, 0.18, ez); smBx(1, 0.08, 1.02, smSH.stoneLoDk, x, 0.37, ez); }
   for (const x of [-11.5, -2.5, 2.5, 11.5]) { smBx(0.5, 0.05, 0.08, smSH.iron, x, 0.3, ez + 0.5); for (const s of [-0.2, 0.2]) smBx(0.04, 2.4, 0.04, smSH.iron, x + s, -0.9, ez + 0.54); }   // (ladders down to the water)
   for (const x of [-7, 7]) { smCy(0.05, 0.05, 1.4, smSH.iron, x, 0.7, ez, 6); const b = smPush(new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.07, 6, 16), lam(0xe0662a))); b.position.set(x, 1.1, ez - 0.08); }
-  const w = new THREE.Mesh(new THREE.PlaneGeometry(120, 60), QYM.water); w.rotation.x = -Math.PI / 2; w.position.set(0, -1.6, smZ1 + 30); w.receiveShadow = true; smG.add(w);
+  qyWater();
   smBx(smX1 - smX0 + 30, 1.6, 0.4, smSH.stoneLoDk, 0, -0.8, smZ1 + 0.2);
+  qyWallFace();
   // the boats left at their moorings (low in the water: they never stand in front of anything from above), one sunk
-  // to its wheelhouse
-  for (const [x, zz, c, sunk] of [[-9, 4.5, 0, 0], [-2, 6, 2, 1], [6, 4.2, 1, 0], [12, 7, 0, 0]]) { const y = sunk ? -1.0 : 0; smBx(2.2, 0.9, 6.5, QYM.shed[c], x, -1.1 + y, smZ1 + zz); smBx(1.8, 0.06, 5.8, lam(0xd8d2c0), x, -0.62 + y, smZ1 + zz); smBx(1.4, 1.0, 1.6, lam(0xe0dcd0), x, -0.1 + y, smZ1 + zz + 1.2); smCy(0.05, 0.05, 3.2, smSH.iron, x, 1.0 + y, smZ1 + zz - 1, 6); }
+  // to its wheelhouse, each tied off to the quay's bollards
+  for (const [x, zz, c, sunk, a] of [[-9, 4.6, 0, 0, 0.06], [-2, 6, 2, 1, -0.2], [6, 4.4, 1, 0, -0.05], [12.2, 7.2, 3, 0, 0.12]]) qyBoat(x, smZ1 + zz, c, !!sunk, a);
+  qyGulls();
   smBx(50, 1.2, 3, smSH.stoneLoDk, -6, -0.6, smZ1 + 26); smCy(0.9, 1.1, 6, lam(0xe8e4da), 18, 2.6, smZ1 + 26, 12); smCy(1.0, 1.0, 1.2, lam(0xb8322a), 18, 6.2, smZ1 + 26, 12); smBx(0.8, 0.6, 0.8, smGlowM(0xfff1c8), 18, 7.1, smZ1 + 26);
   for (const s of [-1, 1]) smEndBarricade(s, 'QUAY CLOSED · ARMY', s < 0 ? 'quayW' : 'quayE');
   // the town climbs the hill behind the harbour (north and west, behind the map from above: its terraces of cottages,

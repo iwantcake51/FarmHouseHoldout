@@ -140,6 +140,7 @@
   "lighting/static-lights.js",
   "lighting/day-night.js",
   "lighting/vision.js",
+  "world/sign-art.js",
   "world/arena-boxes.js",
   "world/arena-mall-art.js",
   "world/arena-mall.js",
@@ -218,6 +219,7 @@
   "pvp/pvp.js",
   "pvp/bot-poses.js",
   "pvp/bots.js",
+  "pvp/pvp-fire.js",
   "ui/arena-loadouts.js",
   "game/loop.js"
 ]

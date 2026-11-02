@@ -18,7 +18,7 @@ export const MALL_ANCHORS = [{ name: "HARLOW'S", col: '#5c1f1f' }, { name: 'MERI
 const mallCan = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
 const mallTexOf = c => { const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t; };
 // text in a box: as big as px, smaller till it fits w (never cut off)
-function mallFit(x, s, cx, cy, w, px, weight = '700', fam = 'Georgia, serif') {
+function mallFit(x, s, cx, cy, w, px, weight = '700', fam = '"Bitter", Georgia, serif') {
   let p = px; x.font = `${weight} ${p}px ${fam}`;
   while (p > 8 && x.measureText(s).width > w) { p -= 2; x.font = `${weight} ${p}px ${fam}`; }
   x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(s, cx, cy);
@@ -78,23 +78,23 @@ export function mallAdTex(kind) {
   if (kind % 3 === 0) { x.fillStyle = '#16181c'; x.fillRect(84, 60, 88, 170); x.fillStyle = `hsl(${hue},70%,60%)`; x.fillRect(90, 70, 76, 148); }
   else if (kind % 3 === 1) { x.fillStyle = '#1a1a1a'; x.beginPath(); x.ellipse(90, 140, 40, 26, 0, 0, 7); x.ellipse(166, 140, 40, 26, 0, 0, 7); x.fill(); x.fillRect(120, 130, 16, 6); }
   else { x.fillStyle = 'rgba(255,240,250,0.8)'; x.fillRect(98, 110, 60, 110); x.fillStyle = '#c9a75a'; x.fillRect(116, 88, 24, 22); }
-  x.fillStyle = '#fff'; mallFit(x, ['NEW SEASON', 'SUMMER SHADES', 'EAU DE NUIT'][kind % 3], W / 2, 34, W - 30, 30, '700', 'Arial, sans-serif');
-  mallFit(x, ['Cases from $9', '2 for $40', 'Try me'][kind % 3], W / 2, H - 28, W - 30, 22, '400', 'Arial, sans-serif');
+  x.fillStyle = '#fff'; mallFit(x, ['NEW SEASON', 'SUMMER SHADES', 'EAU DE NUIT'][kind % 3], W / 2, 34, W - 30, 30, '700', '"Archivo", Arial, sans-serif');
+  mallFit(x, ['Cases from $9', '2 for $40', 'Try me'][kind % 3], W / 2, H - 28, W - 30, 22, '400', '"Archivo", Arial, sans-serif');
   return mallTexOf(c);
 }
 // ---- the directory: the plan of the mall, the shops coloured in and listed, you are here
 export function mallDirTex(plan, youI, youJ) {
   const W = 256, H = 448, [c, x] = mallCan(W, H), cw = plan[0].length, ch = plan.length, s = Math.floor((W - 24) / cw), ox = (W - cw * s) / 2, oy = 70;
   x.fillStyle = '#1d2226'; x.fillRect(0, 0, W, H);
-  x.fillStyle = '#e8e2d4'; mallFit(x, 'LARKSPUR MALL', W / 2, 26, W - 24, 26); x.fillStyle = '#9fb0b8'; mallFit(x, 'DIRECTORY', W / 2, 52, W - 24, 14, '400', 'Arial, sans-serif');
+  x.fillStyle = '#e8e2d4'; mallFit(x, 'LARKSPUR MALL', W / 2, 26, W - 24, 26); x.fillStyle = '#9fb0b8'; mallFit(x, 'DIRECTORY', W / 2, 52, W - 24, 14, '400', '"Archivo", Arial, sans-serif');
   for (let j = 0; j < ch; j++) for (let i = 0; i < cw; i++) {
     const k = plan[j][i], wall = k === '#' || k === 'h';
     x.fillStyle = wall ? '#56606a' : k === 'S' ? '#8a7a5a' : k === 'w' ? '#3f7f96' : j <= 6 ? '#3a3f44' : (i <= 6 || i >= cw - 7) && j <= 21 ? (i <= 6 ? '#6a3434' : '#344a6a') : j >= 23 ? '#5a4a36' : '#c9c1b0';
     x.fillRect(ox + i * s, oy + j * s, s, s);
   }
   x.fillStyle = '#e04a3a'; x.beginPath(); x.arc(ox + (youI + 0.5) * s, oy + (youJ + 0.5) * s, 5, 0, 7); x.fill();
-  const ly = oy + ch * s + 16; x.fillStyle = '#e04a3a'; x.beginPath(); x.arc(20, ly, 5, 0, 7); x.fill(); x.fillStyle = '#e8e2d4'; x.textAlign = 'left'; x.font = '400 13px Arial, sans-serif'; x.fillText('You are here', 32, ly + 4);
-  x.font = '400 11px Arial, sans-serif';
+  const ly = oy + ch * s + 16; x.fillStyle = '#e04a3a'; x.beginPath(); x.arc(20, ly, 5, 0, 7); x.fill(); x.fillStyle = '#e8e2d4'; x.textAlign = 'left'; x.font = '400 13px "Archivo", Arial, sans-serif'; x.fillText('You are here', 32, ly + 4);
+  x.font = '400 11px "Archivo", Arial, sans-serif';
   const L = [MALL_ANCHORS[0].name, MALL_ANCHORS[1].name, ...MALL_STORES.map(t => t.name), 'Food court', 'Restrooms · Lifts'];
   L.forEach((n, k) => { const cx = k % 2 ? W / 2 + 6 : 14, cy = ly + 26 + Math.floor(k / 2) * 17; if (cy < H - 8) { x.fillStyle = '#c9c1b0'; x.fillText(n.slice(0, 18), cx, cy); } });
   return mallTexOf(c);
@@ -105,8 +105,8 @@ const MALL_FOOD = [['Wok & Roll', '#b8322a', ['Chow mein', 'Sweet & sour', 'Spri
 export function mallMenuTex(n) {
   const W = 512, H = 192, [c, x] = mallCan(W, H), [name, col, items] = MALL_FOOD[n % MALL_FOOD.length];
   x.fillStyle = '#16181a'; x.fillRect(0, 0, W, H); x.fillStyle = col; x.fillRect(0, 0, W, 52);
-  x.fillStyle = '#fff'; mallFit(x, name, W / 2, 28, W - 30, 36, '800', 'Arial, sans-serif');
-  items.forEach((t, k) => { const cx = 18 + (k % 2) * (W / 2), cy = 82 + Math.floor(k / 2) * 52; x.fillStyle = `hsl(${(n * 70 + k * 40) % 360},55%,50%)`; x.fillRect(cx, cy - 18, 48, 36); x.fillStyle = '#f2ead8'; x.textAlign = 'left'; x.font = '600 20px Arial, sans-serif'; x.fillText(t, cx + 58, cy + 2); x.fillStyle = '#e8c45a'; x.textAlign = 'right'; x.fillText('$' + (4 + ((n + k) * 7) % 6) + '.99', cx + W / 2 - 34, cy + 2); });
+  x.fillStyle = '#fff'; mallFit(x, name, W / 2, 28, W - 30, 36, '800', '"Archivo", Arial, sans-serif');
+  items.forEach((t, k) => { const cx = 18 + (k % 2) * (W / 2), cy = 82 + Math.floor(k / 2) * 52; x.fillStyle = `hsl(${(n * 70 + k * 40) % 360},55%,50%)`; x.fillRect(cx, cy - 18, 48, 36); x.fillStyle = '#f2ead8'; x.textAlign = 'left'; x.font = '600 20px "Archivo", Arial, sans-serif'; x.fillText(t, cx + 58, cy + 2); x.fillStyle = '#e8c45a'; x.textAlign = 'right'; x.fillText('$' + (4 + ((n + k) * 7) % 6) + '.99', cx + W / 2 - 34, cy + 2); });
   return mallTexOf(c);
 }
 // ---- a printed sign (kind: 'staff', 'exit', 'safety', 'lift', 'sale'): plain, its words fitted
@@ -115,8 +115,8 @@ export function mallSignBoard(kind) {
     lift: ['#2a2e33', '#e8e2d4', 'LIFTS', 'Levels 1 – 2'], sale: ['#b8322a', '#ffffff', 'SALE', 'Up to 50% off'], fire: ['#c22a22', '#ffffff', 'FIRE', 'Extinguisher'] }[kind];
   const W = 256, H = kind === 'exit' ? 96 : 160, [c, x] = mallCan(W, H);
   x.fillStyle = D[0]; x.fillRect(0, 0, W, H); x.strokeStyle = D[1]; x.lineWidth = 4; x.strokeRect(6, 6, W - 12, H - 12); x.fillStyle = D[1];
-  if (D[3]) { mallFit(x, D[2], W / 2, H * 0.4, W - 40, 44, '800', 'Arial, sans-serif'); mallFit(x, D[3], W / 2, H * 0.74, W - 40, 20, '400', 'Arial, sans-serif'); }
-  else mallFit(x, D[2], W / 2, H / 2 + 2, W - 40, 56, '800', 'Arial, sans-serif');
+  if (D[3]) { mallFit(x, D[2], W / 2, H * 0.4, W - 40, 44, '800', '"Archivo", Arial, sans-serif'); mallFit(x, D[3], W / 2, H * 0.74, W - 40, 20, '400', '"Archivo", Arial, sans-serif'); }
+  else mallFit(x, D[2], W / 2, H / 2 + 2, W - 40, 56, '800', '"Archivo", Arial, sans-serif');
   return mallTexOf(c);
 }
 // ---- a banner hung from the ceiling over the concourse

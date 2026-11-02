@@ -42,7 +42,7 @@ const lerpD = a => a[0] + (a[1] - a[0]) * clamp(curDark, 0, 1);
 // down when the frame rate drops, before the resolution goes)
 // POST.aoK: how much of the occlusion's shown, eased in and out (AO.fade a second) as it's turned on and off, so a
 // quality change never pops it on or off the whole screen at once
-export const POST = { ok: true, q: 2, w: 0, h: 0, aoK: 1, aoT: 0 };
+export const POST = { ok: true, q: 2, w: 0, h: 0, aoK: 1, aoT: 0, heat: 0 };   // (heat: on fire, HEAT_GLSL)
 const PS_VERT = 'varying vec2 vUv;\nvoid main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
 // linear depth from the depth buffer: an orthographic camera's is straight from near to far; one with perspective (first
 // person, the free camera: game/view-cam.js, uNF.z 1) bunches up toward the far end
@@ -261,27 +261,58 @@ function lensFlare(target, W, H) {
 }
 // all of it on the screen: the scene, darkened by its occlusion (brought up from half size smoothly, read between
 // its texels), the fog over it, and the glow added over that
+// ---- on fire (the arena's dragon's breath: pvp/pvp-fire.js sets POST.heat, 0 to 1, easing it in and out): the picture
+// shimmers in the heat, a little all over and more toward the edges, and flames lick in from round the edges of the
+// view, rising as flames do and reaching furthest in along the bottom, deep red at their roots to orange to a yellow
+// core, with a warm glow under them; all of it growing with the heat, so it comes on and dies away smoothly
+const HEAT_GLSL = `
+float hHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float hNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hHash(i), hHash(i + vec2(1.0, 0.0)), f.x), mix(hHash(i + vec2(0.0, 1.0)), hHash(i + vec2(1.0, 1.0)), f.x), f.y); }
+float hFbm(vec2 p) { return hNoise(p) * 0.52 + hNoise(p * 2.13 + 3.7) * 0.3 + hNoise(p * 4.41 + 7.1) * 0.18; }
+vec2 heatWarp(vec2 uv0, out float ring, out float n) {
+  vec2 v = abs(uv0 - 0.5) * 2.0, s = vec2((uv0.x - 0.5) * uAsp, uv0.y);
+  ring = pow(pow(v.x, 6.0) + pow(v.y, 6.0), 1.0 / 6.0) + 0.06 * smoothstep(0.25, 0.0, uv0.y) - 0.04 * smoothstep(0.75, 1.0, uv0.y);   // (0 in the middle, 1 at the edges; the bottom's flames reach further in)
+  float t = uHeatT;
+  n = hFbm(vec2(s.x * 4.6, s.y * 3.2 - t * 1.9)) * 0.62 + hFbm(vec2(s.x * 10.5 + 2.0, s.y * 7.5 - t * 3.6)) * 0.38;
+  vec2 w = vec2(hFbm(vec2(s.x * 14.0, s.y * 11.0 - t * 2.4)), hFbm(vec2(s.x * 14.0 + 5.2, s.y * 11.0 - t * 2.9 + 1.3))) - 0.5;
+  return clamp(uv0 + w * (0.0015 + 0.008 * smoothstep(0.6, 1.0, ring)) * uHeat, vec2(0.001), vec2(0.999));
+}
+vec3 heatFlames(vec3 c, vec2 uv0, float ring, float n) {
+  float f = ring + (n - 0.5) * 0.32 - (1.0 - uHeat) * 0.22;
+  float fl = smoothstep(0.86, 1.0, f), core = smoothstep(0.95, 1.1, f);
+  vec3 col = mix(vec3(0.62, 0.07, 0.01), vec3(1.0, 0.42, 0.06), smoothstep(0.0, 0.7, fl));
+  col = mix(col, vec3(1.0, 0.86, 0.5), core);
+  c += vec3(0.3, 0.08, 0.015) * smoothstep(0.72, 1.05, ring) * uHeat * (0.55 + 0.45 * n);   // (the glow under them)
+  c = mix(c, col * 1.2, fl * (0.5 + 0.3 * uHeat) * uHeat);
+  return c * mix(vec3(1.0), vec3(1.03, 0.985, 0.94), uHeat * 0.5);   // (and everything a touch warmer)
+}`;
 const compMat = psMat(`
 ${PS_DEPTH}
 ${MIST_D}
 ${MIST_UPS}
-uniform sampler2D tCol, tAO, tB1, tB2; uniform float uAoK, uAoPow, uB1, uB2, uFogN, uFogF, uDbg, uMistOn;
+uniform sampler2D tCol, tAO, tB1, tB2; uniform float uAoK, uAoPow, uB1, uB2, uFogN, uFogF, uDbg, uMistOn, uHeat, uHeatT, uAsp;
 varying vec2 vUv;
+${HEAT_GLSL}
 void main() {
-  vec3 c = texture2D(tCol, vUv).rgb;
+  // on fire (POST.heat): the picture wavers in the heat, most round the edges, where the flames lick in
+  vec2 uv = vUv; float hRing = 0.0, hN = 0.0;
+  if (uHeat > 0.001) uv = heatWarp(vUv, hRing, hN);
+  vec3 c = texture2D(tCol, uv).rgb;
   if (uAoK > 0.0) {
-    float d = viewD(vUv), ao = texture2D(tAO, vUv).r;
+    float d = viewD(uv), ao = texture2D(tAO, uv).r;
     ao = pow(clamp(ao, 0.0, 1.0), uAoPow);
     float k = uAoK * (1.0 - smoothstep(uFogN, uFogF, d));
     c *= mix(1.0, ao, k);
     if (uDbg > 0.5) c = vec3(mix(1.0, ao, k));
   }
   // a fog round's fog (world/mist.js), under the glow, so lamps and flashes in it still bloom through
-  if (uMistOn > 0.5) { vec4 m = mistUp(vUv, viewD(vUv)); c = c * (1.0 - m.a) + m.rgb; }
-  c += texture2D(tB1, vUv).rgb * uB1 + texture2D(tB2, vUv).rgb * uB2;
+  if (uMistOn > 0.5) { vec4 m = mistUp(uv, viewD(uv)); c = c * (1.0 - m.a) + m.rgb; }
+  c += texture2D(tB1, uv).rgb * uB1 + texture2D(tB2, uv).rgb * uB2;
+  if (uHeat > 0.001) c = heatFlames(c, vUv, hRing, hN);
   gl_FragColor = vec4(c, 1.0);
   gl_FragDepth = texture2D(tDepth, vUv).r;   // (the scene's depth, for what's drawn over the fog to be hidden behind it)
-}`, { tMist: { value: null }, uMistOn: { value: 0 }, uMistPx: { value: new THREE.Vector2() }, uFullPx: { value: new THREE.Vector2() }, uMistOff: { value: 0 }, tDepth: { value: null }, uNF: { value: new THREE.Vector3() }, tCol: { value: null }, tAO: { value: null }, tB1: { value: null }, tB2: { value: null }, uAoK: { value: AO.k }, uAoPow: { value: AO.pow }, uB1: { value: 0 }, uB2: { value: 0 }, uFogN: { value: 40 }, uFogF: { value: 70 }, uDbg: { value: 0 } });
+}`, { tMist: { value: null }, uMistOn: { value: 0 }, uMistPx: { value: new THREE.Vector2() }, uFullPx: { value: new THREE.Vector2() }, uMistOff: { value: 0 }, tDepth: { value: null }, uNF: { value: new THREE.Vector3() }, tCol: { value: null }, tAO: { value: null }, tB1: { value: null }, tB2: { value: null }, uHeat: { value: 0 }, uHeatT: { value: 0 }, uAsp: { value: 1 }, uAoK: { value: AO.k }, uAoPow: { value: AO.pow }, uB1: { value: 0 }, uB2: { value: 0 }, uFogN: { value: 40 }, uFogF: { value: 70 }, uDbg: { value: 0 } });
 // (the composite writes the scene's depth with its colour, whatever's there: depth tested, as only then is it written)
 Object.assign(compMat, { depthTest: true, depthWrite: true, depthFunc: THREE.AlwaysDepth });
 const psQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), copyMat); psQuad.frustumCulled = false;
@@ -416,6 +447,7 @@ export function renderFrame() {
     psPass(mistMat, PS_RT.mist); U.tMist.value = PS_RT.mist.texture; U.uMistPx.value.set(1 / PS_RT.mist.width, 1 / PS_RT.mist.height);
   }
   U.tDepth.value = sc.depthTexture; U.uNF.value.set(...nf); U.tCol.value = sc.texture; U.tAO.value = PS_RT.hA.texture;
+  U.uHeat.value = POST.heat || 0; U.uHeatT.value = (performance.now() / 1000) % 1000; U.uAsp.value = W / Math.max(1, H);   // (on fire: HEAT_GLSL)
   U.uAoK.value = aoN ? AO.k * POST.aoK : 0;
   U.tB1.value = PS_RT.b1.texture; U.tB2.value = PS_RT.b2.texture; U.uB1.value = lerpD(BLOOM.k) * bk; U.uB2.value = lerpD(BLOOM.k2) * bk; U.uDbg.value = POST.dbg ? 1 : 0;
   // (the occlusion thins out into the fog as the scene does: from where the fog starts, measured from the camera)

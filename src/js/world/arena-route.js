@@ -35,6 +35,7 @@ import { fpOn } from '../game/view-cam.js';
 import { LAMP_ON } from '../lighting/static-lights.js';
 import { GLOW_LAYER } from '../effects/post.js';
 import { arBoxSet } from './arena-boxes.js';
+import { liveTex, paintLetters, paintSign, paintSoot, paintSpray, paintStencil } from './sign-art.js';
 
 // its plan, a row a line from north to south (tools/route-plan.py prints it): # the perimeter, h block walls (the
 // store's, the cooler's, the garage's wings either side of each spawn, the car wash), W blast walls (the sections of
@@ -47,13 +48,13 @@ import { arBoxSet } from './arena-boxes.js';
 // free-for-all spawns from
 const RT_PLAN = [
   '##########################################',
-  '#.................hhhhhh.................#',
-  '#.dd.........Fk...hhhhhh...kF.........dd.#',
+  '#dd...........k...hhhhhh...k...........dd#',
+  '#............F....hhhhhh....F............#',
   '#.................hhhhhh.................#',
   '#..F.......hhhhh..hhhhhh..hhhhh.......F..#',
   '#..........h......hhhhhh......h..........#',
-  '#...hhhh....nn..F.hhhhhh.F..nn....hhhh...#',
-  '#...hhhh.......S..hhhhhh..S.......hhhh...#',
+  '#....hhhh.......F.hhhhhh.F.......hhhh....#',
+  '#....hhhh......S..hhhhhh..S......hhhh....#',
   '#..........h...S..........S...h..........#',
   '#cccc......h..................h......cccc#',
   '#cccc......h..................h......cccc#',
@@ -66,9 +67,9 @@ const RT_PLAN = [
   '#.....AARR...WWF..........FWW...RRBB.....#',
   '#.....AARR...WW............WW...RRBB.....#',
   '#.....AARR........s....s........RRBB.....#',
-  '#....AAARR...k....s....s....k...RRBBB....#',
+  '#....AAARR........s....s........RRBBB....#',
   '#...AAAARR...k..............k...RRBBBB...#',
-  '#....AAARR......................RRBBB....#',
+  '#....AAARR...k..............k...RRBBB....#',
   '#.....AARR.......WWssssWW.......RRBB.....#',
   '#......ARR.......WW....WW.......RRB......#',
   '#.......RR..GGGG..........GGGG..RR.......#',
@@ -76,11 +77,11 @@ const RT_PLAN = [
   '#..........WW.F............F.WW..........#',
   '#hhhhhhhhWWWW..bbWWWWWWWWbb..WWWWhhhhhhhh#',
   '#........................................#',
-  '#..F...........WW........WW...........F..#',
-  '#.cccc..cccc...WW........WW...cccc..cccc.#',
-  '#.cccc..cccc.......XXXX.......cccc..cccc.#',
+  '#..F..................................F..#',
+  '#cccc...cccc...WW........WW...cccc...cccc#',
+  '#cccc...cccc...WW..XXXX..WW...cccc...cccc#',
   '#..................XXXX..................#',
-  '#bbbbb...bbbbbb....XXXX....bbbbbb...bbbbb#',
+  '#............bb....XXXX....bb............#',
   '#..........F.......XXXX.......F..........#',
   '#.......UUUUU................UUUUU.......#',
   '#.......UUUUU..cccc.FF.cccc..UUUUU.......#',
@@ -373,7 +374,8 @@ function rtCarWash(i, j) {
   for (const s of [-1, 1]) { const fx = s < 0 ? E.x0 : E.x1; rBox(0.05, 2.4, E.d - 0.6, M.garageDk, fx + s * 0.03, 1.2, E.cz); for (let y = 0.3; y < 2.4; y += 0.3) rBox(0.06, 0.03, E.d - 0.62, M.lotWDk, fx + s * 0.04, y, E.cz); }
   rBox(0.4, 0.5, E.d - 0.4, M.steel, E.cx, H + 0.39, E.cz); rCyl(0.3, 0.3, E.d - 0.8, rtTall(0x2f5f8a), E.cx, H + 0.45, E.cz, 12, Math.PI / 2, 0);
   rtDecalSign('CAR WASH', Math.min(3.2, E.w - 0.4), 0.5, '#e9e6de', '#2c5a8a', E.cx, 2.4, E.z1 + 0.02, 0);
-  rBox(E.w * 0.4, 1.2, 0.03, M.sootDk, E.cx + (west ? 1 : -1) * E.w * 0.28, 2.2, E.z1 + 0.01);
+  { const sw = E.w * 0.42, so = new THREE.Mesh(new THREE.PlaneGeometry(sw, 2.1), rDecal(rtTall(0xffffff, { map: liveTex(256, 256, (c, W, H) => paintSoot(c, W, H, 41)), transparent: true, depthWrite: false })));
+    so.position.set(E.cx + (west ? 1 : -1) * (E.w / 2 - sw / 2 - 0.05), 1.05, E.z1 + 0.012); rP.add(so); }   // (the soot of the fire licked up the end, below the sign, never over it)
   rFootRect(R, E.x0, E.z0, E.x1, E.z1);
 }
 // ---- the blast walls: T-walls in a line (along the highway), HESCO baskets where they stand as blocks (the
@@ -731,18 +733,20 @@ function rtOutside(g) {
   for (let x = -60; x <= 60; x += 15) { rCyl(0.13, 0.17, 9, rtTall(0x5a4a3a), x, 4.5, -RT_Z - 8, 8); rBox(2.2, 0.14, 0.14, rtTall(0x5a4a3a), x, 8.4, -RT_Z - 8); }
   rtWoods(g);
 }
-// a painted sign on its own board (text, w x h metres, its colours, where, which way it faces); scrawl: a line sprayed
-// over it
-function rtSign(g, text, w, h, bg, fg, x, y, z, ry, board, scrawl) {
-  const t = rtTex(1024, Math.max(32, Math.round(1024 * h / w)), (c, W, H) => {
-    if (bg) { c.fillStyle = bg; c.fillRect(0, 0, W, H); }
-    c.fillStyle = fg; c.font = `800 ${Math.round(H * 0.62)}px "Saira Extra Condensed", sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
-    let fs = Math.round(H * 0.62); while (c.measureText(text).width > W * 0.94 && fs > 8) { fs -= 2; c.font = `800 ${fs}px "Saira Extra Condensed", sans-serif`; }
-    c.fillText(text, W / 2, H / 2 + 2);
-    if (scrawl) { c.save(); c.translate(W / 2, H / 2); c.rotate(-0.06); c.fillStyle = 'rgba(20,20,20,0.88)'; c.font = `italic 900 ${Math.round(H * 0.42)}px "Archivo", sans-serif`; c.fillText(scrawl, 0, 0); c.restore(); }
-    for (let k = 0; k < 400; k++) { c.fillStyle = `rgba(30,26,22,${Math.random() * 0.4})`; c.fillRect(Math.random() * W, Math.random() * H, 2 + Math.random() * 8, 1 + Math.random() * 4); }
+// a sign (text, w x h metres, its colours, where, which way it faces), painted as a made thing (world/sign-art.js): on
+// a board of its own colour bg (board: stood off the face on its own backing), or with no board (bg null) as kind says:
+// 'letters' painted on the wall, 'stencil' sprayed through a stencil, 'spray' sprayed by hand; scrawl: a line sprayed
+// over a board afterwards
+function rtSign(g, text, w, h, bg, fg, x, y, z, ry, board, scrawl, kind = 'spray') {
+  const W = 1024, H = Math.max(48, Math.round(1024 * h / w));
+  const t = liveTex(W, H, (c, W2, H2) => {
+    if (bg) paintSign(c, W2, H2, { text, bg, fg, face: 'shop', under: board ? '#5a4a3c' : '#8a8478', wear: 0.6, screws: !!board });
+    else if (kind === 'letters') paintLetters(c, W2, H2, { text, fg, face: 'shop' });
+    else if (kind === 'stencil') paintStencil(c, W2, H2, { text, col: fg });
+    else paintSpray(c, W2, H2, { text, col: fg });
+    if (scrawl) { const o = document.createElement('canvas'); o.width = W2; o.height = Math.round(H2 * 0.55); paintSpray(o.getContext('2d'), o.width, o.height, { text: scrawl, col: '#1a1816', tilt: -0.05 }); c.drawImage(o, 0, H2 * 0.3); }
   });
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), rDecal(rtTall(0xffffff, { map: t, transparent: !bg, alphaTest: bg ? 0 : 0.2 }))); m.position.set(x, y, z); m.rotation.y = ry; m.receiveShadow = true; g.add(m);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), rDecal(rtTall(0xffffff, { map: t, transparent: !bg, alphaTest: bg ? 0 : 0.08 }))); m.position.set(x, y, z); m.rotation.y = ry; m.receiveShadow = true; g.add(m);
   if (board) { const b = new THREE.Mesh(new THREE.BoxGeometry(w + 0.1, h + 0.1, 0.08), RTM.pole); b.position.set(x - Math.sin(ry) * 0.05, y, z - Math.cos(ry) * 0.05); b.rotation.y = ry; b.castShadow = true; g.add(b); }
   return m;
 }
@@ -759,13 +763,13 @@ function rtSigns(g) {
   rtSign(g, 'MOTEL GUESTS ONLY', 2.0, 0.5, '#2f6060', '#f2e6c8', xE + 0.02, 1.75, 14, -Math.PI / 2, true);
   // on the blast walls along the highway, facing it: the checkpoint's stencils, each on its own run of panels
   const zW = RZ(28) + 0.31 + 0.006;
-  for (const s of [-1, 1]) { rtSign(g, 'CHECKPOINT 9', 2.6, 0.7, null, 'rgba(232,226,210,0.85)', s * 5.5, 1.6, zW, 0); rtSign(g, 'STOP  ·  SHOW PAPERS', 1.9, 0.4, null, 'rgba(200,60,44,0.85)', s * 10.5, 1.3, zW, 0); }
+  for (const s of [-1, 1]) { rtSign(g, 'CHECKPOINT 9', 2.6, 0.7, null, '#e8e2d2', s * 5.5, 1.6, zW, 0, false, null, 'stencil'); rtSign(g, 'STOP · SHOW PAPERS', 1.9, 0.4, null, '#c83c2c', s * 10.5, 1.3, zW, 0, false, null, 'stencil'); }
   // the store's name along its front's parapet; sprayed on the plywood over its windows; on its side wall
-  rtSign(g, 'ROUTE 9 MART', 9, 0.6, null, 'rgba(168,48,42,0.95)', 0, RT_SH + 0.45, RZ(RT_STORE.j1) + 0.506, 0);
+  rtSign(g, 'ROUTE 9 MART', 9, 0.6, null, '#a8302a', 0, RT_SH + 0.45, RZ(RT_STORE.j1) + 0.506, 0, false, null, 'letters');
   const zF = RZ(RT_STORE.j1) + 0.296;
-  rtSign(g, 'NO FUEL', 1.8, 0.6, null, 'rgba(22,22,22,0.9)', -4.2, 1.55, zF, 0);
-  rtSign(g, 'EVAC → NORTH', 2.4, 0.55, null, 'rgba(22,22,22,0.85)', 3.8, 1.55, zF, 0);
-  rtSign(g, 'DEAD INSIDE', 1.8, 0.55, null, 'rgba(176,40,30,0.9)', RX(RT_STORE.i0) - 0.506, 1.6, (RZ(4) + RZ(5)) / 2, -Math.PI / 2);
+  rtSign(g, 'NO FUEL', 1.8, 0.6, null, '#161616', -4.2, 1.55, zF, 0);
+  rtSign(g, 'EVAC → NORTH', 2.4, 0.55, null, '#161616', 3.8, 1.55, zF, 0);
+  rtSign(g, 'DEAD INSIDE', 1.8, 0.55, null, '#b0281e', RX(RT_STORE.i0) - 0.506, 1.6, (RZ(4) + RZ(5)) / 2, -Math.PI / 2);
   // the garage's: over each bay on its fascia, over the office door
   const xG = RX(0) + 0.526;
   rtSign(g, 'SERVICE', 2.8, 0.34, '#3a4a50', '#efe8d6', xG, 3.95, (RZ(RT_BAYS[0][0]) + RZ(RT_BAYS[0][1])) / 2, Math.PI / 2);

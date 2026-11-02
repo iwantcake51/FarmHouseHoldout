@@ -33,6 +33,7 @@ import { fpOn } from '../game/view-cam.js';
 import { LAMP_ON } from '../lighting/static-lights.js';
 import { GLOW_LAYER } from '../effects/post.js';
 import { arBoxSet } from './arena-boxes.js';
+import { liveTex, paintLetters, paintSign, paintSpray } from './sign-art.js';
 
 // its plan, a row a line from north to south (tools/farm-plan.py prints it): # the edge of it (fences, hedge, the
 // barn's and the sheds' own outer walls), h the barn's walls, m the machine sheds', x a stall's partition, Y a hay mow
@@ -47,7 +48,7 @@ const HF_PLAN = [
   '#..F....h..x..x......x..x..h....F..#',
   '#.......h.......YYYY.......h.......#',
   '#..WW...........YYYY...........WW..#',
-  '#..WW......y..YYYYYYYY..y......WW..#',
+  '#..WW.....y...YYYYYYYY...y.....WW..#',
   '#..WW.........YYYYYYYY.........WW..#',
   '#..........YY..........YY..........#',
   '#.......h..YY..........YY..h.......#',
@@ -66,7 +67,7 @@ const HF_PLAN = [
   '#.A....m..WW..uu....uu..WW..m....B.#',
   '#......m..WW..uu....uu..WW..m......#',
   '#..SSSSm....................mSSSS..#',
-  '#......m.F.....uuuuuu.....F.m......#',
+  '#......m.F......uuuu......F.m......#',
   '#kk....m........uuuu........m....kk#',
   '#mmm...mee..ee..uuuu..ee..eem...mmm#',
   '#......TT.......uuuu.......TT......#',
@@ -78,7 +79,7 @@ const HF_PLAN = [
   '#........F.Y............Y.F........#',
   '#..y.......Y............Y.......y..#',
   '#...............CCCC...............#',
-  '#.............y.CCCC.y.............#',
+  '#............y..CCCC..y............#',
   '####################################'
 ];
 // where it stands on the grid (cells, its edge included): centred on the grid's middle like the others, so the flag's
@@ -224,11 +225,12 @@ function hfStrips(i, j, x, z, H, n, w, mat, y0 = 0) {
 // a sign or something painted: its words on a plane just off the face it's on (pulled toward the eye in the depth test
 // too, so it never flickers into the face), always smaller than that face: nothing hangs off an edge or round a corner
 function hfSign(text, w, h, col, font, x, y, z, ry, bg) {
-  const c = document.createElement('canvas'); c.width = 512; c.height = Math.round(512 * h / w); const t = c.getContext('2d'), rnd = seeded(text.length * 97 + 7);
-  if (bg) { t.fillStyle = bg; t.fillRect(0, 0, c.width, c.height); }
-  t.fillStyle = col; t.font = font; t.textAlign = 'center'; t.textBaseline = 'middle'; t.fillText(text, c.width / 2, c.height / 2 + 4, c.width * 0.94);
-  for (let k = 0; k < 320; k++) t.clearRect(rnd() * c.width, rnd() * c.height, 2 + rnd() * 6, 2 + rnd() * 4);   // (worn)
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), lam(0xffffff, { map: new THREE.CanvasTexture(c), transparent: true, alphaTest: 0.2, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+  // (painted as a made thing, world/sign-art.js: on a board of its own colour, or by the face it's asked in: a hurried
+  // italic's sprayed by hand, the rest lettered on the wall)
+  const m0 = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(col), hex = m0 ? '#' + [m0[1], m0[2], m0[3]].map(v => (+v).toString(16).padStart(2, '0')).join('') : col;
+  const W = 768, H = Math.max(48, Math.round(768 * h / w)), spray = /italic/.test(font);
+  const t = liveTex(W, H, (c, W2, H2) => { if (bg) paintSign(c, W2, H2, { text, bg, fg: hex, face: 'shop', wear: 0.6, screws: false }); else if (spray) paintSpray(c, W2, H2, { text, col: hex }); else paintLetters(c, W2, H2, { text, fg: hex, face: 'shop' }); });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), lam(0xffffff, { map: t, transparent: true, alphaTest: 0.08, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
   m.position.set(x, y, z); m.rotation.y = ry; m.receiveShadow = true; hP.add(m); return m;
 }
 

@@ -77,11 +77,32 @@ function goldSkin(root, mat) {
 }
 // gold starting at at (world) over everything under root, root locked where it stands; and what's later cut from it
 // (a limb, the halves of a head) spread over the same way (goldSpreadMore)
-export function goldSpread(root, at) {
+// (dir: the way the shot or the blow that did it was going, [dx, dz] and how hard, k: it topples that way, goldFallStep)
+export function goldSpread(root, at, dir) {
   if (!root) return;
   if (root.userData.goldSpread) { goldSkin(root, root.userData.goldSpread.mat); return; }
-  const S = { mat: spreadMat(at), t0: performance.now() }; root.userData.goldSpread = S; root.userData.goldLock = true; GOLD_POURS.push(S);
+  const S = { mat: spreadMat(at), t0: performance.now(), fall: dir ? { dx: dir[0], dz: dir[1], w: GOLD_FALL.w0 + GOLD_FALL.wk * (dir[2] || 1), th: 0, p0: null, q0: null, rest: false } : null };
+  root.userData.goldSpread = S; root.userData.goldLock = true; GOLD_POURS.push(S);
   goldSkin(root, S.mat);
+}
+// a body gone to gold falls as a statue, not a ragdoll: all of it set rigid as it stood and tipped over from its feet the
+// way it was hit (net/avatars.js and player/animation.js call this each frame in place of the ragdoll), as a toppling
+// pole does, slow at first and faster as it goes (GOLD_FALL: g, how much faster it falls the further over it is, for a
+// body its height; w0 + wk times the hit, the push it's given), down onto its side (lie, short of flat by its own
+// thickness), a thud and a rock back (bounce) and still
+const GOLD_FALL = { g: 8.2, w0: 0.7, wk: 0.9, lie: 1.43, bounce: 0.28, rest: 0.25, pivot: 0.14 };
+const _gfQ = new THREE.Quaternion(), _gfA = new THREE.Vector3(), _gfP = new THREE.Vector3();
+export function goldFallStep(root, dt) {
+  const S = root && root.userData.goldSpread, F = S && S.fall; if (!F || F.rest) return;
+  if (!F.p0) { F.p0 = root.position.clone(); F.q0 = root.quaternion.clone(); }
+  dt = Math.min(dt, 0.05);
+  F.w += GOLD_FALL.g * Math.sin(Math.max(0.02, F.th)) * dt; F.th += F.w * dt;
+  if (F.th >= GOLD_FALL.lie) { F.th = GOLD_FALL.lie; F.w = -F.w * GOLD_FALL.bounce; if (Math.abs(F.w) < GOLD_FALL.rest) { F.w = 0; F.rest = true; } }
+  // (about the line along the ground across the way it's falling, through its feet's leading edge)
+  _gfA.set(F.dz, 0, -F.dx).normalize(); _gfQ.setFromAxisAngle(_gfA, F.th);
+  const px = F.p0.x + F.dx * GOLD_FALL.pivot, pz = F.p0.z + F.dz * GOLD_FALL.pivot;
+  _gfP.set(F.p0.x - px, F.p0.y, F.p0.z - pz).applyQuaternion(_gfQ);
+  root.position.set(px + _gfP.x, _gfP.y, pz + _gfP.z); root.quaternion.copy(_gfQ).multiply(F.q0);
 }
 // the polished gold all over, at once (a golden weapon: gild forever), made the first time it's wanted
 let GOLD_FULL = null;

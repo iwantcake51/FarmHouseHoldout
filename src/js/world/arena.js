@@ -24,11 +24,11 @@
 // map's; when it comes down everything goes back as it was.
 
 import { scene, V3 } from '../core/renderer.js';
-import { rand, rr, seeded, withSeed } from '../core/math.js';
+import { N, rand, rr, seeded, withSeed } from '../core/math.js';
 import { lam, lit, LMU } from '../core/shaders.js';
 import { box, mergeInto } from '../core/geometry.js';
-import { cell, ci, cxw, EMPTY, idx, OBST, openAt, WALL } from './grid.js';
-import { cellBox, SHOOT_THRU, syncBlock } from './collision.js';
+import { cell, ci, cxw, EMPTY, idx, inb, OBST, openAt, WALL } from './grid.js';
+import { blockArr, cellBox, shotBox, SHOOT_THRU, syncBlock } from './collision.js';
 import { lowObst, obstTop, obstUnder } from './props.js';
 import { THIN, wX, wZ } from './thin-walls.js';
 import { openings, WALL_FORMS } from './house.js';
@@ -63,9 +63,9 @@ const AR_PLAN = [
   '#....kk.....CC..............CC.....kk....#',
   '#...........CC..bb......bb..CC...........#',
   '#...........CC.....CCCC.....CC...........#',
-  '#...............F..CCCC..F...............#',
+  '#.........k.....F..CCCC..F.....k.........#',
   '#CCC......k...CC..........CC...k......CCC#',
-  '#CCC......k...CC..........CC...k......CCC#',
+  '#CCC..........CC..........CC..........CCC#',
   '#........................................#',
   '#....hhhhhhh....hhhhhhhhhh....hhhhhhh....#',
   '#..............F..........F..............#',
@@ -90,11 +90,11 @@ const AR_PLAN = [
   '#.............CCC........CCC.............#',
   '#........F..CCCCC........CCCCC..F........#',
   '#...CCC.....CC.....hhhh.....CC.....CCC...#',
-  '#...CCbbbb..CC..s..hhhh..s..CC..bbbbCC...#',
+  '#...CCbbbb..CC.....hhhh.....CC..bbbbCC...#',
   '#...F.......CC..s..hhhh..s..CC.......F...#',
   '#...............s..hhhh..s...............#',
   '#CCC..r..........F......F..........r..CCC#',
-  '#CCC......CC....o........o....CC......CCC#',
+  '#CCC......CC..................CC......CCC#',
   '#CCC......CC..................CC......CCC#',
   '##########################################'
 ];
@@ -412,6 +412,7 @@ function arBuild() {
     arWoods(g); arWallKit(parts);
     arSkinsOut(g);
     arDress(g, AR_YARD4);
+    AR_YARD4.pieces = arPieces(g, parts);   // (each piece measured before they're folded together: arShotFit)
     mergeInto(g, parts);
     arP = arParts = null;
   });
@@ -884,7 +885,7 @@ export function arenaUp(id) {
   arSaved = { out, cell: cell.slice(), open: openAt.slice(), box: cellBox.slice(), low: new Set(lowObst), top: new Map(obstTop), wX: wX.slice(), wZ: wZ.slice(), thinN: THIN.n, thinBox: THIN.box.slice(),
     openings: openings.slice(), doors: HOUSE_DOORS.list.slice(), doorKey: HOUSE_DOORS.key, lights: STATIC_LIGHTS.slice(), house: LMU.uHouse.value.clone() };
   openings.length = 0; HOUSE_DOORS.list.length = 0; HOUSE_DOORS.key = 'arena'; wX.fill(0); wZ.fill(0); THIN.n = 0;
-  cell.fill(EMPTY); openAt.fill(null); cellBox.fill(null); lowObst.clear(); obstTop.clear(); obstUnder.clear(); SHOOT_THRU.clear();
+  cell.fill(EMPTY); openAt.fill(null); cellBox.fill(null); shotBox.fill(null); lowObst.clear(); obstTop.clear(); obstUnder.clear(); SHOOT_THRU.clear();
   if (!M.g) M.g = arBuildMap(M);   // (the props' footprints go in as they're built: arCellBoxes keeps them for the next match)
   FLARE_SRC.length = 0; FLARE_SRC.push(...(M.flares || []));   // (the floodlights' lens flares: effects/post.js)
   for (let j = ARENA.z0; j <= ARENA.z1; j++) for (let i = ARENA.x0; i <= ARENA.x1; i++) {
@@ -894,6 +895,7 @@ export function arenaUp(id) {
   }
   TREE_HIDE.at = () => true;   // (and none of the woods the forests draw afresh each frame: world/tree-cull.js)
   arCellBoxes(M);
+  syncBlock(); arShotFit(M);   // (every prop's footprint and height as its meshes really stand, for rounds and sight)
   scene.add(M.g);
   syncBlock();
   STATIC_LIGHTS.length = 0; STATIC_LIGHTS.push(...M.lights()); STATIC_LIGHTS.forEach(L => { L.field = lightField(L.x, L.z, L.r, null, true); });
@@ -905,7 +907,7 @@ export function arenaUp(id) {
 function arBuildMap(M) {
   if (M === AR_YARD4) return arBuild();
   const g = new THREE.Group(); g.userData.still = true;
-  withSeed(4243, () => { const parts = M.build(g); arDress(g, M); mergeInto(g, parts); });
+  withSeed(4243, () => { const parts = M.build(g); arDress(g, M); M.pieces = arPieces(g, parts); mergeInto(g, parts); });   // (each piece measured before they're folded together: arShotFit)
   return g;
 }
 // (the props' footprints, as their meshes stand: they're built once, so put back every match)
@@ -919,12 +921,58 @@ export function arenaDown() {
   scene.remove(AR_CUR.g);
   const s = arSaved; arSaved = null;
   s.out.forEach(o => scene.add(o));
-  cell.set(s.cell); for (let k = 0; k < openAt.length; k++) openAt[k] = s.open[k]; for (let k = 0; k < cellBox.length; k++) cellBox[k] = s.box[k];
+  cell.set(s.cell); for (let k = 0; k < openAt.length; k++) openAt[k] = s.open[k]; for (let k = 0; k < cellBox.length; k++) cellBox[k] = s.box[k]; shotBox.fill(null);
   lowObst.clear(); s.low.forEach(k => lowObst.add(k)); obstTop.clear(); s.top.forEach((v, k) => obstTop.set(k, v));
   wX.set(s.wX); wZ.set(s.wZ); THIN.n = s.thinN; THIN.box = s.thinBox; SHOOT_THRU.clear(); obstUnder.clear();
   openings.length = 0; openings.push(...s.openings); HOUSE_DOORS.list.length = 0; HOUSE_DOORS.list.push(...s.doors); HOUSE_DOORS.key = s.doorKey;
   STATIC_LIGHTS.length = 0; STATIC_LIGHTS.push(...s.lights); LMU.uHouse.value.copy(s.house);
   syncBlock(); setLightsDirty(true); setVisKey(''); stillShadowsReset();
+}
+// what a round (and a look) meets: each prop's cell not the whole of it but what really stands there. Every solid
+// piece of the map is measured as it's built, before its pieces are folded together (arPieces: each one's box in the
+// world, kept on the map, M.pieces): a piece that stands somewhere between fit.lo and fit.hi up (knee height to over a
+// head), not a flat sheet (thinner than flat), a decal or something see-through, nor a slab over the whole lot (more
+// than big m² across). Then, the first time the map's put up (kept for the next match, M.fit), each cell that stops
+// rounds and has no footprint of its own already (cellBox) gets the box round all of those inside it, a little over
+// (pad) so a round never slips between a part and its edge; a cell filled nearly edge to edge (full of it) is left
+// whole, and one with nothing standing in it at all made a point a round can't meet. And how high it really stands
+// (obstTop: a round from your own eyes over the top of it flies on), but never a tree's (its cone)
+const AR_FIT = { lo: 0.35, hi: 2.6, pad: 0.05, full: 0.92, flat: 0.12, big: 150 };
+const _apB = new THREE.Box3();
+function arPieces(g, parts) {
+  g.updateWorldMatrix(true, true);
+  const out = [], seen = new Set(), add = o => {
+    if (seen.has(o) || !o.isMesh || o.isInstancedMesh || o.userData.isOutline || !o.geometry) return; seen.add(o);
+    const mt = o.material; if (!mt || Array.isArray(mt) || mt.transparent || mt.depthWrite === false || mt.side === THREE.BackSide) return;
+    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+    _apB.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld); const b = _apB;
+    if (b.max.y - b.min.y < AR_FIT.flat || b.max.y < AR_FIT.lo || b.min.y > AR_FIT.hi || (b.max.x - b.min.x) * (b.max.z - b.min.z) > AR_FIT.big) return;
+    out.push([b.min.x, b.min.z, b.max.x, b.max.z, Math.min(b.max.y, AR_FIT.hi)]);
+  };
+  parts.forEach(add); g.traverse(add);
+  return out;
+}
+function arShotFit(M) {
+  if (!M.fit) {
+    M.fit = [];
+    const want = new Set(); for (let k = 0; k < blockArr.length; k++) if (blockArr[k] && !cellBox[k] && !SHOOT_THRU.has(k)) want.add(k);
+    const B = new Map();
+    for (const [x0, z0, x1, z1, y1] of M.pieces || []) {
+      for (let j = ci(z0); j <= ci(z1); j++) for (let i = ci(x0); i <= ci(x1); i++) {
+        if (!inb(i, j)) continue; const k = idx(i, j); if (!want.has(k)) continue;
+        const cx = cxw(i), cz = cxw(j), a = Math.max(x0, cx - 0.5), b = Math.max(z0, cz - 0.5), c = Math.min(x1, cx + 0.5), d = Math.min(z1, cz + 0.5); if (a > c || b > d) continue;
+        const e = B.get(k) || (B.set(k, [1e9, 1e9, -1e9, -1e9, 0]), B.get(k));
+        e[0] = Math.min(e[0], a); e[1] = Math.min(e[1], b); e[2] = Math.max(e[2], c); e[3] = Math.max(e[3], d); e[4] = Math.max(e[4], y1);
+      }
+    }
+    for (const k of want) {
+      const cx = cxw(k % N), cz = cxw((k / N) | 0), e = B.get(k);
+      if (!e) { M.fit.push([k, [cx, cz, cx, cz], null]); continue; }   // (nothing there: nothing to meet)
+      const p = AR_FIT.pad, box = e[2] - e[0] >= AR_FIT.full && e[3] - e[1] >= AR_FIT.full ? null : [Math.max(cx - 0.5, e[0] - p), Math.max(cz - 0.5, e[1] - p), Math.min(cx + 0.5, e[2] + p), Math.min(cz + 0.5, e[3] + p)];
+      M.fit.push([k, box, e[4]]);
+    }
+  }
+  for (const [k, box, top] of M.fit) { if (box) shotBox[k] = box; const o = obstTop.get(k); if (top && cell[k] === OBST && (o === undefined || typeof o === 'number')) obstTop.set(k, top); }
 }
 // the spawn spot for a side (A, B or F) furthest from the enemies given ([x, z] each), a little off where it's marked
 const RESPAWN_PICK = 0.75;

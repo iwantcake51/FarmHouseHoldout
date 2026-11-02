@@ -44,8 +44,10 @@ import { N } from '../core/math.js';
 import { threadJob, threadRun } from '../core/threads.js';
 import { bulletBlocked, hardBlocked, moveCircle } from '../world/collision.js';
 import { los } from '../lighting/lightmap.js';
-import { BRAWL_IDS, GG_ONE, PVP, PVP_BLEED, PVP_CLASSES, PVP_DMG, PVP_MELEE, PVP_R, PVP_T, PVP_TTK, pvpClassOf, pvpCovered, pvpFalloff, pvpHome, pvpFlag, pvpMeleeOf, pvpPartK, pvpKilled, pvpKitOn, pvpRuleKit, pvpSideOf } from './pvp.js';
+import { BRAWL_IDS, GG_ONE, PVP, PVP_BLEED, pvpBurnNum, PVP_CLASSES, PVP_DMG, PVP_MELEE, PVP_R, PVP_T, PVP_TTK, pvpClassOf, pvpCovered, pvpFalloff, pvpHome, pvpFlag, pvpMeleeOf, pvpPartK, pvpKilled, pvpKitOn, pvpRuleKit, pvpSideOf } from './pvp.js';
 import { HOLD, HOLD_DEF } from '../player/hold.js';
+import { fireLight, fireStep, PFIRE } from './pvp-fire.js';
+import { DRAGON_MAX } from '../weapons/gun-mods.js';
 import { BOT_CYC, BOT_GUN, BOT_GY, BOT_IDLE, BOT_INSPECT, BOT_LEG, BOT_UP } from './bot-poses.js';
 
 // how good they are, by the lobby's pick (NET.botSkill): how long they take to react to someone new (s), how far off
@@ -167,7 +169,7 @@ function botAimPart(b) { const T = b.vis, r = rand(), h = botSk(b).head * 2.5 * 
 const BOT_NAMES = ['Hollis', 'Ruth', 'Marek', 'Juno', 'Dacey', 'Ozzie', 'Teague', 'Wren', 'Abel', 'Noor', 'Sully', 'Kit'];
 export const botName = used => { const free = BOT_NAMES.filter(n => !used.has(n)); return (free.length ? free : BOT_NAMES)[Math.floor(rand() * (free.length || BOT_NAMES.length))]; };
 
-const BOTS = new Map();
+export const BOTS = new Map();
 let botClock = 0, squadT = 0;   // its own clock, the game's time (stopped while the game is)
 const botNow = () => botClock;
 const bR2 = v => Math.round(v * 100) / 100, bR3 = v => Math.round(v * 1000) / 1000;
@@ -230,14 +232,16 @@ export function botsPhase(ph, was) {
 
 // ---- its class: the guns (and the loadout everyone builds its weapons from: net/arsenal.js), full mags and a few more
 // each weapon of a loadout as a bot carries it (and as everyone's game builds it on them: net/arsenal.js)
-const botGl = (gt, mods, lv, gold) => ({ mods: mods ? mods.slice() : [], lv: lv ? Object.assign({}, lv) : {}, gt: Object.assign({}, gt), pin: null, att: {}, rnd: null, ak: false, rd: null, gold: gold ? 1 : 0 });   // (gold: Gun game's golden two, effects/gold.js)
+const botGl = (gt, mods, lv, gold, rd) => ({ mods: mods ? mods.slice() : [], lv: lv ? Object.assign({}, lv) : {}, gt: Object.assign({}, gt), pin: null, att: {}, rnd: null, ak: false, rd: rd || null, gold: gold ? 1 : 0 });   // (gold: Gun game's golden two, effects/gold.js; rd: a shotgun's shells)
 export const botKitGl = C => [[C.melee, botGl({}, null, null, C.meleeGold)], ...C.guns.map(([id, gt, mods, lv, ex]) => [id, botGl(gt, mods, lv, ex && ex.gold)])];
 function botArm(b) {
   const C = botCls(b), slots = { melee: C.melee, side: null, long: null, auto: null }, guns = {};
   guns[C.melee] = botGl({}, null, null, C.meleeGold);
-  b.mag = {}; b.res = {}; b.gt = {}; b.cap = {}; b.gold = {}; if (C.meleeGold) b.gold[C.melee] = 1;
+  b.mag = {}; b.res = {}; b.gt = {}; b.cap = {}; b.gold = {}; b.rd = {}; if (C.meleeGold) b.gold[C.melee] = 1;
   for (const [id, gt, mods, lv, ex] of C.guns) {
-    const gold = !!(ex && ex.gold); slots[WEAP[id].slot] = id; guns[id] = botGl(gt, mods, lv, gold); b.gt[id] = gt; if (gold) b.gold[id] = 1;
+    // (a shotgun loaded with what its loadout says, or now and then with dragon's breath, BOT_FIRE: pvp/pvp-fire.js)
+    const rd = WEAP[id].ammo === 'shells' ? (ex && ex.rd && ex.rd !== 'std' ? ex.rd : rand() < BOT_FIRE.odds ? 'fire' : null) : null; if (rd) b.rd[id] = rd;
+    const gold = !!(ex && ex.gold); slots[WEAP[id].slot] = id; guns[id] = botGl(gt, mods, lv, gold, rd); b.gt[id] = gt; if (gold) b.gold[id] = 1;
     const n = gold ? 1 : WEAP[id].mag || 1; b.cap[id] = n; b.mag[id] = n; b.res[id] = Math.max(n * C.mags, WEAP[id].ammo === 'shells' ? 14 : 0);   // (the golden revolver: one round a load)
   }
   b.slots = slots; b.cur = C.guns.length ? WEAP[C.guns[0][0]].slot : 'melee'; b.knife = 0; b.mswing = null; b.relT = 0; b.reloading = false; b.swapT = 0; b.cd = 0; b.burst = 0;
@@ -252,6 +256,7 @@ NET_BOT.loq = m => { const b = BOTS.get(m.to); if (b && b.lo) netAs(b.id, 'lo', 
 // at its spawn, whole again: its side's spot (in Showdown each in its own place) or, in Deathmatch, the one furthest
 // from everyone
 function botSpawn(b, fresh) {
+  botFireOut(b);
   b.side = pvpSideOf(b.id) || 'A';
   const foes = botFoes(b).map(f => [f.x, f.z]);
   const list = [{ id: NET.id, idx: NET.idx }, ...[...NET.peers.values()].map(p => ({ id: p.id, idx: p.idx }))].filter(r => pvpSideOf(r.id) === b.side).sort((a, c) => a.idx - c.idx);
@@ -1169,6 +1174,7 @@ export function botsUpdate(dt) {
     if (PVP.ph === 'roundEnd') { botAfter(b, dt, t); continue; }   // (the round won: walking about, guns quiet, as you can)
     if (!live) { b.vx = b.vz = 0; b.av = 0; b.sprint = false; b.runUp = 0; b.crW = 0; botCrouchStep(b, dt, t); botInspStep(b, dt, t); botPose(b, dt, t); continue; }   // (picking and counting in: stood still where it spawned, looking where it faces, as you are, now and then looking its gun over)
     b.prot = Math.max(0, (b.prot || 0) - dt);
+    if (botBurn(b, dt, t)) { botPose(b, dt, t); continue; }   // (alight: pvp/pvp-fire.js)
     // reeling from a shove: carried back on it, no moving or firing of its own
     if (b.stun > 0) { b.stun -= dt; const f = Math.exp(-dt * 6); b.vx *= f; b.vz *= f; moveCircle(b, b.vx * dt, b.vz * dt, 0.3, false); botAimStep(b, dt, t, null); botPose(b, dt, t); continue; }
     const foes = botFoes(b);
@@ -1444,11 +1450,12 @@ function botShoot(b, id, D, foes, d) {
   const t = botNow(); if (t - (b.lastShotT ?? -9) > BOT_ACC.rested) b.firstN = 0; b.lastShotT = t;
   const common = botGauss() * sig * (b.firstN++ < BOT_ACC.first ? BOT_ACC.firstK : 1); b.spray = Math.min(BOT_ACC.sprayMax, b.spray + (BOT_ACC.spray0 + (D.kick || 1) * BOT_ACC.sprayKick) * S.ctrl);   // (a kicking gun's held trigger walking off further, the less so the better it is)
   const E = botEye(b), ox = E[0] + Math.sin(b.aim) * 0.55, oz = E[1] + Math.cos(b.aim) * 0.55, oy = 1.36 - CROUCH.drop * botCrK(b), on = new Map(), ends = [];
+  const fire = b.rd && b.rd[id] === 'fire', reachT = fire ? DRAGON_MAX : 70;   // (dragon's breath: nothing past DRAGON_MAX, weapons/rounds.js)
   for (let k = 0; k < pel; k++) {
     const a = b.aim + common + (pel > 1 ? (rand() * 2 - 1) * D.spread * (gt.choke ? 0.8 : 1) * 0.85 : 0), dx = Math.sin(a), dz = Math.cos(a);
     let wallT = 70; for (let s = 0.3; s < 70; s += 0.08) { const x = ox + dx * s, z = oz + dz * s; if (bulletBlocked(x, z) || !inb(ci(x), ci(z))) { wallT = s; break; } }
     let hit = null, ht = wallT, rel = 0;
-    for (const f of foes) { const vx = f.x - ox, vz = f.z - oz, tt = vx * dx + vz * dz, off = vx * dz - vz * dx; if (tt > 0.2 && tt < ht && off * off < PVP_R * PVP_R) { hit = f; ht = tt; rel = off / PVP_R; } }
+    for (const f of foes) { const vx = f.x - ox, vz = f.z - oz, tt = vx * dx + vz * dz, off = vx * dz - vz * dx; if (tt > 0.2 && tt < ht && tt < reachT && off * off < PVP_R * PVP_R) { hit = f; ht = tt; rel = off / PVP_R; } }
     let endK = wallT < 70 ? 1 : 3, ey = oy + rr(-0.2, 0.05);
     if (hit) {
       const r = rand(), ap = b.aimPart || 'torso', head = ap === 'head' ? S.hs ?? Math.min(0.5, S.head * 3.2) : S.head * 0.6, legs = ap === 'legs' ? 0.55 : 0.18;
@@ -1457,7 +1464,7 @@ function botShoot(b, id, D, foes, d) {
       if (pvpCovered(hit.x, hit.z, ox, oz, dx, dz, ht) && ((hit.cr || 0) > BOT_CROUCH.down || (part !== 'head' && !part.startsWith('arm')))) { ht = Math.max(0.3, ht - 0.9); endK = 1; }
       else {
         const s = on.get(hit) || { d: 0, n: 0, head: false, part, top: 0 }, dm = b.gold && b.gold[id] ? GG_ONE : (PVP_DMG[id] || 20) * PVP_TTK * pvpFalloff(id, ht) * pvpPartK(id, part, ht);   // (the golden revolver: any hit kills)
-        s.d += dm; s.n++; if (part === 'head') s.head = true; if (dm > s.top) { s.top = dm; s.part = part; } on.set(hit, s);
+        s.d += fire ? dm * BOT_FIRE.dmg : dm; s.n++; if (part === 'head') s.head = true; if (dm > s.top) { s.top = dm; s.part = part; } if (fire && !s.fp) s.fp = part; on.set(hit, s);
         endK = 0; ey = part === 'head' ? 1.62 : part.startsWith('leg') ? 0.5 : 1.15;
       }
     }
@@ -1465,7 +1472,7 @@ function botShoot(b, id, D, foes, d) {
     if (ends.length < 5 && (k < 4 || rand() < 0.5)) ends.push([bR3(ox + dx * ht), bR3(ey), bR3(oz + dz * ht), endK, pel > 2 ? 0.045 : 0.08]);
   }
   if (on.size) b.st.hits++;
-  for (const [f, s] of on) botDeal(b, f, Math.round(s.d), s.head ? 'head' : s.part, id, shells ? s.n >= 3 && rand() < PVP_BLEED.shells : rand() < PVP_BLEED.gun);
+  for (const [f, s] of on) botDeal(b, f, Math.round(s.d), s.head ? 'head' : s.part, id, shells ? s.n >= 3 && rand() < PVP_BLEED.shells : rand() < PVP_BLEED.gun, s.fp ? { fi: 1, fp: s.fp } : null);
   const quiet = !!gt.supp, m = { w: id, q: quiet ? 1 : 0, x: bR3(ox), y: oy, z: bR3(oz), e: ends, st: quiet ? 'supp' : 'std', pw: bR3(tracerPower(D)), sh: shells ? 1 : 0, dr: 0 };
   NET_ON.shot(Object.assign({ t: 'shot', f: b.id }, m)); netAs(b.id, 'shot', m);
   botsHear(b.id, ox, oz, quiet, ends);
@@ -1480,7 +1487,7 @@ function botDeal(b, f, d, part, w, bleed, ex) {
   // (what it's put into them lately, which it knows as you do from your hits: someone hurt to finish, BOT_FINISH)
   const t = botNow(), e = b.dealt.get(f.id); b.dealt.set(f.id, { d: (e && t - e.t < BOT_FINISH.mem ? e.d : 0) + d, t });
   const m = { d, p: part, w, x: bR2(b.x), z: bR2(b.z), b: bleed ? 1 : 0, g: botKit(b, w) };
-  if (ex) { if (ex.st) m.st = ex.st; if (ex.kb) { m.kb = ex.kb; m.kx = bR2(ex.kx); m.kz = bR2(ex.kz); } if (ex.gd) m.gd = 1; }
+  if (ex) { if (ex.st) m.st = ex.st; if (ex.kb) { m.kb = ex.kb; m.kx = bR2(ex.kx); m.kz = bR2(ex.kz); } if (ex.gd) m.gd = 1; if (ex.fi) { m.fi = 1; m.fp = ex.fp; } }
   else if (b.gold && b.gold[w]) m.gd = 1;
   if (f.id === NET.id) NET_ON.ph(Object.assign({ t: 'ph', f: b.id, to: NET.id }, m));
   else if (BOTS.has(f.id)) botHit(f.id, Object.assign({ f: b.id }, m));
@@ -1507,7 +1514,29 @@ export function botHit(id, m) {
   if (b.hurtSum >= BOT_HURT.much && b.hp > 0) { b.hurtSum = 0; b.relocate = t; }
   const dx = b.x - m.x, dz = b.z - m.z, L = Math.hypot(dx, dz) || 1, pb = { x: bR2(b.x), z: bR2(b.z), dx: bR2(dx / L), dz: bR2(dz / L), h: m.p === 'head' ? 1 : 0, sh: m.f, d: m.d, gd: m.gd ? 1 : 0 };
   NET_ON.pb(Object.assign({ t: 'pb', f: b.id }, pb)); netAs(b.id, 'pb', pb);
-  if (b.hp <= 0) botDie(b, t);
+  if (b.hp <= 0) botDie(b, t); else if (m.fi) botIgnite(b, m);
+}
+// ---- on fire (dragon's breath: pvp/pvp-fire.js), burning as you do, the host's game telling everyone. BOT_FIRE: how
+// likely a bot's shotgun is loaded with it when its loadout doesn't say, and how much of buckshot's damage it does
+const BOT_FIRE = { odds: 0.3, dmg: 0.8 };
+function botIgnite(b, m) {
+  const fresh = !b.fire, t = botNow(); b.fire = fireLight(b.fire, m.fp || m.p, m.f, m.w, m.g); b.p.fire = b.fire;
+  if (fresh || t - (b.fireSent ?? -9) > PFIRE.resend) { b.fireSent = t; netAs(b.id, 'pf', { p: b.fire.from, t: PFIRE.len, by: m.f }); }
+}
+function botFireOut(b) { if (!b.fire) return; b.fire = null; b.p.fire = null; netAs(b.id, 'pf', { t: 0 }); }
+// its ticks: off its health, nothing back while it burns, and a burn that finishes it is whoever lit it's kill. True if it did
+function botBurn(b, dt, t) {
+  const F = b.fire; if (!F) return false;
+  const n = fireStep(F, dt), d = PFIRE.dmg;
+  for (let i = 0; i < n; i++) {
+    b.hp -= d; b.calm = 0; b.regen0 = null; b.taken.set(F.by, (b.taken.get(F.by) || 0) + d);
+    if (F.by === NET.id) pvpBurnNum(b.p, d); else { const o = BOTS.get(F.by); if (o) o.st.dmg += d; }
+    const L = b.last && b.last.id === F.by ? b.last : null;
+    b.last = { id: F.by, w: F.w, head: false, d, at: t, x: L ? L.x : b.x, z: L ? L.z : b.z, pt: L ? L.pt : 'torso', g: F.g ?? (L ? L.g : 0) ?? 0, gd: 0 };
+    if (b.hp <= 0) { botDie(b, t); return true; }
+  }
+  if (F.t <= 0) botFireOut(b);
+  return false;
 }
 NET_BOT.ph = m => botHit(m.to, m);
 // shoved (pvp/pvp.js pvpShove, or another player's 'pv'): thrown back, reeling, its aim knocked off
@@ -1518,6 +1547,7 @@ export function botShoved(id, m) {
 NET_BOT.pv = m => botShoved(m.to, m);
 const BOT_ASSIST = 30;   // (damage, hp, someone else has to have done to a bot in a life to count for its kill)
 function botDie(b, t) {
+  botFireOut(b);
   b.dead = true; b.hp = 0; b.reloading = false; b.vx = b.vz = 0; b.path = [];
   const L = b.last && t - b.last.at < 8 ? b.last : null;
   // (with the killer's gun as it was, and up to two who helped: anyone else who'd put BOT_ASSIST into it this life, most first)

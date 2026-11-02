@@ -134,6 +134,7 @@ body.pvpPicking #xh,body.pvpPicking .xhWorld{opacity:0!important}
    hit's gone in the head; each new hit pops it */
 .pvpDmg{position:fixed;left:0;top:0;z-index:5;pointer-events:none;font-family:var(--f-num);font-weight:800;font-size:22px;line-height:1;color:#f4efe4;translate:-50% -50%;text-shadow:0 2px 0 rgba(0,0,0,.55),0 0 10px rgba(0,0,0,.45);will-change:transform,opacity}
 .pvpDmg.head{color:#ffcf4a}
+.pvpDmg.burn{color:#ff8a3a;font-size:17px!important;text-shadow:0 2px 0 rgba(0,0,0,.55),0 0 10px rgba(255,90,20,.45)}
 .pvpDmg.pop{animation:pdPop .22s cubic-bezier(.2,.9,.3,1.2)}
 @keyframes pdPop{0%{scale:1.45}100%{scale:1}}
 .pvpDmg.big{animation:pdBig .3s cubic-bezier(.2,.9,.3,1.25)}
@@ -377,3 +378,12 @@ body.pvp.pvpTeams #spec .spTop{top:calc(96px + env(safe-area-inset-top,0px))}
 #pvpPick.small .ppCard.mel{width:128px}
 #pvpPick.small .ppCard.mel small.up,#pvpPick.small .ppCard.mel small.down{display:block}
 @media (prefers-reduced-motion:reduce){#pvpBan.gold b{animation:none}}
+/* someone else onto Gun game's golden revolver or katana: a gold notice at the top, under the score */
+#pvpGold{position:fixed;left:50%;top:calc(116px + env(safe-area-inset-top,0px));translate:-50% -8px;display:flex;align-items:baseline;gap:8px;padding:6px 18px;background:linear-gradient(90deg,rgba(120,84,14,0),rgba(120,84,14,.85) 16%,rgba(120,84,14,.85) 84%,rgba(120,84,14,0));opacity:0;z-index:6;pointer-events:none;transition:opacity .3s,translate .35s cubic-bezier(.2,.9,.3,1.2)}
+#pvpGold[hidden]{display:none}
+#pvpGold.on{opacity:1;translate:-50% 0}
+#pvpGold b{font:700 15px var(--f-ui);color:#fff3c8}
+#pvpGold span{font:800 12px var(--f-num);letter-spacing:.2em;text-transform:uppercase;color:#f5d27a}
+#pvpGold em{font:600 11px var(--f-ui);font-style:normal;color:rgba(255,243,200,.7)}
+#pvpGold.katana{box-shadow:0 0 22px -6px rgba(240,191,76,.7)}
+body.menu #pvpGold{z-index:4!important}

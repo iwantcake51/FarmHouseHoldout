@@ -965,8 +965,9 @@ and on between them.
   (1); the submachine gun's 10mm kit (1); the double barrel's sawn-off (I to III, 1 to 3); the battle rifle's AK kit
   (1). They go on as the workbench's do, levels and all. A kit that takes a line's place (the AK kit the magazine and
   magwell, the 10mm kit the magazine) shuts that tile while it's on, and gives back what was on it.
-- **Shells and loading.** A shotgun's **Shells** tile picks what it's loaded with: buckshot, slugs, flechettes or
-  dragon's breath, all free. It's the only kind it carries in the match (X has nothing to swap to). A slug hits as 60%
+- **Shells and loading.** A shotgun's **Shells** tile picks what it starts loaded with: buckshot, slugs, flechettes
+  or dragon's breath, all free. Every shotgun in the arena carries all four kinds, so in a match X swaps to the next
+  kind with a reload, as it does at the farm (see **Fire** below for dragon's breath on people). A slug hits as 60%
   of a whole load of buckshot, in one, and carries far further. The pump's **Loading** tile picks how many shells go in
   a go: one at a time (stock), pair loading (1 point) or triple loading (2), as Quick hands II and III load it (a class
   whose perks already load it faster keeps the faster). The double barrel's Sleight of Hand stays its loader tile.
@@ -1085,7 +1086,7 @@ like pea-shooters). To a 100-health body, before range falloff:
 - **Melee** hits for 38 (bat) to 92 (sledgehammer). A blow to the head does 1.25×, and so does an axe's chop more often.
 - **Who decides a hit.** Whoever fires works out the hit against where the target stands on their screen, and the
   target's game takes the damage.
-- **Spawn protection.** For 2 seconds after you come in, nothing hurts you. Firing, swinging or shoving ends it at
+- **Spawn protection.** For 1 second after you come in, nothing hurts you. Firing, swinging or shoving ends it at
   once. A strip under the crosshair runs down while it lasts.
 - **Shoves** (V) work on other players and bots too, in front of you and within reach. They're knocked back, can't
   move or fire for about half a second, and take a little damage. Their view jolts and blurs for a second, easing off
@@ -1212,7 +1213,8 @@ like pea-shooters). To a 100-health body, before range falloff:
 - **Your class and perks** show as a strip just above your health (above your team's list in the team modes): bright
   for a couple of seconds as you come in, then faded back out of the way.
 - **The end of the match** slows the game down more and more as the last kill lands, to a dead stop about three
-  seconds later, the results over the frozen moment. The clock and the HUD run on real time, so they carry on.
+  seconds later (2.8 s). Time holds stopped for a beat (0.6 s), and only then does the scoreboard come up over the
+  frozen moment. The clock and the HUD run on real time, so they carry on.
 - **Shot through the head**, it's a beat of its own: a white crack of a flash going red on the instant, the screen
   crushed dark from its edges in a red-black vignette with a red heart to it, a high ringing in your ears (the world's
   sound dulled under it); then the dark draws back
@@ -1286,7 +1288,8 @@ middle and about 5.5 s by either side lane):
 - **Dressed as a real mall**, none of it changing the cover: each shop's glass shows the shop behind it (clothes,
   electronics, books, shoes, jewellery, toys) with its name lit on its sign band, the anchor stores' display windows
   and names, slatwall hung with clothes along their outer walls; lit displays on the kiosks, a directory board (the
-  plan, you are here) and a bin on every pillar, bench boards round the planters; in the food court the stalls' menu
+  plan, you are here) on just one pillar each side of the concourse (not on every pillar), a bin on every other
+  pillar, bench boards round the planters; in the food court the stalls' menu
   boards, tills and tray stacks on the counters, trays left on tables, banquettes and the Food court sign along the
   seating island and a tray return at its end; in the supermarket the lift doors, fire extinguishers, an electrical board
   and safety posters. From your own eyes, overhead: a tiled ceiling, bulkheads down to the shop walls and a header
@@ -1367,7 +1370,14 @@ the middle past its landmark, south edge), each spawn the road coming in at its 
   closed beyond by the army's barricade (concrete blocks, razor wire, EVACUATION POINT · CLOSED) with the queue of cars
   left in it. The church tower over the shops with HELP hung from it, dead trees round the town. Blood dried on the
   setts, leaflets everywhere.
-- **Saltmarsh Quay**: the harbour the last boats left from. North, the back lane behind the harbour buildings
+- **Saltmarsh Quay**: the harbour the last boats left from. The harbour water is a moving shader, with rippling
+  normals, deep water darkening away from the wall, the sky caught at a low angle, sun glints, and foam where it slaps
+  the quay. The quay wall has weed and wet bands and tyre fenders hung on chains. Four fishing boats lie at their
+  moorings, bobbing; each has a wheelhouse with glass and a lamp, a mast and boom, a net drum, fish boxes, buoys and
+  its name on its bow, and one has sunk at its mooring with only its wheelhouse and mast above the water. Gulls stand
+  about the quay and three wheel overhead. The ice houses have gutters, frosted doors, barred windows and an ice
+  chute. The boat sheds have burned out to an open shell: walls, charred planks, ash on the floor, rafters (one
+  fallen), and the burnt keel and ribs of a boat on its cradles. North, the back lane behind the harbour buildings
   (shuttered, sprayed: LAST BOAT 6AM, NO FERRY, THEY CAME FROM THE SEA), a car left in the ferry queue with a case on
   its roof, luggage dropped in heaps, the harbourmaster's pickup, the harbour office's porch boarded with the FERRY
   SUSPENDED notice by its door. The fish market's hall turned into a **field hospital**: an ambulance across its north
@@ -1382,17 +1392,65 @@ the middle past its landmark, south edge), each spawn the road coming in at its 
 What stands south and east of each (between it and the camera from above) is kept low, and what's north and west
 can be tall, so nothing hides the play from above. Both are in the lobby's map picker with their own pictures.
 
+**Rounds meet what's really there** (`arPieces` and `arShotFit` in `world/arena.js`, `shotBox` in
+`world/collision.js`). Each map cell with a prop in it used to stop rounds across the whole metre, so shots near the
+edge of a crate stack, a car or a pallet hit thin air. Now each such cell gets a shot box worked out from the solid
+pieces of the props actually in it, as they were built: the boxes of their real meshes, clipped to the cell, with a
+5 cm margin. Glass, decals, flat dressing and huge floor pieces aren't counted.
+- A cell that's at least 92% full stays a full block.
+- A cell with nothing solid in it stops nothing.
+- The shot box is used for rounds, pellets and line of sight. Movement keeps the old, slightly larger footprints, so
+  you never slip into a gap a round can pass through.
+- The height a round passes over is the real top of the pieces.
+
+**Signs, paint and fonts** (`world/sign-art.js`). Every word on every arena map is painted one shared way, so it reads
+as a made thing rather than type laid over a picture:
+- **Sign boards**: the board's own paint, faded where the sun hits the top and grimed at the foot, a lined border, and
+  letters in a sign-writer's face sitting a hair proud of the board. Paint is chipped back to what's under it at the
+  corners and edges, and each corner has a screw with a rust run below it. Shop and fuel signs use a condensed
+  sign-writer's face (Saira Extra Condensed), the old shopfronts a slab serif (Bitter), and official signs a plain
+  face (Archivo).
+- **Letters painted on a wall** (a store's name on its parapet), worn through in places.
+- **Spray paint** in a hurried marker hand (Permanent Marker). It has soft overspray edges and a fine mist of dots
+  round the strokes, and runs drip down from the bottoms of the strokes where it went on thick.
+- **Stencils**: square capitals with the stencil's bridges left in the round letters, sprayed through so the edges
+  are soft, faded in patches.
+- **Notices**: printed sheets in a typewriter face (Special Elite), foxed and stained, with a corner curled.
+- **The fonts are the page's own web fonts**, requested as soon as the game loads. Anything painted before a font
+  arrives is painted again the moment it does, so a sign never shows a fallback font such as Comic Sans or Georgia.
+  The car wash's soot now rises from its end wall below the sign, instead of a dark board covering half of CAR WASH.
+
+**Cleaner flow on every map.** Every map's plan was gone over for cover that blocked the way.
+- **No squeezes.** No cover leaves a gap one metre wide between itself and a wall or other cover: it either sits flush
+  against the wall, or leaves at least two metres. A check of every plan found 6 to 48 such squeezes per map; there
+  are none now.
+- **Route 9**: the parked cars sit flush to the lot walls in tidy rows; the jersey barriers that walled off the
+  south lot are now two short pieces; and the dumpsters, newsstands and the centre court's crates are off the walk
+  lines.
+- **Hawthorne Square**: the café tables are in pairs against the buildings instead of scattered, the market's trees
+  and sandbags have moved off the walk lines, the low walls sit against the buildings, and the graves are in a row
+  along the south wall.
+- **Saltmarsh Quay**: the cars and luggage sit against the harbour buildings, the float pallets against the sheds,
+  and the bollards are spaced along the quay edge.
+- **Larkspur Mall**: the planters squeezed against pillars are gone, the food court's trees and tables sit clear of
+  the walls, and the corner tables sit flush.
+- **Yard 4 and Harlan Farm**: the few crates, bales, sandbags and bollards that pinched a route have moved.
+
 **Lived in, after the end.** Every arena map is dressed as the place it was when the dead came, over the top of what
 was there, and none of it changes the fight (world/arena-dress.js, laid on each map as it's built):
 - **The floor's grime and wear**, painted on one transparent sheet over each map's own floor: the shade along the foot
   of every wall and everything tall (where dirt gathers and the light doesn't reach), grit blown up against them,
   cracks, oil and old stains, ash, scorch where something burned, dried blood with the smears where someone was
   dragged away, a trail of boot prints, fallen leaves outdoors drifted against the walls, and the ash of each camp.
-- **Litter** as people left it: papers and leaflets, flattened cardboard, cans and bottles, rags, spent cases where a
-  fight was, bricks and broken planks and tyres by the walls, more of it against the walls than out in the open.
+- **Litter**, never strewn over the open floor. It gathers where wind and feet push it, in drifts at the foot of the
+  walls and deepest in the corners, a few metres apart. Each drift is a small heap of things lying with the wall it
+  fetched up against: papers and rags turned along it, cardboard flat at its foot, cans and bottles rolled into the
+  angle. Bricks and a broken plank lie in one heap at the foot of the odd wall that's crumbled. Spent cases lie only
+  behind low cover, where someone fought from it. Tyres are stacked two high in some outdoor corners.
 - **Camps** in corners out of the wind: a sleeping bag, a ring of stones round the fire's charred sticks, a pot, a pack,
   empty tins; and a body bag or two laid out by a wall.
-- **The walls and everything tall**: what was sprayed and written as the town emptied (THEY'RE INSIDE, NO WAY OUT,
+- **The walls and everything tall** (fewer of them than before, and the words and marks only on walls and buildings,
+  never on a container, a crate or a car): what was sprayed and written as the town emptied (THEY'RE INSIDE, NO WAY OUT,
   GOD HELP US, EVAC CANCELLED, the search teams' X marks with their dates and counts, tallies of the days), bloody
   handprints and smears, bullet holes, missing posters, soot licked up from fires, rust and water stains. Each is laid
   flat on a real face, found by a ray from the floor in front of it, its corners checked to sit on the same face, so
@@ -1428,8 +1486,10 @@ Deathmatch: everyone for themselves, back in a few seconds after going down.
   - **The golden revolver** holds one round per load, with a dozen spare, and any hit kills.
   - **The golden katana** kills with one blow, any blow, and a kill with it wins the match. If the clock runs out
     first, whoever is furthest up wins.
-  - Reaching either golden weapon brings a big gold call over the screen with a fanfare. Anyone else reaching one is
-    called out under your crosshair, and their chip on the score bar turns gold.
+  - Reaching either golden weapon brings a big gold call over the screen with a fanfare. When anyone else reaches
+    one, everyone in the server sees a gold notice across the top of the screen: their name, which golden weapon,
+    and how many kills they are from winning. It comes with a chime and fades after about four seconds. Their chip on
+    the score bar turns gold too.
 - **The golden weapons are gold everywhere**: in your hands, on anyone carrying one, and in every picture of them
   (your slot row, the kill feed, the death card, the loadout card).
 - **What a golden weapon hits turns gold.** Mist and drops come out gold instead of blood, and leave no stain on the
@@ -1438,12 +1498,35 @@ Deathmatch: everyone for themselves, back in a few seconds after going down.
   - The gold spreads over them like something poured. It runs downward faster than it climbs, and its front is a
     wobbling line with a molten glow along it.
   - It covers every part of them: clothes, face, hair, and whatever they were holding.
-  - The body locks where it stands as the gold starts: no falling, no slack. They stay a gold statue until they're
-    back in.
+  - The body sets rigid where it stands as the gold starts, with no ragdoll slack. It still takes the shot's force:
+    it topples the way it was hit, as one piece, like a statue pushed off its plinth. It goes slowly at first and
+    faster as it tips, lands on its side, rocks back once and lies still. A harder hit (a head shot) pushes it over
+    faster. They stay a gold statue until they're back in (`goldFallStep` in `effects/gold.js`).
   - The golden katana always takes the head off. Both halves fly off gold, cut faces and all.
   - A chime and a glitter of gold come off the body.
   - Implemented in `effects/gold.js`: each part of the body gets a gold skin of its own shape, drawn over it and showing
     only as far as the pour has reached.
+
+**Fire.** In the arena, dragon's breath sets people alight just as it does zombies (`pvp/pvp-fire.js`):
+- **It catches where the pellets went in**, on that limb, and spreads over the rest of them in about a second and a
+  half. As it burns they char, the same way a zombie does: black creeps over them in patches with a scorched brown
+  edge running ahead, and the char's edge and cracks glow like embers while they're alight. The char stays on them
+  until they're back in.
+- **It burns for 3 seconds from the last shell that caught them**, 4 damage every half second. That's 24 at most from
+  one hit, well under what a zombie takes (7 a tick). Health doesn't come back while you burn.
+- **A burn that finishes someone** is the shooter's kill, with the gun that lit them, in the kill feed and the score.
+- **The shooter sees each tick** as a smaller orange number over whoever they lit, under their hit numbers.
+- **On fire yourself**, the edges of your view burn. Flames lick in from round the edges over a heat shimmer, rising
+  as flames do and reaching furthest in along the bottom, deep red at their roots through orange to a yellow core,
+  with a warm glow under them. It eases in as the fire takes and fades out as it dies (`HEAT_GLSL` in
+  `effects/post.js`). The middle of the screen stays clear.
+- **Everyone sees it.** Your game burns you and tells the others, and the host's game burns its bots. Everyone draws
+  the flames and the char on whoever's alight.
+- **Bots** whose loadout doesn't say what their shotgun takes load dragon's breath three times in ten. It does 80% of
+  buckshot's damage and nothing past 8 m.
+
+**A changed loadout says so.** A class whose loadout you've changed on the Loadouts screen says **Custom loadout** in
+place of its usual description, on the Loadouts screen and on the class picker (`AL_CUSTOM`, `ui/arena-loadouts.js`).
 
 **Melee weapons, balanced against each other** (in the arena; the farm's are as they were, where rarer is meant to be
 better). Each is its own trade, so none is simply the best (`PVP_MELEE` in `pvp/pvp.js`):

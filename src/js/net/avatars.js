@@ -52,7 +52,7 @@ import { stainZombie, updateZombieStain } from '../effects/body-blood.js';
 import { botsHear } from '../pvp/bots.js';
 import { visAt } from '../lighting/vision.js';
 import { los } from '../lighting/lightmap.js';
-import { ungild } from '../effects/gold.js';
+import { goldFallStep, ungild } from '../effects/gold.js';
 
 // the joints a pose carries, in order: where each is and how it's turned (and the arms how they're stretched)
 const POSE_K = ['g', 'upper', 'lower', 'torso', 'head', 'armL', 'armR', 'legL', 'legR', 'shinL', 'shinR'];
@@ -325,7 +325,7 @@ export function updateAvatars(rdt) {
     }
     if (PVP.on && !a.stain) { a.stain = stainZombie(a); a.stain.b = 0; }
     // (in the arena, the blood on them as much as they're hurt: pvp/pvp.js PVP_BLOOD)
-    if (a.stain && a.wasDead && !p.dead) { a.stain.sp.length = 0; a.stain.shown = a.stain.was = 0; }   // (back up from a death: clean at once, a new life)
+    if (a.stain && a.wasDead && !p.dead) { a.stain.sp.length = 0; a.stain.shown = a.stain.was = 0; a.stain.char = 0; a.stain.burn = 0; }   // (back up from a death: clean at once, a new life)
     if (a.stain) a.wasDead = !!p.dead;
     if (a.stain) { a.stain.b = PVP.on && !p.dead ? PVP_BLOOD * clamp(1 - (p.hp ?? 100) / (p.maxHp || 100), 0, 1) : PVP.on ? a.stain.b : 0; updateZombieStain(a.stain, rdt, rdt); }
     // (someone on the other side shown through cover from above: in red, whoever they are; a teammate in their own colour)
@@ -347,7 +347,8 @@ export function updateAvatars(rdt) {
     if (p.dead && !a.rag) { POSE_K.forEach((key, n) => set(a[key], n)); a.g.updateMatrixWorld(true); const f = c[4] || 0, s = rr(-0.6, 0.6); a.rag = survivorRagdoll(a, a.g.position.x, a.g.position.z, f, p.vx, p.vz, -Math.sin(f + s), -Math.cos(f + s), null); }
     else if (!p.dead && a.rag) { endSurvivorRagdoll(a.rag); a.rag = null; a.headGone = false; ungild(a.g);   // (flesh again after a golden weapon: effects/gold.js)
       ['armL', 'armR', 'legL', 'legR'].forEach(k => { if (a[k]) a[k].visible = true; }); }   // (up again, whole: a limb taken off going down, pvp/pvp.js)
-    if (a.rag && !a.g.userData.goldLock) stepRagdoll(a.rag, rdt);   // (gone to gold: locked as they stood, effects/gold.js)
+    if (a.rag && !a.g.userData.goldLock) stepRagdoll(a.rag, rdt);
+    else if (a.rag) goldFallStep(a.g, rdt);   // (gone to gold: it falls as a statue, effects/gold.js)
     else POSE_K.forEach((key, n) => set(a[key], n));
     // (jolted by a hit of yours: HIT_FX, the way the round went in their body's own frame, easing back)
     if (hf && !a.rag) {

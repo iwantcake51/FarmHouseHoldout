@@ -206,6 +206,8 @@ export function bloodWipe() {
   for (const id in W8.bloodW) W8.bloodW[id].length = 0;
   for (const id in WSTAIN) { const S = WSTAIN[id]; S.shown = S.was = 0; S.u.uBlood.value = 0; S.u.uFresh.value = 0; }
 }
+// how burnt you are, 0 to 1, and whether you're still alight (the arena's fire: pvp/pvp-fire.js), the embers flickering
+export function charYou(c, ember) { BLOOD_U.uChar.value = c; BLOOD_U.uEmber.value = ember * (0.8 + 0.2 * Math.sin(worldT * 9.3) * Math.sin(worldT * 5.1 + 1)); }
 const BLOOD_BACK = 6;   // how quickly a stain follows its blood fading (the fade itself is BLOOD_FADE)
 function syncStains(list) { for (const [o, m] of list) { if (!m.color.equals(o.color)) m.color.copy(o.color); if (o.emissive && !m.emissive.equals(o.emissive)) m.emissive.copy(o.emissive); } }
 

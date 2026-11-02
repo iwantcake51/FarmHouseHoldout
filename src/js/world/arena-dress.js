@@ -21,11 +21,14 @@ import { seeded } from '../core/math.js';
 import { lam, lit } from '../core/shaders.js';
 import { cxw } from './grid.js';
 import { threadJob, threadRun } from '../core/threads.js';
+import { liveTex, paintSpray } from './sign-art.js';
 
 // how much of each, per square metre of open floor (litter) or per metre of wall along the floor (decals)
-const AD = { px: 40, litter: 0.55, wallDecals: 0.16, camps: 4, bodyBags: 3, top: 0.26 };
+const AD = { px: 40, wallDecals: 0.07, camps: 3, bodyBags: 2, top: 0.26, drift: { per: 0.028, min: 3, most: 8, apart: 4.5, rubble: 0.22, tyres: 0.25, brass: 5 } };
 // kinds that are thin (a tree's trunk, a post): no shade drawn round their whole cell, nothing hung on them
 const AD_THIN = 'TP';
+// the decal tiles that are words or marks someone made (the sprays, the search teams' X, the tallies)
+const AD_WORDS = new Set([0, 1, 2, 3, 4, 5, 6, 7, 14, 15]);
 const adOpen = c => '.ABF'.includes(c);
 
 export function arDress(g, M) {
@@ -45,7 +48,7 @@ export function arDress(g, M) {
   adWalls(g, M, W, H, X, Z, kind, tall, open, wallSide, r, targets);
   adRoofs(g, M, W, H, X, Z, kind, tall, r, targets);
   // ---- litter, camps, body bags (instanced: a few draws for the lot)
-  adLitter(g, W, H, X, Z, open, wallSide, camps, outdoor, r);
+  adLitter(g, M, W, H, X, Z, open, wallSide, camps, outdoor, r);
   // ---- smoke beyond the map, outdoors
   if (outdoor) adSmoke(g, x0, z0, W, H, r);
 }
@@ -138,15 +141,12 @@ const AD_TILES = 16;
 let adAtlas = null;
 function adAtlasTex() {
   if (adAtlas) return adAtlas;
-  const S = 256, c = document.createElement('canvas'); c.width = c.height = S * 4; const x = c.getContext('2d'), r = seeded(9001);
+  const S = 256;
+  // (painted again once the web faces are in: world/sign-art.js)
+  adAtlas = liveTex(S * 4, S * 4, (x) => { const r = seeded(9001);
   const tile = (n, fn) => { x.save(); x.translate((n % 4) * S, Math.floor(n / 4) * S); x.beginPath(); x.rect(0, 0, S, S); x.clip(); fn(x, r); x.restore(); };
-  const spray = (t, col, size, rot = 0) => (x, r) => {
-    x.translate(S / 2, S / 2); x.rotate(rot); let f = size; x.font = `700 ${f}px "Permanent Marker", "Marker Felt", "Comic Sans MS", cursive`;
-    const lines = t.split('\n'); while (lines.some(L => x.measureText(L).width > S - 20) && f > 14) { f -= 2; x.font = `700 ${f}px "Permanent Marker", "Marker Felt", "Comic Sans MS", cursive`; }
-    x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = col;
-    lines.forEach((L, k) => x.fillText(L, 0, (k - (lines.length - 1) / 2) * f * 1.05));
-    for (let k = 0; k < 12; k++) x.fillRect((r() - 0.5) * (S - 40), (lines.length * f) / 2 - 4 + r() * 6, 2 + r() * 2, 10 + r() * 34);   // (the drips)
-  };
+  // (sprayed by hand: world/sign-art.js; size and rot as the paint's own hand gives them)
+  const spray = (t, col) => (x, r) => { const o = document.createElement('canvas'); o.width = o.height = S; paintSpray(o.getContext('2d'), S, S, { text: t, col: col.startsWith('#') ? col : '#' + col.match(/\d+/g).slice(0, 3).map(v => (+v).toString(16).padStart(2, '0')).join('') }); x.drawImage(o, 0, 0); };
   tile(0, spray("THEY'RE\nINSIDE", 'rgba(176,30,24,0.92)', 70, -0.05));
   tile(1, spray('NO WAY\nOUT', 'rgba(236,232,220,0.9)', 76, 0.04));
   tile(2, spray('GOD\nHELP US', 'rgba(20,20,20,0.9)', 70, -0.03));
@@ -154,7 +154,7 @@ function adAtlasTex() {
   tile(4, spray('DONT\nOPEN', 'rgba(176,30,24,0.92)', 80, 0.02));
   tile(5, spray('3 ALIVE\nINSIDE →', 'rgba(236,232,220,0.9)', 58, -0.04));
   // the search teams' X: four quarters, the date, the team, the count, the hazard
-  tile(6, (x, r) => { x.strokeStyle = 'rgba(214,120,30,0.9)'; x.lineWidth = 12; x.lineCap = 'round'; x.beginPath(); x.moveTo(40, 40); x.lineTo(216, 216); x.moveTo(216, 40); x.lineTo(40, 216); x.stroke(); x.fillStyle = 'rgba(214,120,30,0.9)'; x.font = '700 30px "Permanent Marker", cursive'; x.textAlign = 'center'; x.fillText('9/14', 128, 62); x.fillText('A3', 52, 136); x.fillText('2', 128, 222); x.fillText('Z', 206, 136); });
+  tile(6, (x, r) => { x.strokeStyle = 'rgba(214,120,30,0.9)'; x.lineWidth = 12; x.lineCap = 'round'; x.beginPath(); x.moveTo(40, 40); x.lineTo(216, 216); x.moveTo(216, 40); x.lineTo(40, 216); x.stroke(); x.fillStyle = 'rgba(214,120,30,0.9)'; x.font = '400 30px "Permanent Marker", "Archivo", sans-serif'; x.textAlign = 'center'; x.fillText('9/14', 128, 62); x.fillText('A3', 52, 136); x.fillText('2', 128, 222); x.fillText('Z', 206, 136); });
   // tally marks of the days
   tile(7, (x, r) => { x.strokeStyle = 'rgba(30,28,26,0.85)'; x.lineWidth = 6; x.lineCap = 'round'; for (let g2 = 0; g2 < 5; g2++) { const ox = 22 + (g2 % 3) * 76, oy = 60 + Math.floor(g2 / 3) * 100; for (let k = 0; k < 4; k++) { x.beginPath(); x.moveTo(ox + k * 13, oy); x.lineTo(ox + k * 13 + (r() - 0.5) * 4, oy + 60); x.stroke(); } if (g2 < 4) { x.beginPath(); x.moveTo(ox - 6, oy + 48); x.lineTo(ox + 50, oy + 10); x.stroke(); } } });
   // bloody handprints, a smear dragged down
@@ -163,15 +163,15 @@ function adAtlasTex() {
   // bullet holes, a burst stitched across
   tile(10, (x, r) => { for (let k = 0; k < 16; k++) { const a = 30 + r() * 196, b = 60 + r() * 130 + (a - 128) * 0.25, rad = 4 + r() * 4; x.fillStyle = 'rgba(160,156,150,0.55)'; x.beginPath(); x.arc(a, b, rad * 2.2, 0, 7); x.fill(); x.fillStyle = 'rgba(14,12,12,0.95)'; x.beginPath(); x.arc(a, b, rad, 0, 7); x.fill(); } });
   // a missing poster, its photo and its words, a corner torn
-  tile(11, (x, r) => { x.fillStyle = '#e8e2d2'; x.beginPath(); x.moveTo(50, 20); x.lineTo(206, 24); x.lineTo(210, 236); x.lineTo(60, 232); x.lineTo(46, 200); x.closePath(); x.fill(); x.fillStyle = '#111'; x.font = '900 36px Arial'; x.textAlign = 'center'; x.fillText('MISSING', 128, 62); x.fillStyle = '#6a6056'; x.fillRect(84, 78, 88, 96); x.fillStyle = '#3a342e'; x.beginPath(); x.arc(128, 116, 22, 0, 7); x.fill(); x.fillRect(102, 140, 52, 34); x.fillStyle = '#222'; for (let l = 0; l < 3; l++) x.fillRect(70, 190 + l * 12, 110 - l * 20, 5); });
+  tile(11, (x, r) => { x.fillStyle = '#e8e2d2'; x.beginPath(); x.moveTo(50, 20); x.lineTo(206, 24); x.lineTo(210, 236); x.lineTo(60, 232); x.lineTo(46, 200); x.closePath(); x.fill(); x.fillStyle = '#111'; x.font = '700 36px "Archivo", Arial, sans-serif'; x.textAlign = 'center'; x.fillText('MISSING', 128, 62); x.fillStyle = '#6a6056'; x.fillRect(84, 78, 88, 96); x.fillStyle = '#3a342e'; x.beginPath(); x.arc(128, 116, 22, 0, 7); x.fill(); x.fillRect(102, 140, 52, 34); x.fillStyle = '#222'; for (let l = 0; l < 3; l++) x.fillRect(70, 190 + l * 12, 110 - l * 20, 5); });
   // soot licked up a wall from a fire at its foot
   tile(12, (x, r) => { for (let k = 0; k < 40; k++) { const a = 128 + (r() - 0.5) * 120, b = 256 - r() * r() * 230, gr = x.createRadialGradient(a, b, 0, a, b, 30 + r() * 40); gr.addColorStop(0, 'rgba(14,12,10,0.22)'); gr.addColorStop(1, 'rgba(14,12,10,0)'); x.fillStyle = gr; x.fillRect(0, 0, S, S); } });
   // rust and water run down from a crack
   tile(13, (x, r) => { for (let k = 0; k < 9; k++) { const a = 60 + r() * 136, gr = x.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, 'rgba(110,62,30,0.55)'); gr.addColorStop(1, 'rgba(110,62,30,0)'); x.fillStyle = gr; x.fillRect(a, 0, 4 + r() * 10, 120 + r() * 136); } });
   tile(14, spray('EVAC\nCANCELLED', 'rgba(176,30,24,0.9)', 54, -0.06));
   tile(15, spray('SHOOT\nTHE HEAD', 'rgba(20,20,20,0.88)', 62, 0.05));
-  const t = new THREE.CanvasTexture(c); t.anisotropy = 4; t.colorSpace = THREE.SRGBColorSpace;
-  adAtlas = t; return t;
+  });
+  return adAtlas;
 }
 // each tile's size on a wall (m, w by h) and how high its middle sits (m)
 const AD_SIZE = [[1.6, 1.1, 1.5], [1.4, 1.0, 1.4], [1.3, 0.95, 1.5], [1.3, 0.9, 1.3], [1.2, 0.9, 1.4], [1.4, 0.95, 1.5], [1.0, 1.0, 1.55], [0.7, 0.7, 1.3], [0.8, 0.8, 1.2], [0.7, 0.9, 1.1], [0.8, 0.8, 1.3], [0.42, 0.42, 1.45], [1.3, 1.7, 0.9], [0.8, 1.4, 1.5], [1.3, 0.9, 1.6], [1.2, 0.85, 1.4]];
@@ -211,6 +211,7 @@ function adWalls(g, M, W, H, X, Z, kind, tall, open, wallSide, r, targets) {
     // (what it hit is one of the plan's tall things, not a low prop in front of it)
     const hx = Math.floor(hit.point.x - n.x * 0.06 - X(0) + 0.5), hz = Math.floor(hit.point.z - n.z * 0.06 - Z(0) + 0.5), hk = kind(hx, hz);
     if (!tall(hk) || AD_THIN.includes(hk)) continue;
+    if (AD_WORDS.has(tl) && !'#h'.includes(hk)) continue;   // (words and marks only on walls and buildings, never sprayed over a container, a crate or a car)
     if (placed.some(q => q.distanceTo(hit.point) < 1.8)) continue;
     // its corners all on the same face (none off an edge, into a doorway or over a gap)
     const u = V(-n.z, 0, n.x), up = V(0, 1, 0), base = hit.point.clone(); let ok = true;
@@ -289,7 +290,8 @@ function adRoofs(g, M, W, H, X, Z, kind, tall, r, targets) {
 }
 
 // ---- litter, camps and body bags, all of it under a quarter metre: instanced by shape, each instance its colour
-function adLitter(g, W, H, X, Z, open, wallSide, camps, outdoor, r) {
+function adLitter(g, M, W, H, X, Z, open, wallSide, camps, outdoor, r) {
+  const plan = M.plan;
   const T = {
     paper: [new THREE.BoxGeometry(0.21, 0.004, 0.3), [0xe8e4da, 0xd8cfa8, 0xc8c8c0, 0xe0d0c0]],
     card: [new THREE.BoxGeometry(0.62, 0.012, 0.46), [0x9a7b52, 0x8a6a44, 0xa88a60]],
@@ -309,21 +311,41 @@ function adLitter(g, W, H, X, Z, open, wallSide, camps, outdoor, r) {
   };
   const L = Object.fromEntries(Object.keys(T).map(k => [k, []]));
   const put = (k, x, y, z, ry, rx = 0, rz = 0, s = 1) => L[k].push([x, y, z, ry, rx, rz, s]);
-  // the litter: weighted toward the walls, where it's blown and kicked
-  const n = Math.round(open.length * AD.litter);
-  for (let k = 0; k < n; k++) {
-    const [i, j] = open[Math.floor(r() * open.length)], ws = wallSide(i, j); if (!ws.length && r() < 0.55) continue;
-    let x = X(i) + (r() - 0.5) * 0.9, z = Z(j) + (r() - 0.5) * 0.9; if (ws.length && r() < 0.7) { const [a, b] = ws[0]; if (a) x = X(i) + a * (0.25 + r() * 0.2); if (b) z = Z(j) + b * (0.25 + r() * 0.2); }
-    const t = r(), ry = r() * 6.28;
-    if (t < 0.3) put('paper', x, 0.035, z, ry, (r() - 0.5) * 0.1, (r() - 0.5) * 0.1);
-    else if (t < 0.4) put('card', x, 0.04, z, ry);
-    else if (t < 0.55) put('can', x, 0.063, z, ry, 0, Math.PI / 2);
-    else if (t < 0.63) put('bottle', x, 0.066, z, ry, 0, Math.PI / 2);
-    else if (t < 0.73) put('rag', x, 0.045, z, ry, 0, (r() - 0.5) * 0.15);
-    else if (t < 0.83) { for (let q = 0; q < 6 + r() * 10; q++) put('brass', x + (r() - 0.5) * 0.7, 0.036, z + (r() - 0.5) * 0.7, r() * 6.28, 0, Math.PI / 2); }   // (where a fight was)
-    else if (t < 0.92 && ws.length) { for (let q = 0; q < 2 + r() * 4; q++) put('brick', x + (r() - 0.5) * 0.5, 0.06, z + (r() - 0.5) * 0.5, r() * 6.28, (r() - 0.5) * 0.4, (r() - 0.5) * 0.4); }
-    else if (t < 0.97 && ws.length) put('plank', x, 0.05, z, ry, 0, (r() - 0.5) * 0.2);
-    else if (ws.length && outdoor) put('tyre', x, 0.1, z, 0, Math.PI / 2);
+  // the litter: never strewn over the open floor, but gathered where wind and feet push it, in drifts, each one a
+  // little heap of things lying with the wall they've fetched up against (papers and rags turned along it, cardboard
+  // flat at its foot, cans rolled into the angle), the deepest in corners; bricks and broken planks only where they fell
+  // from a wall, in one heap at its foot; spent cases only behind cover, where someone fought from it; tyres outdoors,
+  // stacked in a corner (AD.drift: drifts per open cell, the most things in one, how far apart drifts keep, m)
+  const D = AD.drift, wallCells = open.filter(([i, j]) => wallSide(i, j).length), corners = open.filter(([i, j]) => { const ws = wallSide(i, j); return ws.some(q => q[0]) && ws.some(q => q[1]); });
+  const anchors = [], far = (x, z, d) => anchors.every(q => Math.hypot(q[0] - x, q[1] - z) > d);
+  const want = Math.round(open.length * D.per);
+  for (let k = 0; k < want * 8 && anchors.length < want; k++) {
+    const pool = r() < 0.45 && corners.length ? corners : wallCells; if (!pool.length) break;
+    const [i, j] = pool[Math.floor(r() * pool.length)]; if (far(X(i), Z(j), D.apart)) anchors.push([X(i), Z(j), i, j]);
+  }
+  for (const [cx, cz, i, j] of anchors) {
+    const ws = wallSide(i, j), [a0, b0] = ws[0], corner = ws.some(q => q[0]) && ws.some(q => q[1]);
+    const along = a0 ? Math.PI / 2 : 0, ux = b0 ? 1 : 0, uz = a0 ? 1 : 0;   // (along the wall: x for a wall north or south of it, z for one east or west)
+    const foot = (o, off) => [cx + a0 * (0.42 - off) + ux * o, cz + b0 * (0.42 - off) + uz * o];   // (o along the wall, off out from its foot, m)
+    const n = Math.round(D.min + r() * (D.most - D.min) * (corner ? 1 : 0.6));
+    for (let q = 0; q < n; q++) {
+      const t = r(), o = (r() - 0.5) * (corner ? 0.8 : 1.4), off = r() * r() * 0.55, [x, z] = foot(o, off), ry = along + (r() - 0.5) * 0.5;
+      if (t < 0.34) put('paper', x, 0.035, z, ry, (r() - 0.5) * 0.08, (r() - 0.5) * 0.08);
+      else if (t < 0.5) put('card', x + a0 * 0.05, 0.04, z + b0 * 0.05, along + (r() - 0.5) * 0.15);
+      else if (t < 0.66) put('can', x + a0 * 0.08, 0.063, z + b0 * 0.08, along, 0, Math.PI / 2);
+      else if (t < 0.76) put('bottle', x + a0 * 0.08, 0.066, z + b0 * 0.08, along + (r() - 0.5) * 0.3, 0, Math.PI / 2);
+      else put('rag', x, 0.045, z, ry, 0, (r() - 0.5) * 0.12);
+    }
+    // (now and then a wall's let go of some of itself: one heap of bricks and a broken plank at its foot)
+    if (r() < D.rubble) { const [x, z] = foot((r() - 0.5) * 0.6, 0.05); for (let q = 0; q < 5 + r() * 5; q++) put('brick', x + (r() - 0.5) * 0.45 * (ux || 0.4), 0.06 + (q > 5 ? 0.06 : 0), z + (r() - 0.5) * 0.45 * (uz || 0.4), along + (r() - 0.5) * 0.6, (r() - 0.5) * 0.3, (r() - 0.5) * 0.3); if (r() < 0.6) put('plank', x + a0 * -0.25, 0.05, z + b0 * -0.25, along + (r() - 0.5) * 0.25, 0, (r() - 0.5) * 0.15); }
+    if (outdoor && corner && r() < D.tyres) { const [x, z] = foot(0, 0.12); put('tyre', x, 0.1, z, 0, Math.PI / 2); put('tyre', x, 0.3, z, 0, Math.PI / 2); }
+  }
+  // spent cases behind cover, where a fight was: a scatter on the floor at the foot of a low wall or a car, the side
+  // away from the open (D.brass: how many such spots)
+  const behind = open.filter(([i, j]) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => { const c = (plan[j + b] || '')[i + a]; return c && M.low.has(c); }));
+  for (let k = 0; k < D.brass && behind.length; k++) {
+    const [i, j] = behind[Math.floor(r() * behind.length)], x = X(i), z = Z(j);
+    for (let q = 0; q < 8 + r() * 10; q++) put('brass', x + (r() - 0.5) * 0.8, 0.036, z + (r() - 0.5) * 0.8, r() * 6.28, 0, Math.PI / 2);
   }
   // the camps: a sleeping bag along the wall, the fire ring, a pot, a pack, tins
   for (const [i, j] of camps) {
@@ -336,9 +358,9 @@ function adLitter(g, W, H, X, Z, open, wallSide, camps, outdoor, r) {
     for (let s = 0; s < 4; s++) put('can', fx + (r() - 0.5) * 1.0, 0.063, fz + (r() - 0.5) * 1.0, r() * 6.28, 0, Math.PI / 2);
   }
   // body bags laid out by a wall
-  const wallCells = open.filter(([i, j]) => wallSide(i, j).length === 1);
-  for (let k = 0; k < AD.bodyBags && wallCells.length; k++) {
-    const [i, j] = wallCells[Math.floor(r() * wallCells.length)], [a, b] = wallSide(i, j)[0];
+  const wallOne = open.filter(([i, j]) => wallSide(i, j).length === 1);
+  for (let k = 0; k < AD.bodyBags && wallOne.length; k++) {
+    const [i, j] = wallOne[Math.floor(r() * wallOne.length)], [a, b] = wallSide(i, j)[0];
     put('body', X(i) + a * 0.15, 0.12, Z(j) + b * 0.15, a ? Math.PI / 2 : 0, 0, Math.PI / 2, 1);
   }
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s3 = new THREE.Vector3(), p3 = new THREE.Vector3(), col = new THREE.Color();

@@ -184,6 +184,8 @@ const alClass = id => PVP_CLASSES.find(c => c.id === id);
 // class picker's cards build theirs as HTML, pvp/pvp.js)
 const alNameClean = s => String(s || '').replace(/[<>&"'`]/g, '').replace(/\s+/g, ' ').trim().slice(0, AL_NAME_MAX).trim();
 const alName = C => alNames[C.id] || C.name;
+// what a class you've changed the kit of says it is, in place of its own line (here and on the class picker, pvp/pvp.js)
+const AL_CUSTOM = 'Custom loadout';
 const alChanged = C => !!alSaved[C.id] || !!alNames[C.id];
 // the kit a class is shown with here: yours if you've changed it, else its own
 const alKitOf = C => alSaved[C.id] ? alFix(alSaved[C.id], C) : alStock(C);
@@ -195,7 +197,7 @@ export function alKit(id) {
   const C = alClass(id); if (!C || !alChanged(C)) return null;
   if (!alSaved[id]) return Object.assign({}, C, { name: alName(C) });
   const k = alFix(alSaved[id], C), guns = [k.p, k.s].filter(Boolean).map(([g, gt, ex]) => { const [mods, lv] = exMods(ex); return [g, Object.assign({}, gt), mods, lv, { at: ex.at ? { stock: true } : null, rd: ex.rd || '', ld: +ex.ld || 0 }]; });
-  return { id: C.id, name: alName(C), role: C.role, guns, melee: k.m, mags: guns.some(g => g[0] === 'lmg') ? 1 : 3, perks: C.perks.slice() };
+  return { id: C.id, name: alName(C), role: AL_CUSTOM, guns, melee: k.m, mags: guns.some(g => g[0] === 'lmg') ? 1 : 3, perks: C.perks.slice() };   // (its kit changed: the class's own line about it no longer says what it is)
 }
 // (what changes it: a match re-equips you at the count-in only when this differs from what it gave you)
 export const alKitKey = id => alSaved[id] ? JSON.stringify(alSaved[id]) : '';
@@ -247,7 +249,7 @@ const AL_SAYS = {
   'cv:akimbo': [['A gun in each hand'], ['No aiming down the sights']], 'cv:akimbo2': [['A gun in each hand'], ['No aiming down the sights']],
   'cv:tenmm': [['Hotter 10mm rounds go through a body'], []], 'cv:akkit': [['Full auto, 30-round AK mags'], ['Takes the magazine and magwell slots']],
   'cv:sawn': [['Quick to bring up'], ['Weak past a few metres']], 'rd:slug': [['One heavy slug that carries'], ['Has to hit dead on']],
-  'rd:flech': [['A tight cloud of darts'], []], 'rd:fire': [['Spits fire up close'], ['Burns out past 8 m']],
+  'rd:flech': [['A tight cloud of darts'], []], 'rd:fire': [['Sets them alight: burns on for 3 s', 'Spits fire up close'], ['Burns out past 8 m']],
   at: [['45% less kick', 'Fast shots stay tighter', 'Steadier in the hands'], []],
   'm:comp': [[], ['Takes the muzzle: no can']], 'm:ported': [[], ['Takes the muzzle: no can']],
   'm:fan': [['Fans the hammer from the hip'], ['Much wider spread fanning']], 'm:bipod': [['Almost no spread standing still'], []],
@@ -356,7 +358,7 @@ function alBuild() {
     swapIn($('aloPick'));
   }
   // the class's perks: set by it, shown for what they are
-  alPart('perks', C.id, $('aloPerks'), () => `<div class="aloPerkHead aloGroup"><b>Perks</b><span>Set by the class</span></div>` + C.perks.map(p => `<span class="aloPerk" title="${alEsc(perkText(p))}">${alEsc(perkName(p))}</span>`).join('') + `<p class="aloRole">${alEsc(C.role)}</p><p class="aloNote" id="aloNote"></p>`);
+  alPart('perks', C.id + (alSaved[C.id] ? ':c' : ''), $('aloPerks'), () => `<div class="aloPerkHead aloGroup"><b>Perks</b><span>Set by the class</span></div>` + C.perks.map(p => `<span class="aloPerk" title="${alEsc(perkText(p))}">${alEsc(perkName(p))}</span>`).join('') + `<p class="aloRole">${alEsc(alSaved[C.id] ? AL_CUSTOM : C.role)}</p><p class="aloNote" id="aloNote"></p>`);
   // the slot tiles (none for a melee weapon, or with no secondary): the attachment lines, then the choices
   const lines = id && t !== 'm' ? AL_LINES.filter(([key]) => alMax(id, key) > 0) : [], chs = id && t !== 'm' ? alChoices(id).filter(([key]) => alOpts(id, key).length) : [];
   alPart('atts', t + id, $('aloAtts'), () => lines.length || chs.length ? lines.map(([key, n]) => `<div class="aloA" data-k="${key}" role="group" aria-label="${n}"><button type="button" class="aloAMain" data-act="up"><small>${n}${key === 'supp' || key === 'choke' ? (alMax(id, key === 'supp' ? 'choke' : 'supp') ? '<i>Muzzle</i>' : '') : ''}</small><b></b></button><span class="aloPips">${Array.from({ length: alMax(id, key) }, (_, i) => `<button type="button" class="aloPip" data-n="${i + 1}" aria-label="${alEsc(tierName(key, i, id))}"></button>`).join('')}</span><button type="button" class="aloAX" data-act="off" aria-label="Take it off" title="Take it off"></button></div>`).join('') +
