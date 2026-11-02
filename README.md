@@ -1644,7 +1644,7 @@ the chest turned to put the shoulder behind it).
 back toward you and down, the muzzle thrown up and away from the side it came from, tipped over, shaking for a moment
 as it settles back (less down the sights). A melee weapon is knocked the same way.
 
-**Brawl balance and picks.** The class and weapon picker gives you 15 seconds at the start (12 between rounds) in
+**Brawl balance and picks.** The class and weapon picker gives you 6 seconds (at the start and between rounds) in
 Deathmatch, Team deathmatch, Showdown with classes and Brawl. Snipers only and Gun game, which hand everyone the same
 kit, keep it short (4 s). Picking from the picker while you're down no longer shuts it: change your mind as often as you
 like, and it goes away as you come back in.

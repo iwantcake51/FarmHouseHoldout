@@ -80,7 +80,7 @@ export const PVP_RULES = new Set(['snipe', 'brawl', 'gun']);
 const pvpModeName = () => PVP_MODES[PVP.rule || PVP.mode];
 const PVP_LIM = { ffa: 15, tdm: 20, rounds: 5 };
 // (Showdown with its random loadouts: the round's loadout up for kitShow seconds, nothing to pick; and its count-in, countRd)
-export const PVP_T = { pick0: 15, pick: 12, pickFix: 4, kitShow: 3, count: 5, countRd: 3, loadWait: 15, round: 60, match: 600, roundEnd: 4, over: 25, respawn: 4.5, prot: 1 };
+export const PVP_T = { pick0: 6, pick: 6, pickFix: 4, kitShow: 3, count: 5, countRd: 3, loadWait: 15, round: 60, match: 600, roundEnd: 4, over: 25, respawn: 4.5, prot: 1 };
 // the host's settings for the match (the lobby's arena settings: net/lobby.js, sent with the start): a Showdown round's
 // length (s) and its flag's capture time (s), a Deathmatch's length (min), the kills and rounds that win, and
 // Showdown's loadouts (random, the same for everyone and new every kitRd rounds, or the classes). Each setting's
