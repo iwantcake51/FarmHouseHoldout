@@ -541,6 +541,14 @@ export function meleePose(id, D, rdt, now, sh) {
   // down and off to that side, shaking as it comes back up on the springs (MHIT)
   { const f = !(W8.swing > 0) && !sh ? ANIM.flinch || 0 : 0;
     if (f > 0.001) { const sd = ANIM.flinchSide || 1, f2 = f * f, sj = Math.sin(now * 52) * MHIT.shake * f2; _maF.x += sd * MHIT.side * f2 + sj; _maF.y -= MHIT.down * f2 - sj * 0.6; _maF.z -= MHIT.back * f2; _maW.x += sd * MHIT.tip * f2; _maW.y += MHIT.up * f2 + sj * 2; _maW.normalize(); } }
+  // a dash (melee/block.js meleeDash): the weapon and the arms swung back against the way you went and dipped, leaning
+  // with it, easing back over about a third of a second (a smooth rise and fall rather than a jolt)
+  if (ANIM.dash > 0.001) {
+    const k = ANIM.dash, e = Math.sin(Math.PI * Math.min(1, (1 - k) * 1.6 + 0.12)) * Math.min(1, k * 3);
+    _maF.x -= (ANIM.dashSide || 0) * 0.07 * e; _maF.z += (ANIM.dashFwd || 0) * -0.05 * e; _maF.y -= 0.035 * e;
+    _maW.x += (ANIM.dashSide || 0) * 0.08 * e; _maW.normalize();
+    ANIM.dash = rdt > 0 ? k * Math.exp(-rdt * 4.5) : k; if (ANIM.dash < 0.002) ANIM.dash = 0;
+  }
   // gathering a heavy blow (melee/block.js MCHARGE): held at the top of the wind-up, drawn further back as it gathers
   // and trembling with the strain, more the nearer it is to full
   if (W8.chgOn && !sh) { const k = smooth(clamp(W8.chgK || 0, 0, 1)); _maF.z -= 0.06 * k; _maF.y += 0.03 * k; _maF.x += (Math.sin(now * 47) + 0.6 * Math.sin(now * 71 + 1.3)) * 0.006 * (0.4 + k); _maF.y += Math.sin(now * 59 + 0.7) * 0.004 * (0.4 + k); _maW.y += Math.sin(now * 53) * 0.035 * k; _maW.x += Math.sin(now * 61 + 2.1) * 0.02 * k; _maW.normalize(); }

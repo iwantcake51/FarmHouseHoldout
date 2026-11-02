@@ -1708,6 +1708,13 @@ the chest turned to put the shoulder behind it).
   through it). Tap it for a quick swing as before. Others see the wind-up and the release on your avatar.
 - **Feints.** While it's winding up, raise your guard (right click) to pull the blow: a quick feint that costs a little
   stamina and baits a guard or a parry out of whoever's watching.
+- **Dashing.** With a melee weapon out, press **Space** while moving (forward, back or to either side) and you dash a
+  quick step that way, about 2.3 m in a blink (when there's nothing to vault there): to step back out of a heavy blow
+  being wound up at you, or off to the side of it, when there's no time to run. It costs half your stamina. Short of
+  half, it takes what's left and it's a weaker step (about 1.3 m), and your stamina then comes back slowly at first
+  (under a third of the usual pace), picking up to the usual over 2.5 s. The edges of your view blur for a moment as
+  you go (the middle stays clear), the view tips the way you went, and the weapon and your arms swing back against the
+  move and ease back. Not again for 0.45 s.
 - **Running attacks.** Swing out of a sprint and you lunge on along the blow (thrown about 5 m/s forward, easing off),
   hitting half as hard again, for an eighth of your stamina more. Bots do it too, coming in at a run.
 - **Ripostes.** Parry a blow and for 0.9 s your next swing comes 28% quicker, hits 40% harder and goes through any guard
@@ -1724,7 +1731,7 @@ the chest turned to put the shoulder behind it).
 - **Shoving a guard open.** A shove into someone's guard from in front knocks it aside without touching their stamina:
   the guard's down and can't come up for most of a second, and your next blow goes through any guard while it's open.
   Holding a guard against someone who shoves gets punished.
-- **The katana's balanced.** It hits for less (28), swings a little slower, reaches a touch shorter, costs more stamina
+- **The katana's balanced.** It hits for less (28) but swings quicker (0.48 s in the arena, 0.32 s on the farm), reaches a touch shorter, costs more stamina
   a swing and bleeds less often, so it's no longer the one weapon to spam.
 - **Brawl kill perk.** In Brawl each kill gives you back half your health and half your stamina at once (bots too).
 - **Brawl bots duel.** A bot picks whoever's free near it: someone already being fought counts as 9 m further off for
@@ -2024,7 +2031,7 @@ any page (moving round the buttons and pressing them) and the arrows scroll; onl
 | --- | --- | --- | --- | --- | --- |
 | W A S D | Walk | Mouse | Aim and fire | Hold F | Board up a window or door |
 | Shift | Sprint | Right click | Aim down the sights | Hold G | Tear a board down |
-| Space | Vault a window or fence | R | Reload | F | Use a station or pick something up |
+| Space | Vault a window or fence (with a melee weapon out and moving, where there's nothing to vault: dash) | R | Reload | F | Use a station or pick something up |
 | Q, E | Lean left, lean right | L | Change class (arena) | | |
 | C | Crouch | | | | |
 | Wheel, + − | Zoom | 1 – 4 | Switch weapon | X | Bandage |

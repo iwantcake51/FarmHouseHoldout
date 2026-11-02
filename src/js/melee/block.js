@@ -193,6 +193,35 @@ function parriedFx() {
   clearTimeout(parriedT); parriedT = setTimeout(() => el.classList.remove('on'), PARRIED_FX.len * 1000);
   BLOCK.dazed = PARRIED_FX.len;
 }
+// ---- a dash (Space with a melee weapon out, moving: input/keyboard-mouse.js): a quick step the way you're moving,
+// back out of a heavy blow being wound up at you or off to the side of it. DASH: how hard it throws you (m/s, easing
+// off as a shove does: about 2.3 m all told), and how hard with under DASH.cost of the tank left (a weaker step, about
+// 1.3 m); its cost (half the tank); how soon you can again; how long the edges of the view blur with it. Short of the
+// stamina, it costs what's left, and your stamina then comes back slowly at first (DASH.slow of the usual), picking up
+// to the usual over DASH.ramp s
+const DASH = { v: 16, weak: 9, cost: 0.5, cd: 0.45, fx: 0.38, slow: 0.3, ramp: 2.5 };
+let dashEl = null, dashT = 0;
+export function meleeDash() {
+  const D = W(curId());
+  if (!D || !D.melee || P.dead || P.vault || P.shove || state !== 'play' || now() < (BLOCK.dashAt || 0) || P.bandT > 0) return false;
+  const sp = Math.hypot(P.vx || 0, P.vz || 0); if (sp < 0.6) return false;
+  const ux = P.vx / sp, uz = P.vz / sp, sm = stamMax(), full = P.stam >= DASH.cost * sm, v = full ? DASH.v : DASH.weak;
+  P.kbx = ux * v; P.kbz = uz * v; P.sprint = false;
+  P.stam = Math.max(0, P.stam - DASH.cost * sm); P.stamT = 0; if (!full) P.dashTired = now(); if (P.stam <= 0.001) P.exh = true;
+  BLOCK.dashAt = now() + DASH.cd;
+  // (which way it went, against where you face: the arms and weapon swing back against it and lean with it, the view
+  // tips the way you go, melee/melee-anim.js ANIM.dash)
+  const fx = Math.sin(P.aim), fz = Math.cos(P.aim);
+  ANIM.dash = full ? 1 : 0.7; ANIM.dashSide = ux * fz - uz * fx; ANIM.dashFwd = ux * fx + uz * fz;
+  setCamRoll(clamp(camRoll - ANIM.dashSide * 0.05, -0.12, 0.12)); camKick.x += ux * 0.06; camKick.z += uz * 0.06;
+  SFX.dash(full);
+  if (!dashEl) { dashEl = document.createElement('div'); dashEl.id = 'dashFx'; dashEl.setAttribute('aria-hidden', 'true'); dashEl.innerHTML = '<i></i>'; document.body.appendChild(dashEl); }
+  dashEl.classList.toggle('weak', !full); dashEl.classList.remove('on'); void dashEl.offsetWidth; dashEl.classList.add('on');
+  clearTimeout(dashT); dashT = setTimeout(() => dashEl.classList.remove('on'), DASH.fx * 1000);
+  return true;
+}
+// how quickly stamina comes back after a dash taken short of it (combat-update.js): slow at first, up to the usual
+export const dashRegen = () => P.dashTired ? clamp(DASH.slow + (1 - DASH.slow) * (now() - P.dashTired) / DASH.ramp, DASH.slow, 1) : 1;
 // ---- a shove into a guard (player/shove.js, pvp/pvp.js pvpShove; a bot's: pvp/bots.js): it's knocked aside, open, not
 // broken by tiring (none of their stamina's taken) but by being shoved out of the way, and they reel for SHOVE_OPEN.reel
 // while their guard can't come back up for SHOVE_OPEN.down; the one who shoved has their next blow through any guard

@@ -317,6 +317,13 @@ body.pvp.pvpTeams #spec .spTop{top:calc(96px + env(safe-area-inset-top,0px))}
 #parryFx i{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(220,235,255,0) 0,rgba(220,235,255,0) 42%,rgba(190,215,255,.35) 75%,rgba(235,245,255,.7) 100%);opacity:0}
 #parryFx.on i{animation:prFlash .9s cubic-bezier(.2,.7,.3,1) forwards}
 @keyframes prFlash{0%{opacity:1;transform:scale(1.08)}20%{opacity:.8}100%{opacity:0;transform:scale(1)}}
+/* a dash (melee/block.js meleeDash): the edges of the view blurred and streaked for a moment, the middle clear */
+#dashFx{position:fixed;inset:0;z-index:57;pointer-events:none;display:none}
+#dashFx.on{display:block}
+#dashFx i{position:absolute;inset:0;opacity:0;backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);-webkit-mask-image:radial-gradient(ellipse at 50% 50%,transparent 0,transparent 40%,#000 85%);mask-image:radial-gradient(ellipse at 50% 50%,transparent 0,transparent 40%,#000 85%);background:radial-gradient(ellipse at 50% 50%,rgba(230,236,240,0) 50%,rgba(230,236,240,.12) 100%)}
+#dashFx.on i{animation:dashFx .38s cubic-bezier(.2,.7,.3,1) forwards}
+#dashFx.weak.on i{animation-duration:.5s}
+@keyframes dashFx{0%{opacity:0;transform:scale(1.04)}18%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1)}}
 /* your guard broken (melee/block.js guardBreak): a grey jolt of a flash and a cold red vignette in from the edges */
 #guardBrokeFx{position:fixed;inset:0;z-index:58;pointer-events:none;display:none}
 #guardBrokeFx.on{display:block}

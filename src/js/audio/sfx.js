@@ -96,6 +96,7 @@ export const SFX = {
   // and the thump of it through your arms), a parry (a bright ring of steel on steel that hangs, a shing off the edge),
   // and broken (a dull clank and the thump of it knocked down)
   chargeFull() { tn(0.18, 'sine', 520, 880, 0.05); nz(0.12, 'bandpass', 2400, 4200, 0.05, 3); },   // (a heavy blow gathered to its full: a rising tick, melee/block.js CHARGE)
+  dash(full) { if (!playS(['swing_light_1', 'swing_light_2'], { vol: full ? 0.4 : 0.28, rate: 0.75, jit: 0.06 })) nz(0.16, 'bandpass', 500, 1400, 0.12, 1.2); nz(0.06, 'lowpass', 400, 120, full ? 0.12 : 0.08); },   // a dash: the rush of air of a quick step, the scuff of the feet
   guardUp() { if (!playS(['swing_light_1', 'swing_light_2'], { vol: 0.32, rate: 1.45, jit: 0.08 })) nz(0.08, 'bandpass', 900, 2200, 0.08, 1.6); },
   guardHit() { const f = rr(0.9, 1.1); SFX.clang(1.1); tn(0.14, 'sine', 140 * f, 60 * f, 0.4); playS(['hit_blunt_1', 'hit_blunt_2'], { vol: 0.45, rate: 1.25, jit: 0.08 }); },
   parry() { const f = rr(0.95, 1.08); SFX.clang(1.4); tn(0.9, 'sine', 2480 * f, 2440 * f, 0.07); tn(0.7, 'sine', 3720 * f, 3690 * f, 0.035); tn(0.5, 'triangle', 1240 * f, 1200 * f, 0.08); nz(0.28, 'highpass', 5200, 8200, 0.16, 1.2); sndLater(() => nz(0.18, 'bandpass', 6400, 3800, 0.08, 3), 40); },

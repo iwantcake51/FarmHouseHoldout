@@ -13,6 +13,7 @@ import { curId } from '../game/run-state.js';
 import { nearestTake, takeIt } from '../pickups/pickups.js';
 import { throwGrenade } from '../weapons/explosives.js';
 import { tryVault } from '../player/vaulting.js';
+import { meleeDash } from '../melee/block.js';
 import { benchGunStep, closeStation, nearestStation, openSt, openStation } from '../stations/station-ui.js';
 import { audioInit } from '../audio/audio.js';
 import { phase, state } from '../game/state.js';
@@ -88,7 +89,7 @@ function keyAct(k, e) {
   if (bindIs(k, 'inspect') && !pvpPicking()) startInspect();   // (not while the arena's class picker is up)   // looking your gun over (player/inspect.js)
   if (bindIs(k, 'bandage') && !PVP.on) startBandage();   // (no bandages in the arena: pvp/pvp.js)
   if (bindIs(k, 'cls') && PVP.on) pvpChangeClass();   // (the arena's class picker, for your next life)
-  if (bindIs(k, 'vault')) tryVault();                                    // climbs through windows and hops fences
+  if (bindIs(k, 'vault')) { tryVault(); if (!P.vault && !e.repeat) meleeDash(); }   // (nothing to climb: a melee weapon out and moving, a dash, melee/block.js)                                    // climbs through windows and hops fences
   if (bindIs(k, 'shove')) shove();   // (board, held at a door or window, boards it up: barricades/interactions.js)
   if (bindIs(k, 'grenade') && !(bindIs(k, 'tear') && TEAR_NEAR.on)) throwGrenade();   // (at a boarded window or door the same key tears a board down instead: barricades/interactions.js)
   if (bindIs(k, 'share') && !e.repeat) gunShare(nearestTake());   // share a gun you've put down with your team (net/teamwork.js)

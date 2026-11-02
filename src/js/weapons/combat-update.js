@@ -28,7 +28,7 @@ import { ARENA_STAM, RUN_REST, SHOT_HOLD, SPRINT, sprintHolds } from '../player/
 import { fpGunPitch, fpOn, VCAM } from '../game/view-cam.js';
 import { ANIM, LOOK_DOWN } from '../player/animation.js';
 import { PVP, pvpEnding, pvpFrozen } from '../pvp/pvp.js';
-import { blockStops, chargeStep, updateBlock } from '../melee/block.js';
+import { blockStops, chargeStep, dashRegen, updateBlock } from '../melee/block.js';
 import { sndLastPlayed } from '../audio/samples.js';
 
 const VAULT_BREATH = 1;   // seconds after a vault before stamina starts coming back
@@ -72,7 +72,7 @@ export function updateCombat(dt) {
   P.runT = (P.runT || 0) + dt; P.runDebt = clamp(P.runDebt || 0, 0, sm - P.stam);
   if (P.vault) P.stamWait = VAULT_BREATH; else if (P.stamWait > 0) P.stamWait -= dt;
   if (!(P.stamWait > 0)) {
-    const lw = S.lungs ? LUNGS.wait / 0.55 : 1, lr = (P.moving ? 0.75 : 1) * (S.lungs ? LUNGS.refill : 1);
+    const lw = S.lungs ? LUNGS.wait / 0.55 : 1, lr = (P.moving ? 0.75 : 1) * (S.lungs ? LUNGS.refill : 1) * dashRegen();   // (slow at first after a dash taken short of stamina: melee/block.js DASH)
     if (P.stam + P.runDebt < sm) { if (P.stamT > 0.55 * lw) P.stam = Math.min(sm - P.runDebt, P.stam + dt * (P.exh ? 0.26 : 0.38) * lr); }
     else if (P.runDebt > 0 && P.runT > RUN_REST.wait * lw * (PVP.on ? ARENA_STAM.wait : 1)) { const g = Math.min(P.runDebt, dt * (P.exh ? RUN_REST.exh : RUN_REST.rate) * lr * (PVP.on ? ARENA_STAM.rate : 1)); P.stam += g; P.runDebt -= g; }
   }
