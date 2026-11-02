@@ -1,5 +1,6 @@
 // Per-frame drawing: runs each system's visual update in order.
 
+import { timeScale } from './hit-feedback.js';
 import { updateRackSide } from '../stations/armory.js';
 import { curId, W } from './run-state.js';
 import { stepCasings } from '../weapons/casings.js';
@@ -36,7 +37,7 @@ import { pvpEnding } from '../pvp/pvp.js';
 // Everything drawn each frame, after the simulation. Each part lives with the system it draws.
 export function visuals(dt, rdt) {
   titleCrowd(dt);   // (the title's yard: a few of them wandering about, the windows boarded: world/title-crowd.js)
-  updatePlayerVisuals(dt, rdt);
+  updatePlayerVisuals(dt, pvpEnding() ? rdt * timeScale : rdt);   // (your own body, arms and weapon slowed with the match's end, as everything is: pvp/pvp.js)
   poseSnap();   // (your pose for your teammates, before the first-person view holds your arms on it: net/avatars.js)
   const D = W(curId()) || W('pistol');   // after the player's pose, which can take out a different weapon (a weapon key during a bandage)
   updateCamera(rdt);

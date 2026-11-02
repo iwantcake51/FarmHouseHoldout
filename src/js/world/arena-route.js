@@ -54,14 +54,14 @@ const RT_PLAN = [
   '#..F.......hhhhh..hhhhhh..hhhhh.......F..#',
   '#..........h......hhhhhh......h..........#',
   '#....hhhh.......F.hhhhhh.F.......hhhh....#',
-  '#....hhhh......S..hhhhhh..S......hhhh....#',
-  '#..........h...S..........S...h..........#',
+  '#....hhhh.....S............S.....hhhh....#',
+  '#..........h..S....nnnn....S..h..........#',
   '#cccc......h..................h......cccc#',
   '#cccc......h..................h......cccc#',
   '#hhhhhhhh..hh...hhhhhhhhhh...hh..hhhhhhhh#',
   '#..........F.......WWWW.......F..........#',
   '#..................WWWW..................#',
-  '#.......RR..GGGG..........GGGG..RR.......#',
+  '#...........GGGG..........GGGG...........#',
   '#......ARR.......WW....WW.......RRB......#',
   '#......ARR.......WWssssWW.......RRB......#',
   '#.....AARR...WWF..........FWW...RRBB.....#',
@@ -72,7 +72,7 @@ const RT_PLAN = [
   '#....AAARR...k..............k...RRBBB....#',
   '#.....AARR.......WWssssWW.......RRBB.....#',
   '#......ARR.......WW....WW.......RRB......#',
-  '#.......RR..GGGG..........GGGG..RR.......#',
+  '#...........GGGG..........GGGG...........#',
   '#..........WW................WW..........#',
   '#..........WW.F............F.WW..........#',
   '#hhhhhhhhWWWW..bbWWWWWWWWbb..WWWWhhhhhhhh#',
@@ -102,7 +102,7 @@ const RT_VAULT = new Set(['b', 'n', 'k', 'd', 's']);
 const RT_WHAT = { b: 'barrier', n: 'counter', k: 'crates', d: 'dumpster', s: 'sandbags' };
 // the plan's zones (its own columns and rows): the store's walls, the cooler block in its middle, the canopy over the
 // forecourt (and how high), the highway's carriageways (rows, north edge to south edge, and the median's row)
-const RT_STORE = { i0: 11, i1: 30, j1: 11 }, RT_CORE = { i0: 18, i1: 23, j1: 7 };
+const RT_STORE = { i0: 11, i1: 30, j1: 11 }, RT_CORE = { i0: 18, i1: 23, j1: 6 };
 const RT_CANOPY = { i0: 11, i1: 30, j0: 13, j1: 26, y: 4.7 };
 const RT_ROAD = { j0: 29, j1: 38, med: 34 };
 // its carriageways' edge lines (plan rows, north edge to south edge of each: a metre of shoulder outside each)
@@ -114,7 +114,7 @@ const RT_LANES = [[30, 33.75], [35.25, 38]];
 // the fence south of it)
 const RT_LAMPS = [
   [13.5, 16, 'c'], [13.5, 23, 'c'], [27.5, 16, 'c'], [27.5, 23, 'c'], [20.5, 14, 'c'], [20.5, 25, 'c'],
-  [4, 1.3, 's', 'n'], [37, 1.3, 's', 'n'], [12, 4.75, 'w', 'n'], [29, 4.75, 'w', 'n'], [20.5, 7.75, 'w', 'n'],
+  [4, 1.3, 's', 'n'], [37, 1.3, 's', 'n'], [12, 4.75, 'w', 'n'], [29, 4.75, 'w', 'n'], [20.5, 7.4, 'w', 'n'],
   [1.3, 19.5, 's', 'w'], [39.7, 19.5, 's', 'e'],
   [15.5, 32.2, 'f', 'n'], [25.5, 32.2, 'f', 'n'], [20.5, 29.3, 'f', 'n'],
   [6, 38.2, 's', 's'], [35, 38.2, 's', 's'], [20.5, 38.2, 's', 's']
@@ -324,14 +324,58 @@ function rtLintels() {
     if (ext) { const front = b0 === RT_STORE.j1, ph = front ? 0.9 : 0.5, alongX = w > d; rBox(w, ph, d, M.parapet, cx, RT_SH + ph / 2, cz); rBox(alongX ? w : w + 0.06, 0.08, alongX ? d + 0.06 : d, M.cap, cx, RT_SH + ph + 0.04, cz); }
   }
 }
-// the cooler and the restrooms in the middle: white insulated panels, their own roof cap over the whole block, the
-// cooler's door and the restrooms'
-let rtCoolCap = false;
+// the block in the middle of the store: the walk-in cooler and the restrooms behind white insulated panels, their own
+// roof cap over the whole of it. Its sides onto the shop floor are the drinks wall, glass reach-in doors with what's
+// left on their racks behind; round the back, in the storeroom, the walk-in's door (east) and the restrooms' (west);
+// its front is the till's back-bar, the cigarette rack and the lottery sign over the counter
+let rtCoolCap = false, rtDrinkT = null, rtSmokeT = null;
+const RT_DRINKS = ['#c8322a', '#2c6aa8', '#e0b43a', '#3e8a4a', '#e6e2d6', '#7a3a8a', '#e07a2a', '#1e1e20'];
+// a reach-in door's glass, the racks behind it: dark, five shelves, bottles and cans left standing with gaps, the
+// glass's sheen across it
+const rtPaintDrinks = (c, W, H) => {
+  const r = seeded(919); c.fillStyle = '#141b1e'; c.fillRect(0, 0, W, H);
+  for (let s = 0; s < 5; s++) {
+    const yb = H * (0.18 + s * 0.17); c.fillStyle = '#5a6266'; c.fillRect(0, yb, W, 4);
+    for (let x = 6; x < W - 10;) {
+      const w = 10 + r() * 8, h = H * (0.07 + r() * 0.06); if (r() < 0.4) { x += w + 4; continue; }
+      c.fillStyle = RT_DRINKS[Math.floor(r() * RT_DRINKS.length)]; c.fillRect(x, yb - h, w, h); c.fillRect(x + w * 0.3, yb - h - 6, w * 0.4, 6);
+      c.fillStyle = 'rgba(255,255,255,0.18)'; c.fillRect(x + 2, yb - h + 2, 2, h - 4); x += w + 3;
+    }
+  }
+  const g = c.createLinearGradient(0, 0, W, H); g.addColorStop(0, 'rgba(200,220,230,0.16)'); g.addColorStop(0.45, 'rgba(200,220,230,0.03)'); g.addColorStop(0.55, 'rgba(200,220,230,0.12)'); g.addColorStop(1, 'rgba(200,220,230,0.02)');
+  c.fillStyle = g; c.fillRect(0, 0, W, H);
+};
+// the cigarette rack: rows of packs in their slots, half of them gone
+const rtPaintSmokes = (c, W, H) => {
+  const r = seeded(313); c.fillStyle = '#2a201a'; c.fillRect(0, 0, W, H);
+  for (let y = 10; y < H - 20; y += 34) {
+    c.fillStyle = '#4a3a2c'; c.fillRect(0, y + 26, W, 4);
+    for (let x = 6; x < W - 14; x += 18) { if (r() < 0.5) continue; c.fillStyle = ['#e8e4da', '#c8322a', '#d8b84a', '#2c4a8a', '#3a6a3a'][Math.floor(r() * 5)]; c.fillRect(x, y + 6, 14, 20); c.fillStyle = 'rgba(255,255,255,0.5)'; c.fillRect(x, y + 6, 14, 5); }
+  }
+};
 function rtCooler(i, j, x, z) {
-  const M = RTM, ii = i - RT_B[0], jj = j - RT_B[1], H = 2.9;
+  const M = RTM, ii = i - RT_B[0], jj = j - RT_B[1], H = 2.9, mi = Math.min(ii, RT_W - 1 - ii), nx = ii < RT_W / 2 ? -1 : 1, ry = nx < 0 ? -Math.PI / 2 : Math.PI / 2;
   rBox(1, H, 1, M.cool, x, H / 2, z);
-  if (jj === RT_CORE.j1 && ii % 2 === 0) rBox(1.02, H - 0.2, 0.03, M.coolDk, x, H / 2, z + 0.5);
-  if (jj === RT_CORE.j1 && (ii === 19 || ii === 22)) { rBox(0.86, 2.0, 0.06, M.steel, x, 1.0, z + 0.52); rBox(0.12, 0.3, 0.1, M.coolDk, x + 0.3, 1.0, z + 0.57); rtDecalSign(ii === 19 ? 'RESTROOMS' : 'COOLER', 0.84, 0.22, '#e9e6de', '#3a3a3a', x, 2.3, z + (ii % 2 ? 0.506 : 0.521), 0); }
+  if (mi === RT_CORE.i0 && jj >= 4) {   // (a reach-in door onto the shop floor: its frame, its glass, its handle)
+    if (!rtDrinkT) rtDrinkT = lam(0xffffff, { map: liveTex(128, 256, rtPaintDrinks) });
+    const fx = x + nx * 0.5;
+    rBox(0.05, 2.1, 0.96, M.coolDk, fx + nx * 0.02, 1.15, z); rBox(0.06, 0.06, 0.96, M.steel, fx + nx * 0.035, 2.17, z); rBox(0.06, 0.06, 0.96, M.steel, fx + nx * 0.035, 0.13, z);
+    const gl = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 1.9), rtDrinkT); gl.position.set(fx + nx * 0.048, 1.15, z); gl.rotation.y = ry; rP.add(gl);
+    rBox(0.05, 1.96, 0.05, M.steel, fx + nx * 0.06, 1.15, z + 0.46); rBox(0.05, 0.5, 0.04, M.steel, fx + nx * 0.09, 1.2, z - 0.32);
+    if (jj === 5) rtDecalSign('COLD DRINKS', 1.6, 0.26, '#2c5a8a', '#efe8d6', fx + nx * 0.006, 2.5, z, ry);
+  }
+  if (mi === RT_CORE.i0 && jj === 2) {   // (round the back, from the storeroom: the restrooms' door, the walk-in's)
+    const fx = x + nx * 0.5; rBox(0.06, 2.0, 0.86, M.steel, fx + nx * 0.02, 1.0, z); rBox(0.1, 0.3, 0.12, M.coolDk, fx + nx * 0.07, 1.0, z + 0.3);
+    rtDecalSign(nx < 0 ? 'RESTROOMS' : 'WALK-IN', 0.84, 0.22, '#e9e6de', '#3a3a3a', fx + nx * 0.056, 2.3, z, ry);
+  }
+  if (jj === RT_CORE.j1 && (mi === RT_CORE.i0)) rBox(1.02, H - 0.2, 0.03, M.coolDk, x, H / 2, z + 0.5);
+  if (jj === RT_CORE.j1 && ii === RT_CORE.i0 + 1) {   // (the back-bar behind the till, the width of the counter)
+    if (!rtSmokeT) rtSmokeT = lam(0xffffff, { map: liveTex(256, 128, rtPaintSmokes) });
+    const cx = x + 1.5, zf = z + 0.5;
+    rBox(3.9, 1.3, 0.12, M.counter, cx, 1.55, zf + 0.06); rBox(3.9, 0.06, 0.2, M.counterTop, cx, 2.23, zf + 0.1); rBox(3.9, 0.9, 0.3, M.counter, cx, 0.45, zf + 0.15);
+    const rk = new THREE.Mesh(new THREE.PlaneGeometry(3.7, 1.18), rtSmokeT); rk.position.set(cx, 1.55, zf + 0.125); rP.add(rk);
+    rtDecalSign('LOTTERY  ·  TOBACCO  ·  PHONE CARDS', 3.6, 0.3, '#a8302a', '#efe8d6', cx, 2.5, zf + 0.006, 0);
+  }
   if (!rtCoolCap) { rtCoolCap = true; const x0 = RX(RT_CORE.i0) - 0.53, x1 = RX(RT_W - 1 - RT_CORE.i0) + 0.53, z0 = RZ(1) - 0.5, z1 = RZ(RT_CORE.j1) + 0.53; rBox(x1 - x0, 0.1, z1 - z0, M.coolDk, (x0 + x1) / 2, H + 0.05, (z0 + z1) / 2); }
 }
 // the store's roof from your own eyes: the slab over it all (the ceiling's tiles on its underside, water-stained), the
@@ -397,12 +441,14 @@ function rtShelf(i, j, x, z) {
   }
   rFoot(i, j, x - 0.45, z - 0.5, x + 0.45, z + 0.5);
 }
-// the checkout counter: a wood front, a pale top, a till on it
+// the checkout counter across the front of the store: a wood front, a pale top, a till at each end and the impulse
+// rack between them, set forward in its row so there's room behind it at the back-bar
 function rtCounter(i, j, x, z) {
-  const M = RTM, H = RT_H.n, end = (RT_KIND(i - 1, j) !== 'n' ? 0.01 : 0) + (RT_KIND(i + 1, j) !== 'n' ? 0.01 : 0), sh = (RT_KIND(i + 1, j) !== 'n' ? 0.005 : 0) - (RT_KIND(i - 1, j) !== 'n' ? 0.005 : 0);
-  rBox(1, H - 0.05, 0.7, M.counter, x, (H - 0.05) / 2, z); rBox(1 + end, 0.05, 0.78, M.counterTop, x + sh, H - 0.025, z);
-  if (RT_KIND(i - 1, j) !== 'n') { rBox(0.36, 0.2, 0.3, M.till, x, H + 0.1, z); rBox(0.3, 0.2, 0.03, M.till, x, H + 0.3, z - 0.1); }
-  rFoot(i, j, x - 0.5, z - 0.39, x + 0.5, z + 0.39);
+  const M = RTM, H = RT_H.n, L = RT_KIND(i - 1, j) !== 'n', R = RT_KIND(i + 1, j) !== 'n', end = (L ? 0.01 : 0) + (R ? 0.01 : 0), sh = (R ? 0.005 : 0) - (L ? 0.005 : 0), zc = z + 0.15;
+  rBox(1, H - 0.05, 0.62, M.counter, x, (H - 0.05) / 2, zc); rBox(1 + end, 0.05, 0.7, M.counterTop, x + sh, H - 0.025, zc);
+  if (L || R) { rBox(0.36, 0.2, 0.3, M.till, x, H + 0.1, zc - 0.05); rBox(0.3, 0.2, 0.03, M.till, x, H + 0.3, zc - 0.17); }
+  else { rBox(0.7, 0.32, 0.22, M.shelfDk, x, H + 0.16, zc + 0.12); for (let k = 0; k < 4; k++) rBox(0.13, 0.1, 0.1, M.goods[(i + k) % M.goods.length], x - 0.25 + k * 0.17, H + 0.37, zc + 0.12); }
+  rFoot(i, j, x - 0.5, zc - 0.35, x + 0.5, zc + 0.35);
 }
 // ---- what's left on the gondolas: a round (or a pellet) that goes into the shelving knocks the box it meets off in a
 // burst of dust and scraps of cardboard, back with the next round (world/arena-boxes.js, as the mall's and the farm's).
@@ -575,7 +621,7 @@ function rtBags(i, j, x, z) {
 function rtCrates(i, j, x, z) {
   const M = RTM, jj = j - RT_B[1];
   if (jj <= RT_STORE.j1) { rBox(0.95, 0.14, 0.95, M.pallet, x, 0.07, z); rBox(0.85, 0.8, 0.85, rand() < 0.5 ? M.wrap : M.box, x, 0.54, z); }   // (in the storeroom: pallets of stock)
-  else for (let y = 0; y < 2; y++) { rBox(0.92, 0.48, 0.6, M.crate, x, 0.24 + y * 0.5, z + (y ? 0.05 : -0.05)); rBox(0.94, 0.06, 0.62, M.crateDk, x, 0.4 + y * 0.5, z + (y ? 0.05 : -0.05)); }   // (on the forecourt: the army's ammunition boxes)
+  else for (let y = 0; y < 2; y++) for (const o of [-0.235, 0.235]) { const ox = rr(-0.02, 0.02); rBox(0.92, 0.46, 0.45, M.crate, x + ox, 0.23 + y * 0.48, z + o); rBox(0.94, 0.05, 0.47, M.crateDk, x + ox, 0.38 + y * 0.48, z + o); }   // (on the forecourt: the army's ammunition boxes, two to a layer filling the cell, so a run of them stands as one stack, no gaps between)
   rFoot(i, j, x - 0.48, z - 0.48, x + 0.48, z + 0.48);
 }
 function rtDumpster(i, j) {
@@ -756,11 +802,11 @@ const rtDecalSign = (text, w, h, bg, fg, x, y, z, ry) => rtSign(rP, text, w, h, 
 // the fence's lamp poles, within its run of wall), never over an edge or round a corner
 function rtSigns(g) {
   const zS = RT_Z - 0.48, xE = RT_X - 0.48;
-  for (const x of [-16.5, 16.5]) rtSign(g, 'QUARANTINE ZONE  ·  KEEP OUT', 2.6, 0.55, '#efe8d6', '#a8302a', x, 1.75, zS + 0.02, Math.PI, true);
-  for (const x of [-6.25, 6.25]) rtSign(g, 'WARNING  ·  LETHAL FORCE AUTHORIZED', 2.6, 0.5, '#c9a43a', '#1c1c1c', x, 1.75, zS + 0.02, Math.PI, true);
-  rtSign(g, 'SPEED LIMIT 55', 0.6, 0.75, '#f2f2ea', '#1c1c1c', -9.5, 1.6, zS + 0.02, Math.PI, true);
-  rtSign(g, 'RESTRICTED  ·  MILITARY AREA', 2.4, 0.5, '#efe8d6', '#a8302a', xE + 0.02, 1.75, -14, -Math.PI / 2, true);
-  rtSign(g, 'MOTEL GUESTS ONLY', 2.0, 0.5, '#2f6060', '#f2e6c8', xE + 0.02, 1.75, 14, -Math.PI / 2, true);
+  for (const x of [-16.5, 16.5]) rtSign(g, 'QUARANTINE ZONE  ·  KEEP OUT', 2.6, 0.55, '#efe8d6', '#a8302a', x, 1.75, zS - 0.08, Math.PI, true);
+  for (const x of [-6.25, 6.25]) rtSign(g, 'WARNING  ·  LETHAL FORCE AUTHORIZED', 2.6, 0.5, '#c9a43a', '#1c1c1c', x, 1.75, zS - 0.08, Math.PI, true);
+  rtSign(g, 'SPEED LIMIT 55', 0.6, 0.75, '#f2f2ea', '#1c1c1c', -9.5, 1.6, zS - 0.08, Math.PI, true);
+  rtSign(g, 'RESTRICTED  ·  MILITARY AREA', 2.4, 0.5, '#efe8d6', '#a8302a', xE - 0.08, 1.75, -14, -Math.PI / 2, true);
+  rtSign(g, 'MOTEL GUESTS ONLY', 2.0, 0.5, '#2f6060', '#f2e6c8', xE - 0.08, 1.75, 14, -Math.PI / 2, true);
   // on the blast walls along the highway, facing it: the checkpoint's stencils, each on its own run of panels
   const zW = RZ(28) + 0.31 + 0.006;
   // (the name once, in the middle of the long run between the jersey barriers; never out over the barriers either side
@@ -878,7 +924,8 @@ function rtBuild(g) {
 // the map as world/arena.js takes it (AR_MAPS)
 export const ROUTE_MAP = {
   id: 'route', name: 'Route 9', note: 'A highway services, abandoned: the store in its lot, the checkpoint, the pile-up',
-  plan: RT_PLAN, b: RT_B, h: RT_H, low: RT_LOW, vault: RT_VAULT, walls: '#hW', what: RT_WHAT, build: rtBuild, indoor: false, tod: null,
+  plan: RT_PLAN, b: RT_B, h: RT_H, low: RT_LOW, vault: RT_VAULT, walls: '#hW', what: RT_WHAT, build: rtBuild, indoor: false, tod: null, thru: '',   // (the store's gondolas are solid: a round stops in them, its box knocked off)
+ 
   under: { R: 0.55, X: 0.5 },   // (the army truck's and the tractors' chassis: rounds from your own eyes go under them, world/collision.js)
   // (its lights, only as it gets dark, lighting/lightmap.js: the canopy's cool white, the sodium lamps and floods warm)
   lights: () => RT_LAMPS.map(([i, j, k]) => ({ arena: true, always: k === 'w', x: cxw(RT_B[0] + i), z: cxw(RT_B[1] + j), r: k === 'c' ? 10 : k === 'f' ? 16 : k === 'w' ? 11 : 13, col: k === 'c' ? [0.86, 0.92, 1] : k === 'w' ? [1, 0.66, 0.4] : [1, 0.8, 0.52], int: k === 'c' ? 0.85 : k === 'w' ? 0.8 : 0.85 })),

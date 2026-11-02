@@ -419,7 +419,8 @@ export function stepDebris(list, dt) {
   }
 }
 // pump and bolt guns cycle after the shot, worked hard, each time in one of a few ways picked at random (RACKS). The
-// beats, as fractions of the cycle: a pump is yanked back to its stop (back), bounces there a hair (fwd), is shoved
+// beats, as fractions of the cycle (a bolt's reach long enough, and its start late enough after the shot, that the
+// hand eases off the grip as the kick settles rather than snatching at the bolt mid-recoil): a pump is yanked back to its stop (back), bounces there a hair (fwd), is shoved
 // forward and slams home (home), and the gun settles. For a bolt the hand goes up to the handle (reach), snaps it up
 // (lift), draws the bolt back hard (back), a hair's rest (fwd), drives it forward (home), slaps the handle down to lock
 // it (lock) and goes back to the grip. The spent case flies out as the action hits its rear stop.
@@ -448,19 +449,19 @@ export const RACKS = {
   // (rolled and turned toward your left, the handle's side up: the rifle's worked right-handed, player/player.js)
   bolt: [
     // deliberate: up, back, a beat, forward, down, the rifle staying on the shoulder with a little roll
-    { beat: { reach: 0.12, lift: 0.23, back: 0.43, fwd: 0.51, home: 0.69, lock: 0.77 }, dur: 0.9, delay: 0.15, ex: [1.3, 1.5], hand: [-0.012, -0.004],
+    { beat: { reach: 0.17, lift: 0.27, back: 0.45, fwd: 0.53, home: 0.7, lock: 0.78 }, dur: 0.9, delay: 0.22, ex: [1.3, 1.5], hand: [-0.012, -0.004],
       lean: { grab: { r: 0.13, y: -0.03, h: -0.012 }, lift: { r: 0.05 }, off: { p: 0.04, z: -0.018, w: 0.04 } },
       kick: { up: { gun: [0, 0.35, 0], cam: [0.05, 0, 0] }, back: { gun: [0.8, -0.2, -0.4], cam: [0.11, -0.5, -0.1] },
         home: { gun: [-0.3, 0, 0.3], cam: [-0.05, 0.35, 0.08] }, lock: { gun: [-1.0, -0.7, 0.1], cam: [-0.14, 0.2, 0.16] } } },
     // one fast sweep: the handle flicked up and torn back in a single motion, then driven home and slapped down with
     // the heel of the hand coming over the top of the knob
-    { beat: { reach: 0.1, lift: 0.17, back: 0.36, fwd: 0.4, home: 0.56, lock: 0.62 }, dur: 0.78, delay: 0.12, ex: [1.1, 1.7], hand: [-0.004, 0.016], sweep: 0.05,
+    { beat: { reach: 0.15, lift: 0.21, back: 0.39, fwd: 0.44, home: 0.59, lock: 0.65 }, dur: 0.8, delay: 0.2, ex: [1.1, 1.7], hand: [-0.004, 0.016], sweep: 0.05,
       lean: { grab: { r: 0.08, y: 0.03, h: -0.006 }, lift: { r: 0.03 }, off: { p: 0, z: -0.026, w: 0.09 } },   // the muzzle stays on target
       kick: { back: { gun: [0.6, -0.3, -0.6], cam: [0.13, -0.6, -0.12] }, home: { gun: [-0.2, 0, 0.35], cam: [-0.04, 0.3, 0.06] },
         lock: { gun: [-1.3, -1.1, 0.15], cam: [-0.2, 0.25, 0.2] } } },
     // the rifle brought down off the shoulder and in toward the chest, rolled over hard, handle side up, to watch the
     // case fly, then put back up level to fire
-    { beat: { reach: 0.14, lift: 0.25, back: 0.44, fwd: 0.5, home: 0.66, lock: 0.74 }, dur: 0.95, delay: 0.15, ex: [1.4, 1.4], hand: [-0.014, -0.008],
+    { beat: { reach: 0.19, lift: 0.29, back: 0.46, fwd: 0.52, home: 0.68, lock: 0.76 }, dur: 0.95, delay: 0.22, ex: [1.4, 1.4], hand: [-0.014, -0.008],
       lean: { grab: { r: 0.42, y: -0.16, h: -0.06, p: 0.05, z: -0.04 }, lift: { r: 0.04 }, off: { p: 0.03, z: -0.015, w: 0.03 } },
       kick: { up: { gun: [0, 0.5, 0], cam: [0.07, 0, 0] }, back: { gun: [0.7, 0.6, -0.35], cam: [0.18, -0.4, -0.08] },
         home: { gun: [-0.3, -0.2, 0.3], cam: [-0.05, 0.3, 0.06] }, lock: { gun: [-0.9, -1.4, 0.1], cam: [-0.22, 0.2, 0.14] } } }
@@ -472,7 +473,7 @@ export const RACKS = {
 // gun easing the other way from where the stroke will throw it (player/hold.js leans it by CYC_ANT of the stroke's
 // own lean, the other way), so the yank comes out of a beat of stillness rather than from nowhere; it takes the
 // first CYC_ANT.pump of a pump's pull (the pull itself the quicker for it) and a bolt's reach
-export const CYC_ANT = { pump: 0.3, lean: 0.4 };
+export const CYC_ANT = { pump: 0.3, lean: 0.4, bolt: 0.35 };   // (a bolt's wind-up only a hint of it: a lean the other way before the reach read as a twitch)
 export function cyclePose(c, q) {
   const o = { off: 0, lift: 0, grab: 0, ant: 0 }, B = c.v.beat, ex = c.v.ex;
   const run = (q0, q1, f) => f(clamp((q - q0) / (q1 - q0), 0, 1));
@@ -533,8 +534,11 @@ export function startCycle(id, held) {
   W8.cyc = { id, t: 0, dur: v.dur * k, delay: v.delay * k, done: false, beat: 0, bolt, v, fx: cycleFx(v, bolt), hold: !!held && !(id === 'pump' && hasMod('slam')) }; W8.open[id] = true;
 }
 // on each beat: the sound, a knock to the gun's loose spring and to the camera's. [where, what]
+// (a bolt's knocks softened, BOLT_SOFT: the rifle's worked smoothly off the shoulder, gun and view eased through the
+// stroke rather than jolted at each stop)
+const BOLT_SOFT = { gun: 0.5, cam: 0.4 };
 function cycleFx(v, bolt) {
-  const B = v.beat, K = v.kick, knock = k => { if (k) { rackKick(k.gun[0], k.gun[1], k.gun[2]); rackCam(k.cam[0], k.cam[1], k.cam[2]); } };
+  const B = v.beat, K = v.kick, g = bolt ? BOLT_SOFT.gun : 1, cm = bolt ? BOLT_SOFT.cam : 1, knock = k => { if (k) { rackKick(k.gun[0] * g, k.gun[1] * g, k.gun[2] * g); rackCam(k.cam[0] * cm, k.cam[1] * cm, k.cam[2] * cm); } };
   if (!bolt) return [[B.back, () => { SFX.pumpBack(); knock(K.back); }], [B.home, () => { SFX.pumpHome(); knock(K.home); }]];
   return [[B.reach + 0.02, () => { SFX.boltUp(); knock(K.up); }], [B.back, () => { SFX.boltBack(); knock(K.back); }],
     [B.home, () => { SFX.boltHome(); knock(K.home); }], [B.lock, () => { SFX.boltLock(); knock(K.lock); }]];

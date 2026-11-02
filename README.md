@@ -263,7 +263,8 @@ dust in the air at once, it's the faintest, nearly faded puff that's reused for 
 plainly there ever blinks out.
 
 **Melee.** An ash bat, crowbar, pipe wrench, machete, katana, fire axe and sledgehammer, each with its own swings,
-reach and stamina cost. Sharp blades take heads and limbs off. The bat is one smooth turned piece of ash; its Nails are real
+reach and stamina cost. Sharp blades take heads and limbs off. The bat is one smooth turned piece of ash with eight nails
+already driven through its barrel (a scavenger's bat, never a bare one); its Nails mod drives in more, real
 nails driven right through the barrel, round heads on the wood and points out the far side, and Barbed wire, its own
 mod now (no nails needed), is two twisted strands wound up the barrel with barbs every few centimetres. The crowbar is
 one red hex bar, the steel worn bright at both ends: a short angled pry foot with a nail slot, the long shaft and a
@@ -555,11 +556,17 @@ has its kick cross clear of its side's badge.
 | Recruit | 0.42–0.7 s | about 16° | 30 m | 8% of hits | Hardly minds what range its gun's good at, rarely flanks, runs everywhere (you hear it coming), barely plays as a side |
 | Regular | 0.28–0.45 s | about 13° | 36 m | 11% | In between |
 | Veteran | 0.17–0.3 s | about 10° | 42 m | 15% | Keeps to its gun's range (a shotgun pressing in, a rifle keeping back), flanks more, walks in quietly on someone it knows is there, spreads over the lanes with its side and goes where a teammate fell |
-| Terminator | 0.05–0.09 s | about 1.5° | 75 m | almost every hit | Everything a veteran does, cranked up: lasers you from far off, quick-peeks everything, spams crouch and lean mid fight, runs everywhere, holds the angles you come through in Showdown, and never re-peeks an angle it was shot from (below) |
+| Terminator | 0.13–0.2 s | about 1.5° | 75 m | about 80% of hits | Everything a veteran does, cranked up: lasers you from far off, quick-peeks everything, crouches and leans mid fight, runs everywhere, holds the angles you come through in Showdown, and never re-peeks an angle it was shot from (below) |
 
 **Reacting** takes longer the more of a surprise you are: off to the side of where it's looking (up to 70% longer at
 the edge of what it sees), someone it had no idea of (a third longer), and that close, round a corner under 8 m (a
 quarter longer again); its first aim then starts further off you. Someone it knew was just there it reacts to quicker.
+
+**Every bot plays to its gun.** A bot with a shotgun or a double barrel (anything short-ranged) never peeks out at
+someone more than about 15% past its gun's reach: it flanks round to them (half the time) or holds its corner for them
+to come close instead. Spotted from further off than it can hit, it goes back into cover rather than stand in the
+open. Out of shells (or with a double barrel's two spent), it ducks back behind cover to reload, and from cover it
+takes a pop shot when someone's in reach and goes straight back in. The other guns keep to their own ranges as before.
 
 To every game in the match a bot is just another player. It picks a class, carries that class's guns and bandages,
 counts in the score, the kill feed and the results, can be spectated, and bleeds and falls like anyone else. The
@@ -642,16 +649,16 @@ their aim faster, and their first two rounds after a breath spread 40% less.
 
 **Terminator: harder than Veteran, everything cranked up.** A fifth pick under **Bots** (pvp/bots.js, the fourth row of
 BOT_SKILL and the Terminator's own knobs on it):
-- **Lasers you from far off.** It reacts in 0.05–0.09 s, its first aim is about a quarter as far off you as a veteran's
-  and settles twice as fast, it turns about half again as quick, and it sees out to 75 m across a wider view. Its shots
+- **Lasers you from far off.** It reacts in 0.13–0.2 s (quick, not superhuman), its first aim is about a quarter as far off you as a veteran's
+  and settles twice as fast, it turns a little quicker than a veteran, and it sees out to 75 m across a wider view. Its shots
   hardly spread: a fifth of the spread its own moving and its gun's looseness add, a twelfth of what range adds, and
   almost none from a held trigger. It fires 70% further past each gun's usual reach.
-- **Hits all headshots.** It aims at the head every time, and 96% of the hits it lands that way are in the head (a
+- **Mostly headshots.** It aims at the head, and about four in five of the hits it lands that way are in the head (a
   veteran's land there at most half the time). Low cover still takes its rounds as it does anyone's.
 - **Quick-peeks everything.** Its peeks, the gaps between them and its time holding a corner are all about half as long.
   After a burst from a stepped-out peek it's straight back in behind its cover, as it already was from a lean, and comes
   again from somewhere else.
-- **Crouch spam and lean spam.** Once a fight's on it bobs in a crouch most of the time (even pushing in), each bob a
+- **Crouches and leans.** Once a fight's on it bobs in a crouch about half the time (less than it used to), each bob a
   tenth to a fifth of a second. It also leans one way and the other every fifth to a third of a second, always to a side
   it can still see you from, at any walking pace and quicker to lean over than anyone else.
 - **Runs everywhere.** It sprints wherever it's going (looking, flanking, searching, going after someone, out to its
@@ -1221,7 +1228,12 @@ like pea-shooters). To a 100-health body, before range falloff:
   seconds later (2.8 s). Time holds stopped for a beat (0.6 s), and only then does the scoreboard come up over the
   frozen moment. The clock and the HUD run on real time, so they carry on.
   - Everything slows with it: every sound playing and every new one (pitched down as it slows), the others' bodies
-    and guns, tracers, smoke and particles.
+    and guns, tracers, smoke and particles, and your own arms and gun from your own eyes (a swing, a reload, a bolt,
+    the recoil and the flinch all wind down with the world).
+  - It drops off hard the moment the last kill lands (to about a third speed at once), then winds on down from there,
+    so it's plain the match is over.
+  - You can still shoot while it slows (at its own slowed pace), and your mouse sensitivity slows with it, down to about
+    a fifth as it stops.
   - Looking round while the scoreboard's up, your arms and gun turn with the view (they no longer stay pointed where
     you last aimed).
   - No sound from the results coming up, and none from your loadout going back into your hands as you come back in.
@@ -1229,8 +1241,8 @@ like pea-shooters). To a 100-health body, before range falloff:
   place (they no longer slide in from the side).
 - **Killed by a hit to the head**, a round or a blow, or with your head taken off by whatever hit you (a sledgehammer's
   crush, a blade's split, a round that bursts it), it's a beat of its own: a quick red flash, a dark red vignette in
-  from the edges that leaves the middle of the view clear, a short ringing in your ears (the world's sound dulled
-  under it), the world drained of colour and a touch soft, the colour seeping back as the death camera turns to
+  from the edges that leaves the middle of the view clear, a soft, short ringing in your ears (much quieter than it was, the world's sound only a
+  little dulled under it), the world drained of colour and a touch soft, the colour seeping back as the death camera turns to
   whoever did it, all of it gone in about 1.8 seconds. It never blacks out the view.
 - **Space** skips the death camera a second after you go down: in the respawn modes you're straight back in (unless
   you've opened the loadouts), in Showdown straight on to watching a teammate. **F** opens the loadouts for your next
@@ -1293,9 +1305,10 @@ middle and about 5.5 s by either side lane):
   cloud of it hanging a moment where the box stood, and a dull crunch. (It used to be a puff of dust and a few small
   cubes.) All the pieces are one instanced mesh, at most 260 of them at once, so a shotgun blast through a shelf
   costs next to nothing.
-  Bots' rounds do it too, and every player sees the same boxes go. **Shelving can be shot through**: rounds and pellets
-  go on through it (knocking off every box in their way), on every map with shelving (the Mall, Route 9, the Farm),
-  though it still blocks sight and movement. They all come back with the next round in Showdown; in Deathmatch and Team deathmatch each one's back
+  Bots' rounds do it too, and every player sees the same boxes go. **The Mall's open stockroom shelving can be shot
+  through**: rounds and pellets go on through it (knocking off every box in their way), though it still blocks sight
+  and movement. Route 9's gondolas have a solid back panel and stop rounds like a wall (only the box a round meets is
+  knocked off). A melee swing knocks off every box in its reach and arc on your side of the shelving (up to four). They all come back with the next round in Showdown; in Deathmatch and Team deathmatch each one's back
   25 s after it went (and all of them at the next match). Any map can have them (world/arena-boxes.js).
 - **Dressed as a real mall**, none of it changing the cover: each shop's glass shows the shop behind it (clothes,
   electronics, books, shoes, jewellery, toys) with its name lit on its sign band, the anchor stores' display windows
@@ -1382,8 +1395,12 @@ the middle past its landmark, south edge), each spawn the road coming in at its 
     side. Inside are its fresh graves in a row along the south wall, its two yews, the Hawthorne Arms' beer garden and
     the old pump house (WATER ✓).
   - **Each end**: the last coach (EVACUATION on its board, its door open, luggage still on its rack; rounds go under
-    it), with that side's spawn behind it. The road is closed beyond by the army's barricade (concrete blocks, razor
-    wire, EVACUATION POINT · CLOSED), with the queue of cars left in it. The church tower over the shops has HELP hung
+    it), with that side's spawn behind it. The road out is closed by the army's barricade: a line of jersey
+    barriers only as wide as the road (two lanes and their gutters, about 8 m), razor wire coiled along their tops and
+    EVACUATION POINT · CLOSED on them, a stone wall either side of it running right up to the corner buildings' faces
+    and on past their corners (no slit between wall and building). Beyond it the road runs on
+    with its kerbs, pavements and centre line, the queue of cars nose to tail in the outbound lane and a burnt one facing
+    back in the other, up to a terrace of houses across the end of the street, where it turns off out of sight. The church tower over the shops has HELP hung
     from it, and dead trees stand round the town.
 - **Saltmarsh Quay**: the harbour the last boats left from. The harbour water is a moving shader, with rippling
   normals, deep water darkening away from the wall, the sky caught at a low angle, sun glints, and foam where it slaps
@@ -1461,11 +1478,29 @@ as a made thing rather than type laid over a picture:
   buildings, each door, window and painted sign only where the front is open.
 - **Saltmarsh Quay** (this pass): the shops, the Net Loft and the harbour office no longer run into walls or hide
   half behind them; nothing floats over the boats or by the quay edge. The water is darker and calm, its ripples and
-  glints fading out with distance so it doesn't shimmer far off. The lighthouse's lantern glows, a pair of beams turn
-  round it, and a lens flare and halo bloom whenever a beam swings toward you.
+  glints fading out with distance so it doesn't shimmer far off. The lighthouse's lantern glows and its beams sweep
+  round: drawn now with Kenney's cone light mask (Light Masks, the same pack the glows come from) as flat sheets of light
+  off the lantern that always face you, laid the way each beam points as you see it, long and broad side-on, shortening
+  as it swings toward you or away, the lantern's halo flaring as one comes round to you (no turning 3D cones). A lens
+  flare follows whichever beam's toward you.
+- **Saltmarsh Quay** (the ends): the quay road at each end runs out past the army's barricade (now only as wide as the
+  road, QUAY CLOSED · ARMY, a stone wall either side of it, flush against the ice house and the boat shed with no gap
+  at their corners) and into the **Saltmarsh Tunnel**, through the headland that
+  rises over the end of the map: its concrete portal and name, the bore going on into the dark with its pale tiled
+  walls and dead strip lights. The cars that queued for the ferry stand nose to tail up to it and on into it, one burnt
+  out facing back. The town drawn round the maps no longer stands across the road ends (the cars used to sit half into
+  its houses), on the quay or in the square.
+- **Saltmarsh Quay** (the sea): the harbour water runs out to the horizon and fades into the sky's haze there, so the
+  sea has no edge. The pollen and dust that drift in the air from your own eyes now only show within a few metres of
+  you (they're drawn the same size however far off, so any further out read as specks of dust hanging over the
+  distance).
+- **Saltmarsh Quay** (the pickup): the harbourmaster's pickup has a proper bed, sides, a bulkhead behind the cab and a
+  tailgate, and the boxes left in it stand on its floor inside it (they used to hang out over the back).
 - **Larkspur Mall**: the planters squeezed against pillars are gone, the food court's trees and tables sit clear of
   the walls, and the corner tables sit flush.
 - **Yard 4 and Harlan Farm**: the few crates, bales, sandbags and bollards that pinched a route have moved.
+- **Larkspur Mall's shopfronts**: each pane's glass now fills its whole cell, so there's no slit through the shop wall
+  between one pane and the next (you could see through to behind the shops).
 - **Larkspur Mall's shops** (this pass): every shop window is a painted room seen through the glass, in perspective:
   a lit pool on the floor, shelves pulled about and ransacked, goods on the floor, dust in the air, grime, smears and
   cracks on the glass and the reflection of the mall across it. The product posters are faded studio shots in
@@ -1525,7 +1560,7 @@ Deathmatch: everyone for themselves, back in a few seconds after going down.
     tier up to the best. Everyone gets the same draw, and you see it on your card with the ladder under it.
   - Everyone also carries a machete. A machete kill doesn't move you up, but it puts the person you killed back one
     gun.
-  - **The golden revolver** holds one round per load, with a dozen spare, and any hit kills.
+  - **The golden revolver** holds one round per load, with a dozen spare, and any hit kills. Its tracer is gold.
   - **The golden katana** kills with one blow, any blow, and a kill with it wins the match. If the clock runs out
     first, whoever is furthest up wins.
   - Reaching either golden weapon brings a big gold call over the screen with a fanfare. When anyone else reaches
@@ -1617,8 +1652,9 @@ takes much more of their blood (a blade's edge the most) and so do you; the farm
 **Blocking with a melee weapon** (`melee/block.js`). Hold **right click** with a melee weapon out to bring it up
 across you as a guard (eased up over about a seventh of a second, the arms bringing it across in front of your face,
 the chest turned to put the shoulder behind it).
-- **While it's up** you can't swing and you walk at 70%. Held for more than 0.6 s it drains your stamina, about an
-  eighth of the tank a second, and none comes back while it's up.
+- **While it's up** you can't swing and you walk at 70%. Holding it costs nothing by itself (no stamina drains while
+  it's up, though none comes back either); only the blows it takes cost you. It comes up on any stamina at all, not
+  only a full tank.
 - **A blow from in front** (within 40° either side of where you face: nothing from the sides or behind) lands on the guard. Only 18% of it gets
   through (45% of a fire axe's or a sledgehammer's, which beat a guard down) and it knocks stamina out of you at once,
   by the weapon: a tenth of the tank for a crowbar, 13% a machete, 15% a katana, 18% a bat, 24% a wrench, a third
@@ -1627,9 +1663,10 @@ the chest turned to put the shoulder behind it).
   of a flash come in from the edges), and it can't come up again for 1.2 s.
 - **After a swing** the guard can't come up until the weapon's back across, longer the heavier it is: a crowbar's
   almost at once, 0.38 s after a fire axe's swing, 0.6 s after a sledgehammer's. Bots keep to the same.
-- **A parry**: raise the guard within 0.22 s of the blow landing and none of it gets through, it costs nothing, and
-  whoever swung is thrown off: staggered and unable to swing for most of a second. Parried, your own screen's hit: a
-  cold white flash in from the edges, **Parried** stamped over the middle, and the view swimming for a moment.
+- **A parry**: raise the guard within 0.22 s of the blow landing and none of it gets through, it costs nothing (it
+  gives you back an eighth of your stamina), and whoever swung is thrown off: staggered and unable to swing for most
+  of a second. Parried, your own screen's hit: a cold white flash in from the edges and the view swimming for a moment
+  (no words over it).
 - **Bullets go straight through** a guard. A zombie's swing lands on it the same way (a brute's harder; a crawler's
   swipe at your ankles goes under it), and a parry sends the zombie reeling.
 - **The crosshair** swaps its brackets for a shield (Kenney's Board Game Icons) while the guard's up.
@@ -1638,6 +1675,8 @@ the chest turned to put the shoulder behind it).
   - Just raised, while a blow would still be parried, it glows gold and stands a little bigger.
   - A parry pops it, white, and throws a ring out off it; a blow on the guard flashes it white and jolts it.
   - Broken, it goes red, splits in two, and its halves tip over and fall away as they fade.
+- **What gets through a block bleeds.** The share of a blocked blow that gets through draws a little blood off whoever
+  took it, on everyone's screen, as well as the sparks (a parry lets nothing through: sparks only).
 - **A blow on the guard** throws sparks off where the steel meets (a white-hot flash and its glow, sparks back toward
   whoever swung and out along the edge; a parry's twice as bright with embers that hang), rings out (a clang through
   your arms; a parry's a bright ring of steel that hangs), and slams the weapon and your fist back at you on the arm's
@@ -1649,6 +1688,31 @@ the chest turned to put the shoulder behind it).
   it's held and with each blow it takes, breaks the same way, and comes back while it's down. They drop it once the
   blow's come, to hit back. Everyone sees a guard up and its sparks.
 - **Only in front.** The guard covers 40° either side of where you face; a blow from the side or behind lands.
+
+**Melee with more to it than block and swing** (`melee/block.js`, the same for the bots).
+- **Charged heavy blows.** Keep the button held and the swing stops just before the blow lands and winds up there, the
+  weapon trembling back and the crosshair's brackets closing in orange, up to full in about two thirds of a second (a
+  rising ring when it's full; it eats a tenth of your stamina a second while held, 2.5 s at most). Let go to bring it
+  down: up to 60% harder the longer it was held, and one at full **breaks a guard** outright (and gets 1.6× as much
+  through it). Tap it for a quick swing as before. Others see the wind-up and the release on your avatar.
+- **Feints.** While it's winding up, raise your guard (right click) to pull the blow: a quick feint that costs a little
+  stamina and baits a guard or a parry out of whoever's watching.
+- **Ripostes.** Parry a blow and for 0.9 s your next swing comes 28% quicker, hits 40% harder and goes through any guard
+  (the crosshair glows gold while it's up).
+- **Poise.** A blow landing on you mid-swing breaks your swing off, unless you're past the first 30% of it and swinging
+  something clearly heavier than what hit you (a bat, wrench, axe or sledgehammer against a crowbar or a machete; an
+  axe or a sledgehammer against a katana). Broken off once, you can't be broken off again for 1.1 s, so a light
+  weapon's spam (the katana's included) can't keep you from ever swinging back.
+- **Ducking.** Crouch under a swing across (a sideways sweep) and it goes over your head. A chop from overhead still
+  lands. Bots at the higher skills duck sweeps in Brawl, and parry more often.
+- **Shoving a guard open.** A shove into someone's guard from in front knocks it aside without touching their stamina:
+  the guard's down and can't come up for most of a second, and your next blow goes through any guard while it's open.
+  Holding a guard against someone who shoves gets punished.
+- **The katana's balanced.** It hits for less (28), swings a little slower, reaches a touch shorter, costs more stamina
+  a swing and bleeds less often, so it's no longer the one weapon to spam.
+- **Brawl kill perk.** In Brawl each kill gives you back half your health and half your stamina at once (bots too).
+- **Boxes in one swing.** A melee swing knocks off every box on a shelf in its reach and arc on your side of the
+  shelving (up to four), as a round does: on the Mall's stockroom shelving, Route 9's gondolas and the Farm's racks.
 
 **Swings everyone sees.** Bots swing their melee weapons as you do: their arms, body and weapon go through a swing
 recorded off a survivor swinging each weapon, frame by frame, the blow landing on its own timing (they used to only
@@ -1740,15 +1804,25 @@ side lot):
   brushes' gantry over the parapet, and cars left in it), and the army's line along the highway stands **in
   sections**, one of them **knocked flat by the pile-up** (lying on its face, its foot in the air: you vault it), so
   the highway's reached from the forecourt in four places.
+- The **QUARANTINE ZONE**, **WARNING**, **SPEED LIMIT**, **RESTRICTED** and **MOTEL GUESTS ONLY** boards on the
+  chain-link fence hang on its inside, facing in (they were wired up on the far side of it).
+- **Crates** stacked on a pallet fill it, two to a layer, so neighbouring stacks stand flush with no gap between them.
 - each side spawns in the **garage's lot** at its end (the motel's car park east: the same walls, dressed
   differently): the garage's wings either side and the **army's truck and its trailer** (a water bowser on its own two
-  axles behind the truck) parked across its front, two ways out round the truck's ends; its team together in the lot,
+  axles behind the truck) parked across its front, two ways out round the truck's ends (three metres each now: the
+  truck and trailer were shortened a metre at each end); its team together in the lot,
   out of every sightline (each round a random spot there, teammates next to each other: world/arena.js).
 - **North, the Travel stop**: close quarters. A real store: painted block walls up to its flat roof, a parapet round
   it with ROUTE 9 MART along the front, lintels over its doors, its windows boarded over, the ice chest and the bin in a
   bay of the front wall and the propane cage in one in the side wall. In from the side lot by its side door or round
-  through the storeroom (its back door and its front doors three metres wide now); a gondola in each half, the checkout, the walk-in cooler and restrooms in the very middle so
-  it's never seen end to end. From your own eyes its roof is on (stained ceiling tiles, dead strip lights, one come
+  through the storeroom (its back door and its front doors three metres wide now). Laid out as a convenience store:
+  in each half a gondola aisle running front to back (two metres to the side wall, three to the middle, its back
+  panel solid: a round stops in it, only the box it meets is knocked off), the drinks wall down the middle block's
+  sides (glass reach-in doors, COLD DRINKS over them, the racks behind half empty), the checkout counter across the
+  front of the store between the doors with a till at each end and the impulse rack between them (low: seen and shot
+  over, vaulted), the cigarette rack and LOTTERY · TOBACCO · PHONE CARDS on the back-bar behind it, and the walk-in
+  cooler and the restrooms in the middle block, their doors round the back in the storerooms, so it's never seen end
+  to end. The gondolas used to be shot straight through. From your own eyes its roof is on (stained ceiling tiles, dead strip lights, one come
   down); from above it's cut away so you see in. Its front doors open onto the forecourt behind a pump island, the
   army's sentry post (HESCO) out in front of them. The boxes left on the gondolas can be shot off (a puff of dust and
   cardboard; they're back next round, or after 25 s in a deathmatch).
@@ -2170,7 +2244,9 @@ parallax). The glass looks like glass: a touch of pincushion toward the rim, col
 edge a little soft, a gentle fall-off to the rim the way a real lens dims (not a hard dark ring), a little light lost
 and the blacks lifted faintly by glare inside the tube. The eye box is forgiving: the tube's shadow only creeps in from
 the side your eye's well off the axis, with a broad soft edge and a faint blue-amber fringe along it like a real exit
-pupil's, and a turn or a shot's kick swings it much less, so the picture's clear almost as soon as the scope's up
+pupil's, and a turn or a shot's kick swings it much less, so the picture's clear almost as soon as the scope's up (as
+you crouch or stand, or anything else swings the view past the edge of the magnified picture, what's past it goes
+to the tube's black shadow rather than the picture's edge being smeared out across it, on every scope)
 (at the hip you see the eyepiece's dark coated glass, really reflecting the world round you off its curved face: the
 sky, the house, trees, a lamp or a flashlight's glow, more of it the more glancing your look. Its glare comes only from
 real lights: the sun or the moon, the burn barrel's fire (flickering with it), the porch lamp and the bulbs in the
@@ -2284,7 +2360,10 @@ revolver's reload leaves the cylinder swung out through the shove, the reload go
 it shut and swinging it out again. Between loading shells and working the pump, the bolt or the cylinder, the hands carry on from one
 into the next without a jump: after the last shell the hand comes off the loading port, dips under the gun onto the
 pump and takes hold of it before it's worked, and the hand on the bolt eases back to the grip. A pump or a bolt is
-never yanked out of nowhere: there's a beat first, the grip set and the gun easing a touch the other way from where the
+never yanked out of nowhere (the hunting rifle's bolt least of all: it waits a moment longer after the shot, about a
+fifth of a second, for the kick to settle, the hand takes longer reaching for the knob, the gun rides the stroke on a
+heavily damped spring with no wobble, and its stops knock the gun about half as hard and the view under half as much,
+so the shot flows into the bolt rather than snapping to it): there's a beat first, the grip set and the gun easing a touch the other way from where the
 stroke will throw it, then the stroke snaps through on the same timing as before (so the sound and the case flying out
 still land on it), bounces off its stops and the gun follows through on its loose spring. Hold the trigger down after
 a shot and the pump or bolt isn't worked till you let go of it (the gun stays on target, the action shut, for a
@@ -2422,7 +2501,7 @@ sighted along its top first, unhurried, then rolled to its bolt; the battle rifl
 way and lifted to look at its mag well; the machine pistol's light, so it's flicked about quickly; the SMG shows its
 cocking tube, the front sight's hood and the drum sight; the AR its left side, the port and forward assist, and its
 mag well; the LMG's heavy, so it's only hefted and tipped a little each way before a look over the feed cover. At the
-end it's carried back onto the aim as smoothly as it was turned. Pausing or picking cards between waves doesn't cut it short or start it over: it comes to a stop right where it is under the menu, frozen mid-move from your own eyes and from above alike (the hands' small shake stops with it), and carries on from there once the menu's gone. A melee weapon's looked over its own way: a one-hander (the
+end it's carried back onto the aim as smoothly as it was turned. Pausing or picking cards between waves doesn't cut it short or start it over: it comes to a stop right where it is under the menu, frozen mid-move from your own eyes and from above alike (the hands' small shake stops with it), and carries on from there once the menu's gone. Online (co-op or the arena with others), where the game never stops for your pause menu, it carries on playing under the menu as everything else does, and a click on the menu doesn't cut it short. A melee weapon's looked over its own way: a one-hander (the
 crowbar, the wrench, the machete) is brought up in front of your face, turned to show one flat and then the other,
 laid across to look along its edge and twirled once in the fingers before it drops back to the guard; the katana's
 held across in both hands at the chest and turned, then stood up to look up its edge; the axe, the sledge and the bat

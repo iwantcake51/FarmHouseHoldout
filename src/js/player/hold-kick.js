@@ -27,8 +27,10 @@ export function feel(id) {
   return _feel;
 }
 export function rackKick(p, r, z) { const k = _feel.knock; RACK.vp += p * k; RACK.vr += r * rr(0.85, 1.15) * k; RACK.vz += z * k; }
-export function stepRack(rdt, t) {
-  const kK = _feel.kK, dK = _feel.dK;
+// (a bolt gun's rides it more heavily damped and a little softer, RACK_BOLT: eased through the stroke, no wobble)
+const RACK_BOLT = { k: 0.75, d: 1.8 };
+export function stepRack(rdt, t, bolt) {
+  const kK = _feel.kK * (bolt ? RACK_BOLT.k : 1), dK = _feel.dK * (bolt ? RACK_BOLT.d : 1);
   for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / Math.max(1, n), i = 0; i < n; i++)
     for (const a of ['p', 'r', 'y', 'z', 'h', 'w']) springTo(RACK, a, 'v' + a, t[a], (a === 'z' ? RACK_K * 1.3 : a === 'w' ? RACK_K * 0.6 : RACK_K) * kK, RACK_D * dK, dt);
 }

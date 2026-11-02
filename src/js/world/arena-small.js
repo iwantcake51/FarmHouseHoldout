@@ -39,6 +39,8 @@ import { ci, cxw, idx } from './grid.js';
 import { cellBox } from './collision.js';
 import { fpOn } from '../game/view-cam.js';
 import { liveTex, paintNotice, paintSign, paintSpray } from './sign-art.js';
+import { partTex } from '../effects/textures.js';
+import { SKY_U } from './sky.js';
 
 // ---- the plans (tools/small-plan.py prints them): # the edge, h a building, a tent or the pump house, V a vehicle
 // (the coach, the lorry, the pickup, the ambulance: rounds go under them), U one on its side or with no underside (the
@@ -599,16 +601,85 @@ function sqEdges() {
   for (let k = 0; k < 8; k++) smTree(-22 + k * 6.3 + rr(-1, 1), smZ1 + 5 + rr(0, 6), 'dead');
   for (let x = -24; x <= 24; x += 2) smBx(2, 0.8, 0.3, smSH.stoneLo, x, 0.4, smZ1 + 2.6);
 }
-// the army's barricade across the road at one end (s: -1 west, 1 east): concrete blocks along the edge, razor wire coiled
-// over them, its sign, and beyond it the road on out of town with the cars that queued for the coaches
-function smEndBarricade(s, text, seedName) {
-  const ex = s < 0 ? smX0 + 0.5 : smX1 - 0.5, z0 = smZc(6) - 0.5, z1 = smZc(19) + 0.5;
-  for (let z = z0 + 0.5; z < z1; z += 1.0) { smBx(0.6, 0.9, 0.96, smSH.stoneLo, ex, 0.45, z); smBx(0.3, 0.12, 0.96, smSH.stoneLoDk, ex, 0.95, z); }
-  for (let z = z0 + 0.3; z < z1 - 0.2; z += 0.36) { const c = smPush(new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.012, 4, 14), smAPOC.wire)); c.position.set(ex, 1.32, z); c.rotation.y = Math.PI / 2 + rr(-0.15, 0.15); }
-  smPic(1.9, 0.9, smTexM(smSignTex(text, '#b2271f', '#ffffff', 1.9, 'Arial'), true), ex - s * 0.31, 1.45, smZc(10), [-s, 0]);
-  smBx(16, 0.02, 14, lam(0x3a3b3e), ex + s * 8.5, -0.005, (z0 + z1) / 2);
-  const cols = [0x2c4a6a, 0x8a8a86, 0x7a2a24, 0x3e5a46, 0xb8b2a0];
-  for (let k = 0; k < 4; k++) { const x = ex + s * (3.2 + (k >> 1) * 5.4), cz = (z0 + z1) / 2 + (k % 2 ? 2.2 : -2.2); smCar({ w: 4.2, d: 2.0, cx: x, cz }, k === 3, cols[(k + seedName.length) % 5]); }
+// the road out of town at each end (s: -1 west, 1 east), and the army's barricade across it: a road two lanes wide with
+// its pavements (SM_ROAD), closed by a line of jersey barriers just as wide with razor wire coiled along their tops and
+// the army's sign on them; either side of it, where the end of the map's open past the road, a stone wall. Beyond it the
+// road runs on out (its lines, its kerbs, the verge) to where it leaves: on the quay into the tunnel through the
+// headland (smTunnel), in the square up to the terrace across the end of the street, where it turns off out of sight.
+// The cars that queued for the coaches or the ferry stand nose to tail in the outbound lane up to it, one on into the
+// tunnel, one left facing the other way in the far lane
+const SM_ROAD = { half: 3.6, kerb: 1.4, out: 16 };
+function smEndBarricade(s, text, seedName, tunnel) {
+  const ex = s < 0 ? smX0 + 0.5 : smX1 - 0.5, z0 = smZc(6) - 0.5, z1 = smZc(19) + 0.5, zc = (z0 + z1) / 2, R = SM_ROAD, rw = R.half + 0.4;
+  // (the barriers: 2 m units, a broad foot and a narrower upper, a seam between each; the wire over them)
+  const n = Math.round(2 * rw / 2), seg = 2 * rw / n;
+  for (let k = 0; k < n; k++) {
+    const z = zc - rw + seg * (k + 0.5), m = k % 2 ? smSH.stoneLo : smSH.stoneLoDk;
+    smBx(0.62, 0.3, seg - 0.04, m, ex, 0.15, z); smBx(0.36, 0.55, seg - 0.04, m, ex, 0.575, z); smBx(0.24, 0.08, seg - 0.04, smSH.stoneLo, ex, 0.89, z);
+  }
+  for (let z = zc - rw + 0.3; z < zc + rw - 0.2; z += 0.36) { const c = smPush(new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.012, 4, 14), smAPOC.wire)); c.position.set(ex, 1.25, z); c.rotation.y = Math.PI / 2 + rr(-0.15, 0.15); }
+  for (const z of [zc - rw - 0.1, zc + rw + 0.1]) smCy(0.04, 0.05, 1.6, smSH.iron, ex, 0.8, z, 6);   // (the stakes the wire's tied off to)
+  smPic(1.9, 0.9, smTexM(smSignTex(text, '#b2271f', '#ffffff', 1.9, 'Arial'), true), ex - s * 0.2, 1.45, zc, [-s, 0]);
+  // (the wall either side of the road, to the buildings on the corners)
+  // (from the edge cell's outer side right up to the corner buildings' faces, and on past their ends, so there's no slit
+  // between the wall and a building or round its corner)
+  const wx = ex - s * 0.125;
+  for (const [a0, b0] of [[z0, zc - rw], [zc + rw, z1]]) if (b0 - a0 > 0.1) {
+    const a = a0 < zc - rw - 0.01 ? a0 - 0.6 : a0, b = b0 > zc + rw + 0.01 ? b0 + 0.6 : b0;
+    smBx(0.76, 2.1, b - a, smSH.stoneLo, wx, 1.05, (a + b) / 2); smBx(0.86, 0.12, b - a + 0.02, smSH.stoneLoDk, wx, 2.16, (a + b) / 2);
+    smBx(0.86, 2.3, 0.56, smSH.stoneLoDk, wx, 1.15, a < zc ? b - 0.28 : a + 0.28);   // (the pier at the road's edge)
+  }
+  // (the road beyond: the tarmac, its centre line, its kerbs and pavements, the verge either side)
+  const x0 = ex + s * 0.3, x1 = ex + s * (R.out + (tunnel ? 0 : 2)), cx = (x0 + x1) / 2, L = Math.abs(x1 - x0);
+  smBx(L, 0.02, 2 * R.half, lam(0x3a3b3e), cx, -0.005, zc);
+  for (let d = 0.6; d < L - 0.6; d += 3) smBx(1.6, 0.01, 0.12, lam(0xd8d2b8), ex + s * (0.3 + d + 0.8), 0.012, zc);
+  for (const sd of [-1, 1]) { const kz = zc + sd * (R.half + R.kerb / 2); smBx(L, 0.14, R.kerb, lam(0x8a867c), cx, 0.07, kz); smBx(L, 0.15, 0.14, smSH.stoneLoDk, cx, 0.075, zc + sd * (R.half + 0.07)); }
+  for (const [a, b] of [[smZ0 - 1, zc - R.half - R.kerb], [zc + R.half + R.kerb, smZ1 + 0.5]]) smBx(L, 0.02, b - a, lam(0x55604a), cx, -0.004, (a + b) / 2);
+  // (the queue: nose to tail in the outbound lane, the last on into the tunnel; one facing back in the far lane, burnt)
+  const cols = [0x2c4a6a, 0x8a8a86, 0x7a2a24, 0x3e5a46, 0xb8b2a0], lane = zc + s * 1.8, far = zc - s * 1.8;
+  const at = tunnel ? [3.4, 8.2, 13.2, 18.4] : [3.4, 8.2, 13.0];
+  at.forEach((d, k) => smCar({ w: 4.2, d: 2.0, cx: ex + s * d, cz: lane }, false, cols[(k + seedName.length) % 5]));
+  smCar({ w: 4.2, d: 2.0, cx: ex + s * 6.6, cz: far }, true);
+  if (tunnel) smTunnel(s, ex + s * R.out, zc); else smTerrace(s, ex + s * (R.out + 2), zc);
+}
+// the headland the quay road tunnels through (s: the end, xf: the portal's face, zc: the road's middle): the rock rising
+// over the end of the map behind the corner buildings, its turf on top, and the portal: a concrete headwall with the
+// tunnel's name, the bore going on into the dark (its walls, its roof, its dead strip lights), so the road runs on
+// somewhere and never into nothing
+const SM_TUN = { w: 8.6, h: 5.2, deep: 34, hill: 13, back: 40 };
+function smTunnel(s, xf, zc) {
+  const T = SM_TUN, rock = lam(0x6a665c), rockDk = lam(0x55524a), turf = lam(0x56653f), conc = lam(0x9a968a), concDk = lam(0x6e6a60), bore = lam(0x2a2a2a);
+  const zA = smZ0 - 2, zB = smZ1 + 0.4, xm = xf + s * T.back / 2, hw = T.w / 2;
+  // (the rock either side of the portal and over it, in two steps: a lower shelf over the portal, the headland rising
+  // behind it; turf on each)
+  const lo = T.h + 2.4, shelf = 9, xs = xf + s * shelf / 2, xh = xf + s * (shelf + (T.back - shelf) / 2), lb = T.back - shelf;
+  for (const [a, b] of [[zA, zc - hw - 0.6], [zc + hw + 0.6, zB]]) { smBx(shelf, lo, b - a, rock, xs, lo / 2, (a + b) / 2); smBx(shelf, 0.3, b - a, turf, xs, lo + 0.15, (a + b) / 2); }
+  smBx(shelf, lo - T.h - 0.8, T.w + 1.2, rock, xs, T.h + 0.8 + (lo - T.h - 0.8) / 2, zc); smBx(shelf, 0.3, T.w + 1.2, turf, xs, lo + 0.15, zc);
+  smBx(lb, T.hill, zB - zA, rockDk, xh, T.hill / 2, (zA + zB) / 2); smBx(lb, 0.4, zB - zA, turf, xh, T.hill + 0.2, (zA + zB) / 2);
+  for (let k = 0; k < 5; k++) { const z = rr(zA + 2, zB - 2), h = rr(1.2, 2.6); smBx(rr(2, 4), h, rr(2, 4), rock, xf + s * rr(1.5, shelf - 1.5), lo + h / 2, Math.abs(z - zc) < hw + 1 ? zc + (hw + 2) * Math.sign(z - zc || 1) : z); }   // (boulders on the shelf, none over the portal's lip)
+  // (the headwall round the opening, its parapet, the name across it)
+  smBx(0.6, T.h + 1.6, 1.4, conc, xf - s * 0.1, (T.h + 1.6) / 2, zc - hw - 0.7); smBx(0.6, T.h + 1.6, 1.4, conc, xf - s * 0.1, (T.h + 1.6) / 2, zc + hw + 0.7);
+  smBx(0.6, 1.6, T.w + 2.8, conc, xf - s * 0.1, T.h + 0.8, zc); smBx(0.8, 0.2, T.w + 3.0, concDk, xf - s * 0.1, T.h + 1.7, zc);
+  smPic(4.6, 0.5, smTexM(smSignTex('SALTMARSH TUNNEL', '#e8e4da', '#1f3a4a', 4.6, 'Arial'), true), xf - s * 0.41, T.h + 0.8, zc, [-s, 0]);
+  // (the bore: its walls tiled pale to door height and dark over, its roof, a strip light every 6 m, the far end gone to
+  // black)
+  const xb = xf + s * T.deep / 2;
+  for (const sd of [-1, 1]) { smBx(T.deep, 2.2, 0.3, conc, xb, 1.1, zc + sd * (hw + 0.15)); smBx(T.deep, T.h - 2.2, 0.3, bore, xb, 2.2 + (T.h - 2.2) / 2, zc + sd * (hw + 0.15)); smBx(T.deep, 0.3, 1.0, concDk, xb, 0.15, zc + sd * (hw - 0.5)); }
+  smBx(T.deep, 0.3, T.w + 0.6, bore, xb, T.h + 0.15, zc); smBx(T.deep, 0.02, T.w, lam(0x2e2f31), xb, -0.003, zc);
+  for (let d = 3; d < T.deep - 2; d += 6) smBx(1.4, 0.08, 0.2, lam(0x8a8c8a), xf + s * d, T.h - 0.05, zc);
+  smBx(0.2, T.h, T.w, lam(0x050505), xf + s * (T.deep - 0.1), T.h / 2, zc);
+}
+// the terrace across the end of the square's street, where the road turns off out of sight (s: the end, xf: its front,
+// zc: the road's middle): a row of houses facing back down the road, their windows dark or boarded, slate roofs, the
+// road's give-way lines in front
+function smTerrace(s, xf, zc) {
+  const cols = [0xcfcbc0, 0xc2b69f, 0xb5bfbb, 0xccb6a2];
+  for (let z = smZ0 - 2, k = 0; z < smZ1 + 2; z += 5.2, k++) {
+    const h = 6.2 + (k % 2) * 0.8, x = xf + s * 3, c = lam(cols[k % cols.length]);
+    smBx(6, h, 5.1, c, x, h / 2, z + 2.6); const rf = smBx(3.6, 0.16, 5.3, smSH.slateLo, x - s * 1.2, h + 0.9, z + 2.6); rf.rotation.z = s * 0.6;
+    for (const dz of [1.3, 3.9]) for (const y of [1.4, 4.0]) smBx(0.05, 1.0, 0.8, (k + dz + y) % 3 < 1 ? smAPOC.plyDk : smSH.glassLo, xf - s * 0.02, y, z + dz);
+  }
+  smBx(0.4, 0.01, 2 * SM_ROAD.half, lam(0xd8d2b8), xf - s * 0.6, 0.012, zc);
 }
 function squareBuild(g) {
   smG = g; smPARTS = []; smPLAN = SQ_PLAN;
@@ -755,7 +826,12 @@ function qyPickup(R) {
   const L = R.w - 0.25, W = Math.min(1.8, R.d - 0.2), cx = R.cx, cz = R.cz, fw = R.cx < 0 ? -1 : 1;
   smBx(L, 0.7, W, QYM.pickup, cx, 0.85, cz); smBx(L * 0.4, 0.75, W - 0.1, QYM.pickup, cx + fw * L * 0.14, 1.55, cz); smBx(L * 0.4 + 0.02, 0.5, W - 0.14, smSH.glass, cx + fw * L * 0.14, 1.6, cz);
   for (const s of [-1, 1]) smBx(L * 0.45, 0.4, 0.06, QYM.pickup, cx - fw * L * 0.27, 1.35, cz + s * (W / 2 - 0.05));
-  for (let k = 0; k < 3; k++) smBx(0.5, 0.25, 0.4, [QYM.boxB, QYM.boxR, QYM.boxY][k], cx - fw * (L * 0.15 + k * 0.45), 1.3, cz);
+  // (its bed: the sides, the bulkhead behind the cab, the tailgate; what's left in it standing on its floor, all inside it)
+  const Lb = L * 0.45, bc = cx - fw * L * 0.27, Wi = W - 0.14;
+  for (const e of [1, -1]) smBx(0.06, 0.42, W - 0.1, QYM.pickup, bc + e * fw * (Lb / 2 - 0.03), 1.4, cz);
+  for (const [w, h, d, m, ax, az] of [[0.5, 0.34, 0.6, QYM.boxB, 0.27, -0.24], [0.42, 0.28, 0.5, QYM.boxR, 0.27, 0.36], [0.46, 0.3, 0.42, QYM.boxY, -0.25, -0.3]]) {
+    const bx = bc + fw * ax * (Lb - w) / 0.54, bz = cz + az * (Wi - d) / 0.72, b = smBx(w, h, d, m, bx, 1.2 + h / 2, bz); b.rotation.y = rr(-0.08, 0.08);
+  }
   for (const xx of [cx - L / 2 + 0.7, cx + L / 2 - 0.7]) for (const s of [-1, 1]) { const t = smCy(0.4, 0.4, 0.24, smSH.tyre, xx, 0.4, cz + s * (W / 2 - 0.08), 14); t.rotation.x = Math.PI / 2; }
 }
 function qyAmbulance(R) {
@@ -835,7 +911,7 @@ function qyTick() { if (qyRoof) qyRoof.visible = fpOn(); }
 // wall, the sky caught in it at a glancing look, the sun's glints off the ripples, a band of foam slapping at the foot
 // of the wall), lit as the farm's own light is (the sky's and the sun's, read each frame: core/renderer.js)
 const QY_WATER_VS = `varying vec3 vW; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`;
-const QY_WATER_FS = `uniform float uT; uniform vec3 uSky; uniform vec3 uSun; uniform vec3 uSunDir; uniform vec3 uDeep; uniform vec3 uShal; uniform float uWall;
+const QY_WATER_FS = `uniform float uT; uniform vec3 uSky; uniform vec3 uSun; uniform vec3 uSunDir; uniform vec3 uDeep; uniform vec3 uShal; uniform float uWall; uniform vec3 uHor;
 varying vec3 vW;
 float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float n2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h2(i), h2(i + vec2(1.0, 0.0)), f.x), mix(h2(i + vec2(0.0, 1.0)), h2(i + vec2(1.0, 1.0)), f.x), f.y); }
@@ -853,12 +929,15 @@ void main() {
   vec3 col = base * (0.2 + 0.5 * uSky) + uSky * fr * 0.18 + uSun * sp * 0.35;
   float foam = (1.0 - smoothstep(0.0, 0.9, vW.z - uWall)) * (0.35 + 0.65 * n2(p * 3.5 + uT * 0.9));
   col = mix(col, vec3(0.7, 0.74, 0.72) * (0.3 + 0.5 * uSky), clamp(foam, 0.0, 1.0) * 0.35);
+  // (out toward the horizon it fades into the sky's haze there, world/sky.js, so the sea has no edge: it runs on out
+  // past the far plane already gone into it)
+  col = mix(col, uHor, smoothstep(45.0, 140.0, length(cameraPosition.xz - vW.xz)));
   gl_FragColor = vec4(col, 1.0);
 }`;
 const _qyC = new THREE.Color();
 function qyWater() {
-  const m = new THREE.ShaderMaterial({ vertexShader: QY_WATER_VS, fragmentShader: QY_WATER_FS, uniforms: { uT: { value: 0 }, uSky: { value: new THREE.Vector3(0.6, 0.6, 0.6) }, uSun: { value: new THREE.Vector3(0.8, 0.7, 0.6) }, uSunDir: { value: new THREE.Vector3(0.3, 1, 0.2) }, uDeep: { value: new THREE.Vector3(0.05, 0.11, 0.13) }, uShal: { value: new THREE.Vector3(0.1, 0.18, 0.18) }, uWall: { value: smZ1 + 0.4 } } });
-  const w = new THREE.Mesh(new THREE.PlaneGeometry(140, 70, 1, 1), m); w.rotation.x = -Math.PI / 2; w.position.set(0, -1.6, smZ1 + 35); smG.add(w);
+  const m = new THREE.ShaderMaterial({ vertexShader: QY_WATER_VS, fragmentShader: QY_WATER_FS, uniforms: { uT: { value: 0 }, uSky: { value: new THREE.Vector3(0.6, 0.6, 0.6) }, uSun: { value: new THREE.Vector3(0.8, 0.7, 0.6) }, uSunDir: { value: new THREE.Vector3(0.3, 1, 0.2) }, uDeep: { value: new THREE.Vector3(0.05, 0.11, 0.13) }, uShal: { value: new THREE.Vector3(0.1, 0.18, 0.18) }, uWall: { value: smZ1 + 0.4 }, uHor: SKY_U.uHor } });
+  const w = new THREE.Mesh(new THREE.PlaneGeometry(700, 360, 1, 1), m); w.rotation.x = -Math.PI / 2; w.position.set(0, -1.6, smZ1 + 180); w.frustumCulled = false; smG.add(w);
   w.onBeforeRender = () => {
     const U = m.uniforms; U.uT.value = performance.now() / 1000;
     _qyC.copy(hemi.color).multiplyScalar(hemi.intensity); U.uSky.value.set(_qyC.r, _qyC.g, _qyC.b);
@@ -926,31 +1005,45 @@ function qyGulls() {
     G.g.children[0].onBeforeRender = () => { const t = performance.now() / 1000, a = ph + t * w; G.g.position.set(cx + Math.cos(a) * r, y + Math.sin(t * 0.6 + ph) * 0.6, cz + Math.sin(a) * r); G.g.rotation.y = -a + (w > 0 ? 0 : Math.PI); G.g.rotation.z = (w > 0 ? 1 : -1) * 0.3; const f = Math.sin(t * 9 + ph) * Math.max(0, Math.sin(t * 0.8 + ph * 2)) * 0.6; G.wl.rotation.z = f; G.wr.rotation.z = -f; };
   }
 }
-// the breakwater's light, still turning: its lantern glowing (in the bloom, GLOW_LAYER), a halo round it, and two beams
-// swept slowly round, soft at their roots and thinning to nothing out over the water, brighter the darker it gets; and
-// as a beam swings across you, its lens flare (effects/post.js FLARE_SRC: this one moves with the beam). QY_LIGHT: how
-// long the beams reach (m), how fast they turn (rad/s), how bright by day and by night
-const QY_LIGHT = { len: 34, spin: 0.55, day: 0.12, night: 0.8 };
+// the breakwater's light, still turning: its lantern glowing (in the bloom, GLOW_LAYER), a halo round it, and its two
+// beams drawn as Kenney's cone light mask (effects/particle-art.js lhBeam), each a flat sheet of light from the lantern
+// that always faces you, laid out the way the beam points as you see it: long and broad side-on, shortening as it swings
+// toward you or away, and a flash of the lantern (the halo flaring) as one passes across you. Brighter the darker it
+// gets; and as a beam swings across you, its lens flare (effects/post.js FLARE_SRC). QY_LIGHT: how long the beams reach
+// (m), how wide at their far end, how fast they turn (rad/s), how bright by day and by night
+const QY_LIGHT = { len: 30, wide: 7, spin: 0.55, day: 0.12, night: 0.8 };
+const _qyX = new THREE.Vector3(), _qyY = new THREE.Vector3(), _qyZ = new THREE.Vector3();
 function qyLighthouse(x, y, z) {
   const lan = smPush(new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.7, 12), smGlowM(0xfff1c8))); lan.position.set(x, y, z);
   smBx(1.0, 0.08, 1.0, lam(0x2a2e33), x, y + 0.4, z); smCy(0.05, 0.45, 0.5, lam(0x2a2e33), x, y + 0.7, z, 8);   // (its roof and vent)
-  const gt = smCanvas(64, 256, (c, W, H) => { const g = c.createLinearGradient(0, H, 0, 0); g.addColorStop(0, 'rgba(255,244,210,0.9)'); g.addColorStop(0.25, 'rgba(255,240,200,0.35)'); g.addColorStop(1, 'rgba(255,236,190,0)'); c.fillStyle = g; c.fillRect(0, 0, W, H); });
-  const bm = new THREE.MeshBasicMaterial({ map: gt, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, opacity: 0.5, fog: false });
-  const pivot = new THREE.Group(); pivot.position.set(x, y, z); smG.add(pivot);
-  for (const sd of [1, -1]) {
-    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 3.2, QY_LIGHT.len, 16, 1, true), bm);   // (its root at the lantern, the wide end out)
-    b.rotation.z = sd * Math.PI / 2; b.position.x = -sd * QY_LIGHT.len / 2; b.renderOrder = 6; pivot.add(b);
-  }
-  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: smCanvas(64, 64, (c, W) => { const g = c.createRadialGradient(W / 2, W / 2, 0, W / 2, W / 2, W / 2); g.addColorStop(0, 'rgba(255,240,200,0.9)'); g.addColorStop(1, 'rgba(255,240,200,0)'); c.fillStyle = g; c.fillRect(0, 0, W, W); }), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+  const bm = new THREE.MeshBasicMaterial({ map: partTex('lhBeam'), color: 0xfff0c8, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, opacity: 0.5, fog: false });
+  const geo = new THREE.PlaneGeometry(1, 1); geo.translate(0, 0.5, 0);   // (its root, the cone's point, at the lantern)
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: partTex('glowSoft'), color: 0xfff0c8, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
   halo.position.set(x, y, z); halo.scale.set(3.2, 3.2, 1); halo.layers.enable(GLOW_LAYER); lan.layers.enable(GLOW_LAYER); smG.add(halo);
   const L = { x, y, z, dx: 1, dy: 0, dz: 0, col: [1, 0.95, 0.82] }; QUAY_MAP.flares.length = 0; QUAY_MAP.flares.push(L);
-  pivot.children[0].onBeforeRender = () => {
-    const t = performance.now() / 1000, a = t * QY_LIGHT.spin, k = QY_LIGHT.day + (QY_LIGHT.night - QY_LIGHT.day) * LAMP_ON.k;
-    pivot.rotation.y = a; bm.opacity = k * 0.6; halo.material.opacity = 0.35 + 0.65 * LAMP_ON.k;
-    // (the flare follows whichever beam's nearer to facing you)
-    const dx = Math.cos(a), dz = -Math.sin(a), cx = cam.position.x - x, cz = cam.position.z - z, s = dx * cx + dz * cz >= 0 ? 1 : -1;
-    L.dx = dx * s; L.dz = dz * s;
-  };
+  for (const sd of [1, -1]) {
+    const b = new THREE.Mesh(geo, bm); b.matrixAutoUpdate = false; b.matrixWorldAutoUpdate = false; b.frustumCulled = false; b.renderOrder = 6; smG.add(b);
+    b.onBeforeRender = () => {
+      const t = performance.now() / 1000, a = t * QY_LIGHT.spin, k = QY_LIGHT.day + (QY_LIGHT.night - QY_LIGHT.day) * LAMP_ON.k;
+      const dx = Math.cos(a) * sd, dz = -Math.sin(a) * sd;
+      let vx = x - cam.position.x, vz = z - cam.position.z; const vl = Math.hypot(vx, vz) || 1; vx /= vl; vz /= vl;
+      const along = dx * vx + dz * vz, px = dx - vx * along, pz = dz - vz * along, side = Math.hypot(px, pz);
+      // (laid along the part of the beam across your view, facing you; a touch of its length kept as it points at you or
+      // away, as the light still spills round it then)
+      _qyY.set(px, 0, pz); if (side > 1e-3) _qyY.multiplyScalar(1 / side); else _qyY.set(-vz, 0, vx);
+      _qyZ.set(-vx, 0, -vz); _qyX.crossVectors(_qyY, _qyZ);
+      const len = QY_LIGHT.len * (0.12 + 0.88 * side);
+      _qyX.multiplyScalar(QY_LIGHT.wide); _qyY.multiplyScalar(len);
+      b.matrixWorld.makeBasis(_qyX, _qyY, _qyZ).setPosition(x, y, z);
+      bm.opacity = k * 0.6;
+      if (sd > 0) {
+        // (the lantern flares as either beam comes round to you; the lens flare follows whichever's nearer facing you)
+        const toward = Math.pow(Math.abs(along), 12);   // (one or the other beam pointing at you: the lantern seen down it)
+        halo.material.opacity = Math.min(1, 0.35 + 0.65 * LAMP_ON.k + toward * 0.5); halo.scale.setScalar(3.2 * (1 + 1.6 * toward));
+        const s2 = along < 0 ? 1 : -1; L.dx = dx * s2; L.dz = dz * s2;
+      }
+    };
+  }
 }
 // the edges: the harbour buildings north (qyNorth); the quay's edge south, its granite coping, ladders and lifebuoys,
 // the harbour water beyond, a boat half sunk at its mooring, the breakwater and its light; at each end the quay road
@@ -968,7 +1061,7 @@ function qyEdges() {
   for (const [x, zz, c, sunk, a] of [[-9, 4.6, 0, 0, 0.06], [-2, 6, 2, 1, -0.2], [6, 4.4, 1, 0, -0.05], [12.2, 7.2, 3, 0, 0.12]]) qyBoat(x, smZ1 + zz, c, !!sunk, a);
   qyGulls();
   smBx(50, 1.2, 3, smSH.stoneLoDk, -6, -0.6, smZ1 + 26); smCy(0.9, 1.1, 6, lam(0xe8e4da), 18, 2.6, smZ1 + 26, 12); smCy(1.0, 1.0, 1.2, lam(0xb8322a), 18, 6.2, smZ1 + 26, 12); qyLighthouse(18, 7.1, smZ1 + 26);
-  for (const s of [-1, 1]) smEndBarricade(s, 'QUAY CLOSED · ARMY', s < 0 ? 'quayW' : 'quayE');
+  for (const s of [-1, 1]) smEndBarricade(s, 'QUAY CLOSED · ARMY', s < 0 ? 'quayW' : 'quayE', true);
   // the town climbs the hill behind the harbour (north and west, behind the map from above: its terraces of cottages,
   // roofs stepping up, smoke off one)
   const cols = [0xcfcbc0, 0xc2b69f, 0xaebdc2, 0xccb6a2, 0xb5bfbb];

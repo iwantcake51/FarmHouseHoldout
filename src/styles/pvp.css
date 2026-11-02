@@ -311,15 +311,12 @@ body.pvp.pvpTeams #spec .spTop{top:calc(96px + env(safe-area-inset-top,0px))}
 /* a headshot death (pvp/pvp.js headBlack): a quick red flash, a dark red vignette in from the edges that leaves the
    middle clear, the world drained of colour and a touch soft, the colour coming back last; 1.8 s in all, and never
    blacking out the view (you can still see who did it) */
-/* parried (melee/block.js parriedFx): a cold white flash in from the edges, PARRIED stamped over the middle and gone */
+/* parried (melee/block.js parriedFx): a cold white flash in from the edges and gone */
 #parryFx{position:fixed;inset:0;z-index:58;pointer-events:none;display:none}
 #parryFx.on{display:block}
 #parryFx i{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(220,235,255,0) 0,rgba(220,235,255,0) 42%,rgba(190,215,255,.35) 75%,rgba(235,245,255,.7) 100%);opacity:0}
 #parryFx.on i{animation:prFlash .9s cubic-bezier(.2,.7,.3,1) forwards}
 @keyframes prFlash{0%{opacity:1;transform:scale(1.08)}20%{opacity:.8}100%{opacity:0;transform:scale(1)}}
-#parryFx b{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);font:700 28px/1 'Saira Extra Condensed',sans-serif;letter-spacing:.32em;color:#eaf2ff;text-shadow:0 0 14px rgba(160,200,255,.8),0 2px 3px rgba(0,0,0,.6);opacity:0}
-#parryFx.on b{animation:prWord .9s ease-out forwards}
-@keyframes prWord{0%{opacity:0;transform:translate(-50%,-50%) scale(1.5)}12%{opacity:1;transform:translate(-50%,-50%) scale(1)}70%{opacity:.9}100%{opacity:0;transform:translate(-50%,-56%) scale(.98)}}
 /* your guard broken (melee/block.js guardBreak): a grey jolt of a flash and a cold red vignette in from the edges */
 #guardBrokeFx{position:fixed;inset:0;z-index:58;pointer-events:none;display:none}
 #guardBrokeFx.on{display:block}

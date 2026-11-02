@@ -54,8 +54,8 @@ const MOTE_DENSITY = 75 / (28 * 28);   // a light scatter of them, not a haze (a
 const MOTE_W = 60;
 // the haze round the farm (uEdge, core/shaders.js): where it starts and where everything's gone into it, seen from above
 // and from your own eyes; and from your own eyes the motes fade out by MOTE_FAR metres off (drawn the same size however
-// far, a field of them out to the horizon was a band of specks across it)
-const NEAR_EDGE = [HALF + 0.5, HALF + 12], FAR_EDGE = [HALF + 9, HALF + 44], MOTE_FAR = [6, 18];   // past the corners of the widest view (the furthest zoom on a wide screen), so they wrap out of sight
+// far, any much further off read as specks of dust hanging out over the distance, a band of them along the horizon)
+const NEAR_EDGE = [HALF + 0.5, HALF + 12], FAR_EDGE = [HALF + 9, HALF + 44], MOTE_FAR = [3, 7];   // past the corners of the widest view (the furthest zoom on a wide screen), so they wrap out of sight
 const motes = (() => {
   const MAX = Math.round(MOTE_DENSITY * 4 * MOTE_W * MOTE_W), pos = new Float32Array(MAX * 3), col = new Float32Array(MAX * 3), seed = [];
   for (let k = 0; k < MAX; k++) seed.push({ x: rr(-MOTE_W, MOTE_W), y: rr(0.2, 3), z: rr(-MOTE_W, MOTE_W), p: rand() * 6.28, s: rr(0.15, 0.45), a: 0 });

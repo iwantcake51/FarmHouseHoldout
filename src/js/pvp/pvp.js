@@ -14,7 +14,7 @@
 import { LOOK } from '../player/look.js';
 import { cam, cv, FP_CAM, R, scene, V3 } from '../core/renderer.js';
 import { replay } from '../core/dom.js';
-import { angDiff, cache, clamp, rand, rr } from '../core/math.js';
+import { angDiff, cache, clamp, rand, rr, smooth } from '../core/math.js';
 import { NET, NET_COL, NET_ON, netAs, netLink, netSend, netTo } from '../net/net.js';
 import { kbd } from '../input/keybinds.js';
 import { P, PM } from '../player/player.js';
@@ -61,7 +61,8 @@ import { curId } from '../game/run-state.js';
 import { MODS } from '../melee/melee-mods.js';
 import { fx, hitMist } from '../effects/puffs.js';
 import { soundAt } from '../audio/spatial.js';
-import { guardFx, guardHitYou, guardMeets, guardThrough, parriedYou, swingBroken } from '../melee/block.js';
+import { heavySwing } from '../melee/melee.js';
+import { ducks, guardFx, guardHitYou, guardMeets, guardShovedOpen, guardThrough, parriedYou, shoveOpened, swingBroken, swingFull, swingMul } from '../melee/block.js';
 import { setTimeScale } from '../game/hit-feedback.js';
 import { lookThumb } from '../ui/look-card.js';
 import { lam } from '../core/shaders.js';
@@ -271,7 +272,7 @@ export const PVP_MELEE = {
   crowbar: { dmg: 21, hm: 1.25, rate: 0.3, range: 1.6, arc: 0.95, carry: 1.1, stamK: 0.7, bleed: 0, head: 0.18, up: 'The quickest swing, and the quickest on your feet', down: 'Five hits to the body, and a short reach' },
   machete: { dmg: 26, hm: 1.4, rate: 0.4, range: 1.7, arc: 1.0, carry: 1.08, stamK: 0.9, bleed: 0.65, head: 0.2, up: 'Quick, and most cuts leave them bleeding', down: 'Four to the body, and a short reach' },
   bat: { dmg: 34, hm: 1.5, rate: 0.5, range: 1.9, arc: 1.3, carry: 1.04, stamK: 1, bleed: 0, stun: 0.3, kb: 3, head: 0.18, up: 'The widest swing, and every hit staggers them and shoves them back', down: 'It never draws blood' },
-  katana: { dmg: 30, hm: 1.75, rate: 0.5, range: 2.2, arc: 1.05, carry: 1.02, stamK: 1.35, bleed: 0.45, head: 0.26, up: 'Out-reaches everything, and two to the head', down: 'Four to the body, and each slash costs the most stamina' },
+  katana: { dmg: 28, hm: 1.8, rate: 0.6, range: 2.05, arc: 0.9, carry: 1.02, stamK: 1.65, bleed: 0.4, head: 0.22, up: 'Out-reaches everything, and two to the head', down: 'Four to the body, and each slash costs the most stamina' },
   wrench: { dmg: 40, hm: 1, rate: 0.62, range: 1.6, arc: 1.0, carry: 1.0, stamK: 1.1, bleed: 0, stun: 0.55, kb: 2, head: 0.2, up: 'Three hits wherever they land, and each one staggers them for longest', down: 'A slow swing and a short reach' },
   axe: { dmg: 55, hm: 1.85, rate: 0.9, range: 1.85, arc: 0.95, carry: 0.96, stamK: 1.4, bleed: 0.75, head: 0.3, up: 'Two to the body, one to the head, and deep bleeds', down: 'Slow, tiring and narrow' },
   sledge: { dmg: 100, hm: 1, rate: 1.3, range: 2.0, arc: 1.15, carry: 0.9, stamK: 1.8, bleed: 0, stun: 0.6, kb: 6, head: 0.15, up: 'One hit puts anyone down, and takes their head', down: 'A long wind-up, the slowest walk, and a miss leaves you open' }
@@ -547,19 +548,21 @@ export function pvpMelee(D, id) {
     if (p.dead || !pvpFoe(p) || !p.av) continue;
     const g = p.av.g.position, dx = g.x - P.x, dz = g.z - P.z, d = Math.hypot(dx, dz);
     if (d > D.range + 0.35 || (Math.abs(angDiff(Math.atan2(dx, dz), P.aim)) > D.arc && d > 0.6) || !los(P.x, P.z, g.x, g.z)) continue;
-    const M = pvpMeleeOf(id), head = rand() < M.head, ux = dx / (d || 1), uz = dz / (d || 1);
+    const M = pvpMeleeOf(id), head = rand() < M.head, ux = dx / (d || 1), uz = dz / (d || 1), mul = swingMul();
+    // (crouched under a swing across: it goes over their head, melee/block.js DUCK; a chop from overhead doesn't)
+    if (ducks(p.cr, heavySwing(D))) continue;
     // (on their guard, if it's up and facing you: melee/block.js. Sparks, no blood: a parry costs them nothing and
     // throws you off; a block lets a share through and knocks the wind out of them. Not the golden katana's)
-    const gk = !D.gold && guardMeets(p.bk > -50, p.bkAt, p.vw ? p.vw[0] : 0, g.x, g.z, P.x, P.z);
+    const gk = !D.gold && !W8.ripo && guardMeets(p.bk > -50, p.bkAt, p.vw ? p.vw[0] : 0, g.x, g.z, P.x, P.z);   // (a riposte goes through any guard: melee/block.js RIPOSTE)
     if (gk) {
-      const full = pvpMeleeDmg(M, false), cx = g.x - ux * 0.42, cz = g.z - uz * 0.42;
+      const full = Math.round(pvpMeleeDmg(M, false) * mul), cx = g.x - ux * 0.42, cz = g.z - uz * 0.42, brk = gk === 'block' && swingFull();   // (a heavy blow at full breaks a guard: melee/block.js CHARGE)
       guardFx(cx, 1.3, cz, -ux, -uz, gk === 'parry'); netSend('gx', { x: Math.round(cx * 100) / 100, z: Math.round(cz * 100) / 100, nx: Math.round(-ux * 100) / 100, nz: Math.round(-uz * 100) / 100, p: gk === 'parry' ? 1 : 0 });
-      pvpSend(p, gk === 'parry' ? 0 : Math.max(1, Math.round(full * guardThrough(id))), 'torso', id, false, { gk: gk === 'parry' ? 'p' : 'b', bd: full, kb: gk === 'parry' ? 0 : (M.kb || 0) * 0.4 + 1, dx: ux, dz: uz });
-      if (gk === 'parry') parriedYou(); else { setShake(Math.max(shake, 0.2)); }
+      pvpSend(p, gk === 'parry' ? 0 : Math.max(1, Math.round(full * guardThrough(id) * (brk ? 1.6 : 1))), 'torso', id, false, { gk: gk === 'parry' ? 'p' : 'b', bd: full, kb: gk === 'parry' ? 0 : (M.kb || 0) * 0.4 + 1 + (brk ? 3 : 0), dx: ux, dz: uz, gb: brk });
+      if (gk === 'parry') parriedYou(); else { setShake(Math.max(shake, 0.2)); const thr = Math.max(1, Math.round(full * guardThrough(id) * (brk ? 1.6 : 1))); if (p.bot) pvpGuardBleed(g.x, g.z, ux, uz, thr, NET.id); else hitBleed(g.x, 1.2, g.z, ux, uz, thr, false, false, false, null); }   // (a player's own game bleeds them for the others: NET_ON.ph)
       n++; continue;
     }
     // (the golden katana: one blow, any blow, Gun game's last weapon; its blood gold, effects/gold.js)
-    pvpSend(p, D.gold ? GG_ONE : pvpMeleeDmg(M, head), head ? 'head' : 'torso', id, rand() < M.bleed, { st: M.stun || 0, kb: M.kb || 0, dx: dx / (d || 1), dz: dz / (d || 1), gd: D.gold ? 1 : 0 });
+    pvpSend(p, D.gold ? GG_ONE : Math.round(pvpMeleeDmg(M, head) * mul), head ? 'head' : 'torso', id, rand() < M.bleed, { st: M.stun || 0, kb: M.kb || 0, dx: dx / (d || 1), dz: dz / (d || 1), gd: D.gold ? 1 : 0 });
     // (the blow as it lands on a zombie, zombies/damage.js hitFx: a burst and a gush out of them along the swing, a
     // mist, up the wall behind and across the floor; gold off a golden weapon's; and your weapon and you spattered,
     // MELEE_BLOOD, a blade's edge the most)
@@ -582,6 +585,9 @@ export function pvpShove(power) {
     const g = p.av.g.position, dx = g.x - P.x, dz = g.z - P.z, d = Math.hypot(dx, dz);
     if (d > PVP_SHOVE.range || (Math.abs(angDiff(Math.atan2(dx, dz), P.aim)) > PVP_SHOVE.arc && d > 0.55) || !los(P.x, P.z, g.x, g.z)) continue;
     const m = { dx: Math.round(dx / (d || 1) * 100) / 100, dz: Math.round(dz / (d || 1) * 100) / 100, p: Math.round(power * 100) / 100 };
+    // (into someone's guard from in front: it's shoved aside, broken open without a drop of their stamina, and your
+    // next blow goes through any guard while they're open: melee/block.js shoveOpens)
+    if (guardMeets(p.bk > -50, p.bkAt, p.vw ? p.vw[0] : 0, g.x, g.z, P.x, P.z)) { m.gb = 1; shoveOpened(g.x - dx / (d || 1) * 0.42, g.z - dz / (d || 1) * 0.42, -dx / (d || 1), -dz / (d || 1)); }
     if (p.bot && isHost()) botShoved(p.id, m); else netTo(p.id, 'pv', m);
     pvpSend(p, Math.round(PVP_SHOVE.dmg * power), 'torso', curId(), false);
     n++;
@@ -596,6 +602,7 @@ NET_ON.pv = m => {
   PVP.blurT = S0.blur; ANIM.flinch = 1; ANIM.flinchSide = rand() < 0.5 ? -1 : 1;
   setShake(Math.max(shake, 0.42)); camKick.x += m.dx * 0.3; camKick.z += m.dz * 0.3; setCamRoll(clamp(camRoll + ANIM.flinchSide * 0.07, -0.12, 0.12));
   SFX.hitBlunt(true);
+  if (m.gb) guardShovedOpen(); else if (W8.chgOn) W8.chgOn = false;   // (your guard shoved open, melee/block.js; a heavy blow you were gathering knocked out of you)
 };
 // how blurred your view is from a shove, 0 to 1 (ui/hud.js)
 export const pvpBlur = () => PVP.on ? clamp((PVP.blurT || 0) / PVP_SHOVE.blur, 0, 1) : 0;
@@ -603,7 +610,7 @@ export const pvpBlur = () => PVP.on ? clamp((PVP.blurT || 0) / PVP_SHOVE.blur, 0
 function pvpSend(p, d, part, w, bleed, ex) {
   const gk = ex && ex.gk; if (d <= 0 && !gk) return;   // (gk: on their guard, melee/block.js: 'p' parried, nothing through; 'b' blocked)
   const m = { d, p: part, w, x: Math.round(P.x * 100) / 100, z: Math.round(P.z * 100) / 100, b: bleed ? 1 : 0, g: pvpGunKit(w) };   // (g: what's on the gun, for the kill feed's and the card's picture of it)
-  if (ex) { if (gk) { m.gk = gk; m.bd = ex.bd; } if (ex.st) m.st = ex.st; if (ex.kb) { m.kb = ex.kb; m.kx = Math.round(ex.dx * 100) / 100; m.kz = Math.round(ex.dz * 100) / 100; } if (ex.gd) m.gd = 1; if (ex.fi) { m.fi = 1; m.fp = ex.fp; fireBurst(p.x, p.z); } }   // (fi: set alight where it went in, fp; the flames on them at once, pvp/pvp-fire.js)
+  if (ex) { if (gk) { m.gk = gk; m.bd = ex.bd; if (ex.gb) m.gb = 1; } if (ex.st) m.st = ex.st; if (ex.kb) { m.kb = ex.kb; m.kx = Math.round(ex.dx * 100) / 100; m.kz = Math.round(ex.dz * 100) / 100; } if (ex.gd) m.gd = 1; if (ex.fi) { m.fi = 1; m.fp = ex.fp; fireBurst(p.x, p.z); } }   // (fi: set alight where it went in, fp; the flames on them at once, pvp/pvp-fire.js)
   if (p.bot && isHost()) botHit(p.id, Object.assign({ f: NET.id, to: p.id }, m)); else netTo(p.id, 'ph', m);   // (a bot's in the host's game: pvp/bots.js)
   if (d > 0) dmgNum(p, d, part === 'head');
   PVP.my.dmg += d; ledger(PVP.life.given, p.id, d);
@@ -620,12 +627,13 @@ NET_ON.ph = m => {
   ledger(PVP.life.taken, m.f, m.d); P.hp -= m.d;
   // (on your guard, melee/block.js: the shield jolted, sparks, a share of your stamina, and only what got through)
   if (m.gk) {
-    guardHitYou(m.gk === 'p' ? 'parry' : 'block', m.bd || m.d, m.x, m.z, m.w);
+    guardHitYou(m.gk === 'p' ? 'parry' : 'block', m.bd || m.d, m.x, m.z, m.w, !!m.gb);
     if (m.kb) { P.kbx = (m.kx || 0) * m.kb; P.kbz = (m.kz || 0) * m.kb; }
+    if (m.gk === 'b' && m.d > 0) { pvpGuardBleed(P.x, P.z, dx / L, dz / L, m.d, m.f); addBlood(Math.min(0.06, 0.01 + m.d / 1200)); }   // (what got through draws blood all the same)
     if (m.d > 0) { PVP.calm = 0; PVP.regen0 = null; PVP.last = { id: m.f, w: m.w, head: false, d: m.d, at: performance.now(), x: m.x, z: m.z, pt: 'torso', g: 0, gd: 0, fi: 0 }; }
     return;
   }
-  if ((WEAP[m.w] || {}).melee) swingBroken();   // (a blow landing on you mid-swing breaks yours off: melee/block.js)
+  if ((WEAP[m.w] || {}).melee) swingBroken(m.w);   // (a blow landing on you mid-swing breaks yours off: melee/block.js)
   if (m.st) { P.stun = Math.max(P.stun || 0, m.st); P.sprint = false; }   // (staggered by a heavy blow: PVP_MELEE stun)
   if (m.kb) { P.kbx = (m.kx || 0) * m.kb; P.kbz = (m.kz || 0) * m.kb; } P.slow = Math.max(P.slow || 0, Math.min(PVP_TAG.most, PVP_TAG.base + m.d * PVP_TAG.per)); P.sprint = false; PVP.calm = 0;   // (tagged: the hit slows you for a moment, as in Counter-Strike: player/movement.js wears P.slow off)
   PVP.regen0 = null; PVP.last = { id: m.f, w: m.w, head, d: m.d, at: performance.now(), x: m.x, z: m.z, pt: m.p, g: m.g || 0, gd: m.gd ? 1 : 0, fi: m.fi ? 1 : 0 };
@@ -668,6 +676,14 @@ function hitBleed(x, hy, z, dx, dz, d, head, floor, gold, w) {
   spray(x + dx * 0.3, z + dz * 0.3, dx, dz, rr(0.7, 1.1) * k, 0);
   wallSpray(x, hy, z, dx, dz, k);
 }
+// a blow taken on a guard (melee/block.js): the sparks off it are its own; the share that got through (d) draws a little
+// blood off them all the same, on everyone's screen (sh: whoever struck it, who's drawn it already). Not on a parry,
+// which lets nothing through
+export function pvpGuardBleed(x, z, dx, dz, d, sh) {
+  if (!(d > 0)) return;
+  hitBleed(x, 1.2, z, dx, dz, d, false, false, false, null);
+  netSend('pb', { x: Math.round(x * 100) / 100, z: Math.round(z * 100) / 100, dx: Math.round(dx * 100) / 100, dz: Math.round(dz * 100) / 100, h: 0, sh, d, gd: 0, gk: 1 });
+}
 // a melee blow landing on someone, as one lands on a zombie (zombies/damage.js hitFx): a burst of blood driven on along
 // the swing, a mist, a gush out of them, the wall behind and the floor spattered; a blade's cut throwing a line of it
 // off to the side the swing went (and on through the air, close by, onto your view), a blunt blow a heavier burst
@@ -704,7 +720,7 @@ NET_ON.pb = m => {
   // (the one you're watching from their own eyes hit: their own blood across their view, which is yours, as yours is
   // across yours when you're hit, NET_ON.ph: thrown back toward whoever shot them, net/spectate.js)
   if (m.f && P.dead && camFocus().id === m.f && goreEye() && !m.gd) goreAt(m.x - m.dx * 0.3, m.z - m.dz * 0.3, m.h ? 1.6 : 1.2, Math.min(1, (m.h ? 0.5 : 0.25) + (m.d || 25) / 120));
-  hitBleed(m.x, m.h ? 1.62 : 1.15, m.z, m.dx, m.dz, m.d || 25, !!m.h, true, !!m.gd, m.w);
+  hitBleed(m.x, m.h ? 1.62 : 1.15, m.z, m.dx, m.dz, m.d || 25, !!m.h, !m.gk, !!m.gd, m.w);   // (gk: only what got through a guard, pvpGuardBleed: no floor's share)
   if (m.w) meleeHeard(m.w, m.x, m.z, !!m.h);   // (a blow, heard by whoever's near: the one who struck it heard their own, pvp/melee.js)
 };
 // shot through the head: not just black, a beat of its own. A white crack of a flash going red on the instant (the
@@ -723,7 +739,7 @@ function headBlack() {
   }
   const el = headFxEl; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
   clearTimeout(headFxT); headFxT = setTimeout(() => el.classList.remove('on'), HEAD_FX.len * 1000);
-  SFX.tinnitus(HEAD_FX.ring);   // (the ears ringing, and the world dulled under it for a moment: audio/sfx.js)
+  SFX.tinnitus(HEAD_FX.ring, true);   // (the ears ringing, and the world dulled under it for a moment: audio/sfx.js)
 }
 // what's on a gun as the kill feed draws it: its attachments and tiers, its mods and their levels ([gt, mods, lv]; 0
 // for a melee weapon); and its picture from that, the attachments in gold as your own slots have them (pvpGunArt)
@@ -748,7 +764,14 @@ export function pvpDied() {
   PVP.respawn = PVP.mode === 'rounds' ? 0 : PVP_T.respawn; PVP.hold = false;   // (the class picker only if you ask for it: its key, on the card)
 }
 NET_ON.pk = m => { if (PVP.on) pvpKilled(m); };
+// Brawl's perk, every weapon's: a kill heals you at once, half your health back, stops any bleeding, and gives you back
+// half your stamina (a bot's the same: pvp/bots.js botKilled)
+function brawlKillPerk() {
+  P.hp = Math.min(S.maxHp, P.hp + S.maxHp * 0.5); P.bleed = 0; PVP.regen0 = null; const sm = stamMax(); P.stam = Math.min(sm, P.stam + sm * 0.5); P.exh = false;
+  pvpToast('Kill', 'Half your health and stamina back', 'heal'); SFX.rip();
+}
 export function pvpKilled(m) {
+  if (PVP.rule === 'brawl' && m.k === NET.id && m.v !== NET.id && !P.dead) brawlKillPerk();
   // the score, on the host's game (it tells everyone with the clock)
   if (isHost()) {
     const k = PVP.sc[m.k], v = PVP.sc[m.v];
@@ -886,7 +909,10 @@ NET_ON.po = m => { PVP.ping = Math.max(0, Math.round(performance.now() - m.c)); 
 const ledger = (o, id, d) => { const e = o[id] || (o[id] = [0, 0]); e[0] += d; e[1]++; };
 // the match won: the game slowing on and on, to a dead stop END_SLOW seconds after (game/loop.js: its time scale)
 const END_SLOW = 2.8, END_HOLD = 0.6;   // (and how long it's held stopped before the results come up, s)
-export const pvpEndScale = () => Math.pow(1 - clamp((performance.now() - (PVP.overAt || 0)) / (END_SLOW * 1000), 0, 1), 1.7);
+// (down hard at once to END_DROP of full speed over its first moment, so it's plain the match is over, then winding
+// on down to a stop)
+const END_DROP = [0.32, 0.25];
+export const pvpEndScale = () => { const s = (performance.now() - (PVP.overAt || 0)) / 1000; return s < END_DROP[1] ? 1 - (1 - END_DROP[0]) * smooth(s / END_DROP[1]) : END_DROP[0] * Math.pow(1 - clamp((s - END_DROP[1]) / (END_SLOW - END_DROP[1]), 0, 1), 1.3); };
 export const pvpEnding = () => PVP.on && PVP.ph === 'over';
 // the next loadout made ready ahead (pvpPhase, at a round's end): its pictures for the loadout card, and its weapons as
 // they'll be on each of the others (net/arsenal.js arsenalWarm), one piece of it each step (pvpUpdate)

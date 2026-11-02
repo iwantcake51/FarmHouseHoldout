@@ -59,6 +59,8 @@
 #xh .mDot{fill:var(--ink);transition:fill .08s}
 #xh.tgt .mBr{stroke:var(--orange)}
 #xh.tgt .mDot{fill:var(--orange)}
+#xh #xhBr.chg .mBr{stroke:#ff8a2a;filter:drop-shadow(0 0 4px rgba(255,140,40,.9))}
+#xh #xhBr.ripo .mBr{stroke:#ffd27a;filter:drop-shadow(0 0 5px rgba(255,205,110,.95))}
 #xh .mShieldSh{fill:none;stroke:rgba(0,0,0,.6);stroke-width:13;stroke-linejoin:round}
 #xh .mShield{fill:none;stroke:var(--ink);stroke-width:6.5;stroke-linejoin:round;transition:stroke .12s}
 #xh .mShieldIn{fill:rgba(240,236,226,.62);transition:fill .12s}

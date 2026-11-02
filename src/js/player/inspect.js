@@ -19,6 +19,7 @@ import { aiming } from './aiming.js';
 import { mouseDown, mouseDownR } from '../input/keyboard-mouse.js';
 import { ANIM } from './animation.js';
 import { openSt } from '../stations/station-ui.js';
+import { netLink } from '../net/net.js';
 import { stocked } from '../weapons/firing.js';
 
 // each pose: when (seconds), the gun's turn (p: muzzle down, y: muzzle round, r: rolled over, radians) and its place
@@ -164,8 +165,9 @@ CH_HAND.forEach(c => { INSP.oL[c] = INSP.sL[c] = INSP.vL[c] = 0; });
 // whatever's stopping you: your hands are needed, or you're not in a state to stand and look
 // (a menu coming up over it, the pause or the cards between waves (inMenu), isn't one: it slows to a stop where it is
 // and carries on when the menu goes, INSP.rate)
-const inMenu = () => state === 'paused' || state === 'upgrade';
-const busy = () => (state !== 'play' && !inMenu()) || P.dead || !!openSt || !!W8.reloading || !!swapSt || P.vault || P.sprint || P.bandT > 0 || !!P.shove || aiming || (ANIM.ads || 0) > 0.15 ||
+// (online the game never stops for your pause menu, game/loop.js, so neither does a look over your gun under it)
+const inMenu = () => (state === 'paused' && !netLink()) || state === 'upgrade';
+const busy = () => (state !== 'play' && !(state === 'paused' && netLink()) && !inMenu()) || P.dead || !!openSt || !!W8.reloading || !!swapSt || P.vault || P.sprint || P.bandT > 0 || !!P.shove || aiming || (ANIM.ads || 0) > 0.15 ||
   !!(W8.cyc && W8.cyc.id === curId()) || W8.shutT > 0 || W8.grabT > 0 || W8.swing > 0 || (ANIM.ready || 0) > 0.2;
 // how far into it you are (seconds; below nothing when you're not looking anything over)
 export const inspectT = () => INSP.t;
@@ -210,7 +212,7 @@ function spinAt(S, t) {
 export function inspectPose(rdt, D, id, hand, fp, endT) {
   const I = INSP;
   const pair = !!(D && D.akimbo);
-  if (I.t >= 0 && (((mouseDown || (pair && mouseDownR)) && !inMenu()) || W8.reloading || id !== I.id)) inspectCut();   // (a click on a menu over it isn't a shot; with a pair, either button fires)   // (firing, reloading or another gun: back at once)
+  if (I.t >= 0 && (((mouseDown || (pair && mouseDownR)) && state !== 'paused' && state !== 'upgrade') || W8.reloading || id !== I.id)) inspectCut();   // (a click on a menu over it isn't a shot; with a pair, either button fires)   // (firing, reloading or another gun: back at once)
   if (I.t >= 0 && (!D || busy())) I.t = -1;   // (anything else: eased back onto the aim)
   const stk = !endT && !!INSPECT_SPIN[id] && stocked(id);   // (a revolver with a shoulder stock on it isn't twirled: REV_SPIN)
   const key = id === 'dbl' && hasMod('sawn') ? 'dblSawn' : id;   // (the sawn-off has its own: INSPECT.dblSawn)

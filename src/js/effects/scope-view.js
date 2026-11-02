@@ -114,6 +114,9 @@ void main() {
     // what the glass takes: a little light (transmission), a little contrast (the veiling glare off the tube's inside,
     // lifting the blacks), the coatings' faint cast
     col = col * ${LENS_LOOK.trans.toFixed(3)} + ${LENS_LOOK.veil.toFixed(3)} * vec3(0.9, 0.95, 1.0);
+    // (past the edge of the picture rendered for it, as the scope slides on your eye standing up or ducking down, or
+    // the gun's knocked about: the tube's own shadow, black, coming in soft, never the picture's edge smeared out)
+    { vec2 o = max(max(-uv, uv - 1.0), vec2(0.0)); float sh = 1.0 - smoothstep(0.0, 0.035, max(o.x, o.y)); col *= sh * (1.0 - 0.35 * smoothstep(-0.06, 0.0, max(max(-uv.x, uv.x - 1.0), max(-uv.y, uv.y - 1.0)))); }
     col *= vec3(0.98, 1.0, 1.02);
     // the reticle, in the scope: on its axis with the picture, turned as the gun's canted
     vec2 r0 = (fc - uAx) / uR, q = vec2(uRot.x * r0.x + uRot.y * r0.y, -uRot.y * r0.x + uRot.x * r0.y);

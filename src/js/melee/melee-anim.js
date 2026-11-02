@@ -541,6 +541,9 @@ export function meleePose(id, D, rdt, now, sh) {
   // down and off to that side, shaking as it comes back up on the springs (MHIT)
   { const f = !(W8.swing > 0) && !sh ? ANIM.flinch || 0 : 0;
     if (f > 0.001) { const sd = ANIM.flinchSide || 1, f2 = f * f, sj = Math.sin(now * 52) * MHIT.shake * f2; _maF.x += sd * MHIT.side * f2 + sj; _maF.y -= MHIT.down * f2 - sj * 0.6; _maF.z -= MHIT.back * f2; _maW.x += sd * MHIT.tip * f2; _maW.y += MHIT.up * f2 + sj * 2; _maW.normalize(); } }
+  // gathering a heavy blow (melee/block.js MCHARGE): held at the top of the wind-up, drawn further back as it gathers
+  // and trembling with the strain, more the nearer it is to full
+  if (W8.chgOn && !sh) { const k = smooth(clamp(W8.heavyK || 0, 0, 1)); _maF.z -= 0.06 * k; _maF.y += 0.03 * k; _maF.x += Math.sin(now * 47) * 0.004 * (0.3 + k); _maW.y += Math.sin(now * 53) * 0.02 * k; _maW.normalize(); }
   // the guard up (melee/block.js), eased in and out as it comes up and down: the weapon brought up across in front of
   // your face, its edge out, the chest turned a touch to put the shoulder behind it and the knees bent (MBLOCK, by kind);
   // a blow on it slams it back toward you and jolts it about (BLOCK.shake), the springs carrying the rest

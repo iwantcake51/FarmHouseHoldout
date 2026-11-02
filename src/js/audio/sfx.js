@@ -95,6 +95,7 @@ export const SFX = {
   // the melee guard (melee/block.js): brought up (a short rush of cloth and steel), a blow ringing off it (a hard clang
   // and the thump of it through your arms), a parry (a bright ring of steel on steel that hangs, a shing off the edge),
   // and broken (a dull clank and the thump of it knocked down)
+  chargeFull() { tn(0.18, 'sine', 520, 880, 0.05); nz(0.12, 'bandpass', 2400, 4200, 0.05, 3); },   // (a heavy blow gathered to its full: a rising tick, melee/block.js CHARGE)
   guardUp() { if (!playS(['swing_light_1', 'swing_light_2'], { vol: 0.32, rate: 1.45, jit: 0.08 })) nz(0.08, 'bandpass', 900, 2200, 0.08, 1.6); },
   guardHit() { const f = rr(0.9, 1.1); SFX.clang(1.1); tn(0.14, 'sine', 140 * f, 60 * f, 0.4); playS(['hit_blunt_1', 'hit_blunt_2'], { vol: 0.45, rate: 1.25, jit: 0.08 }); },
   parry() { const f = rr(0.95, 1.08); SFX.clang(1.4); tn(0.9, 'sine', 2480 * f, 2440 * f, 0.07); tn(0.7, 'sine', 3720 * f, 3690 * f, 0.035); tn(0.5, 'triangle', 1240 * f, 1200 * f, 0.08); nz(0.28, 'highpass', 5200, 8200, 0.16, 1.2); sndLater(() => nz(0.18, 'bandpass', 6400, 3800, 0.08, 3), 40); },
@@ -153,12 +154,14 @@ export const SFX = {
   },
   // shell-shocked (a volatile going off on you): the world gone dull and distant, under a high, thin ringing (two tones
   // a few hertz apart, so it beats) that comes up fast and dies away slowly as the hearing comes back; k 0..1
-  tinnitus(k) {
-    if (!AC) return; const t = AC.currentTime, L = 3 + 2 * k;
-    muff.frequency.cancelScheduledValues(t); muff.frequency.setValueAtTime(260, t); muff.frequency.setValueAtTime(260, t + 0.5 * k); muff.frequency.exponentialRampToValueAtTime(20000, t + L);
+  // (soft: a faint high ring that fades under the world coming back, the world only dulled, not cut off; quiet, a
+  // headshot's, ui and pvp/pvp.js; a volatile's blast its full ring)
+  tinnitus(k, soft) {
+    if (!AC) return; const t = AC.currentTime, L = soft ? 1.2 + 0.8 * k : 3 + 2 * k, f0 = soft ? 1400 : 260, v = soft ? 0.012 : 0.055;
+    muff.frequency.cancelScheduledValues(t); muff.frequency.setValueAtTime(f0, t); muff.frequency.setValueAtTime(f0, t + 0.5 * k * (soft ? 0.5 : 1)); muff.frequency.exponentialRampToValueAtTime(20000, t + L);
     for (const [f, a] of [[3920, 1], [3927, 0.7], [7840, 0.18]]) {
       const o = AC.createOscillator(), g = AC.createGain(); o.frequency.value = f; o.type = 'sine';
-      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.055 * k * a, t + 0.12); g.gain.setValueAtTime(0.055 * k * a, t + 0.9); g.gain.exponentialRampToValueAtTime(0.0001, t + L);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v * k * a, t + 0.12); g.gain.setValueAtTime(v * k * a, t + (soft ? 0.35 : 0.9)); g.gain.exponentialRampToValueAtTime(0.0001, t + L);
       o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + L + 0.1);
     }
   },

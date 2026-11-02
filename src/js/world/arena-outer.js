@@ -18,8 +18,10 @@ import { cxw } from './grid.js';
 // how near past the map's edge the first of it stands, how far out it goes, the ground's size (m)
 const OUTER = { near: 9, far: 75, ground: 460 };
 const OT = {
-  square: { theme: 'town', ground: 0x56524b },
-  quay: { theme: 'town', ground: 0x58554f, sea: 'south' },
+  // (clear: on the west and east sides, nothing from z0 to z1 nearer than d, where the map's own road out runs: the
+  // square's up to the terrace across its end, the quay's into the headland it tunnels through, world/arena-small.js)
+  square: { theme: 'town', ground: 0x56524b, clear: [-16, 16, 26] },
+  quay: { theme: 'town', ground: 0x58554f, sea: 'south', clear: [-17, 14, 58] },
   yard: { theme: 'industrial', ground: 0x5c554b },
   farm: { theme: 'farm', ground: 0x5d5a3e },
   route: { theme: 'roadside', ground: 0x6a5c48 }
@@ -50,6 +52,7 @@ export function arOuter(M, g) {
       const rowD = T.theme === 'town' ? 9 : T.theme === 'industrial' ? 16 : T.theme === 'farm' ? 22 : 18;
       while (a < hi) {
         const at = (u, v) => along ? [u, e + out * v] : [e + out * v, u];   // (u along the side, v out from it)
+        if (!along && T.clear && d < T.clear[2] && a + 9 > T.clear[0] && a < T.clear[1]) { a += 1; continue; }
         const step = OUTER_ITEM[T.theme](put, r, at, a, d, along, out, rowD);
         a += step;
       }

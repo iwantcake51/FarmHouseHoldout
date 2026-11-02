@@ -146,7 +146,9 @@ function mallShopWall(i, j, x, z) {
   const ii = i - MALL_B[0], jj = j - MALL_B[1], conc = jj >= 7 && jj <= 22 && ii >= 7 && ii <= 28;   // (faces the concourse)
   if (conc) {
     const col = MLM.front[Math.floor((ii + jj * 3) / 4) % MLM.front.length];
-    mBox(1, 0.35, 1, MLM.base, x, 0.175, z); mBox(0.96, H - 1.05, 0.96, MLM.glass, x, 0.35 + (H - 1.05) / 2, z);
+    // (the glass the whole width of the cell: no slit through between one pane's cell and the next, the frames between
+    // the panes being the strip of it each side of the picture of the shop inside, mallShops)
+    mBox(1, 0.35, 1, MLM.base, x, 0.175, z); mBox(1, H - 1.05, 1, MLM.glass, x, 0.35 + (H - 1.05) / 2, z);
     mBox(1, 0.7, 1, col, x, H - 0.35, z); mBox(1.02, 0.05, 1.02, MLM.trim, x, H - 0.72, z);
   } else {
     mBox(1, H, 1, rand() < 0.12 ? MLM.wallDk : MLM.wall, x, H / 2, z); mBox(1.02, 0.12, 1.02, MLM.base, x, 0.06, z);

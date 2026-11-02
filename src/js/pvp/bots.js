@@ -27,10 +27,12 @@
 // Its body is posed from a survivor's own (pvp/bot-poses.js): its stride by how it's moving against where it aims, its
 // arms and gun aimed, from the hip or down at a sprint, as a player's are.
 
+import { heardFrom } from '../net/avatars.js';
 import { angDiff, clamp, rand, rr, smooth } from '../core/math.js';
 import { NET, NET_BOT, NET_ON, netAs, netSend } from '../net/net.js';
 import { P } from '../player/player.js';
-import { BLK, BLOCK, guardAfter, guardCost, guardFx, guardMeets, guardThrough } from '../melee/block.js';
+import { BLK, BLOCK, MCHARGE, DUCK, ducks, guardAfter, guardCost, guardFx, guardHold, guardMeets, guardThrough, heft, POISE, RIPOSTE, SHOVE_OPEN } from '../melee/block.js';
+import { heavySwing } from '../melee/melee.js';
 import { SPRINT } from '../player/sprint.js';
 import { ADS_MOVE, ADS_SCOPE } from '../player/movement.js';
 import { CROUCH } from '../player/crouch.js';
@@ -45,7 +47,7 @@ import { N } from '../core/math.js';
 import { threadJob, threadRun } from '../core/threads.js';
 import { bulletBlocked, hardBlocked, moveCircle } from '../world/collision.js';
 import { los } from '../lighting/lightmap.js';
-import { BRAWL_IDS, GG_ONE, PVP, PVP_BLEED, pvpBurnNum, PVP_CLASSES, PVP_DMG, PVP_MELEE, PVP_R, PVP_T, PVP_TTK, pvpClassOf, pvpCovered, pvpFalloff, pvpHome, pvpFlag, pvpMeleeDmg, pvpMeleeOf, pvpPartK, pvpKilled, pvpKitOn, pvpRuleKit, pvpSideOf, pvpSwingHeard } from './pvp.js';
+import { BRAWL_IDS, GG_ONE, PVP, PVP_BLEED, pvpBurnNum, PVP_CLASSES, PVP_DMG, PVP_MELEE, PVP_R, PVP_T, PVP_TTK, pvpClassOf, pvpCovered, pvpFalloff, pvpHome, pvpFlag, pvpMeleeDmg, pvpMeleeOf, pvpPartK, pvpKilled, pvpKitOn, pvpRuleKit, pvpSideOf, pvpSwingHeard, pvpGuardBleed } from './pvp.js';
 import { HOLD, HOLD_DEF } from '../player/hold.js';
 import { fireLight, fireStep, PFIRE } from './pvp-fire.js';
 import { DRAGON_MAX } from '../weapons/gun-mods.js';
@@ -98,8 +100,8 @@ const BOT_SKILL = [
   { react: [0.34, 0.55], err: 0.24, settle: 3, sig: 0.06, turn: 3.6, view: 32, fov: 1.1, head: 0.09, iq: 0.35, team: 0.25, sneak: 0, flank: 0, gate: 0.12, track: [3.8, 4.6], wob: 0.016, tap: 1.1, hit: [0.2, 0.32], pre: 0.15, ctrl: 1.2, lead: 0, leadK: 1, dodge: null, crch: 0, sharp: 0, top: 0.5, crAcc: 0.1 },
   { react: [0.22, 0.36], err: 0.19, settle: 4, sig: 0.045, turn: 4.6, view: 38, fov: 1.25, head: 0.13, iq: 0.7, team: 0.7, sneak: 0.35, flank: 0.12, gate: 0.075, track: [4.8, 6], wob: 0.011, tap: 0.9, hit: [0.13, 0.22], pre: 0.5, ctrl: 0.9, lead: 0, leadK: 1, dodge: null, crch: 0, sharp: 0, top: 0.75, crAcc: 0.3 },
   { react: [0.1, 0.17], err: 0.09, settle: 7.5, sig: 0.017, turn: 6.2, view: 50, fov: 1.5, head: 0.2, iq: 1, team: 1, sneak: 0.5, flank: 0.25, gate: 0.032, track: [7.5, 9], wob: 0.004, tap: 0.7, hit: [0.06, 0.11], pre: 0.9, ctrl: 0.4, lead: 0.11, leadK: 0.35, dodge: [0.22, 0.5], crch: 0.45, sharp: 1, top: 0.95, crAcc: 0.85 },
-  { react: [0.05, 0.09], err: 0.025, settle: 16, sig: 0.003, turn: 9.5, view: 75, fov: 1.75, head: 0.45, iq: 1, team: 1, sneak: 0, flank: 0.3, gate: 0.012, track: [13, 15], wob: 0.0015, tap: 0.55, hit: [0.025, 0.05], pre: 1, ctrl: 0.12, lead: 0.07, leadK: 0.05, dodge: [0.12, 0.3], crch: 1, sharp: 1, top: 0.98, crAcc: 1,
-    hs: 0.96, reach: 1.7, farK: 0.08, mvK: 0.2, gunK: 0.2, think: 0.55, peekK: 0.55, qpkAll: 1, crK: 0.85, bob: [0.09, 0.18], leanSpam: 1, run: 1, angles: 1, burn: 1 }
+  { react: [0.13, 0.2], err: 0.025, settle: 16, sig: 0.003, turn: 7, view: 75, fov: 1.75, head: 0.36, iq: 1, team: 1, sneak: 0, flank: 0.3, gate: 0.012, track: [13, 15], wob: 0.0015, tap: 0.55, hit: [0.025, 0.05], pre: 1, ctrl: 0.12, lead: 0.07, leadK: 0.05, dodge: [0.12, 0.3], crch: 0.5, sharp: 1, top: 0.98, crAcc: 1,
+    hs: 0.82, reach: 1.7, farK: 0.08, mvK: 0.2, gunK: 0.2, think: 0.55, peekK: 0.55, qpkAll: 1, crK: 0.45, bob: [0.09, 0.18], leanSpam: 1, run: 1, angles: 1, burn: 1 }
 ];
 export const BOT_SKILLS = ['Recruit', 'Regular', 'Veteran', 'Terminator', 'Random'];   // (Random: each bot its own of the first three, drawn as it sits down: net/net.js)
 export const BOT_RANDOM = 4;   // (the lobby's pick that's Random)
@@ -226,6 +228,7 @@ export function botKilled(id, dm) {
   const b = BOTS.get(id); if (!b) return;
   const r = b.rec[PVP.rule === 'brawl' ? 'm:' + b.mel : b.cls] || (b.rec[PVP.rule === 'brawl' ? 'm:' + b.mel : b.cls] = { k: 0, d: 0 }); r.k++; b.st.long = Math.max(b.st.long, dm || 0);
   if (b.dead) return;
+  if (PVP.rule === 'brawl') { b.hp = Math.min(100, b.hp + 50); b.bleed = 0; b.regen0 = null; b.gst = Math.min(1, (b.gst ?? 1) + 0.5); }   // (Brawl's kill perk: half its health and half its guard back at once, as you get, pvp/pvp.js)
   const t = botNow(); botHot(b.x, b.z, t, b.id, true);
   const v = b.vis || b.mem.get(b.tgt), T_ = BOT_TBAG;
   if (v) b.mem.delete(v.id);   // (that one's done with)
@@ -530,6 +533,10 @@ function botPeek(b, L, others, wide) {
 }
 // how long it'll hold a corner in cover with nobody in sight before it goes on (s)
 const BOT_CAMP = 3.5;
+// a shotgun's way (botThink): past far of its reach it won't stand and trade, and won't peek out at someone that far
+// off (it holds the corner for them to come, longer, hold s, or goes round to them); spent, further off than near
+// (m), it's back to cover to load
+const BOT_SHORT = { far: 1.15, near: 4.5, hold: 2.2, flank: 0.55 };
 // how long a standoff (only the cover they're behind to shoot at) lasts before it does something about it (s)
 const BOT_STALL = [1.1, 2.2];
 // in cover (botThink): how soon it's out again having got there (s), and having reloaded there (repeek s)
@@ -874,7 +881,14 @@ function botThink(b, t) {
     // out of the fight for now: hurt, empty with them close, or two or more in sight at once (one at a time: it takes
     // cover from all of them and peeks for one) unless it's rushing with its side or they're right on it, or the one
     // it's on is nearly done and it's well enough itself to finish them
-    const outnumbered = b.seeN > 1 && !rushing && !onTop && !b.tunnel && !(weak && b.hp > 60), leave = !deny && ((b.healing && !onTop && !(weak && d < 12)) || (dry && d < 20) || outnumbered);
+    // (playing to its gun, BOT_SHORT: a shotgun's no business standing in a long sightline, past its reach it gets
+    // into cover and lets them come, or goes round; a double barrel takes its shot or two and is back in behind its
+    // cover to load before it comes out again, a pump with half its tube gone likewise)
+    const gid = botGunOf(b), short = !!WEAP[gid] && WEAP[gid].ammo === 'shells', reach = BOT_REACH[gid] || 30;
+    const far = short && d > reach * BOT_SHORT.far && !onTop && !rushing && !weak && !deny && rand() < 0.4 + 0.6 * S.iq;
+    const spent = short && !onTop && d > BOT_SHORT.near && !deny && b.mag[gid] < botCap(b, gid) * (gid === 'dbl' ? 1 : 0.5);
+    if (spent && b.coverAt && !b.qpk && rand() < 0.5 + 0.5 * S.iq) b.qpk = t + 0.05;
+    const outnumbered = b.seeN > 1 && !rushing && !onTop && !b.tunnel && !(weak && b.hp > 60), leave = !deny && ((b.healing && !onTop && !(weak && d < 12)) || (dry && d < 20) || outnumbered || far || (spent && !b.coverAt));
     b.noFire = false;   // (it never sits there not shooting at someone it can see)
     // (just hurt badly: out of their sight to somewhere else, sprinting, before it fights on, unless the flag needs it
     // or the one hurting it is nearly done)
@@ -883,7 +897,7 @@ function botThink(b, t) {
       if (cv) { b.state = 'cover'; b.path = cv.path; b.sprint = true; b.peekAt = t + rr(0.9, 1.6); b.mv = ''; b.coverAt = { x: cv.x, z: cv.z }; return; }
       b.mv = 'back'; b.path = []; b.sprint = false; b.mvT = t + rr(0.6, 1);
     }
-    if (leave && b.state !== 'cover' && t - (b.coverT || 0) > 0.6) {
+    if (leave && (b.state !== 'cover' || (far && !b.path.length && t - (b.coverT || 0) > 1.4)) && t - (b.coverT || 0) > 0.6) {   // (a shotgun seen from too far off where it's taken cover: somewhere they can't see it)
       b.coverT = t; const cv = botCover(b, known.length ? known : [T], b.healing);
       if (cv) { b.state = 'cover'; b.path = cv.path; b.sprint = true; b.peekAt = t + botPk(b, BOT_COVER.peek); b.coverAt = { x: cv.x, z: cv.z }; return; }
     }
@@ -1050,6 +1064,11 @@ function botThink(b, t) {
     // (leaned out round it where that sees them, BOT_QPEEK: head and shoulder, not the whole of it, quick and back; not
     // again from the same place straight after one that found nothing or got it hurt (b.rechal): another angle then)
     const others = known.filter(m => m !== L), ls = !b.rechal && !botBurnt(b, b.x, b.z, L.x, L.z) && botLeanSide(b, L);
+    // (a shotgun, them too far off for it: no peek out into their sightline; round to them, or the corner held)
+    { const gid = botGunOf(b), D0 = WEAP[gid]; if (D0 && D0.ammo === 'shells' && Math.hypot(L.x - b.x, L.z - b.z) > (BOT_REACH[gid] || 13) * BOT_SHORT.far) {
+      const fl = rand() < BOT_SHORT.flank * S.iq ? botFlank(b, L, others) : null;
+      if (fl) { b.state = 'flank'; b.path = fl; b.sprint = false; return; }
+      b.peekAt = t + rr(BOT_SHORT.hold * 0.6, BOT_SHORT.hold); b.coverSinceT = Math.max(b.coverSinceT ?? t, t - BOT_CAMP * 0.5); return; } }
     if (ls && rand() < BOT_QPEEK.leanK * S.iq) { b.state = 'peek'; b.path = []; b.sprint = false; b.lpeek = ls; b.leanSide = ls; b.peekEnd = t + botPk(b, BOT_QPEEK.lean); b.leanT = b.peekEnd; b.jiggle = true; b.swing = 0; b.coverAt = b.coverAt || { x: b.x, z: b.z }; return; }
     if (b.rechal) { b.rechal = false; if (rand() < BOT_QPEEK.flank * S.iq) { const fl = botFlank(b, L, others); if (fl) { b.state = 'flank'; b.path = fl; b.sprint = !!S.run && fl.length > 2; return; } } }
     const wide = botEdge(b, L, t) > 0 || (b.jig || 0) >= BOT_PEEK.jigs || !!b.lastPk && t - b.lastPk.t < 6, pk = botPeek(b, L, others, wide);
@@ -1110,7 +1129,17 @@ function botFoeSwing(T, t) {
 }
 // its guard (melee/block.js): how likely it puts it up against a swing coming at it, how long it holds it (s), how
 // fast what a blow knocked off it comes back (a second, of the whole), and how it wears down with it held
-const BOT_GUARD = { chance: 0.45, parry: 0.3, hold: [0.35, 0.8], back: 0.3, drain: 0.12 };
+const BOT_GUARD = { chance: 0.45, parry: 0.55, duck: 0.35, heavy: 0.55, hold: [0.35, 0.8], back: 0.3, drain: 0 };
+// shoving (botMeleeThink): how near it has to be (m), how likely against a guard that's up, how often at most (s)
+const BOT_SHOVE = { reach: 1.6, k: 0.4, cd: 2.2, dmg: 6 };
+function botShove(b, T, d) {
+  const dx = (T.x - b.x) / (d || 1), dz = (T.z - b.z) / (d || 1), G = T.id === NET.id ? { on: BLOCK.on, at: BLOCK.at, aim: P.aim } : (() => { const q = NET.peers.get(T.id); return { on: !!q && q.bk > -50, at: q ? q.bkAt : 0, aim: q && q.vw ? q.vw[0] : 0 }; })();
+  const m = { dx: bR2(dx), dz: bR2(dz), p: 1 }; if (guardMeets(G.on, G.at, G.aim, T.x, T.z, b.x, b.z)) { m.gb = 1; b.ripo = botNow() + SHOVE_OPEN.win; guardFx(T.x - dx * 0.42, 1.25, T.z - dz * 0.42, -dx, -dz, false); }
+  if (T.id === NET.id) NET_ON.pv(Object.assign({ t: 'pv', f: b.id, to: NET.id }, m)); else if (BOTS.has(T.id)) botShoved(T.id, m); else netAs(b.id, 'pv', Object.assign({ to: T.id }, m), T.id);
+  botDeal(b, T, BOT_SHOVE.dmg, 'torso', botGunOf(b), false); heardFrom(['swing_light_1', 'swing_light_2'], b.x, b.z, 0.7);
+}
+// whether someone's swing coming at it is a chop down from overhead (which it can't duck) or a swing across
+function botFoeChops(T) { if (T.id === NET.id) return heavySwing(W(curId()) || {}); const o = BOTS.get(T.id); return !!(o && o.mswing && o.mswing.chop); }
 // which swing of theirs is coming (so it decides once a swing), and how long till it lands (s)
 function botSwingKey(T) { if (T.id === NET.id) return 'y' + (W8.swingN || 0); const o = BOTS.get(T.id); return o && o.mswing ? T.id + o.mswing.t0 : ''; }
 function botSwingLands(T, t) {
@@ -1134,6 +1163,10 @@ function botMeleeThink(b, T, t, d, S) {
   const sk = theirs && botSwingKey(T);
   if (sk && b.guardFor !== sk) {
     b.guardFor = sk;
+    // (a swing across coming at it, a sharp one in Brawl: down under it, melee/block.js DUCK, timed to the blow, and
+    // up again after; a chop from overhead it can't duck)
+    const land0 = botSwingLands(T, t), across = !botFoeChops(T);
+    if (!mine && d < theirs && across && S.sharp && PVP.rule === 'brawl' && rand() < BOT_GUARD.duck * S.iq) { b.duck = { from: t + Math.max(0, land0 - 0.22), until: t + land0 + 0.3 }; b.mWant = Math.max(0.6, d - 0.1); return; }
     if (!mine && d < theirs && t >= (b.guardCd || 0) && t >= (b.guardOkAt || 0) && (b.gst ?? 1) > 0.3 && rand() < BOT_GUARD.chance * (0.4 + 0.6 * S.iq)) {
       const nowS = performance.now() / 1000, land = botSwingLands(T, t);
       b.block = true; b.blockAt = rand() < BOT_GUARD.parry * S.iq ? nowS + Math.max(0, land - 0.1) : nowS - BLK.parry - 0.05; b.blockEnd = t + Math.max(land + 0.15, rr(...BOT_GUARD.hold)); b.mWant = Math.max(0.6, d - 0.1); return;
@@ -1144,7 +1177,15 @@ function botMeleeThink(b, T, t, d, S) {
   if (!b.mswing && t >= (b.mcd || 0)) {
     // ready: in reach (or will be as it steps in) and on them, it swings; else in to them (or a feint now and then)
     const on = Math.abs(angDiff(Math.atan2(T.x - b.x, T.z - b.z), b.aim)) < M.arc * 0.85 || d < 0.8;
-    if (d <= R + 0.4 && on) { botMeleeSwing(b, id, M, t); b.mWant = Math.max(0.55, d - 0.6); return; }
+    // (their guard up and it close enough: a shove into it now and then, to knock it open and punish it, as you can:
+    // melee/block.js SHOVE_OPEN; sharper ones more)
+    const Gup = T.id === NET.id ? BLOCK.on : (() => { const q = NET.peers.get(T.id); return !!q && q.bk > -50; })();
+    if (Gup && d < BOT_SHOVE.reach && t >= (b.shoveT || 0) && rand() < BOT_SHOVE.k * S.iq) { b.shoveT = t + BOT_SHOVE.cd; botShove(b, T, d); return; }
+    if (d <= R + 0.4 && on) {
+      const G = T.id === NET.id ? BLOCK.on : (() => { const q = NET.peers.get(T.id); return !!q && q.bk > -50; })(), low = (T.id === NET.id ? P.cr : (BOTS.get(T.id) || NET.peers.get(T.id) || {}).cr || 0) > DUCK.cr;
+      const kind = b.ripo > t ? 'rp' : G && rand() < BOT_GUARD.heavy * S.iq ? 'hv' : null; b.ripo = 0;
+      botMeleeSwing(b, id, M, t, kind, low && rand() < 0.4 + 0.6 * S.iq); b.mWant = Math.max(0.55, d - 0.6); return;
+    }
     b.mWant = rand() < BOT_MELEE.feint * S.iq && !(b.punish > t) ? Math.max(R + 0.25, reach + 0.1) : Math.max(0.6, R - 0.35);
     return;
   }
@@ -1152,9 +1193,12 @@ function botMeleeThink(b, T, t, d, S) {
   b.mWant = reach && reach < R ? Math.max(reach + BOT_MELEE.out, R - 0.25) : Math.max(R * 0.85, (reach || R) + BOT_MELEE.out);
 }
 // a swing started: lands wind s on, the next one after the weapon's pace (as yours: weapons/firing.js)
-function botMeleeSwing(b, id, M, t) {
-  const wind = BOT_MELEE.wind[id] ?? 0.2, dur = Math.min(M.rate * 1.2, M.rate > 0.85 ? 0.98 : 0.64);
-  b.mswing = { id, t0: t, at: t + wind, end: t + Math.max(wind + 0.18, dur), side: rand() < 0.5 ? 1 : -1, hit: false, chop: M.rate > 0.85 || id === 'wrench' };
+// (kind: 'hv' a heavy blow, gathered as yours is (CHARGE: held a while at the top, harder, and through a guard at
+// full), 'rp' a riposte straight after a parry of its own (RIPOSTE: quick, harder, through any guard); low: someone
+// crouched under its swing, so it comes down from overhead)
+function botMeleeSwing(b, id, M, t, kind, low) {
+  const wind0 = BOT_MELEE.wind[id] ?? 0.2, wind = kind === 'hv' ? wind0 + MCHARGE.full * 1.2 : kind === 'rp' ? wind0 * RIPOSTE.speed : wind0, dur = Math.min(M.rate * 1.2, M.rate > 0.85 ? 0.98 : 0.64) * (kind === 'rp' ? RIPOSTE.speed : 1);
+  b.mswing = { id, t0: t, at: t + wind, end: t + Math.max(wind + 0.18, dur + (wind - wind0)), side: rand() < 0.5 ? 1 : -1, hit: false, chop: M.rate > 0.85 || id === 'wrench' || !!low, hv: kind === 'hv', rp: kind === 'rp' };
   netAs(b.id, 'mw', { w: id, x: bR2(b.x), z: bR2(b.z), sd: b.mswing.side, wu: bR2(wind), du: bR2(b.mswing.end - t) });   // (to everyone else: its swing played on it there, net/avatars.js avSwing)
   b.mcd = t + M.rate * 1.3; b.guardOkAt = b.mswing.end + guardAfter(id);   // (its guard not up again till the weapon's back across: melee/block.js)
 }
@@ -1168,18 +1212,22 @@ function botMeleeStep(b, t, foes) {
     for (const f of foes) {
       const dx = f.x - b.x, dz = f.z - b.z, d = Math.hypot(dx, dz);
       if (d > M.range + 0.35 || (Math.abs(angDiff(Math.atan2(dx, dz), b.aim)) > M.arc && d > 0.6) || !los(b.x, b.z, f.x, f.z)) continue;
-      // (on their guard, if it's up and facing it: melee/block.js. Parried, it's thrown off; blocked, a share gets through)
+      // (crouched under a swing across: over their head, melee/block.js DUCK)
+      if (ducks(f.id === NET.id ? P.cr : (BOTS.get(f.id) || NET.peers.get(f.id) || {}).cr, s.chop)) continue;
+      // (on their guard, if it's up and facing it: melee/block.js. Parried, it's thrown off; blocked, a share gets
+      // through; a heavy blow at full breaks it; a riposte goes through it)
       const G = f.id === NET.id ? { on: BLOCK.on, at: BLOCK.at, aim: P.aim } : (() => { const q = NET.peers.get(f.id); return { on: !!q && q.bk > -50, at: q ? q.bkAt : 0, aim: q && q.vw ? q.vw[0] : 0 }; })();
-      const gk = !gold && guardMeets(G.on, G.at, G.aim, f.x, f.z, b.x, b.z);
+      const gk = !gold && !s.rp && guardMeets(G.on, G.at, G.aim, f.x, f.z, b.x, b.z), mul = (s.hv ? 1 + MCHARGE.dmg : 1) * (s.rp ? RIPOSTE.dmg : 1), brk = gk === 'block' && s.hv;
       if (gk) {
-        const ux = dx / (d || 1), uz = dz / (d || 1), full = pvpMeleeDmg(M, false), cx = f.x - ux * 0.42, cz = f.z - uz * 0.42;
+        const ux = dx / (d || 1), uz = dz / (d || 1), full = Math.round(pvpMeleeDmg(M, false) * mul), cx = f.x - ux * 0.42, cz = f.z - uz * 0.42;
         guardFx(cx, 1.3, cz, -ux, -uz, gk === 'parry'); netAs(b.id, 'gx', { x: bR2(cx), z: bR2(cz), nx: bR2(-ux), nz: bR2(-uz), p: gk === 'parry' ? 1 : 0 });
-        botDeal(b, f, gk === 'parry' ? 0 : Math.max(1, Math.round(full * guardThrough(s.id))), 'torso', s.id, false, { gk: gk === 'parry' ? 'p' : 'b', bd: full, kb: gk === 'parry' ? 0 : (M.kb || 0) * 0.4 + 1, kx: ux, kz: uz });
+        botDeal(b, f, gk === 'parry' ? 0 : Math.max(1, Math.round(full * guardThrough(s.id) * (brk ? 1.6 : 1))), 'torso', s.id, false, { gk: gk === 'parry' ? 'p' : 'b', bd: full, kb: gk === 'parry' ? 0 : (M.kb || 0) * 0.4 + 1 + (brk ? 3 : 0), kx: ux, kz: uz, gb: brk });
         if (gk === 'parry') { s.end = t; b.mcd = Math.max(b.mcd || 0, t + BLK.parryLock); b.stun = Math.max(b.stun || 0, BLK.parryStun * 0.6); }
+        else if (BOTS.has(f.id)) pvpGuardBleed(f.x, f.z, ux, uz, Math.max(1, Math.round(full * guardThrough(s.id) * (brk ? 1.6 : 1))), b.id);   // (a bot's guard: the host bleeds it for everyone; a player's own game does theirs)
         n++; continue;
       }
       const head = rand() < M.head * (0.6 + 0.6 * S.iq) * (1 - BOT_FAIR.head * botFair(b, f.id));
-      botDeal(b, f, gold ? GG_ONE : pvpMeleeDmg(M, head), head ? 'head' : 'torso', s.id, rand() < M.bleed, { st: M.stun || 0, kb: M.kb || 0, kx: dx / (d || 1), kz: dz / (d || 1), gd: gold ? 1 : 0 });
+      botDeal(b, f, gold ? GG_ONE : Math.round(pvpMeleeDmg(M, head) * mul), head ? 'head' : 'torso', s.id, rand() < M.bleed, { st: M.stun || 0, kb: M.kb || 0, kx: dx / (d || 1), kz: dz / (d || 1), gd: gold ? 1 : 0 });
       n++; b.st.hits++;
     }
     b.st.shots++;
@@ -1263,6 +1311,7 @@ function botCrouchStep(b, dt, t) {
     const g = b.tbag; if (t > g.nextT) { b.crW = b.crW ? 0 : 1; g.nextT = t + rr(...BOT_TBAG.bob); if (!b.crW && --g.n <= 0) { b.tbag = null; b.state = 'reset'; b.thinkT = 0; } }
   } else if (b.crSpam > t && b.vis && (b.mv !== 'push' || botSk(b).crK)) { if (t > (b.bobT || 0)) { b.crW = b.crW ? 0 : 1; b.bobT = t + rr(...(botSk(b).bob || BOT_CRSPAM.bob)); } }
   else b.crW = (b.state === 'fight' && b.vis && ((b.mv === 'hold' && b.reloading) || (b.crAcc && b.mv !== 'push' && b.mv !== 'tocover'))) || (b.state === 'angle' && b.ang && b.ang.cr && !b.path.length) ? 1 : 0;
+  if (b.duck) { if (t > b.duck.until) b.duck = null; else if (t >= b.duck.from) b.crW = 1; }   // (ducking a swing: botMeleeThink)
   if (b.sprint || b.dead) b.crW = 0;
   b.cr = (b.cr || 0) + (b.crW - (b.cr || 0)) * (1 - Math.exp(-dt * (b.crW > b.cr ? CROUCH.down : CROUCH.up)));
 }
@@ -1442,7 +1491,7 @@ function botGun(b, dt, t, foes) {
   if (b.swapT > 0) { b.swapT -= dt; return; }
   // (its guard: worn down while it's held past a moment, coming back while it isn't; and only with a melee weapon out)
   { const D0 = WEAP[botGunOf(b)]; if (b.block && (!D0 || !D0.melee || b.dead || b.mswing || b.stun > 0)) b.block = false;
-    if (b.block) { if (performance.now() / 1000 - b.blockAt > BLK.hold) b.gst = Math.max(0, (b.gst ?? 1) - BOT_GUARD.drain * dt); }
+    if (b.block) { if (performance.now() / 1000 - b.blockAt > BLK.hold) b.gst = Math.max(0, (b.gst ?? 1) - BOT_GUARD.drain * guardHold(botGunOf(b)) * dt); }   // (by the weight held up, as yours: melee/block.js guardHold)
     else b.gst = Math.min(1, (b.gst ?? 1) + BOT_GUARD.back * dt); }
   const id = botGunOf(b), D = WEAP[id]; if (D && D.melee) { botMeleeStep(b, t, foes); return; } if (!D) return;   // (a blade swung, landing or not: botMeleeStep; its melee out to run with: botRunMelee puts its gun back)
   // (reloaded in cover: straight back out at them, BOT_COVER)
@@ -1522,7 +1571,7 @@ function botShoot(b, id, D, foes, d) {
   }
   if (on.size) b.st.hits++;
   for (const [f, s] of on) botDeal(b, f, Math.round(s.d), s.head ? 'head' : s.part, id, shells ? s.n >= 3 && rand() < PVP_BLEED.shells : rand() < PVP_BLEED.gun, s.fp ? { fi: 1, fp: s.fp } : null);
-  const quiet = !!gt.supp, m = { w: id, q: quiet ? 1 : 0, x: bR3(ox), y: oy, z: bR3(oz), e: ends, st: quiet ? 'supp' : 'std', pw: bR3(tracerPower(D)), sh: shells ? 1 : 0, dr: 0 };
+  const quiet = !!gt.supp, m = { w: id, q: quiet ? 1 : 0, x: bR3(ox), y: oy, z: bR3(oz), e: ends, st: b.gold && b.gold[id] ? 'gold' : quiet ? 'supp' : 'std', pw: bR3(tracerPower(D)), sh: shells ? 1 : 0, dr: 0 };
   NET_ON.shot(Object.assign({ t: 'shot', f: b.id }, m)); netAs(b.id, 'shot', m);
   botsHear(b.id, ox, oz, quiet, ends);
 }
@@ -1536,7 +1585,7 @@ function botDeal(b, f, d, part, w, bleed, ex) {
   // (what it's put into them lately, which it knows as you do from your hits: someone hurt to finish, BOT_FINISH)
   const t = botNow(), e = b.dealt.get(f.id); b.dealt.set(f.id, { d: (e && t - e.t < BOT_FINISH.mem ? e.d : 0) + d, t });
   const m = { d, p: part, w, x: bR2(b.x), z: bR2(b.z), b: bleed ? 1 : 0, g: botKit(b, w) };
-  if (ex) { if (ex.gk) { m.gk = ex.gk; m.bd = ex.bd; } if (ex.st) m.st = ex.st; if (ex.kb) { m.kb = ex.kb; m.kx = bR2(ex.kx); m.kz = bR2(ex.kz); } if (ex.gd) m.gd = 1; if (ex.fi) { m.fi = 1; m.fp = ex.fp; } }
+  if (ex) { if (ex.gk) { m.gk = ex.gk; m.bd = ex.bd; if (ex.gb) m.gb = 1; } if (ex.st) m.st = ex.st; if (ex.kb) { m.kb = ex.kb; m.kx = bR2(ex.kx); m.kz = bR2(ex.kz); } if (ex.gd) m.gd = 1; if (ex.fi) { m.fi = 1; m.fp = ex.fp; } }
   else if (b.gold && b.gold[w]) m.gd = 1;
   if (f.id === NET.id) NET_ON.ph(Object.assign({ t: 'ph', f: b.id, to: NET.id }, m));
   else if (BOTS.has(f.id)) botHit(f.id, Object.assign({ f: b.id }, m));
@@ -1550,13 +1599,14 @@ export function botHit(id, m) {
   // (on its guard, melee/block.js: a parry costs it nothing; a block lets a share through and wears its guard down,
   // and with the last of it the guard's broken. No blood either way: the attacker's drawn the sparks)
   if (m.gk) {
-    if (m.gk === 'b') { b.gst = (b.gst ?? 1) - guardCost(m.bd || m.d, m.w); if (b.gst <= 0) { b.block = false; b.gst = 0; b.guardCd = t + BLK.broke; b.stun = Math.max(b.stun || 0, BLK.brokeStun); } }
+    if (m.gk === 'p') { b.ripo = t + RIPOSTE.win; b.gst = Math.min(1, (b.gst ?? 1) + BLK.parryStam); }   // (its parry: a riposte its own, botMeleeThink)
+    if (m.gk === 'b') { b.gst = (b.gst ?? 1) - guardCost(m.bd || m.d, m.w); if (b.gst <= 0 || m.gb) { b.block = false; b.gst = 0; b.guardCd = t + BLK.broke; b.stun = Math.max(b.stun || 0, BLK.brokeStun); } }
     if (m.kb) { b.vx = (m.kx || 0) * m.kb; b.vz = (m.kz || 0) * m.kb; }
     if (m.d > 0) { b.last = { id: m.f, w: m.w, head: false, d: m.d, at: t, x: m.x, z: m.z, pt: 'torso', g: 0, gd: 0, fi: 0 }; b.taken.set(m.f, (b.taken.get(m.f) || 0) + m.d); b.hurtT = t; b.calm = 0; b.regen0 = null; if (b.hp <= 0) botDie(b, t); }
     return;
   }
   // (a blow landing on it mid-swing breaks its swing off before it lands, and holds the next off a moment)
-  if ((WEAP[m.w] || {}).melee && b.mswing && !b.mswing.hit) { b.mswing = null; b.mcd = Math.max(b.mcd || 0, t + BLK.lock); }
+  if ((WEAP[m.w] || {}).melee && b.mswing && !b.mswing.hit && t >= (b.poise || 0) && !((t - b.mswing.t0) / Math.max(0.05, b.mswing.end - b.mswing.t0) > POISE.commit && heft(b.mswing.id) >= heft(m.w) + 1.5)) { b.mswing = null; b.mcd = Math.max(b.mcd || 0, t + BLK.lock); b.poise = t + POISE.t; netAs(b.id, 'mw', { w: botGunOf(b), cx: 1 }); }   // (not again straight after one, nor a heavy one well under way by a light blow: melee/block.js POISE)
   b.block = false;
   b.tag = Math.max(b.tag || 0, Math.min(BOT_TAG.most, BOT_TAG.base + m.d * BOT_TAG.per)); b.sprint = false; b.tbag = null; botInspCut(b);
   if (botSk(b).sharp && b.vis) b.mvT = 0;   // (a veteran tagged thinks again at once: out of the open, botThink)
@@ -1604,7 +1654,9 @@ NET_BOT.ph = m => botHit(m.to, m);
 // shoved (pvp/pvp.js pvpShove, or another player's 'pv'): thrown back, reeling, its aim knocked off
 export function botShoved(id, m) {
   const b = BOTS.get(id); if (!b || b.dead || PVP.ph !== 'live' || b.prot > 0) return;
-  const k = m.p || 1; b.stun = 0.7 * k; b.vx = m.dx * 5 * k; b.vz = m.dz * 5 * k; b.av += rr(-4, 4); b.err += rr(0.2, 0.35) * (rand() < 0.5 ? -1 : 1); b.burst = 0; b.sprint = false;
+  const k = m.p || 1; b.stun = 0.7 * k + (m.gb ? SHOVE_OPEN.reel : 0); b.vx = m.dx * 5 * k; b.vz = m.dz * 5 * k;
+  if (m.gb) { b.block = false; b.guardCd = botNow() + SHOVE_OPEN.down; }   // (its guard shoved open: melee/block.js SHOVE_OPEN)
+  if (b.mswing && b.mswing.hv) b.mswing = null;   // (a heavy blow it was gathering knocked out of it) b.av += rr(-4, 4); b.err += rr(0.2, 0.35) * (rand() < 0.5 ? -1 : 1); b.burst = 0; b.sprint = false;
 }
 NET_BOT.pv = m => botShoved(m.to, m);
 const BOT_ASSIST = 30;   // (damage, hp, someone else has to have done to a bot in a life to count for its kill)

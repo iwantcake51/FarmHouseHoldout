@@ -20,7 +20,8 @@
 
 import { clamp, rr } from '../core/math.js';
 import { lam } from '../core/shaders.js';
-import { ci, idx } from './grid.js';
+import { ci, cxw, idx } from './grid.js';
+import { blockArr } from './collision.js';
 import { NET_ON, netSend } from '../net/net.js';
 import { PVP } from '../pvp/pvp.js';
 import { dustBurst, fx } from '../effects/puffs.js';
@@ -113,6 +114,34 @@ export function arBoxShot(ox, oy, oz, dx, dy, dz, endT, stopped, fp) {
   if (!best) return false;
   arBoxBreak(best, bn, dx, dz); netSend('abx', { s: best.id, i: bn, dx: Math.round(dx * 100) / 100, dz: Math.round(dz * 100) / 100 });
   return true;
+}
+// a melee swing (melee/melee.js meleeHit) from (x, z) facing aim: every box in reach (range, to its near face) and inside
+// the swing's arc either side (arc, rad), at a height a blow can reach and on your side of the shelf it stands on (not
+// through its back panel, nor through anything else that stops a round on the way: blockArr), knocked off in the one
+// swing. How many went
+const AR_BOX_SWING = { lo: 0.15, hi: 2.1, most: 4 };
+export function arBoxSwing(x, z, aim, range, arc) {
+  if (!AR_BOX.sets.size) return 0;
+  const fx = Math.sin(aim), fz = Math.cos(aim), hits = [];
+  for (const set of AR_BOX.sets.values()) {
+    if (!arBoxUp(set)) continue;
+    for (let n = 0; n < set.list.length; n++) {
+      if (set.gone.has(n)) continue;
+      const b = set.list[n], dx = b.x - x, dz = b.z - z, d = Math.hypot(dx, dz), near = d - Math.max(b.w, b.d) / 2;
+      if (near > range || b.y + b.h / 2 < AR_BOX_SWING.lo || b.y - b.h / 2 > AR_BOX_SWING.hi) continue;
+      if (d > 0.4 && Math.acos(clamp((dx * fx + dz * fz) / d, -1, 1)) > arc) continue;
+      // (on your side of what it stands on: nearer you than the middle of its cell, where a gondola's back panel is)
+      const ci0 = ci(b.x), cj0 = ci(b.z), ccx = cxw(ci0), ccz = cxw(cj0);
+      if ((b.x - ccx) * (x - ccx) + (b.z - ccz) * (z - ccz) < -0.01) continue;
+      // (nothing that stops a round between you and its cell)
+      let clear = true; const st = Math.ceil(d / 0.2);
+      for (let k = 1; k < st && clear; k++) { const i = ci(x + dx * k / st), j = ci(z + dz * k / st); if ((i !== ci0 || j !== cj0) && blockArr[idx(i, j)] === 1) clear = false; }
+      if (clear) hits.push([near, set, n, dx / (d || 1), dz / (d || 1)]);
+    }
+  }
+  hits.sort((a, b) => a[0] - b[0]);
+  for (const [, set, n, ux, uz] of hits.slice(0, AR_BOX_SWING.most)) { arBoxBreak(set, n, ux, uz); netSend('abx', { s: set.id, i: n, dx: Math.round(ux * 100) / 100, dz: Math.round(uz * 100) / 100 }); }
+  return Math.min(hits.length, AR_BOX_SWING.most);
 }
 // a box knocked off (n of set; dx, dz the way the round was going): gone, torn apart (arBits), a puff of dust thrown on
 // out the way the round went and a dull papery crunch. (Again for the same box does nothing)

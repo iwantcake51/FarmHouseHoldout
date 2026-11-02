@@ -11,6 +11,8 @@
 // your eyes are, your arms and the gun in them below.
 // The free camera flies anywhere to watch: W A S D along where it looks, Space and Ctrl up and down, Shift faster and
 // the wheel its speed. You stay where you were, and every zombie shows wherever it is.
+import { timeScale } from './hit-feedback.js';
+import { pvpEnding } from '../pvp/pvp.js';
 import { KB } from '../input/keybinds.js';
 import { CAM_OFF, cv, FP_CAM, GUN_Y, ISO_CAM, R, setCam, V3 } from '../core/renderer.js';
 import { angDiff, clamp, rand, rr, smooth } from '../core/math.js';
@@ -354,7 +356,7 @@ function unlock() { if (locked()) { selfUnlock = true; document.exitPointerLock(
 // the mouse moved this much (pixels) while it's locked: the view turns, slower down the sights and slower again through
 // a scope (the settings' sensitivity on top)
 export function viewLook(dx, dy) {
-  const s = FPV.sens * (SET.sens || 100) / 100 * (1 - 0.35 * (ANIM.ads || 0)) / (SCOPE_V.on && SCOPE_V.mag > 1 && (SCOPE_V.kind === 'scope' || SCOPE_V.kind === 'acog') ? 1 + (SCOPE_V.mag - 1) * 0.6 * SCOPE_V.w : 1);   // (slower through a scope, as it magnifies)
+  const s = FPV.sens * (SET.sens || 100) / 100 * (1 - 0.35 * (ANIM.ads || 0)) / (SCOPE_V.on && SCOPE_V.mag > 1 && (SCOPE_V.kind === 'scope' || SCOPE_V.kind === 'acog') ? 1 + (SCOPE_V.mag - 1) * 0.6 * SCOPE_V.w : 1) * (pvpEnding() ? 0.22 + 0.78 * timeScale : 1);   // (slower through a scope, as it magnifies; and with the match's end slowing to a stop, slowed with it: pvp/pvp.js)
   if (freeOn()) { V.fyaw -= dx * s; V.fpitch = clamp(V.fpitch - dy * s, -FPV.pitch, FPV.pitch); return; }
   if (state !== 'play' || openSt || cheatOn || setOpen()) return;   // (no looking round till a menu's quite gone: the cards still going as they're taken, a station's)
   fpAimSync();
@@ -1188,9 +1190,10 @@ export function viewFrame(rdt, roll, sh, jolt) {
       const acc = ((P.vx - V.lvx) * fx + (P.vz - V.lvz) * fz) / d; V.lvx = P.vx; V.lvz = P.vz;
       const m = 1 - TILT.ads * w0, tr = -right * TILT.roll * m, tp = clamp(-fwd * TILT.pitch - clamp(acc, -25, 25) * TILT.acc, -0.04, 0.04) * m;
       for (let n = Math.ceil(rdt / (1 / 120)), h = rdt / Math.max(1, n), i = 0; i < n; i++) { V.vtr += (TILT.k * (tr - V.tr) - TILT.d * V.vtr) * h; V.tr += V.vtr * h; V.vtp += (TILT.k * (tp - V.tp) - TILT.d * V.vtp) * h; V.tp += V.vtp * h; } }
-    meleeCam(rdt); flinchStep(rdt);
+    const erdt = pvpEnding() ? rdt * timeScale : rdt;   // (the arms', the gun's and the view's own springs slowed with the match's end: pvp/pvp.js)
+    meleeCam(erdt); flinchStep(erdt);
     // the shots' turn of the gun, ringing out
-    recoilStep(rdt);
+    recoilStep(erdt);
     // bobbing with your stride
     // (a smooth dip as each foot comes down and rise between them, BOB.foot of it sharpened onto the footfall)
     { const m = clamp(Math.hypot(P.vx, P.vz) / BOB.speed, 0, BOB.max) * (P.moving ? 1 : 0) * (1 - BOB.ads * w0), ph = P.phase || 0;
@@ -1216,7 +1219,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
         V.vland += (-LAND.k * V.land - LAND.d * V.vland) * h; V.land += V.vland * h;
         V.vlp += (-F.k * V.lp - F.d * V.vlp) * h; V.lp += V.vlp * h; V.vlr += (-F.k * V.lr - F.d * V.vlr) * h; V.lr += V.vlr * h;
       } }
-    vmStep(rdt, w0, now);
+    vmStep(erdt, w0, now);
     PM.g.updateMatrixWorld(true); rigStep(rdt);
     // (turning, the view turns about your eye, as in any shooter, not about your middle: the eye's well in front of
     // that, so it used to swing round on an arc, a quarter turn carrying it 20-odd cm, and drift on as the body

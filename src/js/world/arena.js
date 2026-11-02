@@ -893,7 +893,7 @@ export function arenaUp(id) {
   for (let j = ARENA.z0; j <= ARENA.z1; j++) for (let i = ARENA.x0; i <= ARENA.x1; i++) {
     const k = AR_KIND(i, j), c = idx(i, j);
     if (M.walls.includes(k)) cell[c] = WALL;
-    else if (M.h[k]) { cell[c] = OBST; obstTop.set(c, M.h[k]); if (M.low.has(k)) lowObst.add(c); if (M.vault.has(k)) VAULT_LOW.add(c);  if ((M.thru || AR_THRU).includes(k)) SHOOT_THRU.add(c); if (M.under && M.under[k]) obstUnder.set(c, M.under[k]); }
+    else if (M.h[k]) { cell[c] = OBST; obstTop.set(c, M.h[k]); if (M.low.has(k)) lowObst.add(c); if (M.vault.has(k)) VAULT_LOW.add(c);  if ((M.thru ?? AR_THRU).includes(k)) SHOOT_THRU.add(c); if (M.under && M.under[k]) obstUnder.set(c, M.under[k]); }
   }
   TREE_HIDE.at = () => true;   // (and none of the woods the forests draw afresh each frame: world/tree-cull.js)
   arCellBoxes(M);
@@ -1004,7 +1004,8 @@ export function arSurfAt(x, z) {
 }
 // the spawn spot for a side (A, B or F) furthest from the enemies given ([x, z] each), a little off where it's marked
 const RESPAWN_PICK = 0.75;
-// the plan's kinds a round goes straight through (shelving: S on every map that has it), its boxes knocked off
+// the plan's kinds a round goes straight through unless a map says otherwise (the mall's open stockroom shelving, S),
+// its boxes knocked off; Route 9's solid-backed gondolas stop rounds (its own thru: '')
 const AR_THRU = 'S';
 export function arenaSpawn(side, foes, n, seed) {
   const SP = AR_CUR.spawn.S, L = SP[side] || SP.F;

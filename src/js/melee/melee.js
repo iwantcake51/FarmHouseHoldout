@@ -1,5 +1,6 @@
 // Melee swings, stamina cost and slowdown while swinging.
 
+import { swingMul } from './block.js';
 import { angDiff, clamp, rand } from '../core/math.js';
 import { ci, idx, inb, openAt } from '../world/grid.js';
 import { thinHit } from '../world/thin-walls.js';
@@ -16,6 +17,7 @@ import { camKick, camPunch, camRoll, setCamPunch, setCamRoll, setShake, shake } 
 import { bodyOf } from '../weapons/firing.js';
 import { meleeImpact } from './melee-anim.js';
 import { pvpMelee } from '../pvp/pvp.js';
+import { arBoxSwing } from '../world/arena-boxes.js';
 
 // you slow down while a swing comes through; heavier weapons more, and more again when you're winded
 export const swingSlow = () => { if (!(W8.swing > 0)) return 1; const D = W(curId()) || {}, p = 1 - W8.swing / W8.swingDur, k = Math.sin(Math.min(1, p * 1.15) * Math.PI); return 1 - Math.min(0.85, k * (D.style === 'chop' && D.two ? 0.6 : D.two ? 0.45 : 0.35) * (P.exh ? 1.55 : 1)); };
@@ -96,7 +98,7 @@ export function meleeHit() {
     for (const { z, d, dx, dz } of meleeTargets(D).slice()) {
       const r = rand(), part = r < (D.style === 'chop' ? 0.38 : 0.22) + S.headBonus ? 'head' : r < 0.55 ? (rand() < 0.5 ? 'armL' : 'armR') : r < 0.7 ? (rand() < 0.5 ? 'legL' : 'legR') : 'torso';
       // winded, a swing is slower and shoves them back less, but it hits just as hard
-      if (hurtZombie(z, D.dmg * S.meleeMul, dx / (d || 1), dz / (d || 1), D.kb * (W8.tired ? 0.55 : 1), id, part)) kills++;
+      if (hurtZombie(z, D.dmg * S.meleeMul * swingMul(), dx / (d || 1), dz / (d || 1), D.kb * (W8.tired ? 0.55 : 1), id, part)) kills++;
       else if (heavy && z.type !== 'brute') z.stagger = Math.max(z.stagger, HEAVY.stagger);
       hit = true; near = Math.min(near, d); nHit++;
     }
@@ -104,6 +106,9 @@ export function meleeHit() {
     // nothing living in the way: a boarded opening in reach takes the blow instead, BOARD_MELEE of it, the boards
     // jumping and splintering as they do under fire
     const bo = !hit && boardInReach(D);
+    // (and any boxes on a shelf in reach and in the swing's arc, knocked off in the one swing: world/arena-boxes.js)
+    const nb = arBoxSwing(P.x, P.z, P.aim, D.range + 0.2, (D.arc || 0.9) + 0.15);
+    if (nb && !hit && !bo) { meleeImpact(heavy, 0.5); setShake(Math.max(shake, 0.12)); }
     if (bo) { shootBoard(bo, D.dmg * S.meleeMul * BOARD_MELEE, fx0, fz0); meleeImpact(heavy, 0.75); setShake(Math.max(shake, heavy ? 0.3 : 0.16)); SFX.thud(); if (!blade || heavy) SFX.hitBlunt(heavy); }
     if (hit || bo) { P.stam = Math.max(0, P.stam - stamCost(D) * (1 - SWING_AIR) * (1 + CLEAVE_STAM * Math.max(0, nHit - 1))); P.stamT = 0; if (P.stam <= 0.001) P.exh = true; }   // the rest of the swing's cost, for connecting
     if (hit) meleeImpact(heavy, Math.min(1.3, 0.85 + 0.15 * kills));   // it stops on the blow and rebounds off it (melee/melee-anim.js)

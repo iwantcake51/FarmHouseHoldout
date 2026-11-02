@@ -633,8 +633,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     // loose spring, and the stops knock it; the torso twists and rocks with it
     const t = _rackT; t.p = t.r = t.y = t.z = t.h = t.w = 0;
     if (cp) for (const src in cy.v.lean) { const L = cy.v.lean[src], k = cp[src]; for (const a in L) t[a] += L[a] * k; }   // this way of working it (RACKS)
-    if (cp && cp.ant) { const L = cy.v.lean[cy.bolt ? 'grab' : 'off']; for (const a in L) t[a] -= L[a] * CYC_ANT.lean * cp.ant; }   // and before it, a beat the other way (CYC_ANT)
-    stepRack(rdt, t);
+    if (cp && cp.ant) { const L = cy.v.lean[cy.bolt ? 'grab' : 'off']; for (const a in L) t[a] -= L[a] * CYC_ANT.lean * (cy.bolt ? CYC_ANT.bolt : 1) * cp.ant; }   // and before it, a beat the other way (CYC_ANT)
+    stepRack(rdt, t, EJECT[id] === 'bolt');
     pitch += RACK.p; roll += RACK.r; yaw += RACK.y; oz += RACK.z; oy += RACK.h;
     up.y += RACK.w; up.x += 0.3 * RACK.p;
   }
