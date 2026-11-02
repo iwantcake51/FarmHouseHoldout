@@ -100,8 +100,8 @@ const BOT_SKILL = [
   { react: [0.34, 0.55], err: 0.24, settle: 3, sig: 0.06, turn: 3.6, view: 32, fov: 1.1, head: 0.09, iq: 0.35, team: 0.25, sneak: 0, flank: 0, gate: 0.12, track: [3.8, 4.6], wob: 0.016, tap: 1.1, hit: [0.2, 0.32], pre: 0.15, ctrl: 1.2, lead: 0, leadK: 1, dodge: null, crch: 0, sharp: 0, top: 0.5, crAcc: 0.1 },
   { react: [0.22, 0.36], err: 0.19, settle: 4, sig: 0.045, turn: 4.6, view: 38, fov: 1.25, head: 0.13, iq: 0.7, team: 0.7, sneak: 0.35, flank: 0.12, gate: 0.075, track: [4.8, 6], wob: 0.011, tap: 0.9, hit: [0.13, 0.22], pre: 0.5, ctrl: 0.9, lead: 0, leadK: 1, dodge: null, crch: 0, sharp: 0, top: 0.75, crAcc: 0.3 },
   { react: [0.1, 0.17], err: 0.09, settle: 7.5, sig: 0.017, turn: 6.2, view: 50, fov: 1.5, head: 0.2, iq: 1, team: 1, sneak: 0.5, flank: 0.25, gate: 0.032, track: [7.5, 9], wob: 0.004, tap: 0.7, hit: [0.06, 0.11], pre: 0.9, ctrl: 0.4, lead: 0.11, leadK: 0.35, dodge: [0.22, 0.5], crch: 0.45, sharp: 1, top: 0.95, crAcc: 0.85 },
-  { react: [0.13, 0.2], err: 0.025, settle: 16, sig: 0.003, turn: 7, view: 75, fov: 1.75, head: 0.36, iq: 1, team: 1, sneak: 0, flank: 0.3, gate: 0.012, track: [13, 15], wob: 0.0015, tap: 0.55, hit: [0.025, 0.05], pre: 1, ctrl: 0.12, lead: 0.07, leadK: 0.05, dodge: [0.12, 0.3], crch: 0.5, sharp: 1, top: 0.98, crAcc: 1,
-    hs: 0.82, reach: 1.7, farK: 0.08, mvK: 0.2, gunK: 0.2, think: 0.55, peekK: 0.55, qpkAll: 1, crK: 0.45, bob: [0.09, 0.18], leanSpam: 1, run: 1, angles: 1, burn: 1 }
+  { react: [0.13, 0.2], err: 0.04, settle: 13, sig: 0.008, turn: 7, view: 75, fov: 1.75, head: 0.3, iq: 1, team: 1, sneak: 0, flank: 0.3, gate: 0.018, track: [11, 13], wob: 0.0025, tap: 0.62, hit: [0.04, 0.075], pre: 1, ctrl: 0.12, lead: 0.07, leadK: 0.05, dodge: [0.12, 0.3], crch: 0.5, sharp: 1, top: 0.98, crAcc: 1,
+    hs: 0.62, reach: 1.7, farK: 0.14, mvK: 0.32, gunK: 0.32, think: 0.55, peekK: 0.55, qpkAll: 1, crK: 0.45, bob: [0.09, 0.18], leanSpam: 1, run: 1, angles: 1, burn: 1 }
 ];
 export const BOT_SKILLS = ['Recruit', 'Regular', 'Veteran', 'Terminator', 'Random'];   // (Random: each bot its own of the first three, drawn as it sits down: net/net.js)
 export const BOT_RANDOM = 4;   // (the lobby's pick that's Random)
@@ -1330,6 +1330,7 @@ export function botsUpdate(dt) {
   if (!BOTS.size) return;
   botClock += dt;
   const t = botNow(), live = PVP.ph === 'live';
+  botWatchCrouch(t);
   if (live && (squadT -= dt) <= 0) { squadT = 0.5; botSquad(t); }
   for (const b of BOTS.values()) {
     if (b.dead) {
@@ -1607,6 +1608,15 @@ function botPrefire(b, t, id, D, foes) {
   q.n--; b.cd = D.rate < 0.12 && !D.pellets ? D.rate * 1.3 : Math.max(D.rate, rr(0.2, 0.3));
   botShoot(b, id, D, foes, d);
 }
+// someone dropping into a crouch or coming up out of one: the head's where it wasn't, and a bot's aim on it has to
+// find it again (BOT_REAIM: for this long after it's moved, a bot aiming at the head mostly misses it, the round going
+// where the head was, and finds the body only as often as it would anyway)
+const BOT_REAIM = { t: 0.45, by: 0.25, head: 0.15 }, crWatch = new Map();
+function botWatchCrouch(t) {
+  const look = (id, cr) => { const w = crWatch.get(id); if (!w) { crWatch.set(id, { cr, t: -9 }); return; } if (Math.abs(cr - w.cr) > BOT_REAIM.by) { w.cr = cr; w.t = t; } };
+  look(NET.id, P.cr || 0); for (const [id, p] of NET.peers) look(id, p.cr || 0);
+}
+const botReaim = (id, t) => { const w = crWatch.get(id); return !!w && t - w.t < BOT_REAIM.t; };
 // a shot: each round (or pellet) along where it's aiming, off by how steady it is, stopping at the first wall; anyone
 // on that line takes it as a player's would (pvp/pvp.js: by where it lands, a head double, low cover keeping most of a
 // body out of it), and everyone sees and hears it
@@ -1629,7 +1639,7 @@ function botShoot(b, id, D, foes, d) {
     for (const f of foes) { const vx = f.x - ox, vz = f.z - oz, tt = vx * dx + vz * dz, off = vx * dz - vz * dx; if (tt > 0.2 && tt < ht && tt < reachT && off * off < PVP_R * PVP_R) { hit = f; ht = tt; rel = off / PVP_R; } }
     let endK = wallT < 70 ? 1 : 3, ey = oy + rr(-0.2, 0.05);
     if (hit) {
-      const r = rand(), ap = b.aimPart || 'torso', head = ap === 'head' ? S.hs ?? Math.min(0.5, S.head * 3.2) : S.head * 0.6, legs = ap === 'legs' ? 0.55 : 0.18;
+      const r = rand(), ap = b.aimPart || 'torso', rh = botReaim(hit.id, t) ? BOT_REAIM.head : 1, head = (ap === 'head' ? S.hs ?? Math.min(0.5, S.head * 3.2) : S.head * 0.6) * rh, legs = ap === 'legs' ? 0.55 : 0.18;   // (rh: the head just moved, crouching or standing: botWatchCrouch)
       const part = r < head ? 'head' : r < head + legs ? (rel > 0 ? 'legR' : 'legL') : r < head + legs + 0.18 ? (rel > 0 ? 'armR' : 'armL') : 'torso';   // (where it's aiming: botAimPart)
       // into the cover in front of them (all of it, from someone crouched down behind it: BOT_CROUCH)
       if (pvpCovered(hit.x, hit.z, ox, oz, dx, dz, ht) && ((hit.cr || 0) > BOT_CROUCH.down || (part !== 'head' && !part.startsWith('arm')))) { ht = Math.max(0.3, ht - 0.9); endK = 1; }

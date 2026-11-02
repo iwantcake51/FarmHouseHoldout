@@ -557,7 +557,10 @@ has its kick cross clear of its side's badge.
 | Recruit | 0.42–0.7 s | about 16° | 30 m | 8% of hits | Hardly minds what range its gun's good at, rarely flanks, runs everywhere (you hear it coming), barely plays as a side |
 | Regular | 0.28–0.45 s | about 13° | 36 m | 11% | In between |
 | Veteran | 0.17–0.3 s | about 10° | 42 m | 15% | Keeps to its gun's range (a shotgun pressing in, a rifle keeping back), flanks more, walks in quietly on someone it knows is there, spreads over the lanes with its side and goes where a teammate fell |
-| Terminator | 0.13–0.2 s | about 1.5° | 75 m | about 80% of hits | Everything a veteran does, cranked up: lasers you from far off, quick-peeks everything, crouches and leans mid fight, runs everywhere, holds the angles you come through in Showdown, and never re-peeks an angle it was shot from (below) |
+| Terminator | 0.13–0.2 s | about 2.5° | 75 m | about 60% of hits | Everything a veteran does, cranked up: lasers you from far off, quick-peeks everything, crouches and leans mid fight, runs everywhere, holds the angles you come through in Showdown, and never re-peeks an angle it was shot from (below) |
+
+**Crouching or standing up** moves your head out from where a bot was aiming: for 0.45 s after, a bot aiming at the
+head finds it only a sixth as often (the rounds go where it was), until it's found it again.
 
 **Reacting** takes longer the more of a surprise you are: off to the side of where it's looking (up to 70% longer at
 the edge of what it sees), someone it had no idea of (a third longer), and that close, round a corner under 8 m (a
@@ -654,8 +657,9 @@ BOT_SKILL and the Terminator's own knobs on it):
   and settles twice as fast, it turns a little quicker than a veteran, and it sees out to 75 m across a wider view. Its shots
   hardly spread: a fifth of the spread its own moving and its gun's looseness add, a twelfth of what range adds, and
   almost none from a held trigger. It fires 70% further past each gun's usual reach.
-- **Mostly headshots.** It aims at the head, and about four in five of the hits it lands that way are in the head (a
-  veteran's land there at most half the time). Low cover still takes its rounds as it does anyone's.
+- **Mostly headshots.** It aims at the head, and about three in five of the hits it lands that way are in the head (a
+  veteran's land there at most half the time). It's a touch looser than it was (its aim, spread and recoil control),
+  so it takes a little longer to put you down, but it's still sharper than a Veteran on every count. Low cover still takes its rounds as it does anyone's.
 - **Quick-peeks everything.** Its peeks, the gaps between them and its time holding a corner are all about half as long.
   After a burst from a stepped-out peek it's straight back in behind its cover, as it already was from a lean, and comes
   again from somewhere else.
@@ -2134,7 +2138,9 @@ line of sight meets (a gun's: a melee weapon's crosshair stays its size, in the 
 1.75 times its size), and eases back as you step away. When the gun's blocked closer than what you're looking at (its
 muzzle up against a wall, a corner between the barrel and the target), the crosshair slides to where the round would
 really stop and goes red, so you can see the shot's blocked and where it'll land. It always sits where the barrel's
-round would stop, whatever's in the way, so up against a wall it's on the wall where the barrel points. Hold **Alt** to
+round would stop, whatever's in the way, so up against a wall it's on the wall where the barrel points. What counts as
+in the way is tested at the round's own height along its line, as the shot itself is, so a crate stack, a low wall or
+a prop the round flies over no longer turns it red or pulls it off onto the air above it. Hold **Alt** to
 look round freely (never past straight up or straight down) while the gun stays where it's aimed: your arms and the gun hold still in the world as the view looks
 away from them, rather than drifting round with it, and the view eases back onto them when you let go. The view
 follows you smoothly up and over a vault, bobs and sways with each stride (barely up and down; the gun in your hands swings side to side, nods onto each footfall and rolls with the step a beat behind it, a loose figure of eight rather than a bounce), banks a

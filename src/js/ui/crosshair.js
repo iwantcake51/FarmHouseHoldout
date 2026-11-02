@@ -7,7 +7,7 @@ import { cam, FP_CAM, GUN_Y, V3 } from '../core/renderer.js';
 import { angDiff, cache, clamp, smooth } from '../core/math.js';
 import { ci } from '../world/grid.js';
 import { thinRay } from '../world/thin-walls.js';
-import { bulletBlocked } from '../world/collision.js';
+import { bulletBlocked, bulletBlockedAt } from '../world/collision.js';
 import { P } from '../player/player.js';
 import { roundOn } from '../weapons/rounds.js';
 import { curId, magCap, stamMax, W, W8 } from '../game/run-state.js';
@@ -171,13 +171,19 @@ function awText(aw, t, plain) {
 // tall prop: bulletBlocked) on the line before the cell the cursor's on. Zombies, boards and the low furniture you shoot
 // across don't count; aiming at a wall itself doesn't either (that's what you'd hit)
 function blockedShot() {
+  // (from your own eyes a round flies at its own height, from the muzzle up or down to what you're looking at, so it
+  // goes over a low prop or a crate stack it really clears: only what's there at the height it's at stops it, as the
+  // shot itself is, world/collision.js bulletBlockedAt. Tested on the flat it called anything standing in the cells
+  // between blocked, a crate's corner far off under the line or the air over a low wall)
+  const fp = fpOn(), mw = fp ? muzzleWorld() : null, my = mw && Number.isFinite(mw.y) ? mw.y : 1.3;
+  const stopAt = (x, z, y) => fp ? bulletBlockedAt(x, z, y) : bulletBlocked(x, z);
   // the gun's muzzle itself jammed into a wall or past a corner (muzzle(), weapons/firing.js, falls back to just in front
   // of you then): blocked whatever you're aiming at
-  { const len = MUZ[W8.cur] || 0.9, tx = P.x + Math.sin(P.aim) * len, tz = P.z + Math.cos(P.aim) * len; if (bulletBlocked(tx, tz) || !los(P.x, P.z, tx, tz)) return true; }
+  { const len = MUZ[W8.cur] || 0.9, tx = P.x + Math.sin(P.aim) * len, tz = P.z + Math.cos(P.aim) * len; if (stopAt(tx, tz, my) || !los(P.x, P.z, tx, tz)) return true; }
   const m = muzzle(), dx = aimPt.x - m.ox, dz = aimPt.z - m.oz, L = Math.hypot(dx, dz); if (L < 0.3) return false;
-  const ux = dx / L, uz = dz / L, ti = ci(aimPt.x), tj = ci(aimPt.z);
+  const ux = dx / L, uz = dz / L, ti = ci(aimPt.x), tj = ci(aimPt.z), ay = fp ? VCAM.aimY : my;
   if (thinRay(m.ox, m.oz, ux, uz, L) < L - 0.05) return true;   // an inside wall on the way (world/thin-walls.js)
-  for (let t = 0.1; t < L; t += 0.1) { const x = m.ox + ux * t, z = m.oz + uz * t; if (bulletBlocked(x, z)) return !(ci(x) === ti && ci(z) === tj); }
+  for (let t = 0.1; t < L; t += 0.1) { const x = m.ox + ux * t, z = m.oz + uz * t; if (stopAt(x, z, my + (ay - my) * t / L)) return !(ci(x) === ti && ci(z) === tj); }
   return false;
 }
 const xhX = $('xhX');
@@ -195,8 +201,8 @@ function shotStop(out) {
   const m = muzzleWorld(); if (!Number.isFinite(m.x)) return false;
   _xwA.copy(m); _xwB.set(aimPt.x, VCAM.aimY, aimPt.z).sub(_xwA);
   const L = Math.hypot(_xwB.x, _xwB.z); if (L < 0.05) return false;
-  const ux = _xwB.x / L, uz = _xwB.z / L; let t = bulletBlocked(m.x, m.z) ? 0 : L;
-  if (t) { t = thinRay(m.x, m.z, ux, uz, L); for (let q = 0.05; q < t; q += 0.05) if (bulletBlocked(m.x + ux * q, m.z + uz * q)) { t = q; break; } }
+  const ux = _xwB.x / L, uz = _xwB.z / L; let t = bulletBlockedAt(m.x, m.z, m.y) ? 0 : L;   // (at the round's own height along the line, as blockedShot)
+  if (t) { t = thinRay(m.x, m.z, ux, uz, L); for (let q = 0.05; q < t; q += 0.05) if (bulletBlockedAt(m.x + ux * q, m.z + uz * q, m.y + _xwB.y * q / L)) { t = q; break; } }
   _xwA.addScaledVector(_xwB, t / L).project(FP_CAM);   // (as far along it in the air as across the ground) if (_xwA.z > 1) return false;
   out[0] = (_xwA.x + 1) / 2 * innerWidth; out[1] = (1 - _xwA.y) / 2 * innerHeight; return true;
 }
