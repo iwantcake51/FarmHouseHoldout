@@ -1357,19 +1357,22 @@ solid things two metres wide or less, and there are none). They used to be a mar
 each was an evacuation point the dead overran, and what you fight round is what was left when they did. Each is one
 real place, an open space with its edges the buildings or the water round it, still three ways across (north edge,
 the middle past its landmark, south edge), each spawn the road coming in at its end behind a vehicle parked across it.
-- **Hawthorne Square**: the town's evacuation point. North, the High Street's shops boarded up and sprayed over (EVAC
-  POINT →, GONE TO KESTON, NO FOOD, DONT GO IN), their awnings torn, the café's tables knocked over, a burned-out car at
-  the kerb, the army's generator humming in its box (its cables run across the setts to the tents), the newspaper kiosk
-  boarded with its last headline (STAY INDOORS, ARMY TO EVACUATE TOWN CENTRES). The army's checkpoint round the war
-  memorial: sandbags along its foot, the photos and notes of the missing taped round it, the wreaths gone brown, a
-  triage tent each side of the flag (olive canvas, red crosses), a red cross painted on a white disc round the flag for
-  the helicopters, crates of rations stacked under cargo nets, dead lime trees, HESCO either side of the south way in.
-  South, the churchyard's fresh graves under wooden crosses behind its low wall, its stone cross and yew, the
-  Hawthorne Arms' beer garden barricaded with its own tables, the old pump house between them (WATER ✓). The last
-  coach at each end (EVACUATION on its board, its door open, luggage still on its rack: rounds go under it), the road
-  closed beyond by the army's barricade (concrete blocks, razor wire, EVACUATION POINT · CLOSED) with the queue of cars
-  left in it. The church tower over the shops with HELP hung from it, dead trees round the town. Blood dried on the
-  setts, leaflets everywhere.
+- **Hawthorne Square**: the town's evacuation point, laid out in three clear lanes.
+  - **North street**: the High Street's shops are boarded up and sprayed over (EVAC POINT →, GONE TO KESTON, NO FOOD,
+    DONT GO IN), with their awnings torn. Café tables are knocked over in pairs against the shopfronts. One car each
+    side has burned out at the kerb: sat on its bare rims, its paint gone to rust and ash, its cabin an empty frame of
+    pillars and its bonnet sprung. The newspaper kiosk is boarded up with its last headline (STAY INDOORS).
+  - **The plaza**: the war memorial is the one landmark, with the photos and notes of the missing taped round it and
+    the wreaths gone brown. A triage tent stands each side of the flag (olive canvas, red crosses) as the middle's
+    walls. A red cross is painted on a white disc round the flag, with a run of sandbags in front of it and one
+    behind. Nothing else is left standing in the open.
+  - **South**: the churchyard sits behind a low wall with three gates: a wide one in the middle and a narrow one each
+    side. Inside are its fresh graves in a row along the south wall, its two yews, the Hawthorne Arms' beer garden and
+    the old pump house (WATER ✓).
+  - **Each end**: the last coach (EVACUATION on its board, its door open, luggage still on its rack; rounds go under
+    it), with that side's spawn behind it. The road is closed beyond by the army's barricade (concrete blocks, razor
+    wire, EVACUATION POINT · CLOSED), with the queue of cars left in it. The church tower over the shops has HELP hung
+    from it, and dead trees stand round the town.
 - **Saltmarsh Quay**: the harbour the last boats left from. The harbour water is a moving shader, with rippling
   normals, deep water darkening away from the wall, the sky caught at a low angle, sun glints, and foam where it slaps
   the quay. The quay wall has weed and wet bands and tyre fenders hung on chains. Four fishing boats lie at their
@@ -1427,9 +1430,9 @@ as a made thing rather than type laid over a picture:
 - **Route 9**: the parked cars sit flush to the lot walls in tidy rows; the jersey barriers that walled off the
   south lot are now two short pieces; and the dumpsters, newsstands and the centre court's crates are off the walk
   lines.
-- **Hawthorne Square**: the café tables are in pairs against the buildings instead of scattered, the market's trees
-  and sandbags have moved off the walk lines, the low walls sit against the buildings, and the graves are in a row
-  along the south wall.
+- **Hawthorne Square**: replanned. The generators, supply stacks, crates, crosses, dead trees, HESCO and half the lamp
+  posts are gone from the plaza, leaving the three lanes above. The café tables are in pairs against the buildings,
+  and the graves are in a row along the south wall.
 - **Saltmarsh Quay**: the cars and luggage sit against the harbour buildings, the float pallets against the sheds,
   and the bollards are spaced along the quay edge.
 - **Larkspur Mall**: the planters squeezed against pillars are gone, the food court's trees and tables sit clear of
