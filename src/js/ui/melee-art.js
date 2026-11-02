@@ -7,7 +7,7 @@ import { R, V3 } from '../core/renderer.js';
 import { cache } from '../core/math.js';
 import { modLv } from '../weapons/mod-levels.js';
 import { magTierIn, setTierCtx, W, W8 } from '../game/run-state.js';
-import { GUNS } from '../melee/melee-models.js';
+import { BAT_KIT, GUNS } from '../melee/melee-models.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { buildWeapon, weaponRec } from '../weapons/build-weapons.js';
 import { threadJob, threadRun, threadsOn } from '../core/threads.js';
@@ -18,7 +18,7 @@ const MELEE_ART_PPU = 190;   // CSS pixels per metre, the same for every weapon,
 // (lv: each mod's level, yours unless given: a teammate's are sent with their loadout, net/arsenal.js)
 // (gold: Gun game's golden katana, drawn all in gold, pvp/pvp.js)
 export function meleeArt(id, mods, lv = modLv, gold = false) {
-  const key = id + ':' + mods.map(k => k + lv(k)).join(',') + (gold ? ':gold' : '');   // a mod improved at the bench grows the model, so it's a new picture
+  const key = id + ':' + mods.map(k => k + lv(k)).join(',') + (gold ? ':gold' : '') + (id === 'bat' && BAT_KIT.nails ? ':nailed' : '');   // (Brawl's bat comes nailed: melee/melee-models.js BAT_KIT)   // a mod improved at the bench grows the model, so it's a new picture
   if (meleeArtCache[key]) return meleeArtCache[key];
   const g = new THREE.Group(), flags = {}; mods.forEach(k => { flags[k] = lv(k); });
   GUNS[id](g, flags);

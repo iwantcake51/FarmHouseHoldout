@@ -59,6 +59,7 @@ import { BOT_CLASSES, botHit, botIds, botKilled, botKitGl, botsAdapt, botShoved,
 import { arsenalWarm, arsenalWarmClear, arsenalWarmCompile } from '../net/arsenal.js';
 import { curId } from '../game/run-state.js';
 import { MODS } from '../melee/melee-mods.js';
+import { BAT_KIT } from '../melee/melee-models.js';
 import { fx, hitMist } from '../effects/puffs.js';
 import { soundAt } from '../audio/spatial.js';
 import { heavySwing } from '../melee/melee.js';
@@ -351,7 +352,7 @@ export function pvpTeams(list, mode) { const t = {}; list.slice().sort((a, b) =>
 
 // ---- the match starting: the arena up, everyone at their spawn, the class picker open
 export function pvpBegin() {
-  PVP.on = true; PVP.rule = PVP_RULES.has(NET.arena) ? NET.arena : ''; PVP.mode = PVP.rule ? 'ffa' : NET.arena || 'ffa'; PVP.teams = NET.teams || pvpTeams(roster(), PVP.mode); PVP.side = PVP.teams[NET.id] || 'A';   // (a rule's played as a Deathmatch: PVP_RULES)
+  PVP.on = true; PVP.rule = PVP_RULES.has(NET.arena) ? NET.arena : ''; BAT_KIT.nails = PVP.rule === 'brawl'; PVP.mode = PVP.rule ? 'ffa' : NET.arena || 'ffa'; PVP.teams = NET.teams || pvpTeams(roster(), PVP.mode); PVP.side = PVP.teams[NET.id] || 'A';   // (a rule's played as a Deathmatch: PVP_RULES)
   try { PVP.mel = localStorage.getItem('fhh-brawl') || 'machete'; } catch (e) { PVP.mel = 'machete'; } if (!PVP_MELEE[PVP.mel]) PVP.mel = 'machete';
   ggReset();
   PVP.sc = {}; roster().forEach(r => { PVP.sc[r.id] = [0, 0]; });
@@ -372,7 +373,7 @@ function ggReset() { PVP.gl = {}; roster().forEach(r => { PVP.gl[r.id] = 0; }); 
 // the match over and done with (back to the lobby, or the game left): the farm back
 export function pvpEnd() {
   if (!PVP.on) return;
-  PVP.on = false; PVP.ph = 'idle'; pvpIn.clear(); clearTimeout(PVP.resT); botsEnd(); flagDown(); bloodWipe(); fireClean(); BLOOD_KEEP.on = false;   // (the game over: the blood off you, effects/body-blood.js)
+  PVP.on = false; BAT_KIT.nails = false; PVP.ph = 'idle'; pvpIn.clear(); clearTimeout(PVP.resT); botsEnd(); flagDown(); bloodWipe(); fireClean(); BLOOD_KEEP.on = false;   // (the game over: the blood off you, effects/body-blood.js)
   document.body.classList.remove('pvp', 'pvpTeams', 'pvpRounds', 'pvpPicking');
   pvpHudHide();
 }

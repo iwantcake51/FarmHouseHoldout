@@ -263,8 +263,8 @@ dust in the air at once, it's the faintest, nearly faded puff that's reused for 
 plainly there ever blinks out.
 
 **Melee.** An ash bat, crowbar, pipe wrench, machete, katana, fire axe and sledgehammer, each with its own swings,
-reach and stamina cost. Sharp blades take heads and limbs off. The bat is one smooth turned piece of ash with eight nails
-already driven through its barrel (a scavenger's bat, never a bare one); its Nails mod drives in more, real
+reach and stamina cost. Sharp blades take heads and limbs off. The bat is one smooth turned piece of ash (in Brawl it comes
+with eight nails already through its barrel, looks only); its Nails mod drives in more, real
 nails driven right through the barrel, round heads on the wood and points out the far side, and Barbed wire, its own
 mod now (no nails needed), is two twisted strands wound up the barrel with barbs every few centimetres. The crowbar is
 one red hex bar, the steel worn bright at both ends: a short angled pry foot with a nail slot, the long shaft and a
@@ -1711,6 +1711,7 @@ the chest turned to put the shoulder behind it).
 - **The katana's balanced.** It hits for less (28), swings a little slower, reaches a touch shorter, costs more stamina
   a swing and bleeds less often, so it's no longer the one weapon to spam.
 - **Brawl kill perk.** In Brawl each kill gives you back half your health and half your stamina at once (bots too).
+- **Brawl's bat** comes with eight nails through its barrel (only in Brawl; everywhere else it's bare until the Nails mod).
 - **Boxes in one swing.** A melee swing knocks off every box on a shelf in its reach and arc on your side of the
   shelving (up to four), as a round does: on the Mall's stockroom shelving, Route 9's gondolas and the Farm's racks.
 
