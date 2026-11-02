@@ -64,18 +64,18 @@ function batR(y) { for (let k = 1; k < BAT_PROFILE.length; k++) { const [r1, y1]
 const NAIL_SHANK = new THREE.CylinderGeometry(0.0034, 0.0034, 1, 8), NAIL_HEAD = new THREE.CylinderGeometry(0.0095, 0.0095, 0.0022, 14), NAIL_TIP = new THREE.ConeGeometry(0.0034, 0.012, 8);
 // a knurled nut's outline: a ring of fine ribs (radius 0.025), to be extruded along the nut's axis
 const NUT_KNURL = (() => { const s = new THREE.Shape(), n = 30; for (let i = 0; i <= n * 2; i++) { const a = i / (n * 2) * Math.PI * 2, r = i % 2 ? 0.0236 : 0.0256; i ? s.lineTo(Math.cos(a) * r, Math.sin(a) * r) : s.moveTo(Math.cos(a) * r, Math.sin(a) * r); } return s; })();
-// the bat as Brawl hands it out: a scavenger's, eight nails through it already (set by pvp/pvp.js as a match starts
+// the bat as Brawl hands it out: a scavenger's, studded with nails as the Nails mod's third tier has it (set by pvp/pvp.js as a match starts
 // and ends; looks only, the Nails mod's damage stays the mod's)
 export const BAT_KIT = { nails: false };
 const MELEE_MODELS = {
   // ash baseball bat: one smooth turned piece (BAT_PROFILE: the knob, the handle, the long taper, the barrel and its
-  // domed end), a taped handle; nails driven right through the barrel (in Brawl eight even before the Nails mod,
-// BAT_KIT; the mod drives in more), round heads on the wood and their points out the
+  // domed end), a taped handle; nails driven right through the barrel (in Brawl the Nails mod's third tier of them
+// whatever it carries, BAT_KIT), round heads on the wood and their points out the
   // far side; barbed wire wound up it, two strands twisted, barbs every few centimetres
   bat(g, m) {
     const body = new THREE.Mesh(BAT_GEO(), MM.ash); body.castShadow = true; g.add(body);
     gripWrap(g, 0.027, -0.085, 0.12, 6);
-    for (let k = 0, n = lvAt(m, 'nails', [BAT_KIT.nails ? 8 : 0, 14, 20, 26]); k < n; k++) {
+    for (let k = 0, n = (BAT_KIT.nails ? 26 : lvAt(m, 'nails', [0, 14, 20, 26])); k < n; k++) {
       const a = k * 2.39, y = 0.6 + (k % 5) * 0.055 + (k % 2) * 0.012, r = batR(y), nl = new THREE.Group(); nl.position.y = y; nl.rotation.y = -a; g.add(nl);
       const L = 2 * r + 0.05, sh = new THREE.Mesh(NAIL_SHANK, GM.nail); sh.scale.set(1, L, 1); sh.rotation.z = -Math.PI / 2; sh.position.x = -r + L / 2; nl.add(sh);
       const hd = new THREE.Mesh(NAIL_HEAD, GM.nail); hd.rotation.z = Math.PI / 2; hd.position.x = -r - 0.0008; nl.add(hd);

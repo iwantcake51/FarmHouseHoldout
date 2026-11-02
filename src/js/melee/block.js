@@ -27,7 +27,7 @@ import { mouseDown } from '../input/keyboard-mouse.js';
 import { netSend } from '../net/net.js';
 import { fpMeleeHit } from '../game/view-cam.js';
 
-export const BLK = { raise: 0.14, parry: 0.22, arc: 0.7, through: 0.18, heavy: 0.45, hold: 1, drain: 0, hit: 0.2, broke: 1.2, brokeStun: 0.5, pace: 0.7, lock: 0.3, parryStun: 0.75, parryLock: 0.9, parryStam: 0.12 };
+export const BLK = { raise: 0.14, parry: 0.22, arc: 0.7, through: 0.18, heavy: 0.45, hold: 1, drain: 0, hit: 0.2, broke: 1.2, brokeStun: 0.5, pace: 0.7, lock: 0.12, parryStun: 0.75, parryLock: 0.9, parryStam: 0.12 };
 // yours: up (on) and how far up (k, eased), when it came up (at, s), how long it's been held (t), how hard it was last
 // shaken by a blow (shake, easing off), how long till it can come up again after it was broken (broke, s), how long
 // your swings are held off for (lock, s), and a parry's flash on the shield (flash)
@@ -38,9 +38,12 @@ export const BLOCK = { on: false, k: 0, at: -9, t: 0, shake: 0, broke: 0, lock: 
 // sledgehammer's a weight on your arms
 const GUARD_HOLD = { crowbar: 0.6, machete: 0.7, katana: 0.85, bat: 0.95, wrench: 1.1, axe: 1.35, sledge: 1.7 };
 export const guardHold = id => GUARD_HOLD[id] ?? 1;
-// a horizontal swing (not a chop down from overhead) passes over someone crouched under it (DUCK.cr: how far down)
-export const DUCK = { cr: 0.55 };
-export const ducks = (cr, chop) => !chop && (cr || 0) > DUCK.cr;
+// a swing across (not a chop down from overhead) at height y (where the weapon's head comes round at them) goes over
+// someone only if it really passes over their head: ducking is an attempt, not a free dodge. DUCK: the top of a
+// standing head, how far a full crouch takes it down, how far under the aim the weapon's head comes round, and how far
+// down a bot reads someone as already low (it chops down at them then)
+export const DUCK = { cr: 0.55, top: 1.74, drop: 0.28, under: 0.22 };
+export const goesOver = (cr, chop, y) => !chop && y > DUCK.top - DUCK.drop * clamp(cr || 0, 0, 1);
 const GUARD_AFTER = { crowbar: 0.06, machete: 0.08, bat: 0.16, katana: 0.12, wrench: 0.22, axe: 0.38, sledge: 0.6 };
 export const guardAfter = id => GUARD_AFTER[id] ?? 0.15;
 // your swing just started (weapons/firing.js): the guard held off till it's done and the weapon's back (guardAfter);
@@ -55,7 +58,7 @@ export function swingStarted(id, dur) {
 // back and trembling, a little stamina going a second; let go and it comes down, up to MCHARGE.dmg harder at full
 // (MCHARGE.full s), and at full a blow that meets a guard breaks it. Right click while it's held is a feint: the blow's
 // dropped (a little stamina for it) and the guard can come straight up, to bait a parry and punish it
-export const MCHARGE = { before: 0.13, full: 0.65, dmg: 0.6, drain: 0.1, feint: 0.08, most: 2.5 };
+export const MCHARGE = { before: 0.13, full: 0.65, dmg: 1, drain: 0.1, feint: 0.08, most: 2.5 };
 // after a parry of yours (RIPOSTE: win s): the next swing's quicker (speed of its time), does dmg more, and goes
 // through any guard
 export const RIPOSTE = { win: 0.9, speed: 0.72, dmg: 1.4 };
@@ -99,7 +102,7 @@ const now = () => performance.now() / 1000;
 // whether you could have the guard up: a melee weapon in your hands and the button held, nothing else going on
 function blockWant() {
   const D = W(curId());
-  return !!D && !!D.melee && aimHeld && state === 'play' && !P.dead && !(P.bandT > 0) && !P.vault && !P.shove && !(BLOCK.broke > 0) && !(W8.swing > 0) && !(P.stun > 0) && P.stam > 0.02 * stamMax() && now() >= BLOCK.okAt;   // (up with what little stamina's left: any is enough)   // (not straight after a swing: guardAfter)
+  return !!D && !!D.melee && aimHeld && state === 'play' && !P.dead && !(P.bandT > 0) && !P.vault && !P.shove && !(BLOCK.broke > 0) && !(W8.swing > 0) && !(now() < (BLOCK.thrown || 0)) && P.stam > 0.02 * stamMax() && now() >= BLOCK.okAt;   // (up with what little stamina's left: any is enough)   // (not straight after a swing: guardAfter)
 }
 // each frame (weapons/combat-update.js): up or down, its stamina, the shake easing off
 export function updateBlock(dt) {
@@ -170,7 +173,7 @@ function guardBreak() {
 }
 // parried yourself (your blow turned on their guard): thrown off, reeling a moment, your next swing held off
 export function parriedYou() {
-  W8.swing = 0; stopLastWhoosh(); BLOCK.lock = Math.max(BLOCK.lock, BLK.parryLock); P.stun = Math.max(P.stun || 0, BLK.parryStun * 0.6);
+  W8.swing = 0; stopLastWhoosh(); BLOCK.lock = Math.max(BLOCK.lock, BLK.parryLock); P.stun = Math.max(P.stun || 0, BLK.parryStun * 0.6); BLOCK.thrown = now() + BLK.parryStun * 0.6;
   setShake(Math.max(shake, 0.45)); parriedFx();
 }
 // the screen thrown off with you: a white-blue flash in from the edges and the view swimming (styles/hud.css #parryFx)
@@ -209,7 +212,8 @@ export function swingBroken(w) {
   if (!(W8.swing > 0) || W8.hitDone || now() < (BLOCK.poise || 0)) return;
   const D = W(curId()) || {}, p = 1 - W8.swing / (W8.swingDur || 1);
   if (p > POISE.commit && heft(curId()) >= heft(w) + 1.5) return;   // (too heavy and too far into it for that to stop it)
-  W8.swing = 0; W8.chgOn = false; stopLastWhoosh(); BLOCK.lock = Math.max(BLOCK.lock, BLK.lock); BLOCK.poise = now() + POISE.t;
+  // (knocked out of it, not out of the fight: only a beat before you can swing again, and the guard free to come up at once)
+  W8.swing = 0; W8.chgOn = false; stopLastWhoosh(); BLOCK.lock = Math.max(BLOCK.lock, BLK.lock); BLOCK.poise = now() + POISE.t; W8.cd = Math.min(W8.cd || 0, BLK.lock); BLOCK.okAt = Math.min(BLOCK.okAt || 0, now());
   if (D.melee) netSend('mw', { w: curId(), x: Math.round(P.x * 100) / 100, z: Math.round(P.z * 100) / 100, cx: 1 });   // (the swing dropped, as they see you)
 }
 // the sparks off a guard where a blow meets it, and its ring (heard where it is); a parry's brighter and louder

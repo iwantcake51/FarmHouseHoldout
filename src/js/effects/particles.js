@@ -79,6 +79,14 @@ export function bloodSpurt(x, y, z, dirx, dirz, n, power) {
 // you bleeding: a drop or two falls from the wound (the left arm or your side) carried along at your speed, and spots the
 // ground where it lands, so you leave a trail as you go and a spreading patch where you stand
 const _bw = new V3();
+// someone else bleeding (pvp/pvp.js: what a nailed bat leaves): a drop falling from about their chest at x, z, carried
+// along at their speed (vx, vz), and now and then a spot on the ground under them
+export function bleedDripAt(x, z, vx, vz) {
+  const d = takeDrop(rr(0.012, 0.022));
+  d.vx = vx * 0.85 + rr(-0.15, 0.15); d.vz = vz * 0.85 + rr(-0.15, 0.15); d.vy = rr(-0.4, 0.2);
+  d.life = 2; d.wait = 0; d.p.set(x + rr(-0.16, 0.16), rr(0.85, 1.2), z + rr(-0.16, 0.16)); d.shown = true;
+  if (Math.hypot(vx, vz) < 0.3 && rand() < 0.2) splat(x + rr(-0.15, 0.15), z + rr(-0.15, 0.15), 'drop', rr(0.18, 0.3));
+}
 export function bleedDrip() {
   PM.upper.updateMatrixWorld(); const arm = rand() < 0.6;
   _bw.set(arm ? -0.3 : 0.24, arm ? 0.8 : 0.95, rr(-0.05, 0.08)); PM.upper.localToWorld(_bw);

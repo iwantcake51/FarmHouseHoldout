@@ -31,7 +31,7 @@ import { heardFrom } from '../net/avatars.js';
 import { angDiff, clamp, rand, rr, smooth } from '../core/math.js';
 import { NET, NET_BOT, NET_ON, netAs, netSend } from '../net/net.js';
 import { P } from '../player/player.js';
-import { BLK, BLOCK, MCHARGE, DUCK, ducks, guardAfter, guardCost, guardFx, guardHold, guardMeets, guardThrough, heft, POISE, RIPOSTE, SHOVE_OPEN } from '../melee/block.js';
+import { BLK, BLOCK, MCHARGE, DUCK, goesOver, guardAfter, guardCost, guardFx, guardHold, guardMeets, guardThrough, heft, POISE, RIPOSTE, SHOVE_OPEN } from '../melee/block.js';
 import { heavySwing } from '../melee/melee.js';
 import { SPRINT } from '../player/sprint.js';
 import { ADS_MOVE, ADS_SCOPE } from '../player/movement.js';
@@ -47,7 +47,7 @@ import { N } from '../core/math.js';
 import { threadJob, threadRun } from '../core/threads.js';
 import { bulletBlocked, hardBlocked, moveCircle } from '../world/collision.js';
 import { los } from '../lighting/lightmap.js';
-import { BRAWL_IDS, GG_ONE, PVP, PVP_BLEED, pvpBurnNum, PVP_CLASSES, PVP_DMG, PVP_MELEE, PVP_R, PVP_T, PVP_TTK, pvpClassOf, pvpCovered, pvpFalloff, pvpHome, pvpFlag, pvpMeleeDmg, pvpMeleeOf, pvpPartK, pvpKilled, pvpKitOn, pvpRuleKit, pvpSideOf, pvpSwingHeard, pvpGuardBleed } from './pvp.js';
+import { BRAWL_IDS, GG_ONE, PVP, PVP_BLEED, pvpBurnNum, PVP_CLASSES, PVP_DMG, PVP_MELEE, PVP_R, PVP_T, PVP_TTK, pvpClassOf, pvpCovered, pvpFalloff, pvpHome, pvpFlag, pvpMeleeDmg, pvpMeleeOf, pvpPartK, pvpKilled, pvpKitOn, pvpRuleKit, pvpSideOf, pvpSwingHeard, pvpGuardBleed, nailedBat, pvpVisBleed } from './pvp.js';
 import { HOLD, HOLD_DEF } from '../player/hold.js';
 import { fireLight, fireStep, PFIRE } from './pvp-fire.js';
 import { DRAGON_MAX } from '../weapons/gun-mods.js';
@@ -1169,8 +1169,18 @@ function botMeleeThink(b, T, t, d, S) {
     if (!mine && d < theirs && across && S.sharp && PVP.rule === 'brawl' && rand() < BOT_GUARD.duck * S.iq) { b.duck = { from: t + Math.max(0, land0 - 0.22), until: t + land0 + 0.3 }; b.mWant = Math.max(0.6, d - 0.1); return; }
     if (!mine && d < theirs && t >= (b.guardCd || 0) && t >= (b.guardOkAt || 0) && (b.gst ?? 1) > 0.3 && rand() < BOT_GUARD.chance * (0.4 + 0.6 * S.iq)) {
       const nowS = performance.now() / 1000, land = botSwingLands(T, t);
-      b.block = true; b.blockAt = rand() < BOT_GUARD.parry * S.iq ? nowS + Math.max(0, land - 0.1) : nowS - BLK.parry - 0.05; b.blockEnd = t + Math.max(land + 0.15, rr(...BOT_GUARD.hold)); b.mWant = Math.max(0.6, d - 0.1); return;
+      // (a parry is only ever a guard really raised just before the blow: timed for one, it's held down and put up
+      // 0.16 s before the blow lands, near enough all the way up as it lands (b.blockPlan), and up from then as everyone sees it; a plain block
+      // goes up now)
+      const end = t + Math.max(land + 0.15, rr(...BOT_GUARD.hold)); b.mWant = Math.max(0.6, d - 0.1);
+      if (rand() < BOT_GUARD.parry * S.iq && land > 0.18) b.blockPlan = { at: t + land - 0.16, end };
+      else { b.block = true; b.blockAt = nowS; b.blockEnd = end; }
+      return;
     }
+  }
+  if (b.blockPlan) {   // (waiting to raise it for a parry: up when it's time, as everyone sees it)
+    if (t >= b.blockPlan.at) { b.block = true; b.blockAt = performance.now() / 1000; b.blockEnd = b.blockPlan.end; b.blockPlan = null; }
+    else if (theirs) return; else b.blockPlan = null;
   }
   if (theirs && !mine && d < theirs && rand() < BOT_MELEE.dodge * S.iq + 0.1) { b.mWant = theirs + 0.4; b.punish = t + 0.5; return; }
   if (b.block) { if (t < b.blockEnd && theirs) return; b.block = false; b.punish = t + 0.4; }   // (down again once the blow's come, to hit back)
@@ -1212,8 +1222,9 @@ function botMeleeStep(b, t, foes) {
     for (const f of foes) {
       const dx = f.x - b.x, dz = f.z - b.z, d = Math.hypot(dx, dz);
       if (d > M.range + 0.35 || (Math.abs(angDiff(Math.atan2(dx, dz), b.aim)) > M.arc && d > 0.6) || !los(b.x, b.z, f.x, f.z)) continue;
-      // (crouched under a swing across: over their head, melee/block.js DUCK)
-      if (ducks(f.id === NET.id ? P.cr : (BOTS.get(f.id) || NET.peers.get(f.id) || {}).cr, s.chop)) continue;
+      // (ducked under a swing across: over their head only if it passes above it, swung at a standing head's height
+      // as it started, melee/block.js DUCK)
+      if (goesOver(f.id === NET.id ? P.cr : (BOTS.get(f.id) || NET.peers.get(f.id) || {}).cr, s.chop, DUCK.top - DUCK.under)) continue;
       // (on their guard, if it's up and facing it: melee/block.js. Parried, it's thrown off; blocked, a share gets
       // through; a heavy blow at full breaks it; a riposte goes through it)
       const G = f.id === NET.id ? { on: BLOCK.on, at: BLOCK.at, aim: P.aim } : (() => { const q = NET.peers.get(f.id); return { on: !!q && q.bk > -50, at: q ? q.bkAt : 0, aim: q && q.vw ? q.vw[0] : 0 }; })();
@@ -1227,6 +1238,7 @@ function botMeleeStep(b, t, foes) {
         n++; continue;
       }
       const head = rand() < M.head * (0.6 + 0.6 * S.iq) * (1 - BOT_FAIR.head * botFair(b, f.id));
+      if (nailedBat(s.id)) pvpVisBleed(f.id, true);   // (Brawl's nailed bat: bleeding to look at, pvp/pvp.js)
       botDeal(b, f, gold ? GG_ONE : Math.round(pvpMeleeDmg(M, head) * mul), head ? 'head' : 'torso', s.id, rand() < M.bleed, { st: M.stun || 0, kb: M.kb || 0, kx: dx / (d || 1), kz: dz / (d || 1), gd: gold ? 1 : 0 });
       n++; b.st.hits++;
     }
@@ -1490,7 +1502,7 @@ const BOT_LOOK = { alarm: 1.2, glance: [2, 4], ease: 6, idle: 0.8, gain: 4.5, fo
 function botGun(b, dt, t, foes) {
   if (b.swapT > 0) { b.swapT -= dt; return; }
   // (its guard: worn down while it's held past a moment, coming back while it isn't; and only with a melee weapon out)
-  { const D0 = WEAP[botGunOf(b)]; if (b.block && (!D0 || !D0.melee || b.dead || b.mswing || b.stun > 0)) b.block = false;
+  { const D0 = WEAP[botGunOf(b)]; if ((b.block || b.blockPlan) && (!D0 || !D0.melee || b.dead || b.mswing || b.stun > 0)) { b.block = false; b.blockPlan = null; }
     if (b.block) { if (performance.now() / 1000 - b.blockAt > BLK.hold) b.gst = Math.max(0, (b.gst ?? 1) - BOT_GUARD.drain * guardHold(botGunOf(b)) * dt); }   // (by the weight held up, as yours: melee/block.js guardHold)
     else b.gst = Math.min(1, (b.gst ?? 1) + BOT_GUARD.back * dt); }
   const id = botGunOf(b), D = WEAP[id]; if (D && D.melee) { botMeleeStep(b, t, foes); return; } if (!D) return;   // (a blade swung, landing or not: botMeleeStep; its melee out to run with: botRunMelee puts its gun back)

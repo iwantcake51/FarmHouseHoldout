@@ -34,7 +34,7 @@ import { ci, idx, inb } from '../world/grid.js';
 import { lowObst } from '../world/props.js';
 import { hitMark } from '../ui/crosshair.js';
 import { hitFromAt } from '../ui/hud.js';
-import { burst, bloodSpurt, gibs } from '../effects/particles.js';
+import { bleedDrip, bleedDripAt, burst, bloodSpurt, gibs } from '../effects/particles.js';
 import { BLOOD_KEEP, bloodMapClear, splatLater, spray } from '../effects/blood-map.js';
 import { wallBloodClear, wallSpray } from '../effects/wall-blood.js';
 import { addBlood, BODY_BLOOD, bloodWipe } from '../effects/body-blood.js';
@@ -63,7 +63,7 @@ import { BAT_KIT } from '../melee/melee-models.js';
 import { fx, hitMist } from '../effects/puffs.js';
 import { soundAt } from '../audio/spatial.js';
 import { heavySwing } from '../melee/melee.js';
-import { ducks, guardFx, guardHitYou, guardMeets, guardShovedOpen, guardThrough, parriedYou, shoveOpened, swingBroken, swingFull, swingMul } from '../melee/block.js';
+import { DUCK, goesOver, guardFx, guardHitYou, guardMeets, guardShovedOpen, guardThrough, parriedYou, shoveOpened, swingBroken, swingFull, swingMul } from '../melee/block.js';
 import { setTimeScale } from '../game/hit-feedback.js';
 import { lookThumb } from '../ui/look-card.js';
 import { lam } from '../core/shaders.js';
@@ -541,6 +541,30 @@ export function pvpShotEnd(id, D) {
 // edge or a blunt head
 const MELEE_BLOOD = { you: 0.04, blade: 0.26, blunt: 0.18 };
 // a melee blow: everyone in reach and in front of you (and not through a wall) takes it
+// how high your swing comes round at someone d m off: from your own eyes where you're looking (the weapon's head a
+// little under it), from above at a standing head's height less that
+const swingY = d => fpOn() ? FP_CAM.position.y + Math.tan(VCAM.pitch) * d - DUCK.under * 0.5 : DUCK.top - DUCK.under;
+// a hit with Brawl's nailed bat (melee/melee-models.js BAT_KIT) leaves them bleeding to look at (no bleed status, no
+// damage over time): drops falling off them and spots on the ground for VIS_BLEED.t s, a little more of it while it's
+// fresh. Told to everyone ('vb'), each screen dripping it off whoever's hit (you off yourself, effects/particles.js)
+const VIS_BLEED = { t: 3.5, every: [0.1, 0.26] };
+export const nailedBat = id => id === 'bat' && BAT_KIT.nails;
+export function pvpVisBleed(id, send) {
+  const until = performance.now() / 1000 + VIS_BLEED.t;
+  if (id === NET.id) P.vbl = until; else { const p = NET.peers.get(id); if (p) p.vbl = until; }
+  if (send) netSend('vb', { t: id });
+}
+NET_ON.vb = m => { if (PVP.on && state !== 'title') pvpVisBleed(m.t, false); };
+function visBleedStep(dt) {
+  const t = performance.now() / 1000;
+  if (P.vbl > t && !P.dead) { P.vbT = (P.vbT || 0) - dt; if (P.vbT <= 0) { P.vbT = rr(...VIS_BLEED.every); bleedDrip(); } }
+  for (const p of NET.peers.values()) {
+    if (!(p.vbl > t) || p.dead || !p.av) continue;
+    p.vbT = (p.vbT || 0) - dt; if (p.vbT > 0) continue;
+    p.vbT = rr(...VIS_BLEED.every) * (p.vbl - t > VIS_BLEED.t - 1 ? 0.6 : 1);
+    const g = p.av.g.position; bleedDripAt(g.x, g.z, p.vx || 0, p.vz || 0);
+  }
+}
 export function pvpMelee(D, id) {
   if (!PVP.on || PVP.ph !== 'live') return 0;
   PVP.prot = 0;
@@ -550,8 +574,10 @@ export function pvpMelee(D, id) {
     const g = p.av.g.position, dx = g.x - P.x, dz = g.z - P.z, d = Math.hypot(dx, dz);
     if (d > D.range + 0.35 || (Math.abs(angDiff(Math.atan2(dx, dz), P.aim)) > D.arc && d > 0.6) || !los(P.x, P.z, g.x, g.z)) continue;
     const M = pvpMeleeOf(id), head = rand() < M.head, ux = dx / (d || 1), uz = dz / (d || 1), mul = swingMul();
-    // (crouched under a swing across: it goes over their head, melee/block.js DUCK; a chop from overhead doesn't)
-    if (ducks(p.cr, heavySwing(D))) continue;
+    // (ducking under a swing across: it goes over their head only if it passes above it, at the height you swung
+    // it (from your own eyes where you're looking at them, from above at head height), melee/block.js DUCK; a chop
+    // from overhead never does)
+    if (goesOver(p.cr, heavySwing(D), swingY(d))) continue;
     // (on their guard, if it's up and facing you: melee/block.js. Sparks, no blood: a parry costs them nothing and
     // throws you off; a block lets a share through and knocks the wind out of them. Not the golden katana's)
     const gk = !D.gold && !W8.ripo && guardMeets(p.bk > -50, p.bkAt, p.vw ? p.vw[0] : 0, g.x, g.z, P.x, P.z);   // (a riposte goes through any guard: melee/block.js RIPOSTE)
@@ -569,6 +595,7 @@ export function pvpMelee(D, id) {
     // MELEE_BLOOD, a blade's edge the most)
     hitBleed(g.x, head ? 1.62 : 1.15, g.z, dx / (d || 1), dz / (d || 1), pvpMeleeDmg(M, head), head, true, !!D.gold, id);
     if (!D.gold) addBlood(MELEE_BLOOD.you, id, D.blunt ? MELEE_BLOOD.blunt : MELEE_BLOOD.blade);
+    if (nailedBat(id)) pvpVisBleed(p.id, true);   // (the nails leave them bleeding to look at)
     if (!D.blunt && !D.gold) goreAt(g.x, g.z, head ? 1.62 : 1.15, head ? 0.9 : 0.6);   // (a blade through someone at arm's length: their blood across your view and on you, ui/screen-blood.js)
     n++;
   }
@@ -930,6 +957,7 @@ function pvpWarm(C) {
 // the game itself, every step of it (game/update.js)
 export function pvpUpdate(dt) {
   if (!PVP.on) return;
+  visBleedStep(dt);
   goldStep();   // (gold spreading over whoever a golden weapon's killed: effects/gold.js)
   fireUpdate(dt);   // (anyone alight: pvp/pvp-fire.js)
   // (the next round's guns built ahead, a piece a frame: not while a round's just been called, WARM_AFTER, when the score

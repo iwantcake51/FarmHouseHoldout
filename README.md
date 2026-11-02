@@ -264,7 +264,8 @@ plainly there ever blinks out.
 
 **Melee.** An ash bat, crowbar, pipe wrench, machete, katana, fire axe and sledgehammer, each with its own swings,
 reach and stamina cost. Sharp blades take heads and limbs off. The bat is one smooth turned piece of ash (in Brawl it comes
-with eight nails already through its barrel, looks only); its Nails mod drives in more, real
+studded with nails as the Nails mod's third tier has it, and whoever it hits drips blood a few seconds, both for
+looks only); its Nails mod drives in more, real
 nails driven right through the barrel, round heads on the wood and points out the far side, and Barbed wire, its own
 mod now (no nails needed), is two twisted strands wound up the barrel with barbs every few centimetres. The crowbar is
 one red hex bar, the steel worn bright at both ends: a short angled pry foot with a nail slot, the long shaft and a
@@ -1682,9 +1683,14 @@ the chest turned to put the shoulder behind it).
   your arms; a parry's a bright ring of steel that hangs), and slams the weapon and your fist back at you on the arm's
   springs, knocked aside and down, shaking as it comes back up, with a jolt of the view.
 - **Hit mid-swing** (not on a guard), your swing breaks off before it lands, its rush of air cut off short, and your
-  next one is held off for about half a second. The same goes for the bots.
+  next one is held off only an eighth of a second; the guard can come up at once. Being hit (a bat's or a wrench's
+  stagger included) never stops you raising your guard or swinging back, only from moving for the stagger, so a
+  quick weapon can't keep hitting you before you can answer. Only being parried throws you off for a moment. The
+  same goes for the bots.
 - **The bots block too.** Against a swing coming at them they put their guard up (more often the sharper the bot, and
-  the more guard it has left), once per swing; a sharper bot times it to parry more often. Their guard wears down as
+  the more guard it has left), once per swing; a sharper bot times it to parry more often, and only ever
+  parries by really raising its guard just before your blow lands (up 0.16 s before it, as you'd have to): you see
+  the guard come up. Their guard wears down as
   it's held and with each blow it takes, breaks the same way, and comes back while it's down. They drop it once the
   blow's come, to hit back. Everyone sees a guard up and its sparks.
 - **Only in front.** The guard covers 40° either side of where you face; a blow from the side or behind lands.
@@ -1693,7 +1699,7 @@ the chest turned to put the shoulder behind it).
 - **Charged heavy blows.** Keep the button held and the swing stops just before the blow lands and winds up there, the
   weapon trembling back and the crosshair's brackets closing in orange, up to full in about two thirds of a second (a
   rising ring when it's full; it eats a tenth of your stamina a second while held, 2.5 s at most). Let go to bring it
-  down: up to 60% harder the longer it was held, and one at full **breaks a guard** outright (and gets 1.6× as much
+  down: up to twice as hard the longer it was held (double damage at full), and one at full **breaks a guard** outright (and gets 1.6× as much
   through it). Tap it for a quick swing as before. Others see the wind-up and the release on your avatar.
 - **Feints.** While it's winding up, raise your guard (right click) to pull the blow: a quick feint that costs a little
   stamina and baits a guard or a parry out of whoever's watching.
@@ -1703,15 +1709,20 @@ the chest turned to put the shoulder behind it).
   something clearly heavier than what hit you (a bat, wrench, axe or sledgehammer against a crowbar or a machete; an
   axe or a sledgehammer against a katana). Broken off once, you can't be broken off again for 1.1 s, so a light
   weapon's spam (the katana's included) can't keep you from ever swinging back.
-- **Ducking.** Crouch under a swing across (a sideways sweep) and it goes over your head. A chop from overhead still
-  lands. Bots at the higher skills duck sweeps in Brawl, and parry more often.
+- **Ducking** is an attempt, not a free dodge. A swing across (a sideways sweep) goes over you only if it really passes
+  over your head: from your own eyes it comes round at the height you're looking at them (a little under it), from
+  above at a standing head's height, and a bot swings at a standing head's height as its swing starts. Fully crouched
+  your head's 0.28 m lower: duck in time under a swing aimed high and it misses; aim down at someone ducking and it
+  lands. A chop from overhead always lands. Bots at the higher skills duck sweeps in Brawl, and parry more often.
 - **Shoving a guard open.** A shove into someone's guard from in front knocks it aside without touching their stamina:
   the guard's down and can't come up for most of a second, and your next blow goes through any guard while it's open.
   Holding a guard against someone who shoves gets punished.
 - **The katana's balanced.** It hits for less (28), swings a little slower, reaches a touch shorter, costs more stamina
   a swing and bleeds less often, so it's no longer the one weapon to spam.
 - **Brawl kill perk.** In Brawl each kill gives you back half your health and half your stamina at once (bots too).
-- **Brawl's bat** comes with eight nails through its barrel (only in Brawl; everywhere else it's bare until the Nails mod).
+- **Brawl's bat** comes studded with nails, the Nails mod's third tier of them (only in Brawl; everywhere else it's bare
+  until the Nails mod), and everyone it hits bleeds to look at for 3.5 s: drops falling off them and spots on the ground,
+  seen by everyone (no bleed status, no damage over time).
 - **Boxes in one swing.** A melee swing knocks off every box on a shelf in its reach and arc on your side of the
   shelving (up to four), as a round does: on the Mall's stockroom shelving, Route 9's gondolas and the Farm's racks.
 
