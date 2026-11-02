@@ -24,15 +24,24 @@ export const inCellBox = (k, x, z) => { const b = cellBox[k]; return !b || (x >=
 // rate could carry you through
 export const shotBox = new Array(N * N).fill(null);
 const shotB = k => shotBox[k] || cellBox[k];
-const inShotBox = (k, x, z) => { const b = shotB(k); return !b || (x >= b[0] && x <= b[2] && z >= b[1] && z <= b[3]); };
-// how far along (ox, oz) + (dx, dz)·t, between t0 and t1, a line first meets cell k's footprint (t0 for a whole cell;
-// Infinity if it passes it by)
-export function boxHitT(k, ox, oz, dx, dz, t0, t1) {
-  const b = shotB(k); if (!b) return t0;
-  let lo = t0, hi = t1;
+// and closer still: the solid pieces themselves, each [x0, z0, x1, z1, y0, y1] (world/arena.js arShotFit), so a round
+// passes beside a memorial's column over its steps, between a bench's legs, over a low base and under a high beam:
+// it's stopped only inside one of them, at its own height from your eyes (or anywhere in its footprint from above)
+export const shotParts = new Array(N * N).fill(null);
+const inParts = (P, x, z, y) => { for (let n = 0; n < P.length; n++) { const b = P[n]; if (x >= b[0] && x <= b[2] && z >= b[1] && z <= b[3] && (y === undefined || (y >= b[4] && y <= b[5]))) return true; } return false; };
+const inShotBox = (k, x, z) => { const P = shotParts[k]; if (P) return inParts(P, x, z); const b = shotB(k); return !b || (x >= b[0] && x <= b[2] && z >= b[1] && z <= b[3]); };
+// the 2D slab test: how far along the line, between lo and hi, it first enters [x0, z0, x1, z1]
+function slabT(b, ox, oz, dx, dz, lo, hi) {
   if (Math.abs(dx) < 1e-9) { if (ox < b[0] || ox > b[2]) return Infinity; } else { let u = (b[0] - ox) / dx, v = (b[2] - ox) / dx; if (u > v) { const w = u; u = v; v = w; } lo = Math.max(lo, u); hi = Math.min(hi, v); }
   if (Math.abs(dz) < 1e-9) { if (oz < b[1] || oz > b[3]) return Infinity; } else { let u = (b[1] - oz) / dz, v = (b[3] - oz) / dz; if (u > v) { const w = u; u = v; v = w; } lo = Math.max(lo, u); hi = Math.min(hi, v); }
   return lo <= hi ? lo : Infinity;
+}
+// how far along (ox, oz) + (dx, dz)·t, between t0 and t1, a line first meets cell k's footprint (t0 for a whole cell;
+// Infinity if it passes it by)
+export function boxHitT(k, ox, oz, dx, dz, t0, t1) {
+  const P = shotParts[k]; if (P) { let t = Infinity; for (let n = 0; n < P.length; n++) t = Math.min(t, slabT(P[n], ox, oz, dx, dz, t0, t1)); return t; }
+  const b = shotB(k); if (!b) return t0;
+  return slabT(b, ox, oz, dx, dz, t0, t1);
 }
 // a window's never walked through: you and the zombies climb it (player/vaulting.js, zombies/climb.js)
 export const hardBlocked = (i, j) => { if (!inb(i, j)) return true; const t = cell[idx(i, j)]; return t === WALL || t === OBST || t === FENCE || (t === OPEN && (openAt[idx(i, j)].boards.length > 0 || openAt[idx(i, j)].kind === 'window')); };
@@ -45,6 +54,7 @@ export const bulletBlocked = (x, z) => { const i = ci(x), j = ci(z); if (!inb(i,
 const BLOCK_TOP = { wall: 2.6, prop: 2.4, trunk: 0.18 };
 export const bulletBlockedAt = (x, z, y) => {
   const i = ci(x), j = ci(z); if (!inb(i, j)) return false; const k = idx(i, j); if (blockArr[k] !== 1 || SHOOT_THRU.has(k) || !inShotBox(k, x, z)) return false;
+  { const P = shotParts[k]; if (P) return inParts(P, x, z, y); }   // (the pieces really there, at their own heights)
   if (cell[k] === WALL) return y < BLOCK_TOP.wall;
   { const u = obstUnder.get(k); if (u !== undefined && y < u) return false; }   // (under a truck's chassis, a trailer's, a tank's stand)
   const o = obstTop.get(k); if (o === undefined) return y < BLOCK_TOP.prop; if (typeof o === 'number') return y < o;

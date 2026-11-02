@@ -322,7 +322,9 @@ function scopeLens(S, lens, W, H, f) {
   // where the scope's axis points on the screen (the picture's middle and the reticle's), and how far round it the
   // picture has to reach to fill the eyepiece; which way the gun's canted on the screen
   toPx(_st.copy(c.position).addScaledVector(S.dir, 100), W, H, _ax);
-  const ri = r + Math.hypot(_ax.x - cx, _ax.y - cy) + 2;
+  // (with room past the eyepiece's rim for the lens's own pincushion and colour fringes, and for the eye moving between
+  // this picture and the next, so the picture never runs off its edge and smears the last row across the glass)
+  const ri = (r + Math.hypot(_ax.x - cx, _ax.y - cy) + 2) * (1 + LENS_LOOK.pin + LENS_LOOK.ca + 0.12);
   toPx(_su.copy(S.eye).addScaledVector(S.ux, -0.01), W, H, _svR); toPx(S.eye, W, H, _svR2); const ang = Math.atan2(_svR.y - _svR2.y, _svR.x - _svR2.x);
   if (!dark) {
     const half = Math.atan(ri / f); scopeCam.fov = 2 * Math.atan(Math.tan(half) / S.mag) * 180 / Math.PI; scopeCam.updateProjectionMatrix();

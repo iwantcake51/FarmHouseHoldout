@@ -32,7 +32,9 @@ import { rand, rr, seeded } from '../core/math.js';
 import { floorMat } from './floors.js';
 import { lam, lit } from '../core/shaders.js';
 import { box, mergeInto } from '../core/geometry.js';
-import { hemi, sun } from '../core/renderer.js';
+import { cam, hemi, sun } from '../core/renderer.js';
+import { LAMP_ON } from '../lighting/static-lights.js';
+import { GLOW_LAYER } from '../effects/post.js';
 import { ci, cxw, idx } from './grid.js';
 import { cellBox } from './collision.js';
 import { fpOn } from '../game/view-cam.js';
@@ -65,9 +67,9 @@ const SQ_PLAN = [
   '#....AVV.F.....ss.....F.VVB....#',
   '#.....VV................VV.....#',
   '#..............................#',
-  '#.......ww..ww....ww..ww.......#',
-  '#hhhhwww.......FF.......wwwhhhh#',
-  '#hhhh.......F......F.......hhhh#',
+  '#..............................#',
+  '#hhhhwwww..www....www..wwwwhhhh#',
+  '#hhhh.......F..FF..F.......hhhh#',
   '#hhhh.F.T......hh......T.F.hhhh#',
   '#hhhh..........hh..........hhhh#',
   '#hhhh....gF.g..hh..g.Fg....hhhh#',
@@ -342,38 +344,70 @@ function smBlood(x, P, r, n) {
 // some boarded, and what was sprayed on them as the town left
 const SQ_SHOPS = [['Corner Stores', '#2d4a3a'], ['Bakery', '#7a3b2a'], ['Hawthorne Café', '#2f4a5e'], ['Chemist', '#1f5e4a'], ['Books', '#5a2f4a'], ['Ironmonger', '#3a3a3a'], ['Butcher', '#7a1f1f'], ['Post Office', '#a8231c'], ['Florist', '#3e6a3a']];
 const SQ_SPRAY = [['EVAC POINT →', '#e8e4da'], ['GONE TO KESTON', '#b2271f'], ['NO FOOD', '#1e1e1e'], ['MUM WE WENT TO THE COAST', '#e8e4da'], ['DONT GO IN', '#b2271f'], ['3 INSIDE  ✝', '#1e1e1e']];
+// ---- the row of buildings along a map's north side (both maps): its shops stand only between the corner buildings
+// (behind those the row's a plain wall, never a shopfront half hidden), and each shop's door, window and paint are put
+// only where nothing stands in front of them (the plan's first row: a kiosk, a car, a porch), never behind one
+const SM_OPEN = '.ABF';
+// the stretch of the north front between the corner buildings, [x0, x1]
+function smNorthSpan() {
+  const r = smPLAN[1]; let a = 0, b = r.length - 1;
+  while (a < r.length && (r[a] === '#' || r[a] === 'h')) a++;
+  while (b > 0 && (r[b] === '#' || r[b] === 'h')) b--;
+  return [cxw(SM_B[0] + a) - 0.5, cxw(SM_B[0] + b) + 0.5];
+}
+// the stretches of the north front from x0 to x1 with nothing in front of them, each [a, b]
+function smFrontFree(x0, x1) {
+  const j = SM_B[1] + 1, out = []; let a = null;
+  for (let x = x0; x <= x1 + 1e-6; x += 0.05) { const free = x < x1 - 1e-6 && SM_OPEN.includes(smKIND(ci(x + 0.025), j)); if (free && a === null) a = x; if (!free && a !== null) { out.push([a, x]); a = null; } }
+  return out;
+}
+// a place w wide in those stretches (pad clear each side), nearest x; taken out of them; null if there's none
+function smTake(free, w, x, pad = 0.15) {
+  let best = null, bd = 1e9, bi = -1;
+  free.forEach(([a, b], i) => { if (b - a < w + pad * 2) return; const c = Math.min(b - pad - w / 2, Math.max(a + pad + w / 2, x)), d = Math.abs(c - x); if (d < bd) { bd = d; best = c; bi = i; } });
+  if (best === null) return null;
+  const [a, b] = free[bi]; free.splice(bi, 1, [a, best - w / 2 - 0.05], [best + w / 2 + 0.05, b]); return best;
+}
+// the shops along the span, each { x, w, n } (widths from the list, the last one taking what's left)
+function smShops(x0, x1, widths) {
+  const out = []; let x = x0, n = 0;
+  while (x1 - x > 0.01) { let w = widths[n % widths.length]; if (x1 - x - w < 2.2) w = x1 - x; out.push({ x, w, cx: x + w / 2, n }); x += w; n++; }
+  return out;
+}
 function sqNorth() {
-  const fz = smZ0 + 1, H1 = 3.4, H2 = 7.2;
-  let x = smX0 + 1, n = 0;
-  while (x < smX1 - 1.01) {
-    const w = Math.min(smX1 - 1 - x, [3.2, 3.6, 4.0][n % 3]), cx = x + w / 2, S = SQ_SHOPS[n % SQ_SHOPS.length];
-    const wall = n % 3 === 1 ? SQM.brick[n % 3] : SQM.render[n % 4];
+  const fz = smZ0 + 1, H1 = 3.4, H2 = 7.2, [s0, s1] = smNorthSpan();
+  // (behind the corner buildings the row's a plain brick wall: no shopfront hidden behind them)
+  for (const [a, b] of [[smX0 + 1, s0], [s1, smX1 - 1]]) if (b - a > 0.05) smBx(b - a, H2, 0.6, SQM.brick[2], (a + b) / 2, H2 / 2, fz - 0.3);
+  for (const { x, w, cx, n } of smShops(s0, s1, [3.2, 3.6, 4.0])) {
+    const S = SQ_SHOPS[n % SQ_SHOPS.length], wall = n % 3 === 1 ? SQM.brick[n % 3] : SQM.render[n % 4];
     smBx(w, H2, 0.6, wall, cx, H2 / 2, fz - 0.3);                                   // its front, two storeys
     smBx(w + 0.02, 0.18, 0.66, SQM.trim, cx, H1 + 0.6, fz - 0.27);                  // the string course over the shop
     smBx(w - 0.2, 0.55, 0.08, SQM.shopDk, cx, H1 + 0.2, fz + 0.04);
     smPic(w - 0.4, 0.42, smTexM(smSignTex(S[0], S[1], '#d8ccb0', w - 0.4), true), cx, H1 + 0.2, fz + 0.085, [0, 1]);
-    // the shop window: boarded up, or smashed in with the dark showing; the door boarded
-    if (n % 3 !== 2) smBoards(w - 1.4, 1.9, cx - 0.45, 1.55, fz + 0.03, [0, 1]);
-    else { smBx(w - 1.4, 1.9, 0.04, smSH.dark, cx - 0.45, 1.55, fz + 0.02); for (let k = 0; k < 4; k++) { const sh = smBx(rr(0.15, 0.4), rr(0.2, 0.5), 0.02, smSH.glass, cx - 0.45 + rr(-0.6, 0.6), rr(0.9, 2.3), fz + 0.05); sh.rotation.z = rr(-1, 1); } }
-    smBx(0.9, 2.2, 0.05, SQM.shopDk, cx + w / 2 - 0.7, 1.1, fz + 0.03); smBoards(0.8, 1.8, cx + w / 2 - 0.7, 1.15, fz + 0.06, [0, 1]);
     smBx(w - 0.2, 0.45, 0.06, SQM.shopDk, cx, 0.22, fz + 0.03);
-    // its awning, torn: hanging off its frame at one end
-    if (n % 2 === 0) {
-      const aw = smCanvas(64, 64, (c, W) => { for (let k = 0; k < 8; k++) { c.fillStyle = k % 2 ? '#c9c0ae' : S[1]; c.fillRect(k * W / 8, 0, W / 8, 64); } c.fillStyle = 'rgba(30,26,22,0.35)'; c.fillRect(0, 0, W, 64); });
-      aw.wrapS = THREE.RepeatWrapping; aw.repeat.set(w / 1.2, 1);
-      const a = smPush(new THREE.Mesh(new THREE.PlaneGeometry((w - 0.3) * 0.6, 1.5), smTexM(aw, true))); a.position.set(cx - w * 0.15, 2.8, fz + 0.5); a.rotation.x = -Math.PI / 2 + 0.75; a.rotation.y = 0.18; a.castShadow = true;
+    // its door (boarded) and its window (boarded up, or smashed in with the dark showing), each only where nothing
+    // stands in front of it; and the awning over the window
+    const free = smFrontFree(x + 0.1, x + w - 0.1), dx = smTake(free, 0.9, x + w - 0.7), ww = Math.min(w - 1.4, 2.4), wx = smTake(free, ww, cx - 0.45);
+    if (dx !== null) { smBx(0.9, 2.2, 0.05, SQM.shopDk, dx, 1.1, fz + 0.03); smBoards(0.8, 1.8, dx, 1.15, fz + 0.06, [0, 1]); }
+    if (wx !== null) {
+      if (n % 3 !== 2) smBoards(ww, 1.9, wx, 1.55, fz + 0.03, [0, 1]);
+      else { smBx(ww, 1.9, 0.04, smSH.dark, wx, 1.55, fz + 0.02); for (let k = 0; k < 4; k++) { const sh = smBx(rr(0.15, 0.4), rr(0.2, 0.5), 0.02, smSH.glass, wx + rr(-ww / 2 + 0.2, ww / 2 - 0.2), rr(0.9, 2.3), fz + 0.05); sh.rotation.z = rr(-1, 1); } }
+      if (n % 2 === 0) {
+        const aw = smCanvas(64, 64, (c, W) => { for (let k = 0; k < 8; k++) { c.fillStyle = k % 2 ? '#c9c0ae' : S[1]; c.fillRect(k * W / 8, 0, W / 8, 64); } c.fillStyle = 'rgba(30,26,22,0.35)'; c.fillRect(0, 0, W, 64); });
+        aw.wrapS = THREE.RepeatWrapping; aw.repeat.set((ww + 0.3) / 1.2, 1);
+        const a = smPush(new THREE.Mesh(new THREE.BoxGeometry(ww + 0.3, 1.3, 0.03), smTexM(aw, true))); a.position.set(wx, 2.85, fz + 0.45); a.rotation.x = -Math.PI / 2 + 0.75; a.castShadow = true;   // (canvas with a thickness, so it's there from under it too)
+      }
     }
-    smSpray(SQ_SPRAY[n % SQ_SPRAY.length][0], SQ_SPRAY[n % SQ_SPRAY.length][1], Math.min(w - 0.3, 3), 0.6, cx, 2.75, fz + 0.04, [0, 1]);
+    if (SM_OPEN.includes(smKIND(ci(cx), SM_B[1] + 1))) smSpray(SQ_SPRAY[n % SQ_SPRAY.length][0], SQ_SPRAY[n % SQ_SPRAY.length][1], Math.min(w - 0.3, 3), 0.6, cx, 2.75, fz + 0.04, [0, 1]);
     // the windows over: two storeys of sash windows, some boarded, some broken
     for (const y of [4.9, 6.5]) for (let k = 0, m = Math.max(1, Math.floor(w / 1.6)); k < m; k++) {
-      const wx = x + (k + 0.5) * w / m, q = (n * 7 + k * 3 + (y > 5 ? 1 : 0)) % 4;
-      smBx(0.9, 1.1, 0.06, SQM.trim, wx, y, fz + 0.01); smBx(0.76, 0.96, 0.07, q === 1 ? smSH.dark : smSH.glass, wx, y, fz + 0.02); smBx(1.0, 0.07, 0.16, SQM.trim, wx, y - 0.6, fz + 0.06);
-      if (q === 0) smBoards(0.86, 1.0, wx, y, fz + 0.05, [0, 1]);
+      const wx2 = x + (k + 0.5) * w / m, q = (n * 7 + k * 3 + (y > 5 ? 1 : 0)) % 4;
+      smBx(0.9, 1.1, 0.06, SQM.trim, wx2, y, fz + 0.01); smBx(0.76, 0.96, 0.07, q === 1 ? smSH.dark : smSH.glass, wx2, y, fz + 0.02); smBx(1.0, 0.07, 0.16, SQM.trim, wx2, y - 0.6, fz + 0.06);
+      if (q === 0) smBoards(0.86, 1.0, wx2, y, fz + 0.05, [0, 1]);
     }
     // its roof: slate, a chimney now and then
     const roof = smBx(w, 0.12, 2.8, smSH.slate, cx, H2 + 0.9, fz - 1.3); roof.rotation.x = 0.6;
-    if (n % 2 === 0) { smBx(0.6, 1.4, 0.5, SQM.brick[0], cx + rr(-0.6, 0.6), H2 + 1.6, fz - 1.5); for (const s of [-0.12, 0.12]) smCy(0.07, 0.07, 0.3, SQM.brick[2], cx + s, H2 + 2.4, fz - 1.5, 6); }
-    x += w; n++;
+    if (n % 2 === 0) { smBx(0.6, 1.4, 0.5, SQM.brick[0], cx + rr(-0.6, 0.6), H2 + 1.6, fz - 1.5); for (const sd of [-0.12, 0.12]) smCy(0.07, 0.07, 0.3, SQM.brick[2], cx + sd, H2 + 2.4, fz - 1.5, 6); }
   }
 }
 // the corner buildings: the corner shop (north, two storeys) and the cottage (south, one: between the map and the
@@ -384,9 +418,11 @@ function sqCorner(R) {
   const rf = smBx(R.w + 0.3, 0.14, R.d * 0.62, smSH.slate, R.cx, H + 0.75, R.cz - R.d * 0.22); rf.rotation.x = -0.6; const rb = smBx(R.w + 0.3, 0.14, R.d * 0.62, smSH.slate, R.cx, H + 0.75, R.cz + R.d * 0.22); rb.rotation.x = 0.6;
   const fx = west ? R.x1 : R.x0, dX = west ? 1 : -1, fzz = north ? R.z1 : R.z0, dZ = north ? 1 : -1;
   for (let k = 0; k < 2; k++) { const z = R.z0 + 1 + k * 2.4; smBx(0.06, 1.1, 0.9, SQM.trim, fx + dX * 0.02, 1.7, z); smBoards(0.9, 1.1, fx + dX * 0.02, 1.7, z, [dX, 0]); if (H > 5) { smBx(0.06, 1.0, 0.9, SQM.trim, fx + dX * 0.02, 4.6, z); smBx(0.07, 0.86, 0.75, k ? smSH.glass : smSH.dark, fx + dX * 0.03, 4.6, z); } }
-  for (let k = 0; k < 2; k++) { const xx = R.x0 + 1 + k * 2; smBx(0.9, 1.1, 0.06, SQM.trim, xx, 1.7, fzz + dZ * 0.02); smBoards(0.9, 1.1, xx, 1.7, fzz + dZ * 0.02, [0, dZ]); }
+  // (its front: a window, the door, a window, evenly along it, none over another; the shop's are its two windows)
+  const fw = north ? [R.x0 + R.w * 0.3, R.x1 - R.w * 0.3] : [R.x0 + 0.75, R.x1 - 0.75];
+  for (const xx of fw) { smBx(0.9, 1.1, 0.06, SQM.trim, xx, 1.7, fzz + dZ * 0.02); smBoards(0.9, 1.1, xx, 1.7, fzz + dZ * 0.02, [0, dZ]); }
   if (north) { smPic(R.w - 0.6, 0.5, smTexM(smSignTex(west ? 'Hawthorne Stores' : 'Market Newsagent', '#2d4a3a', '#d8ccb0', R.w - 0.6), true), R.cx, 2.75, fzz + dZ * 0.05, [0, dZ]); smSpray(west ? 'LOOTED' : 'EMPTY', '#b2271f', 2.4, 0.6, fx + dX * 0.04, 3.4, R.cz + 0.6, [dX, 0]); }
-  else { smBx(0.9, 2.1, 0.06, SQM.shopDk, R.cx + 0.6, 1.05, fzz + dZ * 0.02); smSpray('X  2 DEAD', '#e8e4da', 1.8, 0.5, R.cx - 0.6, 2.5, fzz + dZ * 0.04, [0, dZ]); }
+  else { smBx(0.9, 2.1, 0.06, SQM.shopDk, R.cx, 1.05, fzz + dZ * 0.02); smBx(1.04, 0.08, 0.1, SQM.trim, R.cx, 2.14, fzz + dZ * 0.04); smSpray('X  2 DEAD', '#e8e4da', 1.5, 0.45, R.cx, 2.65, fzz + dZ * 0.04, [0, dZ]); }   // (the door in the middle, its lintel, the search team's mark over it)
 }
 // the last coach, broadside to the square: white with the coach firm's blue, EVACUATION in its destination board, its
 // windows down its sides (some smashed), luggage still on the rack and a case burst open by its door (a round goes under
@@ -490,10 +526,23 @@ function sqCafe(x, z) {
   smFoot(x, z, 0.42, 0.42, 0.42, 0.42);
 }
 // the low wall along the churchyard (stone, coped) and the beer garden (brick, its trellis torn down)
+// the churchyard's wall, one run of it from the corner house to the corner house with its three gateways: dry stone,
+// chest high, laid in courses (a darker line of shadow under each), a rounded coping of the same stone along its top,
+// and at each gateway a squared pier a hand higher with a cap on it. One stone throughout, no stubs: where the wall
+// meets a house it simply runs into its side
 function sqWall(i, j, x, z) {
-  const west = x < 0, along = smKIND(i - 1, j) === 'w' || smKIND(i + 1, j) === 'w' ? 'x' : 'z';
-  if (west) { smBxA(along, 1.0, 0.85, 0.42, smSH.stoneLo, x, 0.425, z); smBxA(along, 1.02, 0.1, 0.5, smSH.stoneLoDk, x, 0.9, z); }
-  else { smBxA(along, 1.0, 0.8, 0.36, lam(0x7e4434), x, 0.4, z); smBxA(along, 1.02, 0.08, 0.42, lam(0xc8c0b0), x, 0.84, z); }
+  const along = smKIND(i - 1, j) === 'w' || smKIND(i + 1, j) === 'w' || smKIND(i - 1, j) === 'h' || smKIND(i + 1, j) === 'h' ? 'x' : 'z';
+  const T = 0.42, H = 0.82, st = smSH.stoneLo, dk = smSH.stoneLoDk;
+  smBxA(along, 1.0, H, T, st, x, H / 2, z);
+  for (let y = 0.2; y < H - 0.05; y += 0.21) smBxA(along, 1.0, 0.025, T + 0.02, dk, x, y, z);   // (the courses)
+  smBxA(along, 1.02, 0.1, T + 0.08, dk, x, H + 0.05, z); smBxA(along, 1.02, 0.06, T - 0.06, st, x, H + 0.13, z);   // (the coping)
+  // (a pier at a gateway: the end of a run, with open ground past it)
+  const ends = along === 'x' ? [[-1, 0], [1, 0]] : [[0, -1], [0, 1]];
+  for (const [a, b] of ends) {
+    const k = smKIND(i + a, j + b); if (k === 'w' || k === 'h' || k === '#') continue;
+    const px = x + a * 0.3, pz = z + b * 0.3;
+    smBx(0.5, 1.05, 0.5, st, px, 0.525, pz); smBx(0.58, 0.08, 0.58, dk, px, 1.09, pz); smBx(0.36, 0.1, 0.36, st, px, 1.18, pz);
+  }
 }
 // a fresh grave (west: a mound of earth, a wooden cross with a name on it, a few flowers) or a picnic table turned on
 // its side for a barricade (east)
@@ -637,18 +686,20 @@ function qyFloor() {
 // their windows boarded, what was sprayed on them
 const QY_SPRAY = [['LAST BOAT 6AM', '#e8e4da'], ['NO FERRY', '#b2271f'], ['FISH CO  EMPTY', '#1e1e1e'], ['WAIT FOR US', '#e8e4da'], ['THEY CAME FROM THE SEA', '#b2271f']];
 function qyNorth() {
-  const fz = smZ0 + 1, names = ['Saltmarsh Fish Co.', 'Harbour Chandlery', 'Pellow & Sons', 'Net Loft', 'Saltmarsh Fish Co.'];
-  let x = smX0 + 1, n = 0;
-  while (x < smX1 - 1.01) {
-    const w = Math.min(smX1 - 1 - x, [5.0, 4.4, 5.6][n % 3]), cx = x + w / 2, H = [5.0, 6.2, 4.6][n % 3], mat = n % 2 ? QYM.render[n % 3] : QYM.shed[n % 4];
+  const fz = smZ0 + 1, names = ['Saltmarsh Fish Co.', 'Harbour Chandlery', 'Pellow & Sons', 'Net Loft', 'Saltmarsh Fish Co.'], [s0, s1] = smNorthSpan();
+  // (behind the ice houses the row's a plain shed wall: no shopfront hidden behind them)
+  for (const [a, b] of [[smX0 + 1, s0], [s1, smX1 - 1]]) if (b - a > 0.05) smBx(b - a, 5.0, 0.6, QYM.shed[3], (a + b) / 2, 2.5, fz - 0.3);
+  for (const { x, w, cx, n } of smShops(s0, s1, [5.0, 4.4, 5.6])) {
+    const H = [5.0, 6.2, 4.6][n % 3], mat = n % 2 ? QYM.render[n % 3] : QYM.shed[n % 4];
     smBx(w, H, 0.6, mat, cx, H / 2, fz - 0.3);
-    if (n % 2 === 0) for (let k = 0; k < w / 0.3; k++) smBx(0.06, H, 0.04, QYM.shedDk, x + k * 0.3 + 0.15, H / 2, fz + 0.01);   // (its corrugations)
-    smBx(2.2, 2.6, 0.06, QYM.shedDk, cx - w / 4, 1.3, fz + 0.03); for (let k = 0; k < 6; k++) smBx(2.2, 0.03, 0.08, mat, cx - w / 4, 0.2 + k * 0.45, fz + 0.05);   // a roller door
-    smBoards(0.9, 0.9, cx + w / 4, 1.8, fz + 0.03, [0, 1]);
+    if (n % 2 === 0) for (let k = 0; k < w / 0.3 - 0.5; k++) smBx(0.06, H, 0.04, QYM.shedDk, x + k * 0.3 + 0.15, H / 2, fz + 0.01);   // (its corrugations)
+    // its roller door and its boarded window, each only where nothing stands in front of it (a car, the office's porch)
+    const free = smFrontFree(x + 0.1, x + w - 0.1), dx = smTake(free, 2.2, cx - w / 4), wx = smTake(free, 0.9, cx + w / 4);
+    if (dx !== null) { smBx(2.2, 2.6, 0.06, QYM.shedDk, dx, 1.3, fz + 0.03); for (let k = 0; k < 6; k++) smBx(2.2, 0.03, 0.08, mat, dx, 0.2 + k * 0.45, fz + 0.05); }
+    if (wx !== null) smBoards(0.9, 0.9, wx, 1.8, fz + 0.03, [0, 1]);
     smPic(Math.min(w - 0.6, 3.6), 0.5, smTexM(smSignTex(names[n % names.length], '#1f3a4a', '#d8ccb0', Math.min(w - 0.6, 3.6)), true), cx, H - 0.8, fz + 0.04, [0, 1]);
-    smSpray(QY_SPRAY[n % QY_SPRAY.length][0], QY_SPRAY[n % QY_SPRAY.length][1], Math.min(w - 0.5, 3.4), 0.6, cx, 3.05, fz + 0.05, [0, 1]);
+    if (SM_OPEN.includes(smKIND(ci(cx), SM_B[1] + 1))) smSpray(QY_SPRAY[n % QY_SPRAY.length][0], QY_SPRAY[n % QY_SPRAY.length][1], Math.min(w - 0.5, 3.4), 0.6, cx, 3.05, fz + 0.05, [0, 1]);
     const roof = smBx(w, 0.1, 2.6, QYM.roof, cx, H + 0.6, fz - 1.2); roof.rotation.x = 0.45;
-    x += w; n++;
   }
 }
 // the ice house (north corners) and the boat shed (south corners, burned out: its walls black, its roof gone to its
@@ -790,19 +841,23 @@ float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float n2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h2(i), h2(i + vec2(1.0, 0.0)), f.x), mix(h2(i + vec2(0.0, 1.0)), h2(i + vec2(1.0, 1.0)), f.x), f.y); }
 float hgt(vec2 p) { return n2(p * 0.7 + vec2(uT * 0.22, uT * 0.08)) * 0.6 + n2(p * 1.9 - vec2(uT * 0.35, -uT * 0.27)) * 0.3 + n2(p * 5.2 + uT * 0.7) * 0.1; }
 void main() {
-  vec2 p = vW.xz; float e = 0.06, h = hgt(p);
-  vec3 n = normalize(vec3((h - hgt(p + vec2(e, 0.0))) * 1.6, e, (h - hgt(p + vec2(0.0, e))) * 1.6));
+  // (the ripples' slope fades out with distance, and the finest of them first, so far water reads calm and smooth
+  // instead of a shimmer of sub-pixel glints as you move or turn)
+  float dist = length(cameraPosition - vW), near = 1.0 - smoothstep(6.0, 34.0, dist);
+  vec2 p = vW.xz; float e = 0.06 + 0.25 * (1.0 - near), h = hgt(p);
+  float k = 1.1 * (0.15 + 0.85 * near);
+  vec3 n = normalize(vec3((h - hgt(p + vec2(e, 0.0))) * k, e, (h - hgt(p + vec2(0.0, e))) * k));
   vec3 v = normalize(cameraPosition - vW), L = normalize(uSunDir);
-  float fr = pow(1.0 - max(dot(n, v), 0.0), 4.0), sp = pow(max(dot(reflect(-L, n), v), 0.0), 90.0);
+  float fr = pow(1.0 - max(dot(n, v), 0.0), 5.0), sp = pow(max(dot(reflect(-L, n), v), 0.0), 160.0) * near;
   vec3 base = mix(uShal, uDeep, smoothstep(0.0, 16.0, vW.z - uWall));
-  vec3 col = base * (0.25 + 0.75 * uSky) + uSky * fr * 0.45 + uSun * sp * 1.3;
-  float foam = (1.0 - smoothstep(0.0, 1.1, vW.z - uWall)) * (0.45 + 0.55 * n2(p * 3.5 + uT * 0.9));
-  col = mix(col, vec3(0.82, 0.86, 0.84) * (0.35 + 0.65 * uSky), clamp(foam, 0.0, 1.0) * 0.6);
+  vec3 col = base * (0.2 + 0.5 * uSky) + uSky * fr * 0.18 + uSun * sp * 0.35;
+  float foam = (1.0 - smoothstep(0.0, 0.9, vW.z - uWall)) * (0.35 + 0.65 * n2(p * 3.5 + uT * 0.9));
+  col = mix(col, vec3(0.7, 0.74, 0.72) * (0.3 + 0.5 * uSky), clamp(foam, 0.0, 1.0) * 0.35);
   gl_FragColor = vec4(col, 1.0);
 }`;
 const _qyC = new THREE.Color();
 function qyWater() {
-  const m = new THREE.ShaderMaterial({ vertexShader: QY_WATER_VS, fragmentShader: QY_WATER_FS, uniforms: { uT: { value: 0 }, uSky: { value: new THREE.Vector3(0.6, 0.6, 0.6) }, uSun: { value: new THREE.Vector3(0.8, 0.7, 0.6) }, uSunDir: { value: new THREE.Vector3(0.3, 1, 0.2) }, uDeep: { value: new THREE.Vector3(0.07, 0.17, 0.2) }, uShal: { value: new THREE.Vector3(0.16, 0.3, 0.3) }, uWall: { value: smZ1 + 0.4 } } });
+  const m = new THREE.ShaderMaterial({ vertexShader: QY_WATER_VS, fragmentShader: QY_WATER_FS, uniforms: { uT: { value: 0 }, uSky: { value: new THREE.Vector3(0.6, 0.6, 0.6) }, uSun: { value: new THREE.Vector3(0.8, 0.7, 0.6) }, uSunDir: { value: new THREE.Vector3(0.3, 1, 0.2) }, uDeep: { value: new THREE.Vector3(0.05, 0.11, 0.13) }, uShal: { value: new THREE.Vector3(0.1, 0.18, 0.18) }, uWall: { value: smZ1 + 0.4 } } });
   const w = new THREE.Mesh(new THREE.PlaneGeometry(140, 70, 1, 1), m); w.rotation.x = -Math.PI / 2; w.position.set(0, -1.6, smZ1 + 35); smG.add(w);
   w.onBeforeRender = () => {
     const U = m.uniforms; U.uT.value = performance.now() / 1000;
@@ -865,11 +920,37 @@ function qyGull(parent, flying) {
   parent.add(g); return { g, wl, wr };
 }
 function qyGulls() {
-  for (const [x, z, y] of [[smXc(4), smZ1 - 0.5, 0.6], [smXc(13), smZ1 - 0.5, 0.6], [6, smZ1 + 4.4 + 1.7, 0.55 + 1.1 + 0.05]]) { const G = qyGull(smG, false); G.g.position.set(x, y + 0.08, z); G.g.rotation.y = rr(0, 6.28); }
+  for (const [x, z, y] of [[smXc(4), smZ1 - 0.5, 0.6], [smXc(13), smZ1 - 0.5, 0.6]]) { const G = qyGull(smG, false); G.g.position.set(x, y + 0.08, z); G.g.rotation.y = rr(0, 6.28); }
   for (let k = 0; k < 3; k++) {
     const G = qyGull(smG, true), ph = rand() * 6.28, y = rr(...QY_GULL.y), r = rr(...QY_GULL.r), w = rr(...QY_GULL.w) * (rand() < 0.5 ? 1 : -1), cx = rr(-8, 8), cz = smZ1 + rr(8, 16);
     G.g.children[0].onBeforeRender = () => { const t = performance.now() / 1000, a = ph + t * w; G.g.position.set(cx + Math.cos(a) * r, y + Math.sin(t * 0.6 + ph) * 0.6, cz + Math.sin(a) * r); G.g.rotation.y = -a + (w > 0 ? 0 : Math.PI); G.g.rotation.z = (w > 0 ? 1 : -1) * 0.3; const f = Math.sin(t * 9 + ph) * Math.max(0, Math.sin(t * 0.8 + ph * 2)) * 0.6; G.wl.rotation.z = f; G.wr.rotation.z = -f; };
   }
+}
+// the breakwater's light, still turning: its lantern glowing (in the bloom, GLOW_LAYER), a halo round it, and two beams
+// swept slowly round, soft at their roots and thinning to nothing out over the water, brighter the darker it gets; and
+// as a beam swings across you, its lens flare (effects/post.js FLARE_SRC: this one moves with the beam). QY_LIGHT: how
+// long the beams reach (m), how fast they turn (rad/s), how bright by day and by night
+const QY_LIGHT = { len: 34, spin: 0.55, day: 0.12, night: 0.8 };
+function qyLighthouse(x, y, z) {
+  const lan = smPush(new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.7, 12), smGlowM(0xfff1c8))); lan.position.set(x, y, z);
+  smBx(1.0, 0.08, 1.0, lam(0x2a2e33), x, y + 0.4, z); smCy(0.05, 0.45, 0.5, lam(0x2a2e33), x, y + 0.7, z, 8);   // (its roof and vent)
+  const gt = smCanvas(64, 256, (c, W, H) => { const g = c.createLinearGradient(0, H, 0, 0); g.addColorStop(0, 'rgba(255,244,210,0.9)'); g.addColorStop(0.25, 'rgba(255,240,200,0.35)'); g.addColorStop(1, 'rgba(255,236,190,0)'); c.fillStyle = g; c.fillRect(0, 0, W, H); });
+  const bm = new THREE.MeshBasicMaterial({ map: gt, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, opacity: 0.5, fog: false });
+  const pivot = new THREE.Group(); pivot.position.set(x, y, z); smG.add(pivot);
+  for (const sd of [1, -1]) {
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 3.2, QY_LIGHT.len, 16, 1, true), bm);   // (its root at the lantern, the wide end out)
+    b.rotation.z = sd * Math.PI / 2; b.position.x = -sd * QY_LIGHT.len / 2; b.renderOrder = 6; pivot.add(b);
+  }
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: smCanvas(64, 64, (c, W) => { const g = c.createRadialGradient(W / 2, W / 2, 0, W / 2, W / 2, W / 2); g.addColorStop(0, 'rgba(255,240,200,0.9)'); g.addColorStop(1, 'rgba(255,240,200,0)'); c.fillStyle = g; c.fillRect(0, 0, W, W); }), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+  halo.position.set(x, y, z); halo.scale.set(3.2, 3.2, 1); halo.layers.enable(GLOW_LAYER); lan.layers.enable(GLOW_LAYER); smG.add(halo);
+  const L = { x, y, z, dx: 1, dy: 0, dz: 0, col: [1, 0.95, 0.82] }; QUAY_MAP.flares.length = 0; QUAY_MAP.flares.push(L);
+  pivot.children[0].onBeforeRender = () => {
+    const t = performance.now() / 1000, a = t * QY_LIGHT.spin, k = QY_LIGHT.day + (QY_LIGHT.night - QY_LIGHT.day) * LAMP_ON.k;
+    pivot.rotation.y = a; bm.opacity = k * 0.6; halo.material.opacity = 0.35 + 0.65 * LAMP_ON.k;
+    // (the flare follows whichever beam's nearer to facing you)
+    const dx = Math.cos(a), dz = -Math.sin(a), cx = cam.position.x - x, cz = cam.position.z - z, s = dx * cx + dz * cz >= 0 ? 1 : -1;
+    L.dx = dx * s; L.dz = dz * s;
+  };
 }
 // the edges: the harbour buildings north (qyNorth); the quay's edge south, its granite coping, ladders and lifebuoys,
 // the harbour water beyond, a boat half sunk at its mooring, the breakwater and its light; at each end the quay road
@@ -886,7 +967,7 @@ function qyEdges() {
   // to its wheelhouse, each tied off to the quay's bollards
   for (const [x, zz, c, sunk, a] of [[-9, 4.6, 0, 0, 0.06], [-2, 6, 2, 1, -0.2], [6, 4.4, 1, 0, -0.05], [12.2, 7.2, 3, 0, 0.12]]) qyBoat(x, smZ1 + zz, c, !!sunk, a);
   qyGulls();
-  smBx(50, 1.2, 3, smSH.stoneLoDk, -6, -0.6, smZ1 + 26); smCy(0.9, 1.1, 6, lam(0xe8e4da), 18, 2.6, smZ1 + 26, 12); smCy(1.0, 1.0, 1.2, lam(0xb8322a), 18, 6.2, smZ1 + 26, 12); smBx(0.8, 0.6, 0.8, smGlowM(0xfff1c8), 18, 7.1, smZ1 + 26);
+  smBx(50, 1.2, 3, smSH.stoneLoDk, -6, -0.6, smZ1 + 26); smCy(0.9, 1.1, 6, lam(0xe8e4da), 18, 2.6, smZ1 + 26, 12); smCy(1.0, 1.0, 1.2, lam(0xb8322a), 18, 6.2, smZ1 + 26, 12); qyLighthouse(18, 7.1, smZ1 + 26);
   for (const s of [-1, 1]) smEndBarricade(s, 'QUAY CLOSED · ARMY', s < 0 ? 'quayW' : 'quayE');
   // the town climbs the hill behind the harbour (north and west, behind the map from above: its terraces of cottages,
   // roofs stepping up, smoke off one)

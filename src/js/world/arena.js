@@ -28,7 +28,8 @@ import { N, rand, rr, seeded, withSeed } from '../core/math.js';
 import { lam, lit, LMU } from '../core/shaders.js';
 import { box, mergeInto } from '../core/geometry.js';
 import { cell, ci, cxw, EMPTY, idx, inb, OBST, openAt, WALL } from './grid.js';
-import { blockArr, cellBox, shotBox, SHOOT_THRU, syncBlock } from './collision.js';
+import { blockArr, cellBox, shotBox, shotParts, SHOOT_THRU, syncBlock } from './collision.js';
+import { arOuter } from './arena-outer.js';
 import { lowObst, obstTop, obstUnder } from './props.js';
 import { THIN, wX, wZ } from './thin-walls.js';
 import { openings, WALL_FORMS } from './house.js';
@@ -414,6 +415,7 @@ function arBuild() {
     arDress(g, AR_YARD4);
     AR_YARD4.pieces = arPieces(g, parts);   // (each piece measured before they're folded together: arShotFit)
     mergeInto(g, parts);
+    arOuter(AR_YARD4, g);   // (what's round it, out to the fog: world/arena-outer.js)
     arP = arParts = null;
   });
   if (AR_SIGN_BAD.length) console.warn('arena: signs that would hang off their walls, left out:', AR_SIGN_BAD.join(', '));
@@ -872,7 +874,7 @@ const AR_LIGHTS = () => AR_LAMPS().map(([i, j]) => ({ arena: true, x: cxw(i), z:
 // ---- up and down
 // (what of the farm stays in the scene while a map's up: only the light, the sky and the air; its ground, its woods
 // and its grass go with everything else, each map bringing its own)
-const arKeep = o => o.isLight || o.type === 'Object3D' || o.isPoints || o.isSprite || o.renderOrder < -10 || (o.isMesh && !o.isInstancedMesh && o.geometry && o.geometry.type === 'SphereGeometry' && !o.userData.still) || (o.frustumCulled === false && !o.isGroup && !o.isInstancedMesh && !(o.geometry && o.geometry.type === 'PlaneGeometry'));
+const arKeep = o => o.isLight || o.type === 'Object3D' || o.isSprite || o.renderOrder < -10 || (o.isMesh && !o.isInstancedMesh && o.geometry && o.geometry.type === 'SphereGeometry' && !o.userData.still) || (o.frustumCulled === false && !o.isGroup && !o.isInstancedMesh && !(o.geometry && o.geometry.type === 'PlaneGeometry'));
 export function arenaUp(id) {
   if (ARENA.on) return;
   arMapSet(id);
@@ -885,7 +887,7 @@ export function arenaUp(id) {
   arSaved = { out, cell: cell.slice(), open: openAt.slice(), box: cellBox.slice(), low: new Set(lowObst), top: new Map(obstTop), wX: wX.slice(), wZ: wZ.slice(), thinN: THIN.n, thinBox: THIN.box.slice(),
     openings: openings.slice(), doors: HOUSE_DOORS.list.slice(), doorKey: HOUSE_DOORS.key, lights: STATIC_LIGHTS.slice(), house: LMU.uHouse.value.clone() };
   openings.length = 0; HOUSE_DOORS.list.length = 0; HOUSE_DOORS.key = 'arena'; wX.fill(0); wZ.fill(0); THIN.n = 0;
-  cell.fill(EMPTY); openAt.fill(null); cellBox.fill(null); shotBox.fill(null); lowObst.clear(); obstTop.clear(); obstUnder.clear(); SHOOT_THRU.clear();
+  cell.fill(EMPTY); openAt.fill(null); cellBox.fill(null); shotBox.fill(null); shotParts.fill(null); lowObst.clear(); obstTop.clear(); obstUnder.clear(); SHOOT_THRU.clear();
   if (!M.g) M.g = arBuildMap(M);   // (the props' footprints go in as they're built: arCellBoxes keeps them for the next match)
   FLARE_SRC.length = 0; FLARE_SRC.push(...(M.flares || []));   // (the floodlights' lens flares: effects/post.js)
   for (let j = ARENA.z0; j <= ARENA.z1; j++) for (let i = ARENA.x0; i <= ARENA.x1; i++) {
@@ -907,7 +909,7 @@ export function arenaUp(id) {
 function arBuildMap(M) {
   if (M === AR_YARD4) return arBuild();
   const g = new THREE.Group(); g.userData.still = true;
-  withSeed(4243, () => { const parts = M.build(g); arDress(g, M); M.pieces = arPieces(g, parts); mergeInto(g, parts); });   // (each piece measured before they're folded together: arShotFit)
+  withSeed(4243, () => { const parts = M.build(g); arDress(g, M); M.pieces = arPieces(g, parts); mergeInto(g, parts); arOuter(M, g); });   // (and what's round it, out to the fog: world/arena-outer.js)   // (each piece measured before they're folded together: arShotFit)
   return g;
 }
 // (the props' footprints, as their meshes stand: they're built once, so put back every match)
@@ -921,7 +923,7 @@ export function arenaDown() {
   scene.remove(AR_CUR.g);
   const s = arSaved; arSaved = null;
   s.out.forEach(o => scene.add(o));
-  cell.set(s.cell); for (let k = 0; k < openAt.length; k++) openAt[k] = s.open[k]; for (let k = 0; k < cellBox.length; k++) cellBox[k] = s.box[k]; shotBox.fill(null);
+  cell.set(s.cell); for (let k = 0; k < openAt.length; k++) openAt[k] = s.open[k]; for (let k = 0; k < cellBox.length; k++) cellBox[k] = s.box[k]; shotBox.fill(null); shotParts.fill(null);
   lowObst.clear(); s.low.forEach(k => lowObst.add(k)); obstTop.clear(); s.top.forEach((v, k) => obstTop.set(k, v));
   wX.set(s.wX); wZ.set(s.wZ); THIN.n = s.thinN; THIN.box = s.thinBox; SHOOT_THRU.clear(); obstUnder.clear();
   openings.length = 0; openings.push(...s.openings); HOUSE_DOORS.list.length = 0; HOUSE_DOORS.list.push(...s.doors); HOUSE_DOORS.key = s.doorKey;
@@ -937,7 +939,7 @@ export function arenaDown() {
 // (pad) so a round never slips between a part and its edge; a cell filled nearly edge to edge (full of it) is left
 // whole, and one with nothing standing in it at all made a point a round can't meet. And how high it really stands
 // (obstTop: a round from your own eyes over the top of it flies on), but never a tree's (its cone)
-const AR_FIT = { lo: 0.35, hi: 2.6, pad: 0.05, full: 0.92, flat: 0.12, big: 150 };
+const AR_FIT = { lo: 0.35, hi: 2.6, pad: 0.05, flat: 0.12, big: 150, most: 16 };
 const _apB = new THREE.Box3();
 function arPieces(g, parts) {
   g.updateWorldMatrix(true, true);
@@ -947,32 +949,58 @@ function arPieces(g, parts) {
     if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
     _apB.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld); const b = _apB;
     if (b.max.y - b.min.y < AR_FIT.flat || b.max.y < AR_FIT.lo || b.min.y > AR_FIT.hi || (b.max.x - b.min.x) * (b.max.z - b.min.z) > AR_FIT.big) return;
-    out.push([b.min.x, b.min.z, b.max.x, b.max.z, Math.min(b.max.y, AR_FIT.hi)]);
+    out.push([b.min.x, b.min.z, b.max.x, b.max.z, Math.min(b.max.y, AR_FIT.hi), b.min.y]);
   };
   parts.forEach(add); g.traverse(add);
   return out;
 }
 function arShotFit(M) {
+  // each blocking cell with no footprint of its own gets the pieces really standing in it, clipped to the cell, each
+  // with its own bottom and top (AR_FIT.pad round them, a little more above and below), so a round meets only what's
+  // there at the height it's at (world/collision.js shotParts); a cell with nothing solid in it stops nothing
   if (!M.fit) {
     M.fit = [];
-    const want = new Set(); for (let k = 0; k < blockArr.length; k++) if (blockArr[k] && !cellBox[k] && !SHOOT_THRU.has(k)) want.add(k);
-    const B = new Map();
-    for (const [x0, z0, x1, z1, y1] of M.pieces || []) {
+    const want = new Set(); for (let k = 0; k < blockArr.length; k++) if (blockArr[k] && !SHOOT_THRU.has(k)) want.add(k);   // (every prop's cell, its walking footprint or not: rounds meet only the pieces)
+    const B = new Map(), p = AR_FIT.pad;
+    for (const [x0, z0, x1, z1, y1, y0] of M.pieces || []) {
       for (let j = ci(z0); j <= ci(z1); j++) for (let i = ci(x0); i <= ci(x1); i++) {
         if (!inb(i, j)) continue; const k = idx(i, j); if (!want.has(k)) continue;
-        const cx = cxw(i), cz = cxw(j), a = Math.max(x0, cx - 0.5), b = Math.max(z0, cz - 0.5), c = Math.min(x1, cx + 0.5), d = Math.min(z1, cz + 0.5); if (a > c || b > d) continue;
-        const e = B.get(k) || (B.set(k, [1e9, 1e9, -1e9, -1e9, 0]), B.get(k));
-        e[0] = Math.min(e[0], a); e[1] = Math.min(e[1], b); e[2] = Math.max(e[2], c); e[3] = Math.max(e[3], d); e[4] = Math.max(e[4], y1);
+        const cx = cxw(i), cz = cxw(j), a = Math.max(x0 - p, cx - 0.5), b = Math.max(z0 - p, cz - 0.5), c = Math.min(x1 + p, cx + 0.5), d = Math.min(z1 + p, cz + 0.5); if (a > c || b > d) continue;
+        const L = B.get(k) || (B.set(k, []), B.get(k)); L.push([a, b, c, d, Math.max(0, (y0 ?? 0) - p), y1 + p]);
       }
     }
     for (const k of want) {
-      const cx = cxw(k % N), cz = cxw((k / N) | 0), e = B.get(k);
-      if (!e) { M.fit.push([k, [cx, cz, cx, cz], null]); continue; }   // (nothing there: nothing to meet)
-      const p = AR_FIT.pad, box = e[2] - e[0] >= AR_FIT.full && e[3] - e[1] >= AR_FIT.full ? null : [Math.max(cx - 0.5, e[0] - p), Math.max(cz - 0.5, e[1] - p), Math.min(cx + 0.5, e[2] + p), Math.min(cz + 0.5, e[3] + p)];
-      M.fit.push([k, box, e[4]]);
+      const L = B.get(k), cx = cxw(k % N), cz = cxw((k / N) | 0);
+      if (!L) { if (!cellBox[k] && cell[k] !== WALL) M.fit.push([k, [cx, cz, cx, cz], null, []]); continue; }   // (a wall with no piece of its own found, the map's edge: it stands whole)   // (a prop with a footprint of its own but no pieces found, drawn some other way: its footprint stands)
+      let top = 0; for (const q of L) top = Math.max(top, q[5]);
+      M.fit.push([k, null, top, L.length > AR_FIT.most ? arPartsMerge(L) : L]);
     }
   }
-  for (const [k, box, top] of M.fit) { if (box) shotBox[k] = box; const o = obstTop.get(k); if (top && cell[k] === OBST && (o === undefined || typeof o === 'number')) obstTop.set(k, top); }
+  for (const [k, box, top, parts] of M.fit) {
+    if (box) shotBox[k] = box; shotParts[k] = parts && parts.length ? parts : box ? [[box[0], box[1], box[2], box[3], 9, 9]] : null;
+    const o = obstTop.get(k); if (top && cell[k] === OBST && (o === undefined || typeof o === 'number')) obstTop.set(k, top);
+  }
+}
+// a cell with very many small pieces (a crate stack's slats, a fence's rails): the pieces in each of four height bands
+// merged into one box per band, so a shot's tests stay few
+function arPartsMerge(L) {
+  const out = [];
+  for (const [lo, hi] of [[0, 0.6], [0.6, 1.2], [1.2, 1.8], [1.8, 9]]) {
+    let e = null;
+    for (const q of L) { if (q[5] <= lo || q[4] >= hi) continue; if (!e) e = [q[0], q[1], q[2], q[3], Math.max(lo, q[4]), Math.min(hi, q[5])]; else { e[0] = Math.min(e[0], q[0]); e[1] = Math.min(e[1], q[1]); e[2] = Math.max(e[2], q[2]); e[3] = Math.max(e[3], q[3]); e[4] = Math.min(e[4], Math.max(lo, q[4])); e[5] = Math.max(e[5], Math.min(hi, q[5])); } }
+    if (e) out.push(e);
+  }
+  return out;
+}
+// what a round hits, by what stands in the cell it hits (effects/puffs.js impactFx): a container, a car, a coach or a
+// generator metal; crates, stacked supplies and trees wood; sandbags, HESCO and hay earth; everything else (walls,
+// buildings, barriers, kiosks, the memorial) stone. A map can say otherwise for its own kinds (AR_SURF_MAP)
+const AR_SURF = { C: 'metal', c: 'metal', V: 'metal', U: 'metal', k: 'wood', X: 'wood', T: 'wood', s: 'dirt', H: 'dirt', Y: 'dirt', y: 'dirt' };
+const AR_SURF_MAP = { mall: { S: 'metal', K: 'metal', k: 'wood', c: 'wood' }, quay: { b: 'metal', o: 'metal', w: 'wood' }, farm: { x: 'wood', f: 'wood', e: 'wood' } };
+export function arSurfAt(x, z) {
+  if (!ARENA.on) return 'wood';
+  const c = AR_KIND(ci(x), ci(z)), O = AR_SURF_MAP[AR_CUR.id];
+  return (O && O[c]) || AR_SURF[c] || 'stone';
 }
 // the spawn spot for a side (A, B or F) furthest from the enemies given ([x, z] each), a little off where it's marked
 const RESPAWN_PICK = 0.75;

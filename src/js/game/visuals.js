@@ -31,6 +31,7 @@ import { updateWeaponStats } from '../ui/weapon-stats.js';
 import { updateLoadout } from '../ui/loadout.js';
 import { updateBenchTips } from '../ui/bench-tips.js';
 import { titleCrowd } from '../world/title-crowd.js';
+import { pvpEnding } from '../pvp/pvp.js';
 
 // Everything drawn each frame, after the simulation. Each part lives with the system it draws.
 export function visuals(dt, rdt) {
@@ -45,7 +46,7 @@ export function visuals(dt, rdt) {
   updateZombieVisuals(dt, rdt); updateEyes(dt);
   updateCutaway(rdt); updateHoles();
   updateLaser(D);
-  stepTracers(rdt); stepSuppHeat(rdt); stepSmoke(dt); stepTrails(dt); stepTrail(rdt); stepCasings(dt); stepBoards(dt, rdt);
+  stepTracers(pvpEnding() ? dt : rdt); stepSuppHeat(rdt); stepSmoke(dt); stepTrails(dt); stepTrail(pvpEnding() ? dt : rdt); stepCasings(dt); stepBoards(dt, rdt);
   stepParticles(dt); stepFx(dt); stepArmorBits(dt);
   stepFloats(rdt);
   updateHUD(rdt, D); zoomEars(); updateDropMarker(); updateBenchTips(rdt); updateWeaponStats(); updateLoadout(); updateRackSide();

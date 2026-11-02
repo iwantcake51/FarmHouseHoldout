@@ -28,6 +28,8 @@ import { ARENA_STAM, RUN_REST, SHOT_HOLD, SPRINT, sprintHolds } from '../player/
 import { fpGunPitch, fpOn, VCAM } from '../game/view-cam.js';
 import { ANIM, LOOK_DOWN } from '../player/animation.js';
 import { PVP, pvpFrozen } from '../pvp/pvp.js';
+import { blockStops, updateBlock } from '../melee/block.js';
+import { sndLastPlayed } from '../audio/samples.js';
 
 const VAULT_BREATH = 1;   // seconds after a vault before stamina starts coming back
 const PITCH_MAX = 0.75;   // how far down (radians) the arms will point a gun
@@ -43,11 +45,12 @@ export function updateCombat(dt) {
   if (W8.swing > 0) {
     if (ANIM.mStop > 0) ANIM.mStop -= dt; else W8.swing = Math.max(0, W8.swing - dt);   // (stopped dead a moment on a blow that lands: meleeImpact)
     const p = 1 - W8.swing / W8.swingDur, D = W(curId()) || {}, heavy = heavySwing(D);
-    if (heavy && !W8.whoosh && p >= HEAVY.whoosh) { W8.whoosh = true; SFX.swingHeavy(!D.blunt); }   // the heavy ones are heard coming down, before they land
+    if (heavy && !W8.whoosh && p >= HEAVY.whoosh) { W8.whoosh = true; SFX.swingHeavy(!D.blunt); W8.whooshSnd = sndLastPlayed(); }   // the heavy ones are heard coming down, before they land
     if (!W8.hitDone && p >= (heavy ? HEAVY.hit : 0.4)) { W8.hitDone = true; meleeHit(); }
   }
   resumeReload(); tickReload(dt); tickShut(dt); tickCycle(dt);
-  const canFire = !openSt && !P.dead && !(P.shockStun > 0) && !pvpFrozen() && !(P.bandT > 0) && !(ANIM.bandP > 0.25) && !sprintHolds();   // not till it's back in your hands after a bandage, nor sprinting (player/sprint.js)
+  updateBlock(dt);   // (the guard up or down: melee/block.js)
+  const canFire = !blockStops() && !openSt && !P.dead && !(P.shockStun > 0) && !pvpFrozen() && !(P.bandT > 0) && !(ANIM.bandP > 0.25) && !sprintHolds();   // not till it's back in your hands after a bandage, nor sprinting (player/sprint.js)
   // (a click made while the gun was down at a sprint goes off now it's up: P.fireQ, player/sprint.js; one made while the
   // double barrel was open goes off as it latches: W8.shutFire, weapons/reload.js)
   const stickFire = !!(tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.4), wantFire = (mouseDown || stickFire || !!P.fireQ || W8.shutFire > 0) && canFire;

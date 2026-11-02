@@ -21,11 +21,11 @@ import { fpOn } from '../game/view-cam.js';
 import { BOTS } from './bots.js';
 import { PVP, pvpBurnHit, pvpBurnNum } from './pvp.js';
 
-export const PFIRE = { len: 3, tick: 0.5, dmg: 4, spread: 1.6, at: 0.75, char: 0.17, heatIn: 2.5, heatOut: 1.1, resend: 0.4 };
+export const PFIRE = { len: 3, tick: 0.5, dmg: 4, spread: 0.7, at: 1.4, char: 0.17, heatIn: 2.5, heatOut: 1.1, resend: 0.4 };
 // a fire lit on someone (F, or a new one), or kept going by another shell: from the limb it caught on (part), by whom
 // and with what (by, w, g: the gun as it was, for the kill feed)
 export function fireLight(F, part, by, w, g) {
-  if (!F) F = { t: 0, age: 0, tick: 0, from: part || 'torso', char: 0 };
+  if (!F) F = { t: 0, age: 0, tick: PFIRE.tick, from: part || 'torso', char: 0 };   // (the first tick at once: it burns from the moment it catches)
   F.t = PFIRE.len; F.by = by; F.w = w; F.g = g; return F;
 }
 // a fire's step: its time run down and how many ticks of it are due
@@ -45,6 +45,8 @@ function fireFx(F, x, z, limb, dt) {
   F.char = Math.min(1, F.char + dt * PFIRE.char * (0.25 + 0.75 * k));
 }
 
+// the flames on someone the moment a shell catches them, before the fire's own step has taken hold
+export function fireBurst(x, z) { burnFx(x, z, 0.5, 1.5, 0.22, 0.45); }
 // ---- you
 let youChar = 0, youSent = -9;
 // a dragon's breath hit on you (pvp/pvp.js NET_ON.ph): alight, or burning on longer, and everyone told
@@ -52,6 +54,7 @@ export function fireYou(m) {
   const fresh = !PVP.fire; PVP.fire = fireLight(PVP.fire, m.fp || m.p, m.f, m.w, m.g);
   const now = performance.now() / 1000;
   if (fresh || now - youSent > PFIRE.resend) { youSent = now; netSend('pf', { p: PVP.fire.from, t: PFIRE.len, by: m.f }); }
+  if (fresh && !fpOn()) fireBurst(P.x, P.z);
 }
 // put out (gone down, a new life, the round over): told to everyone; the char stays on you till you're back in
 function fireOut() { if (PVP.fire) { PVP.fire = null; netSend('pf', { t: 0 }); } }

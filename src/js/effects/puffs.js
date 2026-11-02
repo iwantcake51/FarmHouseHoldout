@@ -104,7 +104,33 @@ export function sparkBurst(x, y, z, n, dx, dz, force) {
 // thrown off the surface, and a few chips
 // by what it hit (surf): the ground kicks up a fountain of dirt clods and a puff that rises, no sparks; wood throws
 // splinters off the face and only a spark or two; anything else (a metal grate, stone) the sparks and chips as ever
+// what every impact leaves after its burst, whatever it hit: a puff of the stuff knocked off the surface that swells,
+// hangs and drifts up and off on the wind for a second or two (IMPACT_HAZE: its tint by surface, how big it starts and
+// swells to, how long it hangs, how thick)
+const IMPACT_HAZE = { tint: { stone: 0xb8b2a6, wood: 0x9c8a70, metal: 0x5a5856, dirt: 0x8a7a5e }, s0: 0.1, s1: [0.55, 0.85], life: [1.4, 2.2], a: 0.32 };
+function impactHaze(x, y, z, nx, nz, surf) {
+  const H = IMPACT_HAZE; smoke(x + nx * 0.08, y, z + nz * 0.08, nx * rr(0.25, 0.5), rr(0.12, 0.3), nz * rr(0.25, 0.5), H.s0, rr(H.s1[0], H.s1[1]), rr(H.life[0], H.life[1]), H.a * (surf === 'metal' ? 0.6 : 1), H.tint[surf] || H.tint.stone);
+}
 export function impactFx(x, y, z, nx, nz, surf) {
+  impactHaze(x, y, z, nx, nz, surf);
+  // concrete, brick and stone: a hard white crack of a flash, a cloud of grey dust blown off the face, chips of it
+  // flung out and falling, a spark or two off the grit
+  if (surf === 'stone') {
+    fx('flash', x + nx * 0.03, y, z + nz * 0.03, 0, 0, 0, rr(0.24, 0.32), 0.12, 0.06, 0.85);
+    if (rand() < 0.6) sparkBurst(x, y, z, 1 + (rand() * 2 | 0), nx, nz, 3);
+    for (let k = 0; k < 3; k++) fx('dust', x + nx * 0.05, y + rr(-0.04, 0.04), z + nz * 0.05, nx * rr(0.8, 1.8) + rr(-0.4, 0.4), rr(0.05, 0.5), nz * rr(0.8, 1.8) + rr(-0.4, 0.4), 0.08, rr(0.45, 0.75), rr(0.7, 1.1), 0.32);
+    cubeBurst(x + nx * 0.03, y, z + nz * 0.03, 4 + (rand() * 3 | 0), 'stone', nx, nz, 2.8, 0.38);
+    return;
+  }
+  // metal (a container, a car, a coach): sparks, lots of them, a bright flash and its glow, a few flakes of paint and
+  // rust, a thin dark wisp; no dust
+  if (surf === 'metal') {
+    fx('flash', x + nx * 0.03, y, z + nz * 0.03, 0, 0, 0, rr(0.34, 0.44), 0.16, 0.06, 1);
+    fx('glow', x + nx * 0.05, y, z + nz * 0.05, 0, 0, 0, 0.55, 0.32, 0.09, 0.55);
+    sparkBurst(x, y, z, 8 + (rand() * 5 | 0), nx, nz, 4.2);
+    cubeBurst(x + nx * 0.03, y, z + nz * 0.03, 2 + (rand() * 2 | 0), 'metal', nx, nz, 2.4, 0.3);
+    return;
+  }
   if (surf === 'dirt') {
     fx('flash', x, y + 0.02, z, 0, 0, 0, rr(0.18, 0.26), 0.1, 0.05, 0.6);
     cubeBurst(x, y + 0.03, z, 4 + (rand() * 3 | 0), 'dust', nx * 0.6, nz * 0.6, 1.4, 0.8);
@@ -124,6 +150,17 @@ export function impactFx(x, y, z, nx, nz, surf) {
   fx('debris', x + nx * 0.04, y, z + nz * 0.04, nx * rr(1, 1.8), rr(0.2, 0.8), nz * rr(1, 1.8), 0.08, rr(0.3, 0.45), rr(0.28, 0.4), 0.75);
   for (let k = 0; k < 2; k++) fx('dust', x + nx * 0.05, y, z + nz * 0.05, nx * rr(0.6, 1.4) + rr(-0.3, 0.3), rr(0.1, 0.5), nz * rr(0.6, 1.4) + rr(-0.3, 0.3), 0.08, rr(0.45, 0.7), rr(0.7, 1.0), 0.3);
   cubeBurst(x, y, z, 2 + (rand() * 2 | 0), 'dust', nx, nz, 2.2, 0.35);
+}
+// a blow meeting a guard (melee/block.js): a white-hot flash where steel meets steel and its glow, a spray of sparks
+// thrown back off the edge toward whoever swung and out every way along it; a parry's twice as bright, twice the sparks,
+// and a few embers that hang and drift off
+export function parryFx(x, y, z, nx, nz, parry) {
+  const m = parry ? 1.8 : 1;
+  fx('flash', x, y, z, 0, 0, 0, rr(0.3, 0.4) * m, 0.14 * m, parry ? 0.09 : 0.06, 1);
+  fx('glow', x, y, z, 0, 0, 0, 0.5 * m, 0.32 * m, parry ? 0.2 : 0.1, 0.6);
+  sparkBurst(x, y, z, Math.round((10 + rand() * 6) * m), nx, nz, 4.5 * m);
+  for (let k = 0, n = parry ? 16 : 6; k < n; k++) { const a = rand() * 6.28, v = rr(1.5, 4.5) * m; fx('spark', x, y + rr(-0.05, 0.05), z, Math.sin(a) * v, rr(0.4, 2.8), Math.cos(a) * v, 0.03, 0.012, rr(0.18, 0.42), 1); }
+  if (parry) for (let k = 0; k < 7; k++) fx('ember', x + rr(-0.08, 0.08), y + rr(-0.06, 0.06), z + rr(-0.08, 0.08), nx * rr(0.3, 1.2) + rr(-0.5, 0.5), rr(0.2, 1.1), nz * rr(0.3, 1.2) + rr(-0.5, 0.5), 0.04, 0.015, rr(0.5, 1.1), 0.9);
 }
 // a hit on flesh, along the shot: a spray of fine drops flung out the far side, a puff of red mist blown out with it
 // that swells, hangs and drifts off on the wind as it thins, and a smaller one coughed back out of the wound toward

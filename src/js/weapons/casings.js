@@ -386,11 +386,11 @@ export function stepDebris(list, dt) {
       const fy = surfaceY(g.position.x, g.position.z);
       if (g.position.y < fy + c.r && c.vy < 0) {
         g.position.y = fy + c.r; c.bounces++;
-        if (c.kind === 'mag') { if (c.bounces === 1) SFX.magDrop(Math.min(1, -c.vy / 4)); }
+        if (c.kind === 'mag') { if (c.bounces === 1) soundAt(g.position.x, g.position.z, () => SFX.magDrop(Math.min(1, -c.vy / 4))); }
         else if (c.kind === 'plate' || c.kind === 'bar') { if (c.bounces <= 2 && Math.hypot(g.position.x - P.x, g.position.z - P.z) < 18) soundAt(g.position.x, g.position.z, () => SFX.metalDrop(Math.min(1, -c.vy / 4), c.kind === 'plate')); }   // (a grate coming apart: barricades/metal-bars.js)
-        else if (c.kind === 'plank') { if (!c.quiet && c.bounces <= 2 && Math.hypot(g.position.x - P.x, g.position.z - P.z) < 16) SFX.plankDrop(Math.min(1, -c.vy / 4)); }   // (a board torn off a window: barricades/planks.js)
+        else if (c.kind === 'plank') { if (!c.quiet && c.bounces <= 2 && Math.hypot(g.position.x - P.x, g.position.z - P.z) < 16) soundAt(g.position.x, g.position.z, () => SFX.plankDrop(Math.min(1, -c.vy / 4))); }   // (a board torn off a window: barricades/planks.js)
         else {
-          if (tinkT <= 0 && c.vy < -1.2) { SFX.tink(c.kind === 'shells', Math.min(1, -c.vy / 5) * (c.kind === 'link' ? 0.5 : 1)); tinkT = 0.035; }
+          if (tinkT <= 0 && c.vy < -1.2) { const v = Math.min(1, -c.vy / 5) * (c.kind === 'link' ? 0.5 : 1); soundAt(g.position.x, g.position.z, () => SFX.tink(c.kind === 'shells', v)); tinkT = 0.035; }   // (heard where it lands: off to its side, quieter further off, muffled through walls, audio/spatial.js)
           if (c.bounces === 1 && c.kind !== 'link' && c.vy < -1.5 && rand() < 0.6) fx('dust', g.position.x, fy + 0.04, g.position.z, c.vx * 0.2, rr(0.1, 0.3), c.vz * 0.2, 0.04, rr(0.12, 0.18), rr(0.35, 0.5), 0.2);   // a little dust kicked up where a case lands
         }
         c.vy = -c.vy * (c.kind === 'mag' ? 0.2 : c.kind === 'shells' ? 0.25 : 0.38); c.vx *= 0.55; c.vz *= 0.55; c.spin *= 0.5; c.roll *= 0.4;

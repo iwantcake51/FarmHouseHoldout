@@ -763,7 +763,10 @@ function rtSigns(g) {
   rtSign(g, 'MOTEL GUESTS ONLY', 2.0, 0.5, '#2f6060', '#f2e6c8', xE + 0.02, 1.75, 14, -Math.PI / 2, true);
   // on the blast walls along the highway, facing it: the checkpoint's stencils, each on its own run of panels
   const zW = RZ(28) + 0.31 + 0.006;
-  for (const s of [-1, 1]) { rtSign(g, 'CHECKPOINT 9', 2.6, 0.7, null, '#e8e2d2', s * 5.5, 1.6, zW, 0, false, null, 'stencil'); rtSign(g, 'STOP · SHOW PAPERS', 1.9, 0.4, null, '#c83c2c', s * 10.5, 1.3, zW, 0, false, null, 'stencil'); }
+  // (the name once, in the middle of the long run between the jersey barriers; never out over the barriers either side
+  // of it, which stand well below where it's painted)
+  rtSign(g, 'CHECKPOINT 9', 2.6, 0.7, null, '#e8e2d2', 0, 1.6, zW, 0, false, null, 'stencil');
+  for (const s of [-1, 1]) rtSign(g, 'STOP · SHOW PAPERS', 1.9, 0.4, null, '#c83c2c', s * 10.5, 1.3, zW, 0, false, null, 'stencil');
   // the store's name along its front's parapet; sprayed on the plywood over its windows; on its side wall
   rtSign(g, 'ROUTE 9 MART', 9, 0.6, null, '#a8302a', 0, RT_SH + 0.45, RZ(RT_STORE.j1) + 0.506, 0, false, null, 'letters');
   const zF = RZ(RT_STORE.j1) + 0.296;

@@ -212,7 +212,11 @@ const VM_HOLD = { yaw: 0.0028, pitch: 0.0022, x: 0.0005, y: 0.0004 };
 // stride) as the arms carry it, so the gun rides the walk in a loose figure of eight rather than bouncing up and down)
 const VM_BOB_ROT = { yaw: 0.013, pitch: 0.014, lag: 0.55 };
 const VM = { roll: 0.022, lag: 0.0035, fwd: 0.0022, turn: 0.011, bob: [0.0036, 0.0021, 0.014], breathe: [0.0014, 0.0035], land: 0.55, k: 75, d: 12.5, ads: 0.88 };
-const VS = { x: 0, y: 0, z: 0, p: 0, w: 0, r: 0, vx: 0, vy: 0, vz: 0, vp: 0, vw: 0, vr: 0 };
+const VS = { x: 0, y: 0, z: 0, p: 0, w: 0, r: 0, vx: 0, vy: 0, vz: 0, vp: 0, vw: 0, vr: 0, hs: 0 };
+// a hit on you, on the arms and the gun (fpFlinch): how hard they're knocked back toward you (m/s), down, the muzzle up
+// and aside and the gun tipped over (rad/s), and the shake after it (hs, easing off at shakeOff a second, its jitter
+// m and rad at full); ads: how much less of it down the sights
+const VM_HIT = { back: 0.55, down: 0.32, pitch: 1.1, yaw: 0.55, roll: 1.3, side: 0.25, shake: 0.9, shakeOff: 2.6, jit: [0.0045, 0.012], ads: 0.6 };
 // down the sights without a set eye relief (a red dot, a holo, a handgun's irons), the nearest your eye comes to the back
 // of the sights, so the gun's never pushed into your face (aiming up, say): an optic's, iron sights'
 // (a handgun's irons, hand: the eye a little further back off the slide, which carries the rear sight and slams back
@@ -606,6 +610,8 @@ function vmStep(rdt, w0, now) {
   const hx = XR.hx || 0, hy = XR.hy || 0, H = VM_HOLD;
   const T = { x: (-right * VM.lag + B[0] * k * Math.sin(ph) - turn * VM_RUN.side * (rk - 1) + lt * VM_LOOK.x + H.x * hx) * m, y: (-B[1] * k * (0.5 - 0.5 * Math.cos(2 * ph)) + VM.breathe[0] * still * Math.sin(now * 1.6) - lp * VM_LOOK.y + H.y * hy) * m, z: Math.max(0, fwd) * VM.fwd * m,
     p: (-Math.max(0, fwd) * VM.fwd * 2 + VM.breathe[1] * still * Math.sin(now * 1.6 + 0.6) - lp * VM_LOOK.pitch - VM_BOB_ROT.pitch * k * (0.5 - 0.5 * Math.cos(2 * (ph - VM_BOB_ROT.lag))) + H.pitch * hy) * m, w: clamp(-turn * VM_RUN.yaw * (rk - 1) - lt * VM_LOOK.yaw + VM_BOB_ROT.yaw * k * Math.sin(ph - VM_BOB_ROT.lag) - H.yaw * hx, -VM_RUN.max, VM_RUN.max) * m, r: (-right * VM.roll - turn * VM.turn * rk + B[2] * k * Math.sin(ph)) * m };
+  // (shaking after a hit: VM_HIT)
+  if (VS.hs > 0.001) { const hs = VS.hs * VS.hs, J = VM_HIT.jit; T.x += Math.sin(now * 53) * J[0] * hs; T.y += Math.sin(now * 61 + 1) * J[0] * hs; T.p += Math.sin(now * 47 + 2) * J[1] * hs; T.r += Math.sin(now * 41 + 3) * J[1] * hs; VS.hs = Math.max(0, VS.hs - rdt * VM_HIT.shakeOff); }
   for (let n = Math.ceil(rdt / (1 / 120)), h = rdt / Math.max(1, n), i = 0; i < n; i++) for (const a of ['x', 'y', 'z', 'p', 'w', 'r']) { const va = 'v' + a; VS[va] += (VM.k * (T[a] - VS[a]) - VM.d * VS[va]) * h; VS[a] += VS[va] * h; }
   // and down the sights (ADS_SWAY: V.asY, V.asP, put on in fpSightAlign)
   // (its own share of the stride: the view's bob, bobK, is mostly taken off down the sights)
@@ -1066,7 +1072,11 @@ export function fpFlinch(x, z, amount) {
   const fwd = L > 0.05 ? (rx * F.x + rz * F.z) / L : 1, side = L > 0.05 ? (rx * Rt.x + rz * Rt.z) / L : (rand() < 0.5 ? -0.5 : 0.5);
   const j = rr(0.85, 1.15);   // (no two quite alike)
   const ak = adsW(), ka = 1 - (1 - FLINCH_ADS.k) * ak;   // (down the sights: FLINCH_ADS)
-  FL.vp += (fwd >= 0 ? C.pitch * (0.45 + 0.55 * fwd) : -C.behind * -fwd) * k * j * ka; FL.vy += side * C.yaw * k * j * ka; FL.vr += side * C.roll * k * rr(0.8, 1.2) * ka * (1 - (1 - FLINCH_ADS.roll) * ak); FL.vz += C.back * Math.max(0.3, fwd) * k * (1 - ak);
+  FL.vp += (fwd >= 0 ? C.pitch * (0.45 + 0.55 * fwd) : -C.behind * -fwd) * k * j * ka;
+  // (and the arms and what's in your hands knocked by it, VM_HIT: shoved back at you and down, the muzzle thrown up and
+  // off to the side away from the blow, tipped over, and shaking a moment as they come back on the springs; less down
+  // the sights, where your eye's on it)
+  { const H = VM_HIT, hk = k * (1 - H.ads * ak) * j; VS.vz += H.back * hk; VS.vy -= H.down * hk; VS.vp += H.pitch * hk; VS.vw -= side * H.yaw * hk; VS.vr += side * H.roll * hk; VS.vx -= side * H.side * hk; VS.hs = Math.min(1.4, (VS.hs || 0) + H.shake * k); } FL.vy += side * C.yaw * k * j * ka; FL.vr += side * C.roll * k * rr(0.8, 1.2) * ka * (1 - (1 - FLINCH_ADS.roll) * ak); FL.vz += C.back * Math.max(0.3, fwd) * k * (1 - ak);
 }
 export function fpMeleeHit(heavy, hard) {
   if (!fpOn()) return;

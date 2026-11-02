@@ -17,6 +17,7 @@ import { worldK, worldT } from '../game/state.js';
 import { titleBlend } from '../game/intro.js';
 import { curDark } from '../lighting/day-night.js';
 import { camTarget } from '../game/camera.js';
+import { ARENA } from './arena.js';
 
 // inside the house's walls (plus a margin): the bugs and motes keep out
 const inHouse = (x, z, m) => inHouseRect(x, z, m);
@@ -113,7 +114,7 @@ export function stepAtmos(realDt) {
   // from your own eyes (or the free camera) the haze round the farm lies further out (FAR_EDGE), over the woods and
   // the road rather than right at the fence, and the woods on to the horizon, the power line and the sky come into view
   // (world/ground.js, world/sky.js); thick fog greys the sky out toward the haze
-  { const far = !!cam.isPerspectiveCamera, E = far ? FAR_EDGE : NEAR_EDGE; LMU.uEdge.value.set(E[0], E[1]); FAR_VIEW.visible = far;
+  { const far = !!cam.isPerspectiveCamera, E = far ? FAR_EDGE : NEAR_EDGE; LMU.uEdge.value.set(E[0], E[1]); FAR_VIEW.visible = far && !ARENA.on;   // (never in the arena: the farm's fields aren't out there, world/arena-outer.js is)
     updateSky(day); SKY_U.uTop.value.lerp(scene.fog.color, fogW.lv * 0.55); SKY_U.uCloudK.value = SKY_CLOUD * (1 - fogW.lv * 0.7); }
   const mo = mix((Math.max(0, curDark - 0.35) * 0.12 + fogW.lv * 0.16) * (0.4 + 0.6 * Math.max(curDark, 0.35)), 0.06, tb);
   const rf = mix(0.42 + fogW.lv * 0.3, 0, tb);

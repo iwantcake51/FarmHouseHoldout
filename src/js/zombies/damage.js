@@ -466,7 +466,7 @@ function hurtZombie0(z, dmg, dx, dz, kb, wId, part) {
   else if (D.bleed) { z.bleed = Math.max(z.bleed, BLEED_T); z.bleedR = Math.min(DART_BLEED_MAX, (z.bleedR || 0) + D.bleed); }
   netHitRec(z, dealt, part, kb, wId);
   { const dd = Math.hypot(z.x - P.x, z.z - P.z);
-    if (D.melee) addBlood(0.025 + (z.limbs[part] === false ? 0.04 : 0), wId, 0.08 + (D.sever ? 0.04 : 0));
+    if (D.melee) addBlood(0.025 + (z.limbs[part] === false ? 0.04 : 0), wId, (D.blunt ? 0.13 : 0.18) + (D.sever ? 0.06 : 0) + (z.limbs[part] === false ? 0.08 : 0));   // (a good deal of it on the weapon: a blade's edge the most, more again off a limb it's taken)
     else if (dd < 2.6) addBlood(D.ammo === 'shells' ? 0.03 : 0.015, wId, 0.035); }
   if (z.hp <= 0) { killZombie(z, dx, dz, wId, part, -z.hp); return true; }
   soundAt(z.x, z.z, () => { SFX.tick(); if (part === 'head') SFX.headHit(); });

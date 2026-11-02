@@ -2,6 +2,8 @@
 // down the doors between rooms, attacks on you and brute concussion. The body's animated in zombies/zombie-anim.js, the climbs are in
 // zombies/climb.js.
 
+import { interruptBandage } from '../player/bandages.js';
+import { BLK, BLOCK, guardHitYou, guardMeets } from '../melee/block.js';
 import { $, replay } from '../core/dom.js';
 import { RIGHT, V3 } from '../core/renderer.js';
 import { angDiff, clamp, HALF, mix, N, rand, rr, smooth } from '../core/math.js';
@@ -349,8 +351,18 @@ export function updateZombies(dt) {
 let zHitMe = false;
 export function zStrike(z, armMul) {
   const dxp = P.x - z.x, dzp = P.z - z.z, dp = Math.hypot(dxp, dzp);
+  // (on your melee guard, facing it, melee/block.js: parried, none of it and it reels; blocked, a share of it gets
+  // through and it costs you stamina, a brute's more of both. A crawler's swipe at your ankles goes under it)
+  const gk = !z.crawl && guardMeets(BLOCK.on, BLOCK.at, P.aim, P.x, P.z, z.x, z.z);
+  if (gk) {
+    const full = z.T.dmg * armMul * S.dmgTaken * waveDmg() * cheatAI().dmg;
+    guardHitYou(gk, z.T.dmg * armMul * (z.type === 'brute' ? 1.6 : 1), z.x, z.z);
+    if (gk === 'parry') z.stagger = Math.max(z.stagger || 0, BLK.parryStun + 0.2);
+    else { P.hp -= full * (z.type === 'brute' ? BLK.heavy : BLK.through); interruptBandage(); }
+    return;
+  }
   P.hitFrom = z.face; hitFromAt(z.x, z.z, z.T.dmg * armMul * (z.crawl ? 0.25 : 1) / 25);
-  P.hp -= z.T.dmg * armMul * (z.crawl ? 0.25 : 1) * S.dmgTaken * waveDmg() * cheatAI().dmg;   // (the cheat menu's zombie damage: ui/cheats.js) zHitMe = true; interruptBandage();   // a crawler only gets a weak swipe in, but it trips you
+  P.hp -= z.T.dmg * armMul * (z.crawl ? 0.25 : 1) * S.dmgTaken * waveDmg() * cheatAI().dmg; zHitMe = true; interruptBandage();   // (the cheat menu's zombie damage: ui/cheats.js)   // a crawler only gets a weak swipe in, but it trips you
   // tilt the view toward whoever hit you
   const side = (-dxp * RIGHT.x - dzp * RIGHT.z) >= 0 ? 1 : -1; setCamRoll(clamp(camRoll - side * 0.055, -0.1, 0.1));
   camKick.x -= dxp / (dp || 1) * -0.25; camKick.z -= dzp / (dp || 1) * -0.25;

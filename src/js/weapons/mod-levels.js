@@ -10,7 +10,7 @@ export const MOD_MAX = 3;
 // mods that make one line of upgrades between them, shown with that line's stars at the bench: the pistol's burst
 // conversion is its first two (its level II the second) and the auto sear its third (MOD_LINE: where each comes in and
 // how many steps the line has; MOD_CAP: how far a mod's own levels go in it)
-export const MOD_LINE = { burst: [0, 3], auto: [2, 3] }, MOD_CAP = { burst: 2 };
+export const MOD_LINE = { burst: [0, 3], auto: [2, 3] }, MOD_CAP = { burst: 2, sawn: 1, both: 1 };   // (the sawn-off and the twin trigger: one step each, no more)
 export const MOD_UP = {
   match: { t: 'Spread −10%, +6% damage, less drop-off at range, a little slower to bring up', up: D => { D.spread *= 0.9; D.dmg *= 1.06; D.reach += 0.3; D.adsK *= 0.97; } },
   burst: { t: '+1 round a burst, +6% damage', up: D => { D.burst += 1; D.dmg *= 1.06; } },

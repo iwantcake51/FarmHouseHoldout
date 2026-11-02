@@ -64,6 +64,7 @@ import { teamBonus } from './teamwork.js';
 import { frTick } from './friends.js';
 import { chatTick } from './chat.js';
 import { PVP } from '../pvp/pvp.js';
+import { pvpEnding } from '../pvp/pvp.js';
 
 export let NREC = null, NREP = null;   // a hit of yours being written down to send; a teammate's being played out
 export const NZ = new Map();           // zombies by the id the host gave them
@@ -411,7 +412,7 @@ export function netTick(rdt) {
       if ((state === 'play' || state === 'paused') && netAllDown() && !PVP.on) { overT += rdt; if (overT > 3) { overT = 0; netSend('over', {}); die(); } } else overT = 0;
     }
   }
-  updateAvatars(rdt);
+  updateAvatars(pvpEnding() ? rdt * timeScale : rdt);   // (everyone else slowed to a stop with the match's end, as the world is: pvp/pvp.js)
   renderTeam(); renderSpec();
 }
 // a fresh co-op run: no zombies known, each survivor starting a step apart from the others

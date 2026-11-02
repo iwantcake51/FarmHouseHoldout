@@ -237,7 +237,7 @@ export function startDeath() {
     if (netLink()) netSend('wdrop', { s: SLOTS.indexOf(W8.cur), p: c.g.position.toArray().map(nr), q: c.g.quaternion.toArray().map(x => Math.round(x * 1e4) / 1e4), v: v.map(nr), w: w.map(nr) });
   }
   document.body.classList.add('dying');
-  SFX.hurt(); setTimeout(() => { if (P.dead) SFX.thump(); }, 0.85 / DEATH_RATE * 1000); SFX.wave();
+  SFX.hurt(); setTimeout(() => { if (P.dead) SFX.thump(); }, 0.85 / DEATH_RATE * 1000); if (!PVP.on) SFX.wave();   // (in the arena no sting: you'll be straight back in)
 }
 // ---- going down, filmed: the view closes in on you slowly and tips over a little the way you fell, black bars slide
 // in top and bottom, the edges darken and the sound goes dull and far away (ui/hud.js). In co-op, once you've lain

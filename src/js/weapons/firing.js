@@ -11,6 +11,7 @@ import { P } from '../player/player.js';
 import { HEAVY_FIRE } from './gun-stats.js';
 import { falloff, headFade } from './ammo.js';
 import { PVP, pvpPellet, pvpRay, pvpShotEnd } from '../pvp/pvp.js';
+import { arSurfAt } from '../world/arena.js';
 import { arBoxShot } from '../world/arena-boxes.js';
 import { fireModeOf } from './mod-levels.js';
 import { curId, gunAtt, magSize, run, S, suppMul, suppressed, T, W, W8 } from '../game/run-state.js';
@@ -109,8 +110,7 @@ export function spreadOf(id) {
   const D = W(id), pel = (D.pellets || 1) > 1; let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 * (D.aimK || 1) : 1.3 * (D.hipK || 1)) * (1 + mv * (aiming ? 0.3 * (D.aimMove ?? 1) : RUN_SPREAD * (D.mobile || 1) * (pel ? SG_RUN : 1))) * (1 + (W8.spray || 0) * 1.3 * (pel ? SG_SPRAY : 1));
   if (aiming && !pel) return 0;
   if (!aiming && !pel && burstN() === 0 && mv < 0.15) s *= HIP_FIRST.k;
-  // a choke squeezes the pellets together, and steadies a slug even more
-  if (D.ammo === 'shells' && T('choke')) s *= (D.pellets || 1) > 1 ? (T('choke') === 2 ? 0.49 : 0.7) : (T('choke') === 2 ? 0.3 : 0.55);
+  // (a choke's squeeze is in the gun's own spread now: game/run-state.js recomputeEff)
   if (D.bipod && P.still > 0.3) s *= 0.12;
   if (fanning(D)) s *= D.fan.spread;
   s *= crouchSpread();   // crouched, steadier (player/crouch.js)
@@ -296,7 +296,7 @@ export function fire() {
     const cost = stamCost(D), tired = P.exh || P.stam < cost * 0.5;
     P.stam = Math.max(0, P.stam - cost * SWING_AIR); P.stamT = 0; if (P.stam <= 0.001) { P.exh = true; }
     W8.tired = tired; const tk = !tired ? 0 : (D.cleave || 1) < 2 ? TIRED.single : 1, slow = 1 + (TIRED.cd - 1) * tk;
-    W8.cd = D.rate * 1.3 / Math.max(1, S.rateMul * 0.5 + 0.5) * slow; W8.swingDur = W8.swing = Math.min(D.rate * 1.2, D.style === 'chop' ? 0.98 : 0.64) * (1 + (TIRED.swing - 1) * tk); W8.hitDone = false; W8.whoosh = false; W8.swingSide = pickSwing(D).side; ANIM.mStop = 0;   // one of its three swings (melee/melee-anim.js)
+    W8.cd = D.rate * 1.3 / Math.max(1, S.rateMul * 0.5 + 0.5) * slow; W8.swingDur = W8.swing = Math.min(D.rate * 1.2, D.style === 'chop' ? 0.98 : 0.64) * (1 + (TIRED.swing - 1) * tk); W8.hitDone = false; W8.whoosh = false; W8.swingN = (W8.swingN || 0) + 1; W8.swingSide = pickSwing(D).side; ANIM.mStop = 0;   // one of its three swings (melee/melee-anim.js)
     if (tired) SFX.pant();
     return;
   }
@@ -470,7 +470,7 @@ export function gunFire(id, D, side) {
     if (D.explode && (n || wallT < reach)) explode(ox + dx * endT, oz + dz * endT, D.explode, 45, true, false, true);
     else if (!n && wallT < reach && wallT <= endR) {   // (a box knocked off on the way doesn't stop it: the shelving lets rounds through)   // sparks and a little dust puff where it hits the wall
       const ix = ox + dx * (wallT - 0.05), iz = oz + dz * (wallT - 0.05);
-      if (p < 4 || rand() < 0.4) impactFx(ix, ey, iz, -dx, -dz, 'wood');   // a flash, splinters, a puff off the surface (effects/puffs.js)
+      if (p < 4 || rand() < 0.4) impactFx(ix, ey, iz, -dx, -dz, arSurfAt(ix + dx * 0.12, iz + dz * 0.12));   // (what it's made of: world/arena.js arSurfAt)   // a flash, splinters, a puff off the surface (effects/puffs.js)
       bulletHole(ox, oz, dx, dz, wallT, ey, hole);   // and a hole in it (effects/bullet-holes.js)
       if (p < 2) smoke(ix, ey, iz, -dx * 0.6, 0.2, -dz * 0.6, 0.12, 0.55, 0.7, 0.3, 0x9a8a72);
     } else if (!n && gndT <= endR) groundHit(ox + dx * endT, ey, oz + dz * endT, dx, dz, p);   // into the ground, from your own eyes

@@ -1,5 +1,6 @@
 // The crosshair.
 
+import { BLOCK } from '../melee/block.js';
 import { $, replay } from '../core/dom.js';
 import { kbd } from '../input/keybinds.js';
 import { cam, FP_CAM, GUN_Y, V3 } from '../core/renderer.js';
@@ -259,8 +260,15 @@ export function updateCrosshair(rdt, D) {
         XHM.vs += ((sT - XHM.s) * 260 - XHM.vs * 22) * h; XHM.s += XHM.vs * h;
         XHM.vr += ((rT - XHM.r) * 900 - XHM.vr * 38) * h; XHM.r += XHM.vr * h;   // stiff: quick to snap round, a small overshoot
       }
-      const k = XHM.s.toFixed(3) + ':' + XHM.r.toFixed(1) + ':' + Math.round(rd * 50);
-      if (cache.xhBr !== k) { cache.xhBr = k; const b = $('xhBr'); b.setAttribute('transform', `rotate(${XHM.r.toFixed(1)}) scale(${XHM.s.toFixed(3)})`); b.style.opacity = (0.45 + 0.55 * smooth(rd)).toFixed(2); }
+      // (the guard up: the brackets give way to the shield, which jumps with each blow it takes, white on a parry,
+      // red as it's broken: melee/block.js)
+      { const gk = smooth(BLOCK.k), sk = BLOCK.shake * BLOCK.shake, t = performance.now() / 1000;
+        const jx = (BLOCK.sx * 6 + Math.sin(t * 61) * 2.2) * sk, jy = (BLOCK.sy * 5 + Math.cos(t * 53) * 1.8) * sk - 1.5 * sk, sc = (0.8 + 0.2 * gk) * (1 + 0.22 * sk), rot = BLOCK.sx * 18 * sk;
+        const key = gk.toFixed(2) + ':' + jx.toFixed(1) + ':' + jy.toFixed(1) + ':' + (BLOCK.flash > 0.3) + ':' + (BLOCK.broke > 0);
+        if (cache.xhSh !== key) { cache.xhSh = key; const el = $('xhShield'); el.setAttribute('opacity', gk.toFixed(2)); el.setAttribute('transform', `translate(${jx.toFixed(1)} ${jy.toFixed(1)}) rotate(${rot.toFixed(1)}) scale(${sc.toFixed(3)})`); el.classList.toggle('parry', BLOCK.flash > 0.3); el.classList.toggle('broke', BLOCK.broke > 0 && gk > 0.05); }
+        XHM.gk = gk; }
+      const k = XHM.s.toFixed(3) + ':' + XHM.r.toFixed(1) + ':' + Math.round(rd * 50) + ':' + (XHM.gk || 0).toFixed(2);
+      if (cache.xhBr !== k) { cache.xhBr = k; const b = $('xhBr'); b.setAttribute('transform', `rotate(${XHM.r.toFixed(1)}) scale(${XHM.s.toFixed(3)})`); b.style.opacity = ((0.45 + 0.55 * smooth(rd)) * (1 - (XHM.gk || 0))).toFixed(2); }
     }
     // bandage ring: shown only while a bandage is going on, filling as it does, and full for a moment once it's done
     // (or stopped at full health: BAND_DONE, player/bandages.js), so it always ends at 100%

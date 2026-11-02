@@ -235,7 +235,10 @@ moved down to its foot; the
 machine pistol's magazine steps go from its stick to an extended stick and then straight to a drum (no casket). The
 shotguns' chokes are real choke tubes, as wide as the muzzle they thread into: the **Modified choke** (tier 1) a black
 tube sitting almost flush with a castellated rim, the **Full choke** (tier 2) an extended steel tube standing out past
-the muzzle with a knurled grip band, each with its dark bore (the double barrel's in both barrels). The hand cannon's
+the muzzle with a knurled grip band, each with its dark bore (the double barrel's in both barrels). They tighten the
+spread now, and say by how much: the Modified choke cuts buckshot's spread by 30% and a slug's by 45%; the Full choke
+by 51% and 70% (`CHOKE_SPREAD` in `game/run-state.js`). The double barrel's **twin trigger** and its **sawn-off** kit
+are a single step each now. The hand cannon's
 bore is a full round hole out past its bevelled muzzle face, and the MP5's butt pad is closed at its foot. The LMG
 takes optics now (it took none): a red dot, a holo, the scope or the ACOG, nothing bigger, on a picatinny rail along its
 feed cover as an M60E4's, over the bore and well clear of the belt and tray, its ladder sight folded flat under it; the
@@ -296,7 +299,9 @@ recordings are from the pack already in use (`assets/sounds/Guns and stuffs.zip`
 moan to a reedy one, a sprinter's a ragged shriek that climbs (and it lets one out as it comes out of the treeline,
 most of the time), a brute's a deep, rasping roar (as it charges, too), a spitter's a wet gurgle. They're heard from
 where they are, quieter and off to the side with distance and muffled through the walls (every wall, tall prop and
-shut door or window between you counts, up to three, each muffling it more), and it's now one, now
+shut door or window between you counts, up to three, each muffling it more; but only what's fully between you: a
+sound that can get round a wall's end or past it through a gap beside it comes through, only a little softened, so
+one just round a corner is clear), and it's now one, now
 another of the few nearest you, more often the more of them are close by, so a crowd round the house moans over
 itself.
 
@@ -930,8 +935,8 @@ and on between them.
 - **The gun's own parts.** Every part the workbench can fit to that one gun has its own tile too, each named for the
   part, one point a level: the handgun's **Barrel** (match barrel I to III) and **Stock**; the revolver's **Barrel**
   (4", 6" or 8") and **Hammer** (fan the hammer), and **Stock**; the hand cannon's **Compensator** (I to III) and
-  **Stock**; the pump's **Action** (slam fire I to III); the double barrel's **Trigger** (the twin trigger, I to
-  III); the hunting rifle's **Bolt** (greased); the machine pistol's ported **Barrel** (I to III); the SMG's **Trigger
+  **Stock**; the pump's **Action** (slam fire I to III); the double barrel's **Trigger** (the twin trigger, one
+  step); the hunting rifle's **Bolt** (greased); the machine pistol's ported **Barrel** (I to III); the SMG's **Trigger
   group** (navy burst, I to III); the M4's **Mag well** (flared, I to III) and **Barrel** (heavy, I to III); the LMG's
   **Bipod** (I to III). A sidearm's folding shoulder stock costs 2: 45% less kick, fast shots kept tighter and the gun
   steadier in the hands. A compensator or a ported barrel takes the muzzle, so fitting one takes off a can or a choke,
@@ -962,7 +967,7 @@ and on between them.
 - **Conversion kits.** A gun that has one gets a **Conversion** tile, one kit at a time, picked off a row of choices
   with **Stock** first (the cross or a right click puts it back): the handgun's burst conversion (I or II, 1 or 2
   points), full auto (the auto sear, the third step of that line: 3) or a second pistol (1); a second machine pistol
-  (1); the submachine gun's 10mm kit (1); the double barrel's sawn-off (I to III, 1 to 3); the battle rifle's AK kit
+  (1); the submachine gun's 10mm kit (1); the double barrel's sawn-off (one step, 1); the battle rifle's AK kit
   (1). They go on as the workbench's do, levels and all. A kit that takes a line's place (the AK kit the magazine and
   magwell, the 10mm kit the magazine) shuts that tile while it's on, and gives back what was on it.
 - **Shells and loading.** A shotgun's **Shells** tile picks what it starts loaded with: buckshot, slugs, flechettes
@@ -1215,6 +1220,13 @@ like pea-shooters). To a 100-health body, before range falloff:
 - **The end of the match** slows the game down more and more as the last kill lands, to a dead stop about three
   seconds later (2.8 s). Time holds stopped for a beat (0.6 s), and only then does the scoreboard come up over the
   frozen moment. The clock and the HUD run on real time, so they carry on.
+  - Everything slows with it: every sound playing and every new one (pitched down as it slows), the others' bodies
+    and guns, tracers, smoke and particles.
+  - Looking round while the scoreboard's up, your arms and gun turn with the view (they no longer stay pointed where
+    you last aimed).
+  - No sound from the results coming up, and none from your loadout going back into your hands as you come back in.
+- **Damage numbers** rise straight up and out of whoever you hit, from where they stand, hidden until they're in
+  place (they no longer slide in from the side).
 - **Shot through the head**, it's a beat of its own: a white crack of a flash going red on the instant, the screen
   crushed dark from its edges in a red-black vignette with a red heart to it, a high ringing in your ears (the world's
   sound dulled under it); then the dark draws back
@@ -1405,6 +1417,14 @@ pieces of the props actually in it, as they were built: the boxes of their real 
 - The shot box is used for rounds, pellets and line of sight. Movement keeps the old, slightly larger footprints, so
   you never slip into a gap a round can pass through.
 - The height a round passes over is the real top of the pieces.
+- **Now per piece, in 3D** (`shotParts` in `world/collision.js`): a cell keeps the box of each solid piece in it
+  (its footprint and its height), not one box round them all, so a round only stops where a piece really is. Shooting
+  the air beside a memorial's plinth, past a building's corner or through the gap under a table goes through. A cell
+  crowded with more than 16 pieces has them merged into a few height bands.
+- **Shots kick up what they hit.** Concrete, brick and stone throw a hard white flash, a cloud of grey dust and
+  chips of stone; metal (containers, cars, a coach) a shower of sparks, a glow and flakes of paint and rust; wood
+  splinters; dirt a puff and clods. Every impact leaves a little tinted smoke hanging that drifts off (`impactFx` and
+  `impactHaze` in `effects/puffs.js`, the surface from `arSurfAt` in `world/arena.js`).
 
 **Signs, paint and fonts** (`world/sign-art.js`). Every word on every arena map is painted one shared way, so it reads
 as a made thing rather than type laid over a picture:
@@ -1435,9 +1455,28 @@ as a made thing rather than type laid over a picture:
   and the graves are in a row along the south wall.
 - **Saltmarsh Quay**: the cars and luggage sit against the harbour buildings, the float pallets against the sheds,
   and the bollards are spaced along the quay edge.
+- **Hawthorne Square** (this pass): the churchyard's south side is one continuous dry-stone wall with coping and gate
+  piers; the cottage's front windows sit either side of its door (none over it), with a lintel over the door; the
+  café's awning is a real board you can see from below; the north row's shops stand only between the two corner
+  buildings, each door, window and painted sign only where the front is open.
+- **Saltmarsh Quay** (this pass): the shops, the Net Loft and the harbour office no longer run into walls or hide
+  half behind them; nothing floats over the boats or by the quay edge. The water is darker and calm, its ripples and
+  glints fading out with distance so it doesn't shimmer far off. The lighthouse's lantern glows, a pair of beams turn
+  round it, and a lens flare and halo bloom whenever a beam swings toward you.
 - **Larkspur Mall**: the planters squeezed against pillars are gone, the food court's trees and tables sit clear of
   the walls, and the corner tables sit flush.
 - **Yard 4 and Harlan Farm**: the few crates, bales, sandbags and bollards that pinched a route have moved.
+- **Larkspur Mall's shops** (this pass): every shop window is a painted room seen through the glass, in perspective:
+  a lit pool on the floor, shelves pulled about and ransacked, goods on the floor, dust in the air, grime, smears and
+  cracks on the glass and the reflection of the mall across it. The product posters are faded studio shots in
+  lightboxes.
+
+**Every map goes on past its edge** (`world/arena-outer.js`). Ground runs out to the fog at the map's own level, and
+the place the map's part of stands all round it, nothing nearer than 9 m past the edge: terraces of brick and render
+under slate roofs round Hawthorne Square and the quay's landward sides, warehouses, container stacks and light
+towers round Yard 4, hedgerows, copses, a barn and a silo round Harlan Farm, and low buildings, billboards, power
+poles and dead trees along Route 9. The sea runs on south of the quay. None of the survival farm's grass, dust or
+motes shows past an arena map any more.
 
 **Lived in, after the end.** Every arena map is dressed as the place it was when the dead came, over the top of what
 was there, and none of it changes the fight (world/arena-dress.js, laid on each map as it's built):
@@ -1525,8 +1564,11 @@ Deathmatch: everyone for themselves, back in a few seconds after going down.
   `effects/post.js`). The middle of the screen stays clear.
 - **Everyone sees it.** Your game burns you and tells the others, and the host's game burns its bots. Everyone draws
   the flames and the char on whoever's alight.
-- **Bots** whose loadout doesn't say what their shotgun takes load dragon's breath three times in ten. It does 80% of
-  buckshot's damage and nothing past 8 m.
+- **It burns from the moment it catches**: the first tick lands with the hit, and the flames burst up on them at once,
+  before the fire spreads.
+- **No gore from fire.** A kill by fire never bursts a head or takes a limb off (bullets and blades still do).
+- **Bots** only load dragon's breath when their class says so (the Scavenger's pump). It does 80% of buckshot's damage
+  and nothing past 8 m. They never take your loadouts as their own.
 
 **A changed loadout says so.** A class whose loadout you've changed on the Loadouts screen says **Custom loadout** in
 place of its usual description, on the Loadouts screen and on the class picker (`AL_CUSTOM`, `ui/arena-loadouts.js`).
@@ -1534,17 +1576,18 @@ place of its usual description, on the Loadouts screen and on the class picker (
 **Melee weapons, balanced against each other** (in the arena; the farm's are as they were, where rarer is meant to be
 better). Each is its own trade, so none is simply the best (`PVP_MELEE` in `pvp/pvp.js`):
 
-| Weapon | Hits to down | Swing | Reach | Pace | Its edge | Its cost |
+| Weapon | Hits to down (body / head) | Swing | Reach | Pace | Its edge | Its cost |
 |---|---|---|---|---|---|---|
-| Crowbar | 4 | 0.34 s | 1.6 m | 110% | The quickest swing and the quickest on your feet, cheap on stamina | Four hits, short reach |
-| Machete | 3 | 0.42 s | 1.7 m | 108% | Quick, and 65% of cuts leave them bleeding | Short reach |
-| Ash bat | 3 | 0.50 s | 1.9 m | 104% | The widest swing; every hit staggers them 0.3 s and shoves them back | Never draws blood |
-| Katana | 3 | 0.55 s | 2.2 m | 102% | Out-reaches everything | Each slash costs the most stamina of the quick ones |
-| Pipe wrench | 2 | 0.72 s | 1.6 m | 100% | Two hits, each staggering 0.4 s | A slow swing, short reach |
-| Fire axe | 2 | 0.90 s | 1.85 m | 96% | Deep bleeds, and the likeliest to find the head | Slow, tiring and narrow |
-| Sledgehammer | 1 | 1.30 s | 2.0 m | 90% | One hit puts anyone down, staggers 0.6 s | A long wind-up, the slowest walk, a miss leaves you open |
+| Crowbar | 5 / 4 | 0.30 s | 1.6 m | 110% | The quickest swing and the quickest on your feet, cheap on stamina | Five hits to the body, short reach |
+| Machete | 4 / 3 | 0.40 s | 1.7 m | 108% | Quick, and 65% of cuts leave them bleeding | Short reach |
+| Ash bat | 3 / 2 | 0.50 s | 1.9 m | 104% | The widest swing; every hit staggers them 0.3 s and shoves them back | Never draws blood |
+| Katana | 4 / 2 | 0.50 s | 2.2 m | 102% | Out-reaches everything, and two to the head (the head's worth 1.75 times) | Four to the body, each slash costs the most stamina of the quick ones |
+| Pipe wrench | 3 / 3 | 0.62 s | 1.6 m | 100% | Three wherever they land, each staggering 0.55 s, the longest | A slow swing, short reach |
+| Fire axe | 2 / 1 | 0.90 s | 1.85 m | 96% | One to the head, deep bleeds, the likeliest to find the head | Slow, tiring and narrow |
+| Sledgehammer | 1 / 1 | 1.30 s | 2.0 m | 90% | One hit puts anyone down and takes their head, staggers 0.6 s | A long wind-up, the slowest walk, a miss leaves you open |
 
-A head is worth a quarter more. A swing comes every 1.3 times its swing time, as yours always has. A stagger stops
+No two weapons put someone down in the same number of hits both ways. The picker's cards show both: **Hits to down**
+and **To the head**. Each weapon's head blow is its own share over the body's (`hm` in `PVP_MELEE`). A swing comes every 1.3 times its swing time, as yours always has. A stagger stops
 you moving and swinging for its length, for you and for the bots alike.
 
 **Bots fight hand to hand** (Brawl, the golden katana, and a machete in Gun game).
@@ -1559,6 +1602,67 @@ you moving and swinging for its length, for you and for the bots alike.
 - Each weapon has its own wind-up before the blow lands, from 0.14 s for the crowbar to 0.52 s for the sledgehammer.
   You can see it: their body winds back and whips through the swing, across the body for a slash or down from
   overhead for a chop.
+
+**Melee hits, as on the zombies.** A blow on a person now lands the way it does on a zombie (`meleeBleed` in
+`pvp/pvp.js`): a burst of blood driven on along the swing, a mist, a gush out of them, the wall behind and the floor
+spattered. A blade's cut throws a line of it off the way the swing went; a blunt blow a heavier burst. Your weapon
+takes much more of their blood (a blade's edge the most) and so do you; the farm's zombies leave more on it too.
+- **Heard where it lands**: the blade's or the blunt head's sound of going in, a head's wetter, played at the person
+  hit for everyone near enough. Every swing is heard from whoever swung it, yours, other players' and the bots'.
+- **The sledgehammer takes the head** of whoever it kills, wherever the blow landed, as it does a zombie's: a burst of
+  blood and red mist, chips of skull flung off, blood thrown out all round.
+- **Everyone holds their melee weapon.** Bots carrying a melee weapon hold it in their hand as a player does (a pose
+  for each weapon, recorded off a survivor holding it, at ease and at a sprint), not the pistol's grip.
+
+**Blocking with a melee weapon** (`melee/block.js`). Hold **right click** with a melee weapon out to bring it up
+across you as a guard (eased up over about a seventh of a second, the arms bringing it across in front of your face,
+the chest turned to put the shoulder behind it).
+- **While it's up** you can't swing and you walk at 70%. Held for more than 0.6 s it drains your stamina, about an
+  eighth of the tank a second, and none comes back while it's up.
+- **A blow from in front** (within about 70° either side of where you face) lands on the guard. Only 18% of it gets
+  through (45% of a fire axe's or a sledgehammer's, which beat a guard down) and it knocks some stamina out of you at
+  once, more for a harder blow. Run out and the guard's **broken**: it drops, you reel for half a second, and it can't
+  come up again for 1.2 s.
+- **A parry**: raise the guard within 0.22 s of the blow landing and none of it gets through, it costs nothing, and
+  whoever swung is thrown off: staggered and unable to swing for most of a second.
+- **Bullets go straight through** a guard. A zombie's swing lands on it the same way (a brute's harder; a crawler's
+  swipe at your ankles goes under it), and a parry sends the zombie reeling.
+- **The crosshair** swaps its brackets for a shield (Kenney's Board Game Icons) while the guard's up. The shield jumps
+  with each blow it takes, flashes white on a parry and goes red when the guard breaks.
+- **A blow on the guard** throws sparks off where the steel meets (a white-hot flash and its glow, sparks back toward
+  whoever swung and out along the edge; a parry's twice as bright with embers that hang), rings out (a clang through
+  your arms; a parry's a bright ring of steel that hangs), and slams the weapon and your fist back at you on the arm's
+  springs, knocked aside and down, shaking as it comes back up, with a jolt of the view.
+- **Hit mid-swing** (not on a guard), your swing breaks off before it lands, its rush of air cut off short, and your
+  next one is held off for about half a second. The same goes for the bots.
+- **The bots block too.** Against a swing coming at them they put their guard up (more often the sharper the bot, and
+  the more guard it has left), once per swing; a sharper bot times it to parry more often. Their guard wears down as
+  it's held and with each blow it takes, breaks the same way, and comes back while it's down. They drop it once the
+  blow's come, to hit back. Everyone sees a guard up and its sparks.
+
+**Hit reactions on your arms.** From your own eyes, a hit on you knocks the arms and whatever they're holding: shoved
+back toward you and down, the muzzle thrown up and away from the side it came from, tipped over, shaking for a moment
+as it settles back (less down the sights). A melee weapon is knocked the same way.
+
+**Brawl balance and picks.** The class and weapon picker gives you 15 seconds at the start (12 between rounds) in
+Deathmatch, Team deathmatch, Showdown with classes and Brawl. Snipers only and Gun game, which hand everyone the same
+kit, keep it short (4 s). Picking from the picker while you're down no longer shuts it: change your mind as often as you
+like, and it goes away as you come back in.
+
+**The bots' own classes.** Bots pick from the eight stock classes and four of their own (never your custom
+loadouts): the **Scavenger** (a pump loaded with dragon's breath), the **Hunter** (a double barrel with slugs and a
+modified choke), the **Raider** (an SMG) and the **Warden** (a battle rifle). Each has its own style of play.
+
+**Sound you can place.** Small sounds die away to nothing by about 30 m, so nothing quiet is heard from across a map:
+hits, blows, gore, a body going down, footsteps, shells. A gunshot still carries, quieter with distance but never
+gone. Every part of a sound now comes from where it happened, including the later beats of a crunch or a crack.
+Spent cases, dropped mags and boards are heard where they land: off to that side, quieter further off, muffled
+through walls. Synthesized sounds pan left and right as recordings do.
+
+**Rooms that ring.** Inside an indoor map (Larkspur Mall) every shot rings round the hall: early reflections off the
+shopfronts and pillars, a long tail dying away over a couple of seconds, and the shot slapping back off the far walls
+a beat later, twice. Everyone else's shots and hits ring the same way, and so does everything heard from a distance
+in there. The farmhouse keeps its own short, boxy room.
 
 **Fairer fights with the bots** (all skills but the Terminator, which is meant to be relentless).
 - The bots keep track of how each person is doing against them. Each time a bot gets you, the bots fighting you ease
@@ -1917,7 +2021,7 @@ shove and swing them through the camera. Your eye's also never nearer than 7.2 c
 block that reaches back toward it: the AR's now 9.5 cm behind its aperture (from 7), the battle rifle 8.1, the SMG
 18.6, the auto shotgun 9.6. Working the hunting rifle's bolt down the sights, the view holds still and the bolt comes
 back past your eye; the view never follows it. Coming onto a scope, your eye eases in to its eye relief and out again
-rather than starting and stopping dead. Shots go where the sights point. The LMG's rear aperture is a wider ghost ring (8.4 mm across, from 5.2 mm), so its burst always shows the post through it. A bolt-action rifle's kick settles slowly, over about a quarter of a second, straight into working the bolt, rather than snapping back flat and then lifting again for the bolt. Your eye only goes with part of the gun's shove back into your shoulder, so the gun visibly comes back toward you a little with each shot (straight back along your line of sight, the post still in the middle), with its rattle and a held trigger's climb. At the hip the gun's muzzle follows the crosshair's own kick, up and aside, so the two always move together. Each shot is a quick shove and flip that comes back smoothly, only a hair past home; a shotgun flips hardest of all (the double barrel down the sights harder still), its shove back only a little more than a rifle's so it's never shoved into your face, and a full auto's buzz drifts rather than flickering frame to frame. With iron sights the shot goes where the front post is; with an optic it goes where the reticle is (along the optic's own axis), not straight down the middle of the screen, so wherever sway or a kick has put the reticle is where it lands, and pulling a spray's climb down is up to you. When a wall in front of you has the gun tipped down out of the way, the sights go down with it and only come back up once the gun's level again. Looking up, your
+rather than starting and stopping dead; standing up out of a crouch while scoped, the bottom of the picture through the scope shows the world all the way to its rim instead of stretching (`effects/scope-view.js`). Shots go where the sights point. The LMG's rear aperture is a wider ghost ring (8.4 mm across, from 5.2 mm), so its burst always shows the post through it. A bolt-action rifle's kick settles slowly, over about a quarter of a second, straight into working the bolt, rather than snapping back flat and then lifting again for the bolt. Your eye only goes with part of the gun's shove back into your shoulder, so the gun visibly comes back toward you a little with each shot (straight back along your line of sight, the post still in the middle), with its rattle and a held trigger's climb. At the hip the gun's muzzle follows the crosshair's own kick, up and aside, so the two always move together. Each shot is a quick shove and flip that comes back smoothly, only a hair past home; a shotgun flips hardest of all (the double barrel down the sights harder still), its shove back only a little more than a rifle's so it's never shoved into your face, and a full auto's buzz drifts rather than flickering frame to frame. With iron sights the shot goes where the front post is; with an optic it goes where the reticle is (along the optic's own axis), not straight down the middle of the screen, so wherever sway or a kick has put the reticle is where it lands, and pulling a spray's climb down is up to you. When a wall in front of you has the gun tipped down out of the way, the sights go down with it and only come back up once the gun's level again. Looking up, your
 head goes back so the raised gun stays out in front of your eyes. Raising the sights is a spring onto them, starting
 gently, quick through the middle and settling softly, the gun and your arms dipping and canting over on the way up
 and again on the way down, quicker with a handgun;

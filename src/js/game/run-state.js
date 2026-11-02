@@ -38,6 +38,8 @@ export function freshRun() {
   recomputeEff();
 }
 let effHook = null;
+// what a choke does to a shotgun's spread, by its tier (Modified, Full): a load of pellets, a slug
+const CHOKE_SPREAD = { pellets: [0.7, 0.49], slug: [0.55, 0.3] };
 export function recomputeEff() {
   for (const id in WEAP) {
     const D = Object.assign({}, WEAP[id]);
@@ -81,6 +83,9 @@ export function recomputeEff() {
     if (W8.fm && W8.fm[id] === 'semi') { D.spread *= SEMI.spread; D.shake *= SEMI.shake; }   // the AR on semi: a steadier single shot a pull
     // the one kind of round loaded, last, over everything else (weapons/rounds.js)
     const rk = roundOn(id); if (rk !== 'std' && roundFits(id, rk)) ROUNDS[rk].fx(D, id);
+    // a choke squeezes the shot into a tighter cone (CHOKE_SPREAD: pellets, then a slug, by its tier), on the gun's own spread,
+    // so the pattern itself is tighter and every readout of the gun shows it (weapons/firing.js, the bench, the loadouts)
+    if (D.ammo === 'shells' && (g.choke || 0) > 0) D.spread *= ((D.pellets || 1) > 1 ? CHOKE_SPREAD.pellets : CHOKE_SPREAD.slug)[g.choke - 1] ?? 1;
     if (W8.gold && W8.gold[id]) D.gold = true;   // (Gun game's golden revolver and katana: effects/gold.js)
     if (effHook) effHook(id, D);   // (the arena's own say, last: its melee weapons, pvp/pvp.js)
     EFF[id] = D;

@@ -65,8 +65,8 @@ export const TIERS = {
   loader: { tag: 'Attachment', t: [
     { r: 'u', name: 'Speed loader', as: { dbl: 'Sleight of Hand', scar: 'Flared magwell' }, text: (D, id) => id === 'scar' ? `A flared magwell funnels the new mag in: every mag change ${Math.round((1 - MAGWELL) * 100)}% quicker.` : D.breakOpen ? 'Both shells go in at once instead of one at a time, and the gun closes quicker: a reload nearly twice as fast.' : D.ammo === 'shells' ? 'Three shells go into the tube at a time: a reload about twice as fast.' : 'All 6 rounds go in at once.', ap: () => {} }] },
   choke: { tag: 'Attachment', can: () => hasShotgun(), t: [
-    { r: 'u', name: 'Modified choke', text: 'Squeezes the pellets (and slugs) into a tighter cone. Takes the muzzle.', ap: () => {} },
-    { r: 'r', name: 'Full choke', text: 'Tighter again.', ap: () => {} }] },
+    { r: 'u', name: 'Modified choke', text: 'Pellet spread −30%, a slug\'s −45%. Takes the muzzle.', ap: () => {} },
+    { r: 'r', name: 'Full choke', text: 'Pellet spread −51%, a slug\'s −70%. Takes the muzzle.', ap: () => {} }] },
   // armour, footwear and the hammer are skills (TIER_KIND, upgrades/upgrades.js), so none starts below uncommon
   armor: { tag: 'Body', t: [
     { r: 'u', name: 'Canvas jacket', text: 'Raises your max health, and heals you by as much.', ap: () => { S.maxHp += 25; P.hp = Math.min(hpCap(), P.hp + 25 * healMul()); } },

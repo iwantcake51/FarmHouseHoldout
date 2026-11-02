@@ -24,6 +24,8 @@ import { visuals } from './visuals.js';
 import { netTick } from '../net/sync.js';
 import { SET, tickFps } from '../ui/settings.js';
 import { pvpEndScale, pvpEnding, pvpTick } from '../pvp/pvp.js';
+import { sndRate } from '../audio/samples.js';
+import { fpOn, VCAM } from './view-cam.js';
 
 // adaptive resolution: if frames keep running long, render fewer pixels; give them back when there's headroom
 let frameAvg = 1 / 60, scaleT = 0;
@@ -81,6 +83,7 @@ function frame(now) {
     if (P.dead) tickDeath(rdt);
     simDt = rdt * timeScale * cheatSpeed() * hitStopK(); if (simDt > 0) update(simDt);   // (the cheat menu's game speed: ui/cheats.js; a kill's hit-stop: game/hit-feedback.js)
     if (pvpEnding()) setTimeScale(pvpEndScale());   // (the arena's match over: slowing to a stop, pvp/pvp.js)
+    if (pvpEnding() && fpOn()) P.aim = VCAM.yaw;   // (stopped: your body and arms still turned with your view as you look about, though nothing else moves)
     else if (P.dead) { /* tickDeath owns the time scale */ }
     else if (slowIn > 0) { setSlowIn(slowIn - rdt); setTimeScale(timeScale + ((slowTo - timeScale) * Math.min(1, rdt * 9))); }
     else if (slowHold > 0) { setSlowHold(slowHold - rdt); setTimeScale(timeScale + ((slowTo - timeScale) * Math.min(1, rdt * 9))); }
@@ -88,6 +91,7 @@ function frame(now) {
   }
   // the world's clock (game/state.js) runs with the game's: slowed with any slow motion (bullet time, a heavy hit, the
   // death slow-mo, which runs on down to a stop), stopped while paused (in co-op the farm keeps going)
+  sndRate(pvpEnding() ? timeScale : 1);   // (the sounds slowed with it: audio/samples.js)
   setWorldK(state === 'title' || state === 'leaving' ? 1 : state === 'play' || state === 'dead' ? (netLink() && !pvpEnding() ? 1 : clamp(timeScale, 0, 1) * hitStopK()) : coop ? 1 : 0);
   stepHitStop(rdt);
   setWorldT(worldT + (rdt * worldK));

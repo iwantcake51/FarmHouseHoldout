@@ -3,6 +3,7 @@
 // in between), with the weapon they're holding in their hands and their name over their head. Their shots are drawn
 // and heard here too: the tracer, the flash and the bang, quieter the further off they are.
 
+import { BLOCK } from '../melee/block.js';
 import { $ } from '../core/dom.js';
 import { cam, FP_CAM, GUN_Y, scene, V3 } from '../core/renderer.js';
 import { angDiff, clamp, rr, smooth } from '../core/math.js';
@@ -31,7 +32,7 @@ import { avatarAction, specKick, specVm, specVmFov } from './spec-vm.js';
 import { flipOf, gunMeshes, X } from '../weapons/gun-materials.js';
 import { EJECT, ejectFrom, remoteEject, remoteRack } from '../weapons/casings.js';
 import { flashes } from '../weapons/explosives.js';
-import { indoors, playS, SUPP_SFX } from '../audio/samples.js';
+import { playS, roomNow, SUPP_SFX } from '../audio/samples.js';
 import { footstep } from '../audio/footsteps.js';
 import { setLmT, state } from '../game/state.js';
 import { aimPt } from '../input/keyboard-mouse.js';
@@ -53,6 +54,7 @@ import { botsHear } from '../pvp/bots.js';
 import { visAt } from '../lighting/vision.js';
 import { los } from '../lighting/lightmap.js';
 import { goldFallStep, ungild } from '../effects/gold.js';
+import { arSurfAt } from '../world/arena.js';
 
 // the joints a pose carries, in order: where each is and how it's turned (and the arms how they're stretched)
 const POSE_K = ['g', 'upper', 'lower', 'torso', 'head', 'armL', 'armR', 'legL', 'legR', 'shinL', 'shinR'];
@@ -94,6 +96,7 @@ export function poseOut(rdt) {
   const vx = clamp((P.x - poseX) / dt, -12, 12), vz = clamp((P.z - poseZ) / dt, -12, 12); poseX = P.x; poseZ = P.z; poseAt = now;
   const msg = { x: r3(P.x), z: r3(P.z), vx: r2(vx), vz: r2(vz), hp: Math.round(Math.max(0, P.hp)), mh: S.maxHp, dead: P.dead ? 1 : 0, v: P.vault ? 1 : 0, pk: (state === 'upgrade' && pickWait === null) || (state === 'leaving' && !bonusHand && bonusDue()) ? 1 : 0, cw: run.cardHand | 0, j,
     fl: myLight() ? [myLight(), r2(flDir())] : 0, vw: [r2(P.aim), r2(S.cone), r2(S.near), S.nightVis || 0, T('night') || 0], st: [S.planks | 0, S.scrap | 0, run.kills | 0], hl: Math.round((P.heal || 0) + bandHeal() * bandProg()), cr: P.cr > 0.02 ? r2(P.cr) : 0,   // (cr: how far you're crouched, player/crouch.js)
+    bk: BLOCK.on ? r2(performance.now() / 1000 - BLOCK.at) : -99,   // (bk: your melee guard up, and how long since it came up, for a parry's timing; -99 down: melee/block.js)
     ap: !P.dead && state === 'play' ? [r2(aimPt.x), r2(aimPt.z)] : 0,   // (where you're aiming, for the crosshair a teammate watching you sees: net/spectate.js)
     fc: !P.dead && (ANIM.anger || ANIM.worry || ANIM.hurt || ANIM.ads) ? [r2(ANIM.anger || 0), r2(ANIM.worry || 0), r2(ANIM.hurt || 0), r2(ANIM.ads || 0)] : 0 };   // (hl: healing still to come, the blue on your bar; fc: your face, angry, startled, wincing and aiming, faceMood in player/look.js)   // (what the team list shows of you: planks, scrap and kills)
   // what's lying on your farm, a few times a second while a teammate's down (they may be watching you: net/spectate.js)
@@ -274,7 +277,8 @@ NET_ON.p = m => {
   // far lower is a fresh start, a rejoin or the host's bot again)
   if (m.q) { if (p.q && m.q <= p.q && p.q - m.q < 90) return; p.q = m.q; }
   if (m.dead && !p.dead && p.x !== undefined && state !== 'title' && !PVP.on) { teamDown(p); turnedDown(p.id); }   // they've just gone down (net/lobby.js), and they'll be back next wave as one of them (net/sync.js)
-  Object.assign(p, { x: m.x, z: m.z, vx: m.vx || 0, vz: m.vz || 0, hp: m.hp, maxHp: m.mh, vw: m.vw || p.vw, dead: !!m.dead, vault: !!m.v, picking: !!m.pk, cw: m.cw | 0, wp: m.wp, sv: m.sv, ex: m.ex, stats: m.st, am: m.am, heal: m.hl || 0, fl: m.fl || 0, fc: m.fc || 0, ap: m.ap || 0, fv: m.fv || 0, cr: m.cr || 0, loaded: true }); if (m.wn !== undefined) { p.wn = m.wn; p.wid = m.wid || ''; } if (m.dr) p.drops = m.dr;
+  Object.assign(p, { x: m.x, z: m.z, vx: m.vx || 0, vz: m.vz || 0, hp: m.hp, maxHp: m.mh, vw: m.vw || p.vw, dead: !!m.dead, vault: !!m.v, picking: !!m.pk, cw: m.cw | 0, wp: m.wp, sv: m.sv, ex: m.ex, stats: m.st, am: m.am, heal: m.hl || 0, fl: m.fl || 0, fc: m.fc || 0, ap: m.ap || 0, fv: m.fv || 0, cr: m.cr || 0, loaded: true });
+  { const up = (m.bk ?? -99) > -50; if (up && !(p.bk > -50)) p.bkAt = performance.now() / 1000 - m.bk; p.bk = up ? m.bk : -99; }   // (their guard: up since bkAt, melee/block.js) if (m.wn !== undefined) { p.wn = m.wn; p.wid = m.wid || ''; } if (m.dr) p.drops = m.dr;
   // a loadout we haven't got (or an old one): ask for it, once a second at most
   if (m.lk && m.lk !== (p.av ? p.av.lk : p.lk) && performance.now() - (p.loAsk || 0) > 1000) { p.loAsk = performance.now(); netTo(m.f, 'loq', {}); }
   p.tgt = m.j; p.poseAt = performance.now();
@@ -424,7 +428,7 @@ NET_ON.shot = m => {
     tracer(m.x, m.y, m.z, e[0], e[1], e[2], m.pw, m.st, e[3] === 3);
     // where it ended, as on their screen: a hole in the wall it hit and its sparks, or dirt kicked up off the ground
     const L = Math.hypot(e[0] - m.x, e[2] - m.z), dx = (e[0] - m.x) / (L || 1), dz = (e[2] - m.z) / (L || 1);
-    if (e[3] === 1 && L > 0.1) { impactFx(e[0] - dx * 0.05, e[1], e[2] - dz * 0.05, -dx, -dz, 'wood'); bulletHole(m.x, m.z, dx, dz, L, e[1], e[4] || 0.08); }
+    if (e[3] === 1 && L > 0.1) { impactFx(e[0] - dx * 0.05, e[1], e[2] - dz * 0.05, -dx, -dz, arSurfAt(e[0] + dx * 0.07, e[2] + dz * 0.07)); bulletHole(m.x, m.z, dx, dz, L, e[1], e[4] || 0.08); }
     else if (e[3] === 2) groundHit(e[0], e[1], e[2], dx, dz);
   }
   if (!m.q) {   // their flash, in the colour of what they fired, and the light it throws
@@ -433,8 +437,8 @@ NET_ON.shot = m => {
     fx('star', m.x, m.y, m.z, 0, 0, 0, 0.35, m.sh ? 0.8 : 0.55, 0.06, 1).s.material.color.setRGB(col[0], col[1], col[2]); fx('glow', m.x, m.y, m.z, 0, 0, 0, 0.5, 0.7, 0.07, 0.7);
   }
   if (m.e.length) { const e = m.e[0], L = Math.hypot(e[0] - m.x, e[2] - m.z) || 1; smoke(m.x, m.y, m.z, (e[0] - m.x) / L * 0.8, 0.2, (e[2] - m.z) / L * 0.8, 0.08, m.q ? 0.35 : 0.7, 1.1, m.q ? 0.22 : 0.38); }
-  heardFrom(m.q ? SUPP_SFX[m.w] : 'shot_' + m.w, m.x, m.z, m.q ? 0.55 : 1);
+  heardFrom(m.q ? SUPP_SFX[m.w] : 'shot_' + m.w, m.x, m.z, m.q ? 0.55 : 1, true);   // (a shot carries: audio/spatial.js earFrom)
 };
 // a recorded sound from somewhere on the farm: quieter and duller the further it is from you, and off to its side
 // (earFrom, audio/spatial.js: the further, the quieter and duller; through the house's walls, muffled)
-export function heardFrom(name, x, z, vol) { playS(name, { at: [x, z], vol: vol ?? 1, jit: 0.06, tone: 3, verb: indoors() ? 0.4 : 0 }); }
+export function heardFrom(name, x, z, vol, far) { playS(name, { at: [x, z], vol: vol ?? 1, jit: 0.06, tone: 3, verb: roomNow() ? 0.4 : 0, far: !!far }); }   // (in the farmhouse or a hall, ringing: audio/samples.js)

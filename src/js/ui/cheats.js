@@ -23,7 +23,7 @@ import { AMMO_CAN } from '../weapons/ammo.js';
 import { loadRound, roundName, roundOn, roundOwned, roundText, roundTypes } from '../weapons/rounds.js';
 import { MODS } from '../melee/melee-mods.js';
 import {
-  addMod, improveMod, MOD_MAX, MOD_UP, modLv, modName, modOffer, modReplaced, muzzleTaken, roman
+  addMod, improveMod, MOD_CAP, MOD_MAX, MOD_UP, modLv, modName, modOffer, modReplaced, muzzleTaken, roman
 } from '../weapons/mod-levels.js';
 import { tierName, TIERS } from '../upgrades/tier-table.js';
 import {
@@ -262,7 +262,7 @@ const CHEAT_TABS = {
     if (mods.length) {
       h += chHead('Mods');
       h += mods.map(m => {
-        const have = hasMod(m), lv = modLv(m), upOk = have && MOD_UP[m] && lv < MOD_MAX;
+        const have = hasMod(m), lv = modLv(m), upOk = have && MOD_UP[m] && lv < (MOD_CAP[m] || MOD_MAX);
         const why = have ? '' : modReplaced(m) ? 'Replaced by a better mod' : MODS[m].need && !(hasMod(MODS[m].need) && modLv(MODS[m].need) >= (MODS[m].needLv || 1)) ? `Needs ${MODS[MODS[m].need].name}${MODS[m].needLv > 1 ? ' ' + roman(MODS[m].needLv) : ''}` : MODS[m].muzzle && muzzleTaken(id) ? 'The muzzle is taken' : '';
         return `<div class="chRow${have ? ' have' : ''}"><span class="chK chMod" title="${esc(MODS[m].text)}">${esc(have ? modName(m) : MODS[m].name)}<small>${have ? 'Level ' + roman(lv) + ' of ' + (MOD_UP[m] ? MOD_MAX : 1) : why || esc(MODS[m].text)}</small></span>` +
           (have ? chStep('mod', { m }, '', true, upOk) : chBtn('Add', 'mod', { m, d: 1 }, '', !modOffer(m))) + '</div>';
@@ -489,7 +489,7 @@ const CHEAT_ACTS = {
   mod: d => { const id = curId(), m = d.m, dd = +d.d;
     if (!hasMod(m)) { if (dd > 0 && modOffer(m)) chGun(id, () => addMod(id, m)); return; }
     const lv = modLv(m);
-    if (dd > 0) { if (MOD_UP[m] && lv < MOD_MAX) chGun(id, () => improveMod(m)); }
+    if (dd > 0) { if (MOD_UP[m] && lv < (MOD_CAP[m] || MOD_MAX)) chGun(id, () => improveMod(m)); }
     else chGun(id, () => { if (lv > 1) { W8.modLv[m] = lv - 1; recomputeEff(); } else chRemoveMod(id, m); }); },
   tune: () => { const id = curId(); chGun(id, () => { if (W8.tune[id]) delete W8.tune[id]; else W8.tune[id] = 1; }); },
   stock: () => { const id = curId(); chGun(id, () => { W8.gt[id] = {}; (W8.mods[id] || []).forEach(m => delete W8.modLv[m]); W8.mods[id] = []; W8.fm[id] = null; delete W8.tune[id]; delete W8.rounds[id]; delete W8.att[id]; W8.own[id] = {}; delete W8.ownAtt[id]; }); },

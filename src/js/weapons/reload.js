@@ -27,13 +27,16 @@ import { PVP } from '../pvp/pvp.js';
 import { flickFling } from '../player/hold-flick.js';
 
 // force: draw it again even if it's the slot in your hands (a new weapon just went into it)
+// a weapon put in your hands without a sound (the arena putting you back in: pvp/pvp.js pvpLoadout)
+const EQ_QUIET = { on: false };
+export function equipQuiet(fn) { EQ_QUIET.on = true; try { fn(); } finally { EQ_QUIET.on = false; } }
 export function equip(s, force) {
   if (!W8.slot[s] || (W8.cur === s && !force)) return;
   exitScope(); ANIM.sw = 0.35; W8.swing = 0;   // (an action held open stays so, put away and drawn again: W8.held, weapons/casings.js)
   startSwap(W8.cur === s ? null : W8.cur, s);   // put the old one away and draw this one (player/swap.js)
   if ((W(W8.slot[s]) || {}).melee) ANIM.mDrawT = 0;   // a flourish once it's drawn (melee/melee-anim.js: it waits for the draw)
   if (W8.cur === s) { W8.reloading = null; W8.reloadT = 0; } else cutReload();   // (a reload put away part done is picked up again: cutReload)
-  W8.cur = s; W8.burstLeft = 0; W8.akBurst.L = W8.akBurst.R = 0; W8.cd = Math.max(W8.cd, swapFire(s) * drawMul(W8.slot[s]) / S.swapMul); SFX.equip();
+  W8.cur = s; W8.burstLeft = 0; W8.akBurst.L = W8.akBurst.R = 0; W8.cd = Math.max(W8.cd, swapFire(s) * drawMul(W8.slot[s]) / S.swapMul); if (!EQ_QUIET.on) SFX.equip();
 }
 // reloading slows you down: a little with a sidearm, more with a long gun, and more again the bigger the magazine
 // (a 13-round pistol about 15%, a 30-round rifle about a quarter, the 100-round LMG belt nearly half); reloading one of

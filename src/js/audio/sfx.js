@@ -5,9 +5,9 @@ import { RIGHT } from '../core/renderer.js';
 import { clamp, rand, rr } from '../core/math.js';
 import { P } from '../player/player.js';
 import { curId, W, W8 } from '../game/run-state.js';
-import { AC, master, muff, noiseBuf, nz, SND_AT, tn } from './audio.js';
+import { AC, master, muff, noiseBuf, nz, setSND_AT, SND_AT, tn } from './audio.js';
 import { earFrom, earOut } from './spatial.js';
-import { echoSet, gunKind, indoors, playS, SUPP_SFX } from './samples.js';
+import { echoSet, gunKind, indoors, playS, roomNow, SUPP_SFX } from './samples.js';
 import { camFocus } from '../net/spectate.js';
 
 // the brute's wall crash (SFX.bruteWall): how far off it's still heard (m), how loud, the lowpass on its body near and
@@ -15,6 +15,13 @@ import { camFocus } from '../net/spectate.js';
 // how far the gore's sounds (flesh hits, headshots, limbs off, heads popped, crushed or split) wander in pitch, either way,
 // so no two kills sound alike
 const GORE_JIT = 0.14;
+// the later beats of a sound (a crack after its thump, a splatter after its crunch) heard from the same place as its
+// first: from where soundAt put it, not all over (a gore sound across the map heard only by its first beat, the rest
+// at full volume wherever you are)
+function sndLater(fn, ms) {
+  const at = SND_AT; if (!at) return setTimeout(fn, ms);
+  return setTimeout(() => { const o = SND_AT; setSND_AT(at); try { fn(); } finally { setSND_AT(o); } }, ms);
+}
 const BRUTE_CRASH = { far: 26, vol: 0.6, lp: [2600, 450], crack: 0.4, hp: 2200, crackLp: 9000, crackDur: 0.09 };
 // a suppressor's sound by its step (1, 2, 3): how loud, its pitch, its highpass (Hz: the boom trimmed off), its top (a
 // share of the lowpass), and how much the room and the farm give back
@@ -48,9 +55,9 @@ export const SFX = {
   // ring in the room and off the farm (SUPP_SND, by the gun's suppressor line; a gun quiet of itself counts as the first).
   // The MP5's 10mm kit is a heavier, deeper bark: pitched down with more bass under it (TENMM_SND)
   fire(id, quiet, shells) {
-    const inside = indoors(), big = shells || id === 'deagle' || id === 'hunting' || id === 'scar' || id === 'lmg', D = W(id) || {};
+    const rm = roomNow(), inside = !!rm, big = shells || id === 'deagle' || id === 'hunting' || id === 'scar' || id === 'lmg', D = W(id) || {};
     const sp = quiet ? SUPP_SND[clamp(((W8.gt[id] || {}).supp | 0) || 1, 1, 3) - 1] : null, ten = D.tenmm ? TENMM_SND : null;
-    const verb = inside ? (quiet ? 0.36 * sp.verb : big ? 0.9 : 0.74) : 0;
+    const verb = inside ? (quiet ? 0.36 * sp.verb : big ? 0.9 : 0.74) * (rm === 'hall' ? 1.15 : 1) : 0;   // (in a hall, the shot ringing round it and slapping back off its far walls: audio/samples.js HALL)
     echoSet(inside);
     if (playS(quiet ? SUPP_SFX[id] : 'shot_' + id, { jit: 0.065, tone: 3.5, lp: rr(7500, 20000) * (sp ? sp.lp : 1), hp: sp ? sp.hp : 0, pan: rr(-0.12, 0.12), verb,
       echo: (quiet ? 0.06 * sp.echo : big ? 0.55 : 0.4) * (ten ? ten.echo : 1), rate: (sp ? sp.rate : 1) * (ten ? ten.rate : 1), vol: (sp ? sp.vol : 1) * (ten ? ten.vol : 1), low: ten ? ten.low : null })) return;
@@ -63,11 +70,11 @@ export const SFX = {
   shove(stab) { if (playS(['swing_light_1', 'swing_light_2'], { rate: 1.1 })) return; nz(0.16, 'bandpass', 380, 1700, 0.42, 1.2); tn(0.08, 'sine', 140, 70, 0.18); if (stab) nz(0.09, 'highpass', 3200, 2400, 0.16); },
   sever() { if (playS('sever', { gap: 0.06, jit: GORE_JIT })) return; nz(0.18, 'bandpass', 700, 200, 0.5, 2); tn(0.08, 'triangle', 200, 80, 0.25); },
   // a skull caving in under the sledgehammer: a sharp crack, a deep wet crunch, then the spatter
-  crush() { const f = rr(1 - GORE_JIT, 1 + GORE_JIT); nz(0.07, 'bandpass', 1900 * f, 600 * f, 0.6, 1.4); tn(0.14, 'sine', 120 * f, 42 * f, 0.6); setTimeout(() => nz(0.24, 'lowpass', 1200 * f, 180 * f, 0.5, 1), 20); setTimeout(() => nz(0.18, 'bandpass', 2600 * f, 900 * f, 0.22, 1.8), 60); },
+  crush() { const f = rr(1 - GORE_JIT, 1 + GORE_JIT); nz(0.07, 'bandpass', 1900 * f, 600 * f, 0.6, 1.4); tn(0.14, 'sine', 120 * f, 42 * f, 0.6); sndLater(() => nz(0.24, 'lowpass', 1200 * f, 180 * f, 0.5, 1), 20); sndLater(() => nz(0.18, 'bandpass', 2600 * f, 900 * f, 0.22, 1.8), 60); },
   // a skull split by the fire axe: a hard crack of bone, then a wet tearing as it comes apart
-  split() { const f = rr(1 - GORE_JIT, 1 + GORE_JIT); nz(0.06, 'bandpass', 2400 * f, 800 * f, 0.55, 1.6); tn(0.1, 'sine', 160 * f, 55 * f, 0.45); setTimeout(() => nz(0.22, 'bandpass', 900 * f, 240 * f, 0.4, 1.2), 25); },
+  split() { const f = rr(1 - GORE_JIT, 1 + GORE_JIT); nz(0.06, 'bandpass', 2400 * f, 800 * f, 0.55, 1.6); tn(0.1, 'sine', 160 * f, 55 * f, 0.45); sndLater(() => nz(0.22, 'bandpass', 900 * f, 240 * f, 0.4, 1.2), 25); },
   // a zombie's skull bursting: a kill through the head (zombies/damage.js killEnd), from the zombie, at v
-  headPop(v = 1) { if (playS(['head_pop', 'head_pop_2'], { gap: 0.05, rate: 1.12, vol: v, jit: GORE_JIT })) return; nz(0.12, 'bandpass', 900, 260, 0.5 * v, 1.6); tn(0.05, 'triangle', 760, 240, 0.14 * v); setTimeout(() => nz(0.16, 'lowpass', 1400, 300, 0.22 * v, 1), 30); },
+  headPop(v = 1) { if (playS(['head_pop', 'head_pop_2'], { gap: 0.05, rate: 1.12, vol: v, jit: GORE_JIT })) return; nz(0.12, 'bandpass', 900, 260, 0.5 * v, 1.6); tn(0.05, 'triangle', 760, 240, 0.14 * v); sndLater(() => nz(0.16, 'lowpass', 1400, 300, 0.22 * v, 1), 30); },
   // a brute's dash ending in a wall (zombies/brute-dash.js), heard from where it hit (soundAt): a muffled crash with a
   // crisp crack on the front of it, both quieter and duller the further off it is and gone by BRUTE_CRASH.far (the
   // crack, all top, fades out sooner); off to its side, and muffled again through the house's walls
@@ -80,24 +87,31 @@ export const SFX = {
   },
   thud() { tn(0.12, 'sine', 110, 45, 0.45); nz(0.07, 'lowpass', 900, 200, 0.3); },
   // can't have it (not enough scrap, not ready yet): a short dull two-note "nuh-uh", down, not the click of opening
-  deny() { tn(0.07, 'triangle', 240, 210, 0.16); setTimeout(() => tn(0.11, 'triangle', 180, 150, 0.16), 85); nz(0.04, 'lowpass', 700, 300, 0.08); },
+  deny() { tn(0.07, 'triangle', 240, 210, 0.16); sndLater(() => tn(0.11, 'triangle', 180, 150, 0.16), 85); nz(0.04, 'lowpass', 700, 300, 0.08); },
   board() { if (playS(['wood_hit_1', 'wood_hit_2'], { jit: 0.06 })) return; tn(0.05, 'square', 230, 140, 0.16); nz(0.05, 'highpass', 2400, 1800, 0.2); },
   crack() { if (playS('wood_break', { gap: 0.1 })) return; nz(0.32, 'bandpass', 1100, 260, 0.55, 1.4); tn(0.08, 'triangle', 300, 90, 0.2); },
   // a board torn off hitting the ground: a hollow wooden clack
   // steel: a blow on a grate ringing (v: how hard), a bar snapping off its weld, a piece of it hitting the ground
+  // the melee guard (melee/block.js): brought up (a short rush of cloth and steel), a blow ringing off it (a hard clang
+  // and the thump of it through your arms), a parry (a bright ring of steel on steel that hangs, a shing off the edge),
+  // and broken (a dull clank and the thump of it knocked down)
+  guardUp() { if (!playS(['swing_light_1', 'swing_light_2'], { vol: 0.32, rate: 1.45, jit: 0.08 })) nz(0.08, 'bandpass', 900, 2200, 0.08, 1.6); },
+  guardHit() { const f = rr(0.9, 1.1); SFX.clang(1.1); tn(0.14, 'sine', 140 * f, 60 * f, 0.4); playS(['hit_blunt_1', 'hit_blunt_2'], { vol: 0.45, rate: 1.25, jit: 0.08 }); },
+  parry() { const f = rr(0.95, 1.08); SFX.clang(1.4); tn(0.9, 'sine', 2480 * f, 2440 * f, 0.07); tn(0.7, 'sine', 3720 * f, 3690 * f, 0.035); tn(0.5, 'triangle', 1240 * f, 1200 * f, 0.08); nz(0.28, 'highpass', 5200, 8200, 0.16, 1.2); sndLater(() => nz(0.18, 'bandpass', 6400, 3800, 0.08, 3), 40); },
+  guardBreak() { SFX.clang(0.7); tn(0.2, 'sine', 120, 45, 0.55); nz(0.12, 'lowpass', 700, 140, 0.4); },
   clang(v = 0.6) { const f = rr(0.9, 1.12); tn(0.22, 'triangle', 410 * f, 330 * f, 0.13 * v); tn(0.32, 'sine', 1180 * f, 1100 * f, 0.045 * v); tn(0.18, 'square', 2310 * f, 2200 * f, 0.012 * v); nz(0.07, 'bandpass', 3200 * f, 1600, 0.2 * v, 2.4); nz(0.05, 'lowpass', 600, 140, 0.18 * v); },
   // armour on a zombie: a chip off it (half worn through) and the crack as it breaks off (zombies/armor-break.js); steel
   // (a helmet, a plate) rings, a hard hat or a vest's plastic and nylon just snaps
   armorChip(metal) { nz(0.03, 'highpass', 4200, 3000, 0.18, 1); if (metal) tn(0.08, 'triangle', rr(1300, 1500), 900, 0.05); else tn(0.04, 'triangle', rr(700, 900), 400, 0.06); },
   armorCrack(metal) { const f = rr(0.92, 1.08); nz(0.04, 'highpass', 5200 * f, 3400, 0.4, 1); nz(0.14, 'bandpass', 1900 * f, 700, 0.42, 2.2); tn(0.07, 'triangle', 380 * f, 120, 0.2);
-    if (metal) { SFX.snapMetal(); SFX.clang(0.5); } else setTimeout(() => nz(0.08, 'bandpass', 2600 * f, 1200, 0.22, 1.6), 25); },
-  snapMetal() { nz(0.05, 'highpass', 4200, 2600, 0.3, 1); tn(0.12, 'triangle', rr(700, 820), 260, 0.14); setTimeout(() => tn(0.3, 'sine', rr(1500, 1700), 1450, 0.05), 20); },
+    if (metal) { SFX.snapMetal(); SFX.clang(0.5); } else sndLater(() => nz(0.08, 'bandpass', 2600 * f, 1200, 0.22, 1.6), 25); },
+  snapMetal() { nz(0.05, 'highpass', 4200, 2600, 0.3, 1); tn(0.12, 'triangle', rr(700, 820), 260, 0.14); sndLater(() => tn(0.3, 'sine', rr(1500, 1700), 1450, 0.05), 20); },
   metalDrop(v, plate) { const f = rr(0.85, 1.15) * (plate ? 0.8 : 1.3); tn(0.16, 'triangle', 520 * f, 360 * f, 0.12 * v); tn(0.24, 'sine', 1400 * f, 1300 * f, 0.04 * v); nz(0.06, 'bandpass', 2600 * f, 1300, 0.18 * v, 2.2); },
   plankDrop(v) { if (playS(['wood_hit_1', 'wood_hit_2'], { vol: 0.55 * v, rate: 1.15, gap: 0.04 })) return; tn(0.09, 'triangle', rr(190, 240), 110, 0.22 * v); nz(0.07, 'bandpass', 900, 400, 0.25 * v, 1.6); },
   click() { tn(0.03, 'square', 1300, 900, 0.1); },
   // a fresh mag's top knocking the magwell's lip as it misses the well (weapons/reload.js: MAG_MISS): a short, quieter,
   // higher knock than going home, and a dry scrape after it
-  magTap() { const f = rr(0.92, 1.08); if (!playS('magin_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()), { vol: 0.32, rate: 1.35 * f, gap: 0.05 })) { tn(0.03, 'triangle', 760 * f, 420, 0.1); nz(0.03, 'bandpass', 1900 * f, 900, 0.14, 2.4); } setTimeout(() => nz(0.05, 'bandpass', 2600 * f, 1400, 0.05, 1.6), 35); },
+  magTap() { const f = rr(0.92, 1.08); if (!playS('magin_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()), { vol: 0.32, rate: 1.35 * f, gap: 0.05 })) { tn(0.03, 'triangle', 760 * f, 420, 0.1); nz(0.03, 'bandpass', 1900 * f, 900, 0.14, 2.4); } sndLater(() => nz(0.05, 'bandpass', 2600 * f, 1400, 0.05, 1.6), 35); },
   magOut() { if (playS('magout_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()))) return; tn(0.04, 'square', 900, 600, 0.1); nz(0.05, 'bandpass', 1500, 900, 0.15, 2); },
   // the M4's flick (player/hold-flick.js): the rush of the gun whipped out to the side, quiet under the mag's clatter
   flick() { if (playS(['swing_light_1', 'swing_light_2'], { vol: 0.32, rate: 1.35, jit: 0.08 })) return; nz(0.11, 'bandpass', 600, 2200, 0.1, 1.5); },
@@ -107,9 +121,9 @@ export const SFX = {
   chargeSlam() { if (playS(gunKind() === 'smg' ? 'charge_slam_smg' : 'charge_slam_rifle')) return; nz(0.05, 'bandpass', 1100, 500, 0.32, 2); tn(0.05, 'triangle', 420, 180, 0.2); },
   slideDrop() { if (playS('slide_drop')) return; nz(0.045, 'bandpass', 1700, 900, 0.34, 2.2); tn(0.04, 'triangle', 560, 220, 0.18); },
   // a revolver's cylinder flicked home: the crisp click of the latch and a ring of the frame
-  cylShut() { if (playS('magin_pistol', { rate: 1.12, vol: 0.85 })) return; tn(0.025, 'square', 1700, 1100, 0.12); nz(0.05, 'bandpass', 3000, 1600, 0.26, 3); tn(0.07, 'triangle', 520, 260, 0.12); setTimeout(() => tn(0.02, 'square', 2100, 1500, 0.04), 28); },
+  cylShut() { if (playS('magin_pistol', { rate: 1.12, vol: 0.85 })) return; tn(0.025, 'square', 1700, 1100, 0.12); nz(0.05, 'bandpass', 3000, 1600, 0.26, 3); tn(0.07, 'triangle', 520, 260, 0.12); sndLater(() => tn(0.02, 'square', 2100, 1500, 0.04), 28); },
   brkShut() { if (playS('pump_home_2', { rate: 0.85 })) return; tn(0.03, 'square', 950, 520, 0.13); nz(0.07, 'bandpass', 1700, 800, 0.32, 2.4); tn(0.08, 'triangle', 260, 120, 0.16); },   // the double barrel's barrels swung up and latching
-  rack() { if (playS('slide_drop', { rate: 0.9 })) return; nz(0.06, 'bandpass', 1400, 800, 0.3, 2); setTimeout(() => nz(0.07, 'bandpass', 900, 500, 0.32, 2), 110); },
+  rack() { if (playS('slide_drop', { rate: 0.9 })) return; nz(0.06, 'bandpass', 1400, 800, 0.3, 2); sndLater(() => nz(0.07, 'bandpass', 900, 500, 0.32, 2), 110); },
   tink(hull, v) { if (hull) { tn(0.05, 'triangle', rr(520, 640), 300, 0.05 * v); nz(0.04, 'bandpass', 1400, 900, 0.06 * v, 3); } else { const f = rr(3800, 5200); tn(0.06, 'sine', f, f * 0.97, 0.035 * v); tn(0.04, 'sine', f * 1.5, f * 1.48, 0.015 * v); } },
   // working a pump: the forend yanked back to its stop (a rasp and a clack), then shoved home (a heavier slam)
   pumpBack() { pumpV = rand() < 0.5 ? '' : '_2'; if (playS('pump_back' + pumpV)) return; nz(0.07, 'bandpass', 1300, 650, 0.3, 2); tn(0.04, 'square', 440, 280, 0.08); tn(0.05, 'sine', 180, 90, 0.12); },
@@ -124,10 +138,10 @@ export const SFX = {
   // the fire axe and the sledgehammer: a deep rush of air as they come down, and a heavy thump through the ground as they
   // land, under the blade's or the hammer's own hit
   swingHeavy(blade) { nz(0.22, 'bandpass', 180, blade ? 1500 : 900, 0.5, 1.2); tn(0.18, 'sine', 70, 45, 0.18); },
-  heavyHit(big) { tn(big ? 0.3 : 0.24, 'sine', big ? 72 : 85, 30, 0.85); nz(0.16, 'lowpass', 600, 90, 0.6); setTimeout(() => tn(0.12, 'sine', 55, 30, 0.35), 40); },
-  hitBlunt(big) { if (playS(big ? ['hit_blunt_big_1', 'hit_blunt_big_2'] : ['hit_blunt_1', 'hit_blunt_2'], { jit: GORE_JIT, gap: 0.04 })) return; tn(big ? 0.18 : 0.13, 'sine', big ? 85 : 110, 38, 0.62); nz(0.1, 'lowpass', 800, 140, 0.5); nz(0.045, 'bandpass', 1900, 800, 0.26, 2); setTimeout(() => nz(0.05, 'bandpass', 1300, 600, 0.14, 2.5), 30); },
-  hitBlade(chop) { if (playS(chop ? ['hit_chop_1', 'hit_chop_2'] : ['hit_blade_1', 'hit_blade_2'], { jit: GORE_JIT, gap: 0.04 })) return; nz(0.11, 'bandpass', 5200, 1700, 0.36, 3); tn(0.22, 'sine', 2600, 2540, 0.045); setTimeout(() => nz(0.16, 'bandpass', 700, 260, 0.32, 1.6), 22); if (chop) tn(0.12, 'sine', 150, 60, 0.42); },
-  magDrop(v) { if (playS('mag_drop', { vol: v, jit: 0.1 })) return; tn(0.05, 'square', 340, 200, 0.07 * v); nz(0.09, 'bandpass', 1100, 500, 0.16 * v, 2); setTimeout(() => tn(0.03, 'square', 520, 380, 0.04 * v), 70); },
+  heavyHit(big) { tn(big ? 0.3 : 0.24, 'sine', big ? 72 : 85, 30, 0.85); nz(0.16, 'lowpass', 600, 90, 0.6); sndLater(() => tn(0.12, 'sine', 55, 30, 0.35), 40); },
+  hitBlunt(big) { if (playS(big ? ['hit_blunt_big_1', 'hit_blunt_big_2'] : ['hit_blunt_1', 'hit_blunt_2'], { jit: GORE_JIT, gap: 0.04 })) return; tn(big ? 0.18 : 0.13, 'sine', big ? 85 : 110, 38, 0.62); nz(0.1, 'lowpass', 800, 140, 0.5); nz(0.045, 'bandpass', 1900, 800, 0.26, 2); sndLater(() => nz(0.05, 'bandpass', 1300, 600, 0.14, 2.5), 30); },
+  hitBlade(chop) { if (playS(chop ? ['hit_chop_1', 'hit_chop_2'] : ['hit_blade_1', 'hit_blade_2'], { jit: GORE_JIT, gap: 0.04 })) return; nz(0.11, 'bandpass', 5200, 1700, 0.36, 3); tn(0.22, 'sine', 2600, 2540, 0.045); sndLater(() => nz(0.16, 'bandpass', 700, 260, 0.32, 1.6), 22); if (chop) tn(0.12, 'sine', 150, 60, 0.42); },
+  magDrop(v) { if (playS('mag_drop', { vol: v, jit: 0.1 })) return; tn(0.05, 'square', 340, 200, 0.07 * v); nz(0.09, 'bandpass', 1100, 500, 0.16 * v, 2); sndLater(() => tn(0.03, 'square', 520, 380, 0.04 * v), 70); },
   fenceClimb() { nz(0.3, 'bandpass', 500, 260, 0.2, 3); tn(0.18, 'triangle', 140, 110, 0.06); },
   concuss() {
     if (!AC) return; const t = AC.currentTime;
@@ -148,23 +162,23 @@ export const SFX = {
       o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + L + 0.1);
     }
   },
-  pant() { nz(0.32, 'bandpass', 900, 500, 0.12, 1.2); setTimeout(() => nz(0.25, 'bandpass', 700, 420, 0.08, 1.2), 300); },
+  pant() { nz(0.32, 'bandpass', 900, 500, 0.12, 1.2); sndLater(() => nz(0.25, 'bandpass', 700, 420, 0.08, 1.2), 300); },
   rip() { if (playS('medkit')) return; nz(0.22, 'highpass', 2600, 1800, 0.22, 1); nz(0.12, 'bandpass', 3400, 2200, 0.14, 2); },
   wrap() { nz(0.16, 'bandpass', 1600, 900, 0.08, 1.4); },
   skid() { nz(0.4, 'bandpass', 1500, 450, 0.15, 0.9); nz(0.34, 'lowpass', 700, 180, 0.13); },   // boots scraping to a stop on the dirt
   step(v, wood) { const a = (0.035 + 0.04 * v) * rr(0.8, 1.15); if (wood) { tn(0.05, 'sine', rr(150, 180), 80, a * 1.1); nz(0.04, 'bandpass', rr(900, 1200), 500, a * 0.8, 2); } else { nz(0.07, 'lowpass', rr(420, 560), 140, a * 1.4); tn(0.05, 'sine', 95, 55, a * 0.6); } },
   vault() { nz(0.25, 'bandpass', 400, 1200, 0.25, 1.5); tn(0.1, 'sine', 140, 90, 0.2); },
   hurt() { tn(0.28, 'sawtooth', 190, 70, 0.22); nz(0.1, 'lowpass', 600, 150, 0.3); },
-  pick() { if (playS('pickup')) return; tn(0.06, 'sine', 700, 700, 0.14); setTimeout(() => tn(0.1, 'sine', 1050, 1050, 0.12), 60); },
-  scrap() { tn(0.04, 'square', 1800, 1600, 0.05); setTimeout(() => tn(0.04, 'square', 2200, 2000, 0.05), 50); },
+  pick() { if (playS('pickup')) return; tn(0.06, 'sine', 700, 700, 0.14); sndLater(() => tn(0.1, 'sine', 1050, 1050, 0.12), 60); },
+  scrap() { tn(0.04, 'square', 1800, 1600, 0.05); sndLater(() => tn(0.04, 'square', 2200, 2000, 0.05), 50); },
   // a curse taken: no reward chime but a low, sour slide down (a tritone, sliding apart) over a dull rumble
-  curse() { tn(0.7, 'sawtooth', 196, 92, 0.05); tn(0.7, 'sawtooth', 277, 125, 0.04); nz(0.6, 'lowpass', 380, 90, 0.18); setTimeout(() => tn(0.5, 'sine', 70, 48, 0.22), 120); },
+  curse() { tn(0.7, 'sawtooth', 196, 92, 0.05); tn(0.7, 'sawtooth', 277, 125, 0.04); nz(0.6, 'lowpass', 380, 90, 0.18); sndLater(() => tn(0.5, 'sine', 70, 48, 0.22), 120); },
   // someone turned to gold (Gun game's golden revolver or katana: pvp/pvp.js): a bright bell chord rising, ringing out
   // over a shimmer
-  goldKill() { [[880, 0], [1320, 40], [1760, 90], [2640, 150]].forEach(([f, d], i) => setTimeout(() => tn(0.9 - i * 0.12, 'sine', f, f * 1.003, 0.07 - i * 0.01), d)); nz(0.7, 'highpass', 6000, 9000, 0.05); },
+  goldKill() { [[880, 0], [1320, 40], [1760, 90], [2640, 150]].forEach(([f, d], i) => sndLater(() => tn(0.9 - i * 0.12, 'sine', f, f * 1.003, 0.07 - i * 0.01), d)); nz(0.7, 'highpass', 6000, 9000, 0.05); },
   // stepping up to the golden revolver or the golden katana: a short fanfare, up a fourth and a fifth
-  goldUp() { [[523, 0], [698, 110], [784, 220], [1046, 330]].forEach(([f, d]) => setTimeout(() => { tn(0.32, 'triangle', f, f, 0.08); tn(0.32, 'sine', f * 2, f * 2, 0.03); }, d)); },
-  upgrade() { if (playS('upgrade')) return; tn(0.12, 'square', 300, 300, 0.06); setTimeout(() => tn(0.12, 'square', 450, 450, 0.06), 90); nz(0.2, 'highpass', 3000, 5000, 0.08); },
+  goldUp() { [[523, 0], [698, 110], [784, 220], [1046, 330]].forEach(([f, d]) => sndLater(() => { tn(0.32, 'triangle', f, f, 0.08); tn(0.32, 'sine', f * 2, f * 2, 0.03); }, d)); },
+  upgrade() { if (playS('upgrade')) return; tn(0.12, 'square', 300, 300, 0.06); sndLater(() => tn(0.12, 'square', 450, 450, 0.06), 90); nz(0.2, 'highpass', 3000, 5000, 0.08); },
   launch() { if (!playS('shot_gl', { jit: 0.05, tone: 3, verb: indoors() ? 0.6 : 0 })) SFX.thump(); },   // the underbarrel grenade launcher
   thump() { tn(0.12, 'sine', 180, 60, 0.5); nz(0.1, 'lowpass', 800, 200, 0.3); },
   // d: how far off it went up, r: how big it was (explosive rounds are small ones)
@@ -226,7 +240,7 @@ export const SFX = {
     const k = Math.pow(2, Math.min(12, Math.floor((n - 1) / WAVE_STING.every)) / 12), f = 98 * k;
     tn(1.4, 'sine', f, f * 0.94, 0.25); tn(1.4, 'sine', f * (hard ? 1.414 : 1.5), f * (hard ? 1.33 : 1.42), hard ? 0.1 : 0.12);
     const beats = Math.min(WAVE_STING.maxBeats, 1 + Math.floor(n / WAVE_STING.beatEvery));
-    for (let b = 0; b < beats; b++) setTimeout(() => { tn(0.3, 'sine', 70, 34, 0.42); nz(0.18, 'lowpass', 420, 90, 0.3, 0.9); }, b * WAVE_STING.beat);
+    for (let b = 0; b < beats; b++) sndLater(() => { tn(0.3, 'sine', 70, 34, 0.42); nz(0.18, 'lowpass', 420, 90, 0.3, 0.9); }, b * WAVE_STING.beat);
     if (hard) nz(1.3, 'bandpass', 600, 2400, 0.07, 2);
   },
   // an elite coming in (zombies/elites.js): a deep hit dropping away under a dissonant swell and a hiss of breath, pitched
@@ -237,11 +251,11 @@ export const SFX = {
     tn(1.1, 'sawtooth', f * 4, f * 4.24, 0.035); tn(1.1, 'sawtooth', f * 5.66, f * 5.4, 0.025);
     nz(0.9, 'bandpass', kind === 'frenzy' ? 2600 : 900, kind === 'frenzy' ? 4200 : 1500, 0.05, 3);
   },
-  eliteDown() { tn(0.25, 'sine', 90, 40, 0.3); setTimeout(() => { tn(0.5, 'triangle', 988, 980, 0.06); tn(0.6, 'sine', 1480, 1470, 0.04); }, 60); },
+  eliteDown() { tn(0.25, 'sine', 90, 40, 0.3); sndLater(() => { tn(0.5, 'triangle', 988, 980, 0.06); tn(0.6, 'sine', 1480, 1470, 0.04); }, 60); },
   // a wave cleared: two notes rising, a third over them every fifth wave or after a twist
   cleared(n = 1, big = false) {
-    tn(0.9, 'sine', 196, 196, 0.12); setTimeout(() => tn(1.2, 'sine', 294, 294, 0.1), 180);
-    if (big || n % 5 === 0) setTimeout(() => tn(1.5, 'sine', 392, 392, 0.09), 380);
+    tn(0.9, 'sine', 196, 196, 0.12); sndLater(() => tn(1.2, 'sine', 294, 294, 0.1), 180);
+    if (big || n % 5 === 0) sndLater(() => tn(1.5, 'sine', 392, 392, 0.09), 380);
   }
 };
 let pumpV = '';   // which recording of a pump the rack in progress is (its back and its home are a pair)

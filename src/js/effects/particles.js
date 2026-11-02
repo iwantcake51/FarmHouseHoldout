@@ -16,7 +16,7 @@ import { GOLD } from './gold.js';
 
 export const parts = [];
 const PG = new THREE.BoxGeometry(0.07, 0.07, 0.07);
-const PMAT = { spark: basic(0xffd88a), blood: lam(0x7a1a12), blood2: lam(0x4d0f0b), wood: lam(0xa8804f), dust: lam(0x7d7564), ember: basic(0xff8a32), smoke: lam(0x3a3836) };
+const PMAT = { spark: basic(0xffd88a), blood: lam(0x7a1a12), blood2: lam(0x4d0f0b), wood: lam(0xa8804f), dust: lam(0x7d7564), ember: basic(0xff8a32), smoke: lam(0x3a3836), stone: lam(0x8e8a82), metal: lam(0x4e5256) };   // (stone: concrete and brick chips; metal: flakes of paint and rust off a sheet)
 for (let k = 0; k < 280; k++) { const m = new THREE.Mesh(PG, PMAT.blood); m.visible = false; scene.add(m); parts.push({ m, life: 0, vx: 0, vy: 0, vz: 0, kind: 'blood', landed: false }); }
 let pIdx = 0;
 Object.values(PMAT).forEach(m => { m.userData.mobile = true; });
