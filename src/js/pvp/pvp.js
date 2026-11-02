@@ -940,7 +940,10 @@ const END_SLOW = 2.8, END_HOLD = 0.6;   // (and how long it's held stopped befor
 // (down hard at once to END_DROP of full speed over its first moment, so it's plain the match is over, then winding
 // on down to a stop)
 const END_DROP = [0.32, 0.25];
-export const pvpEndScale = () => { const s = (performance.now() - (PVP.overAt || 0)) / 1000; return s < END_DROP[1] ? 1 - (1 - END_DROP[0]) * smooth(s / END_DROP[1]) : END_DROP[0] * Math.pow(1 - clamp((s - END_DROP[1]) / (END_SLOW - END_DROP[1]), 0, 1), 1.3); };
+// (never quite to nothing, END_FLOOR: a clock that stops dead made everything that eases on it (the arms, the hold,
+// the head) jump on the frame it hit zero; this close to a stop nothing moves you can see, but nothing snaps)
+const END_FLOOR = 0.004;
+export const pvpEndScale = () => { const s = (performance.now() - (PVP.overAt || 0)) / 1000; return Math.max(END_FLOOR, s < END_DROP[1] ? 1 - (1 - END_DROP[0]) * smooth(s / END_DROP[1]) : END_DROP[0] * Math.pow(1 - clamp((s - END_DROP[1]) / (END_SLOW - END_DROP[1]), 0, 1), 1.3)); };
 export const pvpEnding = () => PVP.on && PVP.ph === 'over';
 // the next loadout made ready ahead (pvpPhase, at a round's end): its pictures for the loadout card, and its weapons as
 // they'll be on each of the others (net/arsenal.js arsenalWarm), one piece of it each step (pvpUpdate)

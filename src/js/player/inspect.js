@@ -20,6 +20,7 @@ import { mouseDown, mouseDownR } from '../input/keyboard-mouse.js';
 import { ANIM } from './animation.js';
 import { openSt } from '../stations/station-ui.js';
 import { netLink } from '../net/net.js';
+import { pvpEnding } from '../pvp/pvp.js';
 import { stocked } from '../weapons/firing.js';
 
 // each pose: when (seconds), the gun's turn (p: muzzle down, y: muzzle round, r: rolled over, radians) and its place
@@ -177,7 +178,7 @@ const meleeTimeline = endT => [K(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), K(endT, 0,
 export function startInspect() {
   const id = curId(), D = W(id);
   if (INSP.t >= 0) { INSP.t = -1; return; }
-  if (!D || busy()) return;
+  if (!D || busy() || pvpEnding()) return;
   INSP.t = 0; INSP.id = id;
 }
 // a shot or a reload ends it on the spot: the gun's straight back on the aim for it, not eased (weapons/firing.js,
@@ -219,6 +220,7 @@ export function inspectPose(rdt, D, id, hand, fp, endT) {
   const SET = fp ? INSPECT_FP : INSPECT, L = endT ? meleeTimeline(endT) : pair ? INSPECT_PAIR[fp ? 'fp' : 'iso'] : stk ? SET.hand : SET[key] || INSPECT[key] || (hand ? SET.hand : INSPECT.long);
   const lag = pair ? INSPECT_PAIR.lag : 0, end = L[L.length - 1].t + lag, S = pair || stk ? null : INSPECT_SPIN[id];
   { const menu = inMenu(); I.rate += ((menu ? 0 : 1) - I.rate) * Math.min(1, rdt * (menu ? INSP_MENU.stop : INSP_MENU.go)); }
+  if (pvpEnding()) I.rate = 0;   // (the arena's match over: held still where it is through the slow-mo and the results, never played on under them)
   if (I.t >= 0) { I.t += rdt * I.rate; if (I.t >= end) I.t = -1; }
   const on = I.t >= 0; hudOff(on);
   I.w += ((on ? 1 : 0) - I.w) * Math.min(1, rdt * (on ? INSP_SPRING.wIn : INSP_SPRING.wOut));

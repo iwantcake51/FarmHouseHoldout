@@ -50,45 +50,54 @@ export const guardAfter = id => GUARD_AFTER[id] ?? 0.15;
 // a riposte if it's straight after a parry of yours (RIPOSTE: quicker, harder, and through any guard), returned as
 // how much quicker it goes
 export function swingStarted(id, dur) {
-  W8.chgOn = false; W8.chgDone = false; W8.heavyK = 0; W8.ripo = now() < BLOCK.ripo; if (W8.ripo) BLOCK.ripo = 0;
+  W8.chgOn = false; W8.chgDone = false; W8.chgK = 0; W8.ripo = now() < BLOCK.ripo; if (W8.ripo) BLOCK.ripo = 0;
+  W8.runK = P.sprint && Math.hypot(P.vx || 0, P.vz || 0) > RUNATK.speed ? 1 : 0;
+  if (W8.runK) {   // (a running attack: thrown on along it, a jolt of the view with it)
+    const fx = Math.sin(P.aim), fz = Math.cos(P.aim); P.kbx = fx * RUNATK.lunge; P.kbz = fz * RUNATK.lunge; P.sprint = false;
+    P.stam = Math.max(0, P.stam - RUNATK.stam * stamMax()); P.stamT = 0; camKick.x += fx * 0.18; camKick.z += fz * 0.18; setShake(Math.max(shake, 0.2));
+  }
   BLOCK.okAt = now() + dur * (W8.ripo ? RIPOSTE.speed : 1) + guardAfter(id);
   return W8.ripo ? RIPOSTE.speed : 1;
 }
 // ---- a heavy blow (MCHARGE): hold the swing button past the wind-up and the blow's held there, gathering, the arm
 // back and trembling, a little stamina going a second; let go and it comes down, up to MCHARGE.dmg harder at full
-// (MCHARGE.full s), and at full a blow that meets a guard breaks it. Right click while it's held is a feint: the blow's
+// (MCHARGE.full s; W8.chgK, its own: W8.heavyK is a heavy gun's slowdown, which eases off on its own), and at full a blow that meets a guard breaks it. Right click while it's held is a feint: the blow's
 // dropped (a little stamina for it) and the guard can come straight up, to bait a parry and punish it
+// a running attack: a swing thrown out of a sprint (faster than RUNATK.speed m/s) lunges you on along it (RUNATK.lunge
+// m/s thrown forward, easing off as a shove does), hits RUNATK.dmg as hard and costs RUNATK.stam more of the tank
+export const RUNATK = { speed: 4.2, dmg: 1.5, lunge: 5, stam: 0.12 };
 export const MCHARGE = { before: 0.13, full: 0.65, dmg: 1, drain: 0.1, feint: 0.08, most: 2.5 };
 // after a parry of yours (RIPOSTE: win s): the next swing's quicker (speed of its time), does dmg more, and goes
 // through any guard
 export const RIPOSTE = { win: 0.9, speed: 0.72, dmg: 1.4 };
 // what this swing's blow is worth (melee/melee.js, pvp/pvp.js): its charge and a riposte; full: a guard-breaker
-export const swingMul = () => (1 + MCHARGE.dmg * (W8.heavyK || 0)) * (W8.ripo ? RIPOSTE.dmg : 1);
-export const swingFull = () => (W8.heavyK || 0) >= 0.999;
+export const swingMul = () => (1 + MCHARGE.dmg * (W8.chgK || 0)) * (W8.ripo ? RIPOSTE.dmg : 1) * (W8.runK ? RUNATK.dmg : 1);
+export const swingFull = () => (W8.chgK || 0) >= 0.999;
 // each step of your swing (weapons/combat-update.js): whether it's held gathering this step. p: how far through it is,
 // hit: where its blow lands
 export function chargeStep(dt, p, hit, id) {
   if (W8.chgOn) {
     if (aimHeld) { feint(id); return true; }
     if (!mouseDown || P.dead || P.stun > 0 || (W8.chgT += dt) > MCHARGE.most) { chargeRelease(id, p, hit); return false; }
-    P.stam = Math.max(0, P.stam - MCHARGE.drain * stamMax() * dt); P.stamT = 0; W8.heavyK = clamp(W8.chgT / MCHARGE.full, 0, 1);
-    if (W8.heavyK >= 1 && !W8.chgRing) { W8.chgRing = true; SFX.chargeFull(); }
+    P.stam = Math.max(0, P.stam - MCHARGE.drain * stamMax() * dt); P.stamT = 0; W8.chgK = clamp(W8.chgT / MCHARGE.full, 0, 1);
+    setShake(Math.max(shake, 0.05 + 0.13 * W8.chgK));   // (the view shaking with the strain of it, more as it gathers)
+    if (W8.chgK >= 1 && !W8.chgRing) { W8.chgRing = true; SFX.chargeFull(); }
     return true;
   }
   if (!W8.chgDone && !W8.ripo && mouseDown && p >= hit - MCHARGE.before) {
-    W8.chgOn = true; W8.chgT = 0; W8.chgRing = false; W8.heavyK = 0;
+    W8.chgOn = true; W8.chgT = 0; W8.chgRing = false; W8.chgK = 0;
     netSend('mw', { w: id, x: Math.round(P.x * 100) / 100, z: Math.round(P.z * 100) / 100, hd: 1, p0: Math.round(p * 1000) / 1000 });   // (held there, as they see you: net/avatars.js avSwing)
     return true;
   }
   return false;
 }
 function chargeRelease(id, p, hit) {
-  W8.chgOn = false; W8.chgDone = true; if (W8.heavyK > 0.5) SFX.swingHeavy(true);
+  W8.chgOn = false; W8.chgDone = true; if (W8.chgK > 0.5) SFX.swingHeavy(true);
   const left = W8.swing, wu = Math.max(0.02, (hit - p) * W8.swingDur);
   netSend('mw', { w: id, x: Math.round(P.x * 100) / 100, z: Math.round(P.z * 100) / 100, rs: 1, p0: Math.round(p * 1000) / 1000, wu: Math.round(wu * 1000) / 1000, du: Math.round(left * 1000) / 1000, sd: W8.swingSide });
 }
 function feint(id) {
-  W8.chgOn = false; W8.swing = 0; W8.heavyK = 0; W8.cd = Math.min(W8.cd, 0.12); BLOCK.okAt = now();
+  W8.chgOn = false; W8.swing = 0; W8.chgK = 0; W8.cd = Math.min(W8.cd, 0.12); BLOCK.okAt = now();
   P.stam = Math.max(0, P.stam - MCHARGE.feint * stamMax()); P.stamT = 0; SFX.guardUp();
   netSend('mw', { w: id, x: Math.round(P.x * 100) / 100, z: Math.round(P.z * 100) / 100, cx: 1 });
 }

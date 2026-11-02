@@ -41,7 +41,7 @@ const BLEED_FLOOR = 15;   // the health bleeding leaves you on at worst: there i
 // how long a volatile's shell-shock takes to clear (P.shock, from 1 to none: its blur and grey, ui/hud.js)
 const SHOCK_FADE = 3.2;
 export function updateCombat(dt) {
-  W8.cd -= dt;
+  if (!W8.chgOn) W8.cd -= dt;   // (not while a heavy blow's held: the button's still down, and a new swing would start over it, the pose jumping)
   if (W8.swing > 0) {
     const p0 = 1 - W8.swing / W8.swingDur, D0 = W(curId()) || {}, held = chargeStep(dt, p0, heavySwing(D0) ? HEAVY.hit : 0.4, curId());   // (held gathering a heavy blow: melee/block.js CHARGE)
     if (held) { /* (the swing waits where it is) */ } else if (ANIM.mStop > 0) ANIM.mStop -= dt; else W8.swing = Math.max(0, W8.swing - dt);   // (stopped dead a moment on a blow that lands: meleeImpact)

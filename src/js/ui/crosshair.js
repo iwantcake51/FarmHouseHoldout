@@ -254,7 +254,7 @@ export function updateCrosshair(rdt, D) {
       const rd = XHM.max > 0 ? 1 - clamp(W8.cd / XHM.max, 0, 1) : 1, ready = rd >= 1;
       if (ready && !XHM.ready) XHM.vs += 0.9;
       XHM.ready = ready;
-      const hk = W8.chgOn ? W8.heavyK || 0 : 0, sT = (0.62 + 0.38 * smooth(rd)) * (1 - 0.32 * smooth(hk)), rT = clamp(camRoll * 57.3 * XHM_TWIST, -40, 40);   // (closing in on the dot as a heavy blow gathers: melee/block.js MCHARGE)
+      const hk = W8.chgOn ? W8.chgK || 0 : 0, sT = (0.62 + 0.38 * smooth(rd)) * (1 - 0.32 * smooth(hk)), rT = clamp(camRoll * 57.3 * XHM_TWIST, -40, 40);   // (closing in on the dot as a heavy blow gathers: melee/block.js MCHARGE)
       { const b = $('xhBr'), now = performance.now() / 1000; b.classList.toggle('chg', W8.chgOn && hk >= 0.999); b.classList.toggle('ripo', BLOCK.ripo > now); }   // (full: orange; a riposte yours: gold)
       for (let t = Math.min(rdt, 0.1); t > 1e-6; t -= 1 / 120) {
         const h = Math.min(t, 1 / 120);

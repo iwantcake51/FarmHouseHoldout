@@ -1232,7 +1232,10 @@ like pea-shooters). To a 100-health body, before range falloff:
     and guns, tracers, smoke and particles, and your own arms and gun from your own eyes (a swing, a reload, a bolt,
     the recoil and the flinch all wind down with the world).
   - It drops off hard the moment the last kill lands (to about a third speed at once), then winds on down from there,
-    so it's plain the match is over.
+    so it's plain the match is over. It never quite reaches a dead stop (it holds at 0.4% of full speed), so nothing that
+    eases on the game's clock jumps the moment it would have stopped.
+  - A look over your gun can't be started once the match is over, and one already going holds still where it is
+    through the slow-mo and the results.
   - You can still shoot while it slows (at its own slowed pace), and your mouse sensitivity slows with it, down to about
     a fifth as it stops.
   - Looking round while the scoreboard's up, your arms and gun turn with the view (they no longer stay pointed where
@@ -1698,11 +1701,15 @@ the chest turned to put the shoulder behind it).
 **Melee with more to it than block and swing** (`melee/block.js`, the same for the bots).
 - **Charged heavy blows.** Keep the button held and the swing stops just before the blow lands and winds up there, the
   weapon trembling back and the crosshair's brackets closing in orange, up to full in about two thirds of a second (a
-  rising ring when it's full; it eats a tenth of your stamina a second while held, 2.5 s at most). Let go to bring it
+  rising ring when it's full; it eats a tenth of your stamina a second while held, 2.5 s at most). While it's held the
+  view shakes with the strain, more as it gathers, and the weapon and your arms tremble; the pose holds steady through
+  it (no new swing starts under it however long it's held). Let go to bring it
   down: up to twice as hard the longer it was held (double damage at full), and one at full **breaks a guard** outright (and gets 1.6× as much
   through it). Tap it for a quick swing as before. Others see the wind-up and the release on your avatar.
 - **Feints.** While it's winding up, raise your guard (right click) to pull the blow: a quick feint that costs a little
   stamina and baits a guard or a parry out of whoever's watching.
+- **Running attacks.** Swing out of a sprint and you lunge on along the blow (thrown about 5 m/s forward, easing off),
+  hitting half as hard again, for an eighth of your stamina more. Bots do it too, coming in at a run.
 - **Ripostes.** Parry a blow and for 0.9 s your next swing comes 28% quicker, hits 40% harder and goes through any guard
   (the crosshair glows gold while it's up).
 - **Poise.** A blow landing on you mid-swing breaks your swing off, unless you're past the first 30% of it and swinging
@@ -1720,6 +1727,16 @@ the chest turned to put the shoulder behind it).
 - **The katana's balanced.** It hits for less (28), swings a little slower, reaches a touch shorter, costs more stamina
   a swing and bleeds less often, so it's no longer the one weapon to spam.
 - **Brawl kill perk.** In Brawl each kill gives you back half your health and half your stamina at once (bots too).
+- **Brawl bots duel.** A bot picks whoever's free near it: someone already being fought counts as 9 m further off for
+  each bot on them, and someone already fighting someone else close by 7 m further, so a fight between two others is
+  left to them, you're not all piled on at once, and a bot takes on another bot near it. Anyone right on top of it
+  (within 3.5 m) or coming for it, it fights. Hurt in Brawl, it no longer turns and runs from someone within 4.5 m;
+  it fights it out.
+- **Bots shove when they need to**: into a raised guard as before, and now also when you're winding up a heavy blow at
+  them or their own guard's nearly gone with you on top of them.
+- **Bots guess.** Besides putting their guard up as a blow comes (a plain block more often than a timed parry now),
+  they now and then raise it in reach and hold it 0.6 to 1.4 s, waiting on the blow they expect: wait them out, or
+  shove it open.
 - **Brawl's bat** comes studded with nails, the Nails mod's third tier of them (only in Brawl; everywhere else it's bare
   until the Nails mod), and everyone it hits bleeds to look at for 3.5 s: drops falling off them and spots on the ground,
   seen by everyone (no bleed status, no damage over time).
