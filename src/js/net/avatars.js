@@ -52,6 +52,7 @@ import { stainZombie, updateZombieStain } from '../effects/body-blood.js';
 import { botsHear } from '../pvp/bots.js';
 import { visAt } from '../lighting/vision.js';
 import { los } from '../lighting/lightmap.js';
+import { ungild } from '../effects/gold.js';
 
 // the joints a pose carries, in order: where each is and how it's turned (and the arms how they're stretched)
 const POSE_K = ['g', 'upper', 'lower', 'torso', 'head', 'armL', 'armR', 'legL', 'legR', 'shinL', 'shinR'];
@@ -344,8 +345,9 @@ export function updateAvatars(rdt) {
     // down, they go down as a ragdoll here as they did on their own screen (player/player-ragdoll.js), thrown on the way
     // they were going and a little off their facing, and lie where they fell; up again, their pose takes over
     if (p.dead && !a.rag) { POSE_K.forEach((key, n) => set(a[key], n)); a.g.updateMatrixWorld(true); const f = c[4] || 0, s = rr(-0.6, 0.6); a.rag = survivorRagdoll(a, a.g.position.x, a.g.position.z, f, p.vx, p.vz, -Math.sin(f + s), -Math.cos(f + s), null); }
-    else if (!p.dead && a.rag) { endSurvivorRagdoll(a.rag); a.rag = null; a.headGone = false; ['armL', 'armR', 'legL', 'legR'].forEach(k => { if (a[k]) a[k].visible = true; }); }   // (up again, whole: a limb taken off going down, pvp/pvp.js)
-    if (a.rag) stepRagdoll(a.rag, rdt);
+    else if (!p.dead && a.rag) { endSurvivorRagdoll(a.rag); a.rag = null; a.headGone = false; ungild(a.g);   // (flesh again after a golden weapon: effects/gold.js)
+      ['armL', 'armR', 'legL', 'legR'].forEach(k => { if (a[k]) a[k].visible = true; }); }   // (up again, whole: a limb taken off going down, pvp/pvp.js)
+    if (a.rag && !a.g.userData.goldLock) stepRagdoll(a.rag, rdt);   // (gone to gold: locked as they stood, effects/gold.js)
     else POSE_K.forEach((key, n) => set(a[key], n));
     // (jolted by a hit of yours: HIT_FX, the way the round went in their body's own frame, easing back)
     if (hf && !a.rag) {

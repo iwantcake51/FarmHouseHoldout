@@ -523,6 +523,8 @@ settings as the host has them. They're kept between visits.
 |---|---|
 | Deathmatch, Team deathmatch | Kills to win (15 or 20, 5–50 or 10–100), match length (10 min, 3–20) |
 | Showdown | Rounds to win (5, 2–9), round time (60 s, 30–180), flag capture (5 s, 5–30), loadouts (Random or Classes), new loadout every (2 rounds, 1–3; only with Random) |
+| Snipers only, Brawl | Kills to win (15, 5–50), match length (10 min, 3–20) |
+| Gun game | Match length (10 min, 3–20); it's won by the golden katana's kill |
 
 (The capture time's start went from 15 s to 5 s; a lobby that had kept the old 15 from before starts at 5 again.)
 
@@ -1408,6 +1410,77 @@ was there, and none of it changes the fight (world/arena-dress.js, laid on each 
   what's near them (the map's pieces sorted into 2 m buckets), so dressing a map takes well under a tenth of a second.
 - Signs, posters and painted faces that were folded into a map's merged meshes kept no texture coordinates and came
   out one flat colour (the small maps' shop names, notices and paint); merging now keeps them (core/geometry.js).
+
+**Snipers only, Brawl and Gun game.** Three more arena modes in the lobby, after Showdown. Each is played as a
+Deathmatch: everyone for themselves, back in a few seconds after going down.
+- **Snipers only.** Everyone carries the same kit: a hunting rifle with its first scope, four loads for it, and a
+  machete for anyone who gets close. First to the kill count wins (the lobby's setting, 15 to start).
+- **Brawl.** Melee weapons only. You pick yours from seven cards, each showing hits to down someone, swing time,
+  reach and pace, with its strength and its weakness. Swap with your loadout key between lives. The bots each pick
+  their own, and after a few deaths with one they switch, likelier to something that answers how they died.
+- **Gun game.** Everyone climbs the same ladder of twelve weapons, one step per kill: the assault rifle, the battle
+  rifle and the LMG, then the two SMGs, the three shotguns, the hand cannon and the handgun. After those come the
+  **golden revolver** and the **golden katana**.
+  - At the start of each match the host draws every gun's attachments and mods at random: up to five per gun, at any
+    tier up to the best. Everyone gets the same draw, and you see it on your card with the ladder under it.
+  - Everyone also carries a machete. A machete kill doesn't move you up, but it puts the person you killed back one
+    gun.
+  - **The golden revolver** holds one round per load, with a dozen spare, and any hit kills.
+  - **The golden katana** kills with one blow, any blow, and a kill with it wins the match. If the clock runs out
+    first, whoever is furthest up wins.
+  - Reaching either golden weapon brings a big gold call over the screen with a fanfare. Anyone else reaching one is
+    called out under your crosshair, and their chip on the score bar turns gold.
+- **The golden weapons are gold everywhere**: in your hands, on anyone carrying one, and in every picture of them
+  (your slot row, the kill feed, the death card, the loadout card).
+- **What a golden weapon hits turns gold.** Mist and drops come out gold instead of blood, and leave no stain on the
+  floor, the walls or your view. The pieces they cut off drip gold too.
+- **Whoever a golden weapon kills turns to gold**, starting from where the round or blade went in.
+  - The gold spreads over them like something poured. It runs downward faster than it climbs, and its front is a
+    wobbling line with a molten glow along it.
+  - It covers every part of them: clothes, face, hair, and whatever they were holding.
+  - The body locks where it stands as the gold starts: no falling, no slack. They stay a gold statue until they're
+    back in.
+  - The golden katana always takes the head off. Both halves fly off gold, cut faces and all.
+  - A chime and a glitter of gold come off the body.
+  - Implemented in `effects/gold.js`: each part of the body gets a gold skin of its own shape, drawn over it and showing
+    only as far as the pour has reached.
+
+**Melee weapons, balanced against each other** (in the arena; the farm's are as they were, where rarer is meant to be
+better). Each is its own trade, so none is simply the best (`PVP_MELEE` in `pvp/pvp.js`):
+
+| Weapon | Hits to down | Swing | Reach | Pace | Its edge | Its cost |
+|---|---|---|---|---|---|---|
+| Crowbar | 4 | 0.34 s | 1.6 m | 110% | The quickest swing and the quickest on your feet, cheap on stamina | Four hits, short reach |
+| Machete | 3 | 0.42 s | 1.7 m | 108% | Quick, and 65% of cuts leave them bleeding | Short reach |
+| Ash bat | 3 | 0.50 s | 1.9 m | 104% | The widest swing; every hit staggers them 0.3 s and shoves them back | Never draws blood |
+| Katana | 3 | 0.55 s | 2.2 m | 102% | Out-reaches everything | Each slash costs the most stamina of the quick ones |
+| Pipe wrench | 2 | 0.72 s | 1.6 m | 100% | Two hits, each staggering 0.4 s | A slow swing, short reach |
+| Fire axe | 2 | 0.90 s | 1.85 m | 96% | Deep bleeds, and the likeliest to find the head | Slow, tiring and narrow |
+| Sledgehammer | 1 | 1.30 s | 2.0 m | 90% | One hit puts anyone down, staggers 0.6 s | A long wind-up, the slowest walk, a miss leaves you open |
+
+A head is worth a quarter more. A swing comes every 1.3 times its swing time, as yours always has. A stagger stops
+you moving and swinging for its length, for you and for the bots alike.
+
+**Bots fight hand to hand** (Brawl, the golden katana, and a machete in Gun game).
+- They run at you flat out, weaving side to side if you have a gun.
+- Close in, they fight like someone with a blade. While their own swing comes back round, they wait just outside your
+  reach, or at the edge of theirs if they out-reach you, circling you and changing direction.
+- The moment their swing is ready, they step in and swing, stepping in with the blow.
+- They get out of a swing they can see coming (yours or another bot's), then come straight back to punish the miss.
+- Now and then they feint: in to the edge of reach, then back out to draw your swing.
+- Badly hurt against someone healthy, they back off to heal where they can.
+- In Gun game, with you right on top of them, they often pull the machete to set you back a gun.
+- Each weapon has its own wind-up before the blow lands, from 0.14 s for the crowbar to 0.52 s for the sledgehammer.
+  You can see it: their body winds back and whips through the swing, across the body for a slash or down from
+  overhead for a chop.
+
+**Fairer fights with the bots** (all skills but the Terminator, which is meant to be relentless).
+- The bots keep track of how each person is doing against them. Each time a bot gets you, the bots fighting you ease
+  off a little: a slower reaction, a looser aim and fewer headshots. Each time you get a bot, they sharpen up. Fights
+  stay close instead of either side running away with it.
+- Every new target gets a warm-up. For about half a second after a bot reacts, its shots spread a little more and
+  find the head half as often, so whoever's quicker on the draw still wins. That's a little more for a Recruit, a
+  little less for a Veteran, and nothing for a Terminator.
 
 **The game's worker threads.** Heavy work that needs nothing of the scene runs on the game's own threads, not the main
 thread the frame's drawn on (core/threads.js). That's a pool of one fewer worker than the machine has cores (two to

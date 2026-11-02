@@ -19,7 +19,7 @@ import { SET } from '../ui/settings.js';
 import { setViewMode, VCAM } from '../game/view-cam.js';
 import { chatClear, chatSys } from './chat.js';
 import { frMet } from './friends.js';
-import { PVP_MODES, pvpCfgFix, pvpTeams } from '../pvp/pvp.js';
+import { PVP_MODES, PVP_RULES, pvpCfgFix, pvpTeams } from '../pvp/pvp.js';
 import { BOT_RANDOM, botName } from '../pvp/bots.js';
 
 export const NET_V = 3, NET_PREFIX = 'fhh-coop-', NET_QUIET = 15;   // (NET_V: 3 since the arena and its bots, which a game before them doesn't know; NET_QUIET: seconds without a word before a player counts as gone; a slow machine can stall that long building its shaders)
@@ -322,7 +322,7 @@ export function netStart() {
   if (!netAllReady()) { const w = [...NET.peers.values()].filter(p => !p.ready).map(p => p.name); NET.status = 'Waiting for ' + w.join(' and ') + ' to get ready'; SFX.deny(); lobbyRender(); return false; }
   NET.houseSeed = (Math.random() * 2147483647) | 0;   // everyone's farmhouse laid out alike (world/interior.js)
   sidesFill(); NET.acfg = pvpCfgFix(NET.acfg);
-  NET.teams = NET.game === 'arena' ? (NET.arena === 'ffa' ? pvpTeams(netRoster(), 'ffa') : Object.assign({}, NET.sides)) : null;   // (the arena's sides as the lobby has them, everyone's the same)
+  NET.teams = NET.game === 'arena' ? (NET.arena === 'ffa' || PVP_RULES.has(NET.arena) ? pvpTeams(netRoster(), 'ffa') : Object.assign({}, NET.sides)) : null;   // (Snipers only, Brawl and Gun game are everyone for themselves too)   // (the arena's sides as the lobby has them, everyone's the same)
   netSend('start', { roster: netRoster(), house: NET.houseSeed, view: NET.view, rm: NET.runMode, gm: NET.game, am: NET.arena, tm: NET.teams, ac: NET.acfg }); netBegin();
   return true;
 }

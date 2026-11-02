@@ -76,6 +76,7 @@
   "effects/supp-heat.js",
   "effects/blood-map.js",
   "effects/wall-blood.js",
+  "effects/gold.js",
   "effects/particles.js",
   "effects/weapon-drop.js",
   "effects/puffs.js",

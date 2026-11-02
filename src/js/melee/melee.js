@@ -23,7 +23,7 @@ export const swingSlow = () => { if (!(W8.swing > 0)) return 1; const D = W(curI
 // chopper like the axe or sledge, of a full tank), and one that only hits a single zombie costs SINGLE_STAM of that: it
 // has to land more swings to clear a crowd (one made long enough to sweep through more, melee/melee-stats.js, pays in full)
 const SWING_STAM = { one: 0.07, two: 0.095, chop: 0.15 }, SINGLE_STAM = 0.7;
-export const stamCost = D => stamUse((D.style === 'chop' && D.two ? SWING_STAM.chop : D.two ? SWING_STAM.two : SWING_STAM.one) * ((D.cleave || 1) < 2 ? SINGLE_STAM : 1) * S.swingStam);   // (Strong arms takes some off: S.swingStam)
+export const stamCost = D => stamUse((D.style === 'chop' && D.two ? SWING_STAM.chop : D.two ? SWING_STAM.two : SWING_STAM.one) * ((D.cleave || 1) < 2 ? SINGLE_STAM : 1) * S.swingStam * (D.stamK || 1));   // (stamK: the arena's own cost for each, pvp/pvp.js PVP_MELEE)   // (Strong arms takes some off: S.swingStam)
 // winded, a swing comes slower (TIRED.swing) and the next one waits longer (TIRED.cd); one that only hits a single
 // zombie (weapons/firing.js) is slowed by just TIRED.single of that, as it's lighter in the hand
 export const TIRED = { cd: 1.6, swing: 1.45, single: 2 / 3 };

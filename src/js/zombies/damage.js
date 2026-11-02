@@ -264,7 +264,7 @@ export function halveHead(head, kind, dx, dz, stain) {
   head.updateWorldMatrix(true, true);
   const inv = head.matrixWorld.clone().invert(), wp = new V3(), wq = new THREE.Quaternion(), ws = new V3(), rel = new THREE.Matrix4(), mats = new Map();
   head.matrixWorld.decompose(wp, wq, ws);
-  const pieces = []; head.traverse(o => { if (o.isMesh && !o.userData.isOutline && (o.visible || o === head)) pieces.push(o); });   // (the head itself even if it's hidden from your own eyes)
+  const pieces = []; head.traverse(o => { if (o.isMesh && !o.userData.isOutline && !o.userData.goldOv && (o.visible || o === head)) pieces.push(o); });   // (never a gold skin: effects/gold.js puts its own on the halves)   // (the head itself even if it's hidden from your own eyes)
   // the cut's own frame: its x along the plane's normal, through the point on it, so the cut is always x = 0 there (and
   // straight down the middle that's the head's own frame, as it was)
   const C = SPLIT_CUT[kind] || SPLIT_CUT.v, cq = new THREE.Quaternion().setFromUnitVectors(new V3(1, 0, 0), new V3(...C.n).normalize()), co = new V3(...C.o);

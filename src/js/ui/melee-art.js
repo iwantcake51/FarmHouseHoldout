@@ -16,8 +16,9 @@ const meleeArtCache = {};
 const MELEE_ART_PPU = 190;   // CSS pixels per metre, the same for every weapon, so a katana draws longer than a wrench
 // render the model once per weapon and set of mods into an offscreen target, and keep the picture
 // (lv: each mod's level, yours unless given: a teammate's are sent with their loadout, net/arsenal.js)
-export function meleeArt(id, mods, lv = modLv) {
-  const key = id + ':' + mods.map(k => k + lv(k)).join(',');   // a mod improved at the bench grows the model, so it's a new picture
+// (gold: Gun game's golden katana, drawn all in gold, pvp/pvp.js)
+export function meleeArt(id, mods, lv = modLv, gold = false) {
+  const key = id + ':' + mods.map(k => k + lv(k)).join(',') + (gold ? ':gold' : '');   // a mod improved at the bench grows the model, so it's a new picture
   if (meleeArtCache[key]) return meleeArtCache[key];
   const g = new THREE.Group(), flags = {}; mods.forEach(k => { flags[k] = lv(k); });
   GUNS[id](g, flags);
@@ -26,7 +27,7 @@ export function meleeArt(id, mods, lv = modLv) {
   // (the wrench is turned the other way up, so its jaw opens on top)
   g.setRotationFromMatrix(id === 'wrench' ? new THREE.Matrix4().makeBasis(new V3(0, 0, -1), new V3(-1, 0, 0), new V3(0, 1, 0))
     : new THREE.Matrix4().makeBasis(new V3(0, 0, 1), new V3(-1, 0, 0), new V3(0, -1, 0)));
-  const a = snapArt(g, MELEE_ART_PPU, { cut: true });
+  const a = snapArt(g, MELEE_ART_PPU, { cut: !gold, gold });
   return (meleeArtCache[key] = a);
 }
 // a melee weapon's mods are built into it (melee/melee-models.js), not hung on it as parts: so it's built again without
@@ -87,7 +88,7 @@ function snapArt(g, ppu, opt = {}) {
   // the passes drawn (on the GPU, now): how near each pixel is, the whole of it, and its fitted parts on their own
   const rts = [];
   meshes.forEach(o => { o.material = ART_Z; }); rts.push(drawArt(sc, oc, pw, ph, 0));
-  meshes.forEach(o => { o.material = ART_INK; }); rts.push(drawArt(sc, oc, pw, ph));
+  meshes.forEach(o => { o.material = opt.gold ? ART_GOLD : ART_INK; }); rts.push(drawArt(sc, oc, pw, ph));   // (gold: all of it in the gold, Gun game's last two)
   if (opt.cut && meshes.some(isAtt)) { meshes.forEach(o => { const a = isAtt(o); o.material = a ? ART_GOLD : ART_DEPTH; o.renderOrder = a ? 0 : -1; }); rts.push(drawArt(sc, oc, pw, ph)); }
   meshes.forEach(o => o.geometry.dispose());
   const d = { pw, ph, pair: !!opt.pair, A: ART, S: ART_SHADE, ao: ART_SHADE.aoStep / (far - near) * 255, ink: ART.step / (far - near) * 255 };
@@ -179,7 +180,7 @@ threadJob('art', artFinish);
 // and a pair drawn as two (snapArt), laid on its side with the muzzle to the left, as the melee weapons lie; kept
 // until any of that changes (gunArtKey)
 const gunArtCache = {}, GUN_ART_PPU = 120, GUN_TURN = new THREE.Matrix4().makeBasis(new V3(0, 0, 1), new V3(0, 1, 0), new V3(-1, 0, 0));
-export const gunArtKey = id => id + ':' + (W8.mods[id] || []).map(m => m + modLv(m)).join(',') + JSON.stringify([W8.gt[id], W8.att && W8.att[id], W8.tune && W8.tune[id], W8.rds && W8.rds[id], W8.rounds && W8.rounds[id], magTierIn(id), !!(W(id) || {}).akimbo]);
+export const gunArtKey = id => id + ':' + (W8.mods[id] || []).map(m => m + modLv(m)).join(',') + JSON.stringify([W8.gt[id], W8.att && W8.att[id], W8.tune && W8.tune[id], W8.rds && W8.rds[id], W8.rounds && W8.rounds[id], magTierIn(id), !!(W(id) || {}).akimbo, !!(W(id) || {}).gold]);
 // everything on the gun that a stock one doesn't have, drawn in gold too: not only what's fitted on a rail (fitted,
 // weapons/gun-materials.js) but what the model itself grows with an upgrade or mod (the M4's flared magwell, the hand
 // cannon's ported compensator, a longer mag, a conversion's parts). The stock gun's built alongside (no tiers, mods,
@@ -200,22 +201,23 @@ function goldNew(g, id) {
 }
 export function gunArt(id) {
   const D = WEAP[id]; if (!D) return null;
-  if (D.melee) return meleeArt(id, W8.mods[id] || []);
+  if (D.melee) return meleeArt(id, W8.mods[id] || [], modLv, !!(W(id) || {}).gold);
   const key = gunArtKey(id); if (gunArtCache[key]) return gunArtCache[key];
   const g = new THREE.Group(), mods = {}; (W8.mods[id] || []).forEach(m => { mods[m] = modLv(m); });
   setTierCtx(id); try { buildWeapon(g, id, W(id) || D, mods, weaponRec()); } finally { setTierCtx(null); }
   goldNew(g, id);
   g.setRotationFromMatrix(GUN_TURN);
-  return (gunArtCache[key] = snapArt(g, GUN_ART_PPU, { cut: true, pair: !!(W(id) || {}).akimbo }));
+  const gold = !!(W(id) || {}).gold;
+  return (gunArtCache[key] = snapArt(g, GUN_ART_PPU, { cut: !gold, gold, pair: !!(W(id) || {}).akimbo }));
 }
 // the HUD's weapon block: the silhouette in place of the ammo count while you hold a melee weapon
 export function renderMeleeArt(id, D) {
   const el = $('meleeArt'), on = !!D.melee;
   if (el.hidden === on) { el.hidden = !on; $('ammo').hidden = on; }
   if (!on) return;
-  const k = id + ':' + (W8.mods[id] || []).map(m => m + modLv(m)).join(',');
+  const gold = !!(W(id) || {}).gold, k = id + ':' + (W8.mods[id] || []).map(m => m + modLv(m)).join(',') + (gold ? ':gold' : '');
   if (cache.meleeArt === k) return; cache.meleeArt = k;
-  const a = meleeArt(id, W8.mods[id] || []);
+  const a = meleeArt(id, W8.mods[id] || [], modLv, gold);
   el.src = a.url; el.style.width = a.w.toFixed(0) + 'px';
   el.classList.remove('in'); void el.offsetWidth; el.classList.add('in');
 }

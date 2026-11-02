@@ -81,7 +81,7 @@ function renderSeats() {
   const on = NET.on, list = on ? netRoster() : [];
   if (on && !NET.host) { list.length = 0; list.push({ id: NET.id, name: netName(), idx: NET.idx, look: LOOK.cur, ready: NET.ready }, ...[...NET.peers.values()]); }
   // (the arena's team modes: Blue's seats, then Red's, each with its side on it and a switch)
-  const teams = on && NET.game === 'arena' && NET.arena !== 'ffa', sideOf = id => teams ? netSideOf(id) : '';
+  const teams = on && NET.game === 'arena' && (NET.arena === 'tdm' || NET.arena === 'rounds'), sideOf = id => teams ? netSideOf(id) : '';
   list.sort((a, b) => (sideOf(a.id) > sideOf(b.id) ? 1 : sideOf(a.id) < sideOf(b.id) ? -1 : 0) || a.idx - b.idx);
   const ol = $('coopList'); ol.classList.toggle('six', netMax() > 4); ol.classList.toggle('teams', teams);
   const key = JSON.stringify([NET.host, NET.botSkill, netMax(), teams, list.map(p => [p.id, p.name, p.idx, !!p.ready, !!p.bot, p.sk, JSON.stringify(p.look || null), p.fid && !!frOf(p.fid), sideOf(p.id)])]);
@@ -156,7 +156,10 @@ $('coopArena').onclick = e => { const b = e.target.closest('button'); if (b && !
 const CFG_ROWS = {
   ffa: [['ffa', 'Kills to win', ''], ['match', 'Match length', ' min']],
   tdm: [['tdm', 'Kills to win', ''], ['match', 'Match length', ' min']],
-  rounds: [['rounds', 'Rounds to win', ''], ['round', 'Round time', ' s'], ['cap', 'Flag capture', ' s'], ['kit', 'Loadouts', ''], ['kitRd', 'New loadout every', ' rounds']]
+  rounds: [['rounds', 'Rounds to win', ''], ['round', 'Round time', ' s'], ['cap', 'Flag capture', ' s'], ['kit', 'Loadouts', ''], ['kitRd', 'New loadout every', ' rounds']],
+  snipe: [['snipe', 'Kills to win', ''], ['match', 'Match length', ' min']],
+  brawl: [['brawl', 'Kills to win', ''], ['match', 'Match length', ' min']],
+  gun: [['match', 'Match length', ' min']]
 };
 // each map's picture from above (world/arena-preview.js), and what's said under it
 const MAP_PIC = { yard: AR_PREVIEW, mall: AR_PREVIEW_MALL, farm: AR_PREVIEW_FARM, route: AR_PREVIEW_ROUTE, square: AR_PREVIEW_SQUARE, quay: AR_PREVIEW_QUAY };
@@ -185,7 +188,7 @@ $('coopCfgRows').addEventListener('click', e => {
   SFX.click();
 });
 // what each of the arena's modes is, in a line under its name
-const ARENA_NOTE = { ffa: 'Everyone for themselves, back in after you fall', tdm: 'Two sides, back in after you fall', rounds: 'Two sides, one life a round, then a flag in the middle' };
+const ARENA_NOTE = { ffa: 'Everyone for themselves, back in after you fall', tdm: 'Two sides, back in after you fall', rounds: 'Two sides, one life a round, then a flag in the middle', snipe: 'Everyone for themselves, a scoped rifle each', brawl: 'Everyone for themselves, melee weapons only', gun: 'A new gun with every kill; the last two are gold' };
 // a Copy button: says so only once the clipboard's really taken it (a browser that won't let the page at it says that)
 export function copyBtn(el, text) {
   const was = el.dataset.label || (el.dataset.label = el.textContent);

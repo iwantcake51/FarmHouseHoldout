@@ -37,6 +37,7 @@ export function freshRun() {
   run = { wave: 0, kills: 0, shots: 0, hits: 0, boards: 0, time: 0, limbs: 0, heads: 0, taken: [], bought: [], st: {}, dropAt: 0 };   // (st: the end screen's tallies, ui/run-stats.js)
   recomputeEff();
 }
+let effHook = null;
 export function recomputeEff() {
   for (const id in WEAP) {
     const D = Object.assign({}, WEAP[id]);
@@ -80,10 +81,15 @@ export function recomputeEff() {
     if (W8.fm && W8.fm[id] === 'semi') { D.spread *= SEMI.spread; D.shake *= SEMI.shake; }   // the AR on semi: a steadier single shot a pull
     // the one kind of round loaded, last, over everything else (weapons/rounds.js)
     const rk = roundOn(id); if (rk !== 'std' && roundFits(id, rk)) ROUNDS[rk].fx(D, id);
+    if (W8.gold && W8.gold[id]) D.gold = true;   // (Gun game's golden revolver and katana: effects/gold.js)
+    if (effHook) effHook(id, D);   // (the arena's own say, last: its melee weapons, pvp/pvp.js)
     EFF[id] = D;
   }
 }
 export const W = id => EFF[id];
+// something else's last word on every weapon's stats as they're worked out (the arena's melee weapons, as they are
+// against each other: pvp/pvp.js PVP_MELEE), set once (effHook, declared ahead of recomputeEff)
+export function setEffHook(f) { return (effHook = f); }
 // a bigger magazine (Extended mags, a drum, a casket, the auto shotgun's drum) has its cost, worse the more it holds over
 // the gun's own: for each doubling a mag change takes MAG_SLOW longer (about +40% for an extended mag, +85% for a drum,
 // +120% for a casket or the auto shotgun's drum), and you walk MAG_WALK slower with it in your hands (about 5%, 10%, 14%:
@@ -220,7 +226,7 @@ export const magSize = id => Math.max(1, Math.round(W(id).mag * S.magMul));
 // count, but a bigger magazine than its own slows you with any gun (MAG_WALK)
 export function carryMul(id) {
   const D = id && W(id); if (!D) return 1;
-  if (D.melee) return D.two ? 1.03 : 1.07;
+  if (D.melee) return D.carry ?? (D.two ? 1.03 : 1.07);   // (carry: the arena's own pace for each, pvp/pvp.js PVP_MELEE)
   const big = (D.magX > 1.01 ? 1 - MAG_WALK * Math.log2(D.magX) : 1) * (1 - (D.heft || 0));   // (heft: a heavy part's weight, weapons/gun-mods.js)
   if (D.slot !== 'long' && D.slot !== 'auto') return big;
   const gt = W8.gt[id] || {}, att = ['supp', 'choke', 'sight', 'laser', 'light'].reduce((n, k) => n + (gt[k] || 0), 0) + (gunAtt(id, 'bayonet') ? 1 : 0);

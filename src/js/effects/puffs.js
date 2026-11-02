@@ -15,6 +15,7 @@ import { flashes } from '../weapons/explosives.js';
 import { setLmT, worldT } from '../game/state.js';
 import { pelletOff } from '../weapons/firing.js';
 import { visAt } from '../lighting/vision.js';
+import { GOLD } from './gold.js';
 
 // per kind: its sprites (one picked for each particle), additive or not, colour (col2: what it cools to over its life),
 // whether the light round it colours it (lit; gain lifts a grey sprite back up), gravity, drag and rise; streak: drawn
@@ -31,6 +32,11 @@ export const FXK = {
   redMist: { tex: TEX_SMOKES, col: 0xb8221a, col2: 0x5e100a, lit: true, gain: SMOKE_GAIN, grav: 0.35, drag: 3.2, rise: 0, fin: 0.06, fade: 1.4, wind: 0.6 },
   // a spray of fine drops thrown off a hit, flung out and gone in a moment (the drops that land are effects/particles.js)
   spray: { tex: TEX_DIRT, col: 0x6e0f0a, lit: true, gain: 1.25, grav: 2, drag: 7, rise: 0, fin: 0.04, fade: 1.8, wind: 0.1 },
+  // the same out of someone hit with the golden revolver or katana (effects/gold.js): gold dust for a mist, a glitter of
+  // it thrown off, and a glint where a gold drop lands
+  goldMist: { tex: TEX_SMOKES, col: 0xf2c24a, col2: 0x9a6a12, lit: true, gain: SMOKE_GAIN, grav: 0.35, drag: 3.2, rise: 0, fin: 0.06, fade: 1.4, wind: 0.6, self: 0.6 },
+  goldSpray: { tex: TEX_DIRT, col: 0xe8b43a, lit: true, gain: 1.4, grav: 2, drag: 7, rise: 0, fin: 0.04, fade: 1.8, wind: 0.1, self: 0.5 },
+  goldGlint: { tex: TEX_TRACE, add: true, col: 0xffe39a, boost: 1.4, grav: 0, drag: 2, rise: 0, fin: 0.05, fade: 1.2 },
   // grit and splinters thrown off a wall or the ground by a round or a blast
   debris: { tex: TEX_DIRT, col: 0x8a7860, lit: true, gain: 1.2, grav: 3, drag: 5, rise: 0, fin: 0.04, fade: 1.6, wind: 0.08 },
   spark: { tex: TEX_TRACE, add: true, col: 0xffc878, boost: 1.3, grav: 9, drag: 1.6, rise: 0, streak: true, fin: 0.05, fade: 1.6 },
@@ -125,10 +131,10 @@ export function impactFx(x, y, z, nx, nz, surf) {
 // big they start and swell to, how long they hang and how thick, and how much harder hits add, up to a cap)
 const HIT_MIST = { n: 2, s0: [0.1, 0.16], s1: [0.45, 0.75], life: [0.6, 1.05], a: [0.4, 0.55], per: 45, most: 2.2 };
 export function hitMist(x, y, z, dx, dz, big, dealt) {
-  const H = HIT_MIST, m = Math.min(H.most, 1 + (dealt || 20) / H.per) * (big ? 1.35 : 1);
-  for (let k = 0, n = Math.round(2 * m); k < n; k++) fx('spray', x + dx * 0.05, y + rr(-0.05, 0.05), z + dz * 0.05, dx * rr(1.6, 3) + rr(-0.5, 0.5), rr(-0.2, 0.7), dz * rr(1.6, 3) + rr(-0.5, 0.5), rr(0.06, 0.1), rr(0.3, 0.5) * m, rr(0.16, 0.26), 0.85);
-  for (let k = 0, n = Math.round(H.n * m); k < n; k++) fx('redMist', x + dx * rr(0.05, 0.15) + rr(-0.05, 0.05), y + rr(-0.06, 0.06), z + dz * rr(0.05, 0.15) + rr(-0.05, 0.05), dx * rr(0.6, 1.8) + rr(-0.35, 0.35), rr(-0.05, 0.4), dz * rr(0.6, 1.8) + rr(-0.35, 0.35), rr(H.s0[0], H.s0[1]), rr(H.s1[0], H.s1[1]) * (0.8 + 0.2 * m), rr(H.life[0], H.life[1]), rr(H.a[0], H.a[1]));
-  fx('redMist', x - dx * 0.08, y + rr(-0.04, 0.04), z - dz * 0.08, -dx * rr(0.3, 0.7), rr(0, 0.25), -dz * rr(0.3, 0.7), 0.08, rr(0.25, 0.4) * m, rr(0.4, 0.6), 0.35);
+  const H = HIT_MIST, MI = GOLD.on ? 'goldMist' : 'redMist', SP = GOLD.on ? 'goldSpray' : 'spray', m = Math.min(H.most, 1 + (dealt || 20) / H.per) * (big ? 1.35 : 1);
+  for (let k = 0, n = Math.round(2 * m); k < n; k++) fx(SP, x + dx * 0.05, y + rr(-0.05, 0.05), z + dz * 0.05, dx * rr(1.6, 3) + rr(-0.5, 0.5), rr(-0.2, 0.7), dz * rr(1.6, 3) + rr(-0.5, 0.5), rr(0.06, 0.1), rr(0.3, 0.5) * m, rr(0.16, 0.26), 0.85);
+  for (let k = 0, n = Math.round(H.n * m); k < n; k++) fx(MI, x + dx * rr(0.05, 0.15) + rr(-0.05, 0.05), y + rr(-0.06, 0.06), z + dz * rr(0.05, 0.15) + rr(-0.05, 0.05), dx * rr(0.6, 1.8) + rr(-0.35, 0.35), rr(-0.05, 0.4), dz * rr(0.6, 1.8) + rr(-0.35, 0.35), rr(H.s0[0], H.s0[1]), rr(H.s1[0], H.s1[1]) * (0.8 + 0.2 * m), rr(H.life[0], H.life[1]), rr(H.a[0], H.a[1]));
+  fx(MI, x - dx * 0.08, y + rr(-0.04, 0.04), z - dz * 0.08, -dx * rr(0.3, 0.7), rr(0, 0.25), -dz * rr(0.3, 0.7), 0.08, rr(0.25, 0.4) * m, rr(0.4, 0.6), 0.35);
 }
 // a round going off pushes hot gas out of the ejection port with the case (pos: the port, r: the gun's right, the
 // way the case goes): a brief glow, a few flecks of burning powder flung out with it and a jet of smoke that rolls

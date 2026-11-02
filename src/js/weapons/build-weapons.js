@@ -21,6 +21,7 @@ import { state } from '../game/state.js';
 import { movingOf } from '../net/arsenal.js';
 import { measureGrip } from '../player/grip.js';
 import { HOLD } from '../player/hold.js';
+import { gild } from '../effects/gold.js';
 
 function drum(parent, info, big) {
   const r = big ? 0.15 : 0.115, w = big ? 0.12 : 0.1, cy = info.magY - r - 0.02;
@@ -76,7 +77,7 @@ export function buildWeapon(hold, id, D, mods, rec) {
 // meshes, pulling apart their fighting faces, the blood), so a rebuild of everything (a card taken, a weapon swapped
 // in) leaves a slot whose model already matches as it is, and the gear on you too (gearSig); a new run builds all of
 // it afresh, clean of the last one's blood
-const modelSig = id => id ? JSON.stringify([id, !!(W(id) || {}).akimbo, (W8.mods[id] || []).map(m => [m, modLv(m)]), W8.gt[id], W8.att[id], W8.tune[id], W8.rounds && W8.rounds[id], magTierIn(id)]) : '';
+const modelSig = id => id ? JSON.stringify([id, !!(W(id) || {}).akimbo, !!(W(id) || {}).gold, (W8.mods[id] || []).map(m => [m, modLv(m)]), W8.gt[id], W8.att[id], W8.tune[id], W8.rounds && W8.rounds[id], magTierIn(id)]) : '';
 const gearSig = () => JSON.stringify([S.tier, S.stubborn, S.slowRes, S.vaultMul, S.speedMul, S.secondWind, S.regen, S.pouch, S.healOnKill, S.adrenaline, SLOTS.map(s => modelSig(W8.slot[s]))]);
 const gearBuilt = { sig: null, look: null, run: null };
 // pulling a model's fighting faces apart is the slowest part of building it, so for one built in play (a card taken,
@@ -134,6 +135,7 @@ export function buildGuns(only) {
     if (!D.melee && rec.soon) measureGrip(HOLDS[s].R, HOLD[id]);   // (where the support hand takes it, measured now off its fresh pieces, before they're folded a moment later: player/grip.js)
     if (!D.melee && !rec.soon) foldGun(s);   // (one built in play folds once its faces are settled: unfightSoon)
     trimShadows(g); stainWeapon(id, D.melee ? [g] : Object.values(HOLDS[s]), !!D.melee); g.userData.bloodId = id;   // and here it is (effects/body-blood.js)
+    if (D.gold) gild(g, true);   // (Gun game's golden revolver and katana: gold all over, effects/gold.js)
     setTierCtx(null);
   }
   if (gear) buildGear();

@@ -159,6 +159,11 @@ export const SFX = {
   scrap() { tn(0.04, 'square', 1800, 1600, 0.05); setTimeout(() => tn(0.04, 'square', 2200, 2000, 0.05), 50); },
   // a curse taken: no reward chime but a low, sour slide down (a tritone, sliding apart) over a dull rumble
   curse() { tn(0.7, 'sawtooth', 196, 92, 0.05); tn(0.7, 'sawtooth', 277, 125, 0.04); nz(0.6, 'lowpass', 380, 90, 0.18); setTimeout(() => tn(0.5, 'sine', 70, 48, 0.22), 120); },
+  // someone turned to gold (Gun game's golden revolver or katana: pvp/pvp.js): a bright bell chord rising, ringing out
+  // over a shimmer
+  goldKill() { [[880, 0], [1320, 40], [1760, 90], [2640, 150]].forEach(([f, d], i) => setTimeout(() => tn(0.9 - i * 0.12, 'sine', f, f * 1.003, 0.07 - i * 0.01), d)); nz(0.7, 'highpass', 6000, 9000, 0.05); },
+  // stepping up to the golden revolver or the golden katana: a short fanfare, up a fourth and a fifth
+  goldUp() { [[523, 0], [698, 110], [784, 220], [1046, 330]].forEach(([f, d]) => setTimeout(() => { tn(0.32, 'triangle', f, f, 0.08); tn(0.32, 'sine', f * 2, f * 2, 0.03); }, d)); },
   upgrade() { if (playS('upgrade')) return; tn(0.12, 'square', 300, 300, 0.06); setTimeout(() => tn(0.12, 'square', 450, 450, 0.06), 90); nz(0.2, 'highpass', 3000, 5000, 0.08); },
   launch() { if (!playS('shot_gl', { jit: 0.05, tone: 3, verb: indoors() ? 0.6 : 0 })) SFX.thump(); },   // the underbarrel grenade launcher
   thump() { tn(0.12, 'sine', 180, 60, 0.5); nz(0.1, 'lowpass', 800, 200, 0.3); },

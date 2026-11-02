@@ -7,6 +7,7 @@
 // mags and loaders come as their own messages and fall where they did for them.
 
 import { V3 } from '../core/renderer.js';
+import { gild } from '../effects/gold.js';
 import { NET, NET_ON, netSend, netTo } from './net.js';
 import { lam } from '../core/shaders.js';
 import { binModel, box, mergeInto, spanOf } from '../core/geometry.js';
@@ -52,7 +53,7 @@ function myLoadout() {
   for (const s of SLOTS) {
     const id = W8.slot[s]; if (!id) continue;
     const mods = W8.mods[id] || [], lv = {}; mods.forEach(m => { lv[m] = modLv(m); });
-    guns[id] = { mods, lv, gt: W8.gt[id] || {}, pin: (W8.pin && W8.pin[id]) || null, att: W8.att[id] || {}, rnd: (W8.rounds && W8.rounds[id]) || null, ak: !!(W(id) || {}).akimbo, rd: (W8.rds && W8.rds[id]) || null };   // (rd: which red dot it wears: weapons/attachments.js)
+    guns[id] = { mods, lv, gt: W8.gt[id] || {}, pin: (W8.pin && W8.pin[id]) || null, att: W8.att[id] || {}, rnd: (W8.rounds && W8.rounds[id]) || null, ak: !!(W(id) || {}).akimbo, rd: (W8.rds && W8.rds[id]) || null, gold: W8.gold && W8.gold[id] ? 1 : 0 };   // (rd: which red dot it wears: weapons/attachments.js; gold: Gun game's last two, pvp/pvp.js)
     const o = STOW[s]; if (o) { stow[s] = stowPose(o); if (o.userData.twin) stow[s + '2'] = stowPose(o.userData.twin); }
   }
   return { slots: Object.assign({}, W8.slot), guns, stow, hol: LOOK.cur ? LOOK.cur.holster : 0x1d1d1f, gear: gearSpec() };
@@ -161,6 +162,7 @@ export function teamWeapon(lo, id) {
       else { holds.R = hold(0, 'R'); muz = buildWeapon(holds.R, id, D, mods, rec); }
     });
   } catch (e) { console.warn('teammate weapon', id, e); }
+  if (lo.gold) gild(g, true);   // (Gun game's golden revolver and katana, on whoever carries them: effects/gold.js)
   return { g, holds, rec, muz, moving: movingOf(holds, rec), D };
 }
 // what never moves folded into a mesh or two, under each part that does (and under the holder): a teammate's rifle is

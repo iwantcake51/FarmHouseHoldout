@@ -415,3 +415,6 @@ body:not(.playing) #specXh{display:none}
 .seat .sSide.sw:focus-visible{outline:2px solid #2b241c;outline-offset:2px}
 .seat{transition:rotate .2s ease,translate .2s ease,box-shadow .25s ease}
 @media (prefers-reduced-motion:reduce){.coopArenaRow,.cfgRow{animation:none}}
+/* the arena's six modes: each name on one line, the row wrapping onto a second where it has to */
+#coopArena .coopSeg{flex-wrap:wrap;column-gap:14px;row-gap:2px}
+#coopArena .coopSeg button{white-space:nowrap}

@@ -338,3 +338,42 @@ body.pvp.pvpTeams #spec .spTop{top:calc(96px + env(safe-area-inset-top,0px))}
 #specCut{position:fixed;inset:0;z-index:6;pointer-events:none;background:#07090b;opacity:0}
 #specCut.on{animation:specCut var(--t,.32s) ease-out both}
 @keyframes specCut{0%{opacity:1}100%{opacity:0}}
+/* ---- Snipers only, Brawl and Gun game (pvp/pvp.js PVP_RULES) */
+/* the golden revolver's and katana's call: gold, with a sheen running across it */
+#pvpBan.gold b{background:linear-gradient(100deg,#9a6a12 0%,#f5d27a 35%,#fff3c8 50%,#f0bf4c 65%,#9a6a12 100%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;filter:drop-shadow(0 4px 14px rgba(0,0,0,.7)) drop-shadow(0 0 18px rgba(240,191,76,.45));animation:pbIn .55s cubic-bezier(.2,1.3,.4,1) both,ggSheen 1.6s ease-in-out .3s both}
+#pvpBan.gold small{color:#f0c24a}
+@keyframes ggSheen{from{background-position:120% 0}to{background-position:-20% 0}}
+/* the calls under the crosshair: a gun up (info), set back a gun, someone else on the golden two */
+#pvpToast.back small{color:#e2563f;letter-spacing:.3em;font-size:11px}#pvpToast.back .tLine{background:linear-gradient(90deg,transparent,#e2563f,transparent)}
+#pvpToast.goldWarn small{color:#f0c24a;letter-spacing:.24em;font-size:11px}#pvpToast.goldWarn .tLine{background:linear-gradient(90deg,transparent,#f0c24a,transparent)}
+/* Gun game's score: whoever's on the golden two in gold */
+#pvpTop .ptChip.gold{border-color:rgba(240,191,76,.6);box-shadow:0 0 12px -2px rgba(240,191,76,.55)}
+#pvpTop .ptChip.gold b{color:#f5d27a}
+/* the kit card of a golden weapon, and Gun game's ladder under it, the gun you're on lit, the ones done dimmed */
+#pvpPick .ppCard.gold,#pvpPick .ppGun.gold em{color:#f5d27a}
+#pvpPick .ppCard.gold{border-color:#c99a34;box-shadow:0 0 0 1px #c99a34,0 0 26px -8px rgba(240,191,76,.6)}
+#pvpPick .ppLadder{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;max-width:min(860px,94vw);margin-top:12px}
+#pvpPick .ppLadder i{font:600 10.5px var(--f-ui);font-style:normal;padding:3px 8px;color:var(--dim);background:rgba(14,15,16,.8);border:1px solid rgba(236,230,216,.12)}
+#pvpPick .ppLadder i.done{opacity:.45;text-decoration:line-through}
+#pvpPick .ppLadder i.on{color:var(--ink);border-color:var(--orange);box-shadow:0 0 0 1px var(--orange)}
+#pvpPick .ppLadder i.gold{color:#f0c24a;border-color:rgba(240,191,76,.45)}
+#pvpPick .ppLadder i.gold.on{border-color:#f0c24a;box-shadow:0 0 0 1px #f0c24a,0 0 14px -2px rgba(240,191,76,.6)}
+/* Brawl's weapons: a bigger picture, four bars, what it's good at and what it isn't */
+#pvpPick .ppRow.brawl{max-width:min(1180px,96vw)}
+#pvpPick .ppCard.mel{width:152px;padding:10px 10px 9px}
+#pvpPick .ppCard.mel>b{font-size:17px;padding-right:18px}
+#pvpPick .ppMelee.big{justify-content:center;height:44px}
+#pvpPick .ppMelee.big img{width:132px;height:40px}
+#pvpPick .ppStats{display:grid;gap:3px}
+#pvpPick .ppStats>span{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:6px;font-size:10px;color:var(--dim)}
+#pvpPick .ppStats em{font-style:normal;font:700 10.5px var(--f-num);color:var(--ink)}
+#pvpPick .ppStats s{grid-column:1/-1;display:block;height:3px;background:rgba(236,230,216,.1);text-decoration:none}
+#pvpPick .ppStats s u{display:block;height:100%;background:var(--ink);opacity:.7}
+#pvpPick .ppCard.mel.on .ppStats s u{background:var(--orange);opacity:1}
+#pvpPick .ppCard.mel small.up,#pvpPick .ppCard.mel small.down{font-size:10.5px;line-height:1.3;padding-left:12px;position:relative;min-height:0}
+#pvpPick .ppCard.mel small.up{color:#a8d8a0}#pvpPick .ppCard.mel small.down{color:#e8907e}
+#pvpPick .ppCard.mel small.up::before{content:'+';position:absolute;left:0;font-weight:800}
+#pvpPick .ppCard.mel small.down::before{content:'−';position:absolute;left:0;font-weight:800}
+#pvpPick.small .ppCard.mel{width:128px}
+#pvpPick.small .ppCard.mel small.up,#pvpPick.small .ppCard.mel small.down{display:block}
+@media (prefers-reduced-motion:reduce){#pvpBan.gold b{animation:none}}

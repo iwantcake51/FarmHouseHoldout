@@ -34,7 +34,7 @@ import { SPRINT } from '../player/sprint.js';
 import { ADS_MOVE, ADS_SCOPE } from '../player/movement.js';
 import { CROUCH } from '../player/crouch.js';
 import { WEAP } from '../weapons/gun-stats.js';
-import { curId, W8 } from '../game/run-state.js';
+import { curId, W, W8 } from '../game/run-state.js';
 import { SLOTS } from '../weapons/slots.js';
 import { tracerPower } from '../effects/tracers.js';
 import { ARENA, arenaSpawn } from '../world/arena.js';
@@ -44,7 +44,7 @@ import { N } from '../core/math.js';
 import { threadJob, threadRun } from '../core/threads.js';
 import { bulletBlocked, hardBlocked, moveCircle } from '../world/collision.js';
 import { los } from '../lighting/lightmap.js';
-import { PVP, PVP_BLEED, PVP_CLASSES, PVP_DMG, PVP_R, PVP_T, PVP_TTK, pvpClassOf, pvpCovered, pvpFalloff, pvpHome, pvpFlag, pvpPartK, pvpKilled, pvpKitOn, pvpSideOf } from './pvp.js';
+import { BRAWL_IDS, GG_ONE, PVP, PVP_BLEED, PVP_CLASSES, PVP_DMG, PVP_MELEE, PVP_R, PVP_T, PVP_TTK, pvpClassOf, pvpCovered, pvpFalloff, pvpHome, pvpFlag, pvpMeleeOf, pvpPartK, pvpKilled, pvpKitOn, pvpRuleKit, pvpSideOf } from './pvp.js';
 import { HOLD, HOLD_DEF } from '../player/hold.js';
 import { BOT_CYC, BOT_GUN, BOT_GY, BOT_IDLE, BOT_INSPECT, BOT_LEG, BOT_UP } from './bot-poses.js';
 
@@ -75,6 +75,22 @@ import { BOT_CYC, BOT_GUN, BOT_GY, BOT_IDLE, BOT_INSPECT, BOT_LEG, BOT_UP } from
 // crouch once a fight's on (BOT_CRSPAM k), bob, each bob down or up (s); leanSpam, leaning one way and the other mid
 // fight (BOT_LEANSPAM); run, sprinting everywhere it goes; angles, holding the angles the other side comes through in
 // Showdown (BOT_ANGLE); burn, never peeking again the angle it was shot at from the same spot (BOT_BURN)
+// fair fights (all but the Terminator, which is meant to be relentless): BOT_FAIR. Each person's run of luck against
+// the bots, -1 to 1 (ADAPT: up win each time a bot gets them, down lose each time they get a bot): the bots on them
+// ease off as it climbs (a slower reaction, react of it more; their aim further off and their shots looser, sig;
+// fewer heads, head) and sharpen up as it falls, so neither the bots nor you run away with it. And a warm-up on every
+// new target: for warmT s after it reacts, its shots spread by warm more (by skill: Recruit, Regular, Veteran,
+// Terminator), easing off, and it finds the head warmHead as often, so whoever's quicker to react still wins it
+const BOT_FAIR = { win: 0.14, lose: 0.1, react: 0.35, sig: 0.45, head: 0.35, warm: [0.05, 0.035, 0.02, 0], warmT: 0.45, warmHead: 0.5 };
+const ADAPT = new Map();
+export function botsAdapt(k, v) {
+  if (!k || !v || k === v) return;
+  const kb = BOTS.has(k), vb = BOTS.has(v);
+  if (kb && !vb) ADAPT.set(v, clamp((ADAPT.get(v) || 0) + BOT_FAIR.win, -1, 1));
+  else if (!kb && vb) ADAPT.set(k, clamp((ADAPT.get(k) || 0) - BOT_FAIR.lose, -1, 1));
+}
+const botFair = (b, id) => botSk(b).angles ? 0 : ADAPT.get(id) || 0;
+const botSkIdx = b => b && b.sk !== undefined ? b.sk : NET.botSkill ?? 1;
 const BOT_SKILL = [
   { react: [0.34, 0.55], err: 0.24, settle: 3, sig: 0.06, turn: 3.6, view: 32, fov: 1.1, head: 0.09, iq: 0.35, team: 0.25, sneak: 0, flank: 0, gate: 0.12, track: [3.8, 4.6], wob: 0.016, tap: 1.1, hit: [0.2, 0.32], pre: 0.15, ctrl: 1.2, lead: 0, leadK: 1, dodge: null, crch: 0, sharp: 0, top: 0.5, crAcc: 0.1 },
   { react: [0.22, 0.36], err: 0.19, settle: 4, sig: 0.045, turn: 4.6, view: 38, fov: 1.25, head: 0.13, iq: 0.7, team: 0.7, sneak: 0.35, flank: 0.12, gate: 0.075, track: [4.8, 6], wob: 0.011, tap: 0.9, hit: [0.13, 0.22], pre: 0.5, ctrl: 0.9, lead: 0, leadK: 1, dodge: null, crch: 0, sharp: 0, top: 0.75, crAcc: 0.3 },
@@ -106,7 +122,7 @@ const BOT_MOVE = { base: 3, sprint: 1.75 };
 // (player/movement.js ADS_MOVE), a magnified scope less again
 function botCarry(b, id) {
   const D = WEAP[id]; if (!D) return 1;
-  if (D.melee) return D.two ? 1.03 : 1.07;
+  if (D.melee) return PVP_MELEE[id] ? PVP_MELEE[id].carry : D.two ? 1.03 : 1.07;   // (the arena's own pace for each: pvp/pvp.js PVP_MELEE)
   if (D.slot !== 'long' && D.slot !== 'auto') return 1;
   const gt = (b.gt && b.gt[id]) || {}, att = ['supp', 'choke', 'sight', 'laser', 'light'].reduce((n, k) => n + (gt[k] ? 1 : 0), 0);
   const cal = D.ammo === 'rifle' ? 0.05 : D.ammo === 'shells' ? 0.04 : 0.025, mag = Math.min(0.07, (D.mag || 1) / 30 * 0.03);
@@ -147,7 +163,7 @@ const BOT_HIP = { near: 6, shells: 9, spread: 0.02 };
 // where on someone it aims, each new target and each burst: their head (likelier the better it is), their legs now and
 // then, else their middle; and how high each is (m), its eyes' own height, for how far it looks up or down
 const BOT_PART_Y = { head: 1.6, torso: 1.15, legs: 0.55 }, BOT_EYE = 1.56;
-function botAimPart(b) { const r = rand(), h = botSk(b).head * 2.5; b.aimPart = r < h ? 'head' : r < h + 0.15 ? 'legs' : 'torso'; }
+function botAimPart(b) { const T = b.vis, r = rand(), h = botSk(b).head * 2.5 * (T ? 1 - BOT_FAIR.head * botFair(b, T.id) : 1) * (!botSk(b).angles && botNow() - (b.acqT ?? -9) < BOT_FAIR.warmT ? BOT_FAIR.warmHead : 1); b.aimPart = r < h ? 'head' : r < h + 0.15 ? 'legs' : 'torso'; }
 const BOT_NAMES = ['Hollis', 'Ruth', 'Marek', 'Juno', 'Dacey', 'Ozzie', 'Teague', 'Wren', 'Abel', 'Noor', 'Sully', 'Kit'];
 export const botName = used => { const free = BOT_NAMES.filter(n => !used.has(n)); return (free.length ? free : BOT_NAMES)[Math.floor(rand() * (free.length || BOT_NAMES.length))]; };
 
@@ -156,36 +172,44 @@ let botClock = 0, squadT = 0;   // its own clock, the game's time (stopped while
 const botNow = () => botClock;
 const bR2 = v => Math.round(v * 100) / 100, bR3 = v => Math.round(v * 1000) / 1000;
 const botGauss = () => { let u = 0, v = 0; while (!u) u = rand(); while (!v) v = rand(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(6.2832 * v); };
-const botCls = b => pvpClassOf(b.cls);   // (Showdown's random loadout, while it's on: everyone's the same)
+const botCls = b => pvpRuleKit(b.id, b.mel) || pvpClassOf(b.cls);   // (a rule's kit, PVP_RULES; Showdown's random loadout, while it's on: everyone's the same)
 // how it fights: its class's way (BOT_STYLE), or with Showdown's random loadout, the way that suits its primary (KIT_STYLE)
 const KIT_STYLE = {
   shot: { range: [0, 9], push: 0.75, near: 11 }, sniper: { range: [12, 34], push: 0.12, far: 7 }, battle: { range: [8, 28], push: 0.3 },
   close: { range: [0, 12], push: 0.7 }, rifle: { range: [6, 24], push: 0.4 }
 };
+// (with a rule's kit, PVP_RULES: by its gun as Showdown's is, or with nothing but a melee weapon, in at them: MELEE_STYLE)
+const MELEE_STYLE = { range: [0, 1.5], push: 1, gun: () => 'melee' };
 function botStyle(b) {
-  if (!pvpKitOn()) return BOT_STYLE[b.cls];
-  const p = PVP.kit.guns[0][0], D = WEAP[p], ps = D.slot, k = D.ammo === 'shells' ? 'shot' : p === 'hunting' ? 'sniper' : p === 'scar' ? 'battle' : p === 'smg' || p === 'sub' ? 'close' : 'rifle', K = KIT_STYLE[k];
+  const R = PVP.rule && botCls(b); if (R && !R.guns.length) return MELEE_STYLE;
+  if (!pvpKitOn() && !R) return BOT_STYLE[b.cls];
+  const p = (R || PVP.kit).guns[0][0], D = WEAP[p], ps = D.slot, k = D.ammo === 'shells' ? 'shot' : p === 'hunting' ? 'sniper' : p === 'scar' ? 'battle' : p === 'smg' || p === 'sub' ? 'close' : 'rifle', K = KIT_STYLE[k];
   return { range: K.range, push: K.push, gun: d => K.near ? (d < K.near ? ps : 'side') : K.far ? (d > K.far ? ps : 'side') : ps };
 }
 const botGunOf = b => b.slots[b.cur];
+// how many rounds a load of its gun holds (the golden revolver one)
+const botCap = (b, id) => (b.cap && b.cap[id]) || (WEAP[id] && WEAP[id].mag) || 1;
 
 // ---- the match: each bot in the lobby gets a body and a mind
 export function botsBegin() {
   BOTS.clear();
-  for (const p of NET.peers.values()) if (p.bot) BOTS.set(p.id, { p, id: p.id, sk: p.sk, rec: {}, st: { dmg: 0, hits: 0, shots: 0, hs: 0, long: 0 }, cls: PVP_CLASSES[Math.floor(rand() * PVP_CLASSES.length)].id, x: 0, z: 0, vx: 0, vz: 0, aim: 0, hp: 100, dead: true, seed: rand() * 9, cocky: rand(), mem: new Map(), path: [], ph: 0, poseT: 0, thinkT: 0, senseT: 0, spray: 0, err: 0, learn: { bold: 0, lane: [0, 0, 0] } });
+  ADAPT.clear();
+  for (const p of NET.peers.values()) if (p.bot) BOTS.set(p.id, { p, id: p.id, sk: p.sk, mel: BRAWL_IDS[Math.floor(rand() * BRAWL_IDS.length)], rec: {}, st: { dmg: 0, hits: 0, shots: 0, hs: 0, long: 0 }, cls: PVP_CLASSES[Math.floor(rand() * PVP_CLASSES.length)].id, x: 0, z: 0, vx: 0, vz: 0, aim: 0, hp: 100, dead: true, seed: rand() * 9, cocky: rand(), mem: new Map(), path: [], ph: 0, poseT: 0, thinkT: 0, senseT: 0, spray: 0, err: 0, learn: { bold: 0, lane: [0, 0, 0] } });
   botSquadReset();
   for (const b of BOTS.values()) botSpawn(b, true);
   botAxisSet();
   BOT_HEAT.A = BOT_HEAT.B = null; botHeatPrior();
 }
 export function botsEnd() { BOTS.clear(); BOT_HOT.length = 0; }
+// Gun game: a bot's place on the ladder changed (pvp/pvp.js ggApply): its new gun in its hands at once
+export function botsRearm(id) { const b = BOTS.get(id); if (b && !b.dead) { botArm(b); b.burst = 0; b.cd = 0.2; } }
 export const botIds = () => [...BOTS.keys()];
 // a kill to a bot's name (pvp/pvp.js pvpKilled), for its record with the class it had (BOT_SWAP)
 // (and to everyone else in Deathmatch, a fight just won: the one left standing, likely hurt, to come in on: BOT_THIRD)
 // (and now and then, the cockier it is the likelier, it goes and crouches over the body a few times: BOT_TBAG)
 export function botKilled(id, dm) {
   const b = BOTS.get(id); if (!b) return;
-  const r = b.rec[b.cls] || (b.rec[b.cls] = { k: 0, d: 0 }); r.k++; b.st.long = Math.max(b.st.long, dm || 0);
+  const r = b.rec[PVP.rule === 'brawl' ? 'm:' + b.mel : b.cls] || (b.rec[PVP.rule === 'brawl' ? 'm:' + b.mel : b.cls] = { k: 0, d: 0 }); r.k++; b.st.long = Math.max(b.st.long, dm || 0);
   if (b.dead) return;
   const t = botNow(); botHot(b.x, b.z, t, b.id, true);
   const v = b.vis || b.mem.get(b.tgt), T_ = BOT_TBAG;
@@ -206,18 +230,17 @@ export function botsPhase(ph, was) {
 
 // ---- its class: the guns (and the loadout everyone builds its weapons from: net/arsenal.js), full mags and a few more
 // each weapon of a loadout as a bot carries it (and as everyone's game builds it on them: net/arsenal.js)
-const botGl = (gt, mods, lv) => ({ mods: mods ? mods.slice() : [], lv: lv ? Object.assign({}, lv) : {}, gt: Object.assign({}, gt), pin: null, att: {}, rnd: null, ak: false, rd: null });
-export const botKitGl = C => [[C.melee, botGl({})], ...C.guns.map(([id, gt, mods, lv]) => [id, botGl(gt, mods, lv)])];
+const botGl = (gt, mods, lv, gold) => ({ mods: mods ? mods.slice() : [], lv: lv ? Object.assign({}, lv) : {}, gt: Object.assign({}, gt), pin: null, att: {}, rnd: null, ak: false, rd: null, gold: gold ? 1 : 0 });   // (gold: Gun game's golden two, effects/gold.js)
+export const botKitGl = C => [[C.melee, botGl({}, null, null, C.meleeGold)], ...C.guns.map(([id, gt, mods, lv, ex]) => [id, botGl(gt, mods, lv, ex && ex.gold)])];
 function botArm(b) {
   const C = botCls(b), slots = { melee: C.melee, side: null, long: null, auto: null }, guns = {};
-  const gl = (gt, mods) => botGl(gt, mods);
-  guns[C.melee] = gl({});
-  b.mag = {}; b.res = {}; b.gt = {};
-  for (const [id, gt, mods, lv] of C.guns) {
-    slots[WEAP[id].slot] = id; guns[id] = gl(gt, mods); if (lv) guns[id].lv = Object.assign({}, lv); b.gt[id] = gt;
-    const n = WEAP[id].mag || 1; b.mag[id] = n; b.res[id] = Math.max(n * C.mags, WEAP[id].ammo === 'shells' ? 14 : 0);
+  guns[C.melee] = botGl({}, null, null, C.meleeGold);
+  b.mag = {}; b.res = {}; b.gt = {}; b.cap = {}; b.gold = {}; if (C.meleeGold) b.gold[C.melee] = 1;
+  for (const [id, gt, mods, lv, ex] of C.guns) {
+    const gold = !!(ex && ex.gold); slots[WEAP[id].slot] = id; guns[id] = botGl(gt, mods, lv, gold); b.gt[id] = gt; if (gold) b.gold[id] = 1;
+    const n = gold ? 1 : WEAP[id].mag || 1; b.cap[id] = n; b.mag[id] = n; b.res[id] = Math.max(n * C.mags, WEAP[id].ammo === 'shells' ? 14 : 0);   // (the golden revolver: one round a load)
   }
-  b.slots = slots; b.cur = WEAP[C.guns[0][0]].slot; b.relT = 0; b.reloading = false; b.swapT = 0; b.cd = 0; b.burst = 0;
+  b.slots = slots; b.cur = C.guns.length ? WEAP[C.guns[0][0]].slot : 'melee'; b.knife = 0; b.mswing = null; b.relT = 0; b.reloading = false; b.swapT = 0; b.cd = 0; b.burst = 0;
   b.quick = C.perks.includes('quick:2') ? 0.6 : C.perks.includes('quick:1') ? 0.8 : 1;
   b.lo = { slots, guns, stow: {}, hol: 0x1d1d1f, gear: null };
   const key = JSON.stringify(b.lo); let h = 0; for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
@@ -273,7 +296,8 @@ function botSense(b, foes, t) {
         const off = Math.abs(angDiff(Math.atan2(dx, dz), b.aim)), expect = m && t - m.t < 4 && Math.hypot(m.x - f.x, m.z - f.z) < 5;
         const ready = off < BOT_REACT.on && (expect || (b.pre && t < b.pre.until && Math.hypot(b.pre.x - f.x, b.pre.z - f.z) < 4));
         const k = 1 + BOT_REACT.side * clamp(off / S.fov, 0, 1.5) + (expect ? -BOT_REACT.expect : BOT_REACT.surprise) + (d < 8 && !expect ? BOT_REACT.close : 0) - (ready ? BOT_REACT.ready : 0);
-        b.react = t + rr(...S.react) * Math.max(0.45, k); b.err = S.err * (0.8 + 0.6 * clamp(off / S.fov, 0, 1)) * (expect ? 0.6 : 1) * (ready ? 0.7 : 1) * (rand() < 0.5 ? -1 : 1);
+        const fr = botFair(b, f.id); b.acqT = t;   // (BOT_FAIR: eased off or sharpened on this one; and its warm-up from now)
+        b.react = t + rr(...S.react) * Math.max(0.45, k) * (1 + BOT_FAIR.react * fr); b.err = S.err * (0.8 + 0.6 * clamp(off / S.fov, 0, 1)) * (expect ? 0.6 : 1) * (ready ? 0.7 : 1) * (1 + BOT_FAIR.sig * fr) * (rand() < 0.5 ? -1 : 1);
         botAimPart(b); if (f.id !== b.tgt) b.tunnel = rand() < BOT_TUNNEL;
         botHeatAdd(b.side, f.x, f.z, BOT_ANGLE.seen);   // (one of them come this way: BOT_HEAT)
       }
@@ -820,7 +844,12 @@ function botThink(b, t) {
     b.tgt = T.id; b.seenT = t; b.pre = null; b.tbag = null; botInspCut(b);
     const d = Math.hypot(T.x - b.x, T.z - b.z), want = st.gun(d);
     // (topping off with rounds still in it and someone turns up: it lets the reload go and fights with what it has)
-    if (b.reloading && b.mag[botGunOf(b)] >= Math.max(2, (WEAP[botGunOf(b)].mag || 1) * 0.25) && d < 30) { b.reloading = false; b.relT = 0; }
+    if (b.reloading && b.mag[botGunOf(b)] >= Math.max(2, botCap(b, botGunOf(b)) * 0.25) && d < 30) { b.reloading = false; b.relT = 0; }
+    // (hand to hand: nothing but a melee weapon (Brawl, the golden katana), or in Gun game, someone right on it, its
+    // blade out to set them back a gun, as likely as it's sharp: BOT_MELEE knife)
+    const gunless = !botCls(b).guns.length;
+    if (!gunless && PVP.rule === 'gun') { if (!b.knife && d < BOT_MELEE.knife && rand() < BOT_MELEE.knifeK * (0.4 + 0.6 * S.iq)) b.knife = t + BOT_MELEE.knifeT; if (b.knife && (t > b.knife || d > BOT_MELEE.knife * 2)) b.knife = 0; }
+    if (gunless || b.knife) { if (b.cur !== 'melee') { b.cur = 'melee'; b.swapT = BOT_MELEE.draw; b.burst = 0; } botMeleeThink(b, T, t, d, S); return; }
     if (want !== b.cur && b.slots[want] && !b.reloading && b.mag[b.slots[want]] > 0) { b.cur = want; b.swapT = botCls(b).perks.includes('Quick draw') ? 0.3 : 0.45; b.burst = 0; }
     const dry = b.reloading || b.mag[botGunOf(b)] <= 0, onTop = d < 7, fl = pvpFlag(), deny = botDeny(b, fl), onFlag = fl && Math.hypot(T.x - fl.x, T.z - fl.z) < fl.r + 0.5;
     // (someone it's hurt, or who's looking away from it: it has the edge, and plays it, BOT_FINISH)
@@ -896,7 +925,7 @@ function botThink(b, t) {
   b.noFire = false;
   const L = botKnown(b, t);
   // (its sidearm out for a fight it's done with, or its main gun nearly empty: back to that, and loaded, BOT_SIDE)
-  { const main = botMainSlot(b), mid = main && b.slots[main]; if (mid && b.cur !== main && b.cur !== 'melee' && b.swapT <= 0 && !b.reloading && b.mag[mid] < (WEAP[mid].mag || 1)) { b.cur = main; b.swapT = 0.45; b.burst = 0; } }
+  { const main = botMainSlot(b), mid = main && b.slots[main]; if (mid && b.cur !== main && b.cur !== 'melee' && b.swapT <= 0 && !b.reloading && b.mag[mid] < botCap(b, mid)) { b.cur = main; b.swapT = 0.45; b.burst = 0; } }
   if (b.state === 'fight') {
     const m = b.mem.get(b.tgt), dm = m ? Math.hypot(m.x - b.x, m.z - b.z) : 0;
     // (the one it was fighting gone out of sight: hurt, it goes straight after them, at a run if they're far, before
@@ -905,10 +934,10 @@ function botThink(b, t) {
     if (m && dm > 2 && rand() < S.pre) b.pre = { id: m.id, x: m.x, z: m.z, until: t + BOT_PRE.len, at: t + rr(...BOT_PRE.wait), n: Math.round(rr(...BOT_PRE.shots)), go: false };
     b.state = 'hold'; b.holdT = t + (b.pre ? rr(...BOT_PRE.hold) : rr(0.1, 0.3)); b.path = []; b.sprint = false;
   }
-  if (b.state === 'hold' && t < b.holdT) { if (b.mag[id] < (WEAP[id].mag || 1) * 0.35) botReload(b); return; }
+  if (b.state === 'hold' && t < b.holdT) { if (b.mag[id] < botCap(b, id) * 0.35) botReload(b); return; }
   // (a lull, BOT_TOPOFF: nobody seen or shooting at it lately, its mag topped off, the better it is the sooner; a
   // veteran with someone about who could see it there steps into cover for it first)
-  { const full = WEAP[id].mag || 1, calm = !known.some(m => m.seen && t - m.t < BOT_TOPOFF.calm) && t - (b.shotAtT ?? -9) > BOT_TOPOFF.calm;
+  { const full = botCap(b, id), calm = !known.some(m => m.seen && t - m.t < BOT_TOPOFF.calm) && t - (b.shotAtT ?? -9) > BOT_TOPOFF.calm;
     if (!b.reloading && b.swapT <= 0 && (b.mag[id] < full * 0.35 || (calm && b.mag[id] < full * S.top))) {
       const near = S.sharp && known.filter(m => t - m.t < BOT_TOPOFF.known);
       if (near && near.length && b.state !== 'cover' && botSeenBy(b.x, b.z, near) && t - (b.coverT || 0) > 1) { const cv = botCover(b, near); if (cv) { b.coverT = t; b.state = 'cover'; b.path = cv.path; b.sprint = false; b.peekAt = t + 9; b.coverAt = { x: cv.x, z: cv.z }; return; } }
@@ -931,7 +960,7 @@ function botThink(b, t) {
   // healing (or, in Showdown, low): it stays put in cover, its gun on where they were, reloaded
   if (b.healing && !rushing) {
     if (b.state !== 'cover') { const cv = L && botCover(b, known.length ? known : [L], true); b.state = 'cover'; b.path = cv ? cv.path : []; b.sprint = !!cv; }
-    if (b.mag[id] < (WEAP[id].mag || 1)) botReload(b);
+    if (b.mag[id] < botCap(b, id)) botReload(b);
     return;
   }
   // someone it's just killed, BOT_TBAG: over to the body and down and up on it a few times, nobody else about
@@ -1041,6 +1070,74 @@ function botThink(b, t) {
   if (fl) { b.state = 'flank'; b.path = fl; b.sprint = dL > (S.run ? 5 : 10) && !(sneak && dL < 22); }
   else { b.state = 'hunt'; b.path = botPath(b, L.x, L.z); b.sprint = dL > (S.run ? 4 : fresh ? 7 : 11) && !(sneak && dL < 18); }
 }
+// ---- hand to hand (Brawl's whole fight, the golden katana, a blade in Gun game): it runs at them (side to side if they
+// have a gun) till it's close, then fights as someone with a blade would: just out of their reach while its swing comes
+// back round, in and swinging the moment it's ready, stepping in with the blow; out of the way of a swing it can see
+// coming (yours, or another bot's) and straight back in to punish the miss; now and then a feint, in to the edge of
+// reach and back out to draw a swing. Low on health against someone well, it backs off to heal where it can.
+// close: past its reach (m) it runs; wind: each weapon's wind-up (s, the time from starting a swing to the blow landing,
+// heavier weapons longer); out: how far past their reach it waits (m); feint: how likely a feint (times its iq); dodge:
+// how likely it gets out of a swing it sees coming (times its iq); circle: how hard it circles; knife and knifeK, Gun
+// game: within knife m it goes for its blade that likely, for knifeT s; draw: getting it out (s); weave: running in,
+// how fast and how far it weaves; swingPace: its pace through a swing
+const BOT_MELEE = { close: 2.4, wind: { crowbar: 0.14, machete: 0.16, bat: 0.2, katana: 0.2, wrench: 0.26, axe: 0.34, sledge: 0.52 }, out: 0.35, feint: 0.22, dodge: 0.75, circle: [0.35, 0.85], knife: 2.4, knifeK: 0.55, knifeT: 3, draw: 0.22, weave: [4.6, 0.6], swingPace: 0.6 };
+// someone's swing coming at it (yours, or another bot's still winding up), and how far it reaches; and how far theirs
+// reaches at all (0 with a gun in their hands)
+function botFoeReach(T) {
+  if (T.id === NET.id) { const D = W(curId()); return D && D.melee ? D.range : 0; }
+  const o = BOTS.get(T.id), w = o && botGunOf(o); return w && WEAP[w] && WEAP[w].melee ? pvpMeleeOf(w).range : 0;
+}
+function botFoeSwing(T, t) {
+  if (T.id === NET.id) { const D = W(curId()); return D && D.melee && W8.swing > 0.06 ? D.range + 0.35 : 0; }
+  const o = BOTS.get(T.id); return o && o.mswing && o.mswing.at > t ? pvpMeleeOf(botGunOf(o)).range + 0.35 : 0;
+}
+function botMeleeThink(b, T, t, d, S) {
+  const id = botGunOf(b), M = pvpMeleeOf(id), R = M.range + 0.15;
+  b.state = 'fight'; b.noFire = false; b.leanT = 0;
+  // (hurt badly with them well: off out of it to heal, if there's somewhere)
+  if (b.healing && !botWeak(b, T.id, t) && d > 1.4 && t - (b.coverT || 0) > 1.2) { b.coverT = t; const cv = botCover(b, [T], true); if (cv) { b.state = 'cover'; b.path = cv.path; b.sprint = true; b.weave = false; b.peekAt = t + 3; b.coverAt = { x: cv.x, z: cv.z }; return; } }
+  // far off: straight at them, flat out, weaving if they've a gun
+  if (d > R + BOT_MELEE.close) { b.mv = 'push'; b.path = botPath(b, T.x, T.z); b.sprint = true; b.weave = !botFoeReach(T); b.mvT = t + 0.3; return; }
+  b.sprint = false; b.weave = false; b.path = []; b.mv = 'melee';
+  if (t > (b.circT || 0)) { b.circT = t + rr(0.5, 1.2); b.mCirc = rr(...BOT_MELEE.circle); if (rand() < 0.45) b.strafe = -(b.strafe || 1); }
+  const theirs = botFoeSwing(T, t), mine = b.mswing && b.mswing.at > t, reach = botFoeReach(T);
+  // (their swing coming and it's in it: out of reach, unless its own's about to land first)
+  if (theirs && !mine && d < theirs && rand() < BOT_MELEE.dodge * S.iq + 0.1) { b.mWant = theirs + 0.4; b.punish = t + 0.5; return; }
+  if (!b.mswing && t >= (b.mcd || 0)) {
+    // ready: in reach (or will be as it steps in) and on them, it swings; else in to them (or a feint now and then)
+    const on = Math.abs(angDiff(Math.atan2(T.x - b.x, T.z - b.z), b.aim)) < M.arc * 0.85 || d < 0.8;
+    if (d <= R + 0.4 && on) { botMeleeSwing(b, id, M, t); b.mWant = Math.max(0.55, d - 0.6); return; }
+    b.mWant = rand() < BOT_MELEE.feint * S.iq && !(b.punish > t) ? Math.max(R + 0.25, reach + 0.1) : Math.max(0.6, R - 0.35);
+    return;
+  }
+  // its swing coming back round: just outside their reach (or, out-reaching them, at the edge of its own)
+  b.mWant = reach && reach < R ? Math.max(reach + BOT_MELEE.out, R - 0.25) : Math.max(R * 0.85, (reach || R) + BOT_MELEE.out);
+}
+// a swing started: lands wind s on, the next one after the weapon's pace (as yours: weapons/firing.js)
+function botMeleeSwing(b, id, M, t) {
+  const wind = BOT_MELEE.wind[id] ?? 0.2, dur = Math.min(M.rate * 1.2, M.rate > 0.85 ? 0.98 : 0.64);
+  b.mswing = { id, t0: t, at: t + wind, end: t + Math.max(wind + 0.18, dur), side: rand() < 0.5 ? 1 : -1, hit: false, chop: M.rate > 0.85 || id === 'wrench' };
+  b.mcd = t + M.rate * 1.3;
+}
+// each frame: a swing's blow landing as it comes round, on anyone in its reach and sweep (not through a wall), as yours
+// do (pvp/pvp.js pvpMelee): the golden katana's a kill, anything else its weapon's damage, a head likelier the sharper
+// the bot is
+function botMeleeStep(b, t, foes) {
+  const s = b.mswing; if (!s) return;
+  if (!s.hit && t >= s.at) {
+    s.hit = true; const M = pvpMeleeOf(s.id), gold = !!(b.gold && b.gold[s.id]), S = botSk(b); let n = 0;
+    for (const f of foes) {
+      const dx = f.x - b.x, dz = f.z - b.z, d = Math.hypot(dx, dz);
+      if (d > M.range + 0.35 || (Math.abs(angDiff(Math.atan2(dx, dz), b.aim)) > M.arc && d > 0.6) || !los(b.x, b.z, f.x, f.z)) continue;
+      const head = rand() < M.head * (0.6 + 0.6 * S.iq) * (1 - BOT_FAIR.head * botFair(b, f.id));
+      botDeal(b, f, gold ? GG_ONE : Math.round(M.dmg * PVP_TTK * (head ? 1.25 : 1)), head ? 'head' : 'torso', s.id, rand() < M.bleed, { st: M.stun || 0, kb: M.kb || 0, kx: dx / (d || 1), kz: dz / (d || 1), gd: gold ? 1 : 0 });
+      n++; b.st.hits++;
+    }
+    b.st.shots++;
+    botsHear(b.id, b.x, b.z, true, null);
+  }
+  if (t >= s.end) b.mswing = null;
+}
 // its main gun's slot: its class's first (the one it'd go back to after a sidearm, BOT_SIDE)
 const botMainSlot = b => { const g = (botCls(b).guns[0] || [])[0]; return g && WEAP[g] ? WEAP[g].slot : null; };
 // how much of an edge it has on L, peeking (botThink): well itself, them hurt or looking another way, a teammate on
@@ -1053,7 +1150,7 @@ function botEdge(b, L, t) {
 }
 function botReload(b) {
   const id = botGunOf(b), D = WEAP[id]; if (!D || D.melee) return;
-  const room = (D.mag || 1) - b.mag[id];
+  const room = botCap(b, id) - b.mag[id];
   if (b.reloading || room <= 0 || b.res[id] <= 0) return;
   b.reloading = true; b.relT = (D.reload || (D.perShell || 0.45) * Math.min(room, b.res[id]) + 0.3) * b.quick;
 }
@@ -1155,10 +1252,17 @@ function botMove(b, dt, t) {
       let tx = px, tz = pz; if (b.path.length > 1 && d < BOT_WALK.corner) { const [qx, qz] = b.path[1], u = (1 - d / BOT_WALK.corner) * BOT_WALK.round; tx = px + (qx - px) * u; tz = pz + (qz - pz) * u; }
       const tdx = tx - b.x, tdz = tz - b.z, td = Math.hypot(tdx, tdz) || 1, arrive = b.path.length === 1 && d < BOT_WALK.arrive ? BOT_WALK.slow + (1 - BOT_WALK.slow) * d / BOT_WALK.arrive : 1;
       dx = tdx / td * arrive; dz = tdz / td * arrive;
+      // (running in at someone with a gun with only a blade: side to side as it comes, hard to track: BOT_MELEE weave)
+      if (b.weave && T) { const w = Math.sin(t * BOT_MELEE.weave[0] + b.seed) * BOT_MELEE.weave[1], px = dz, pz = -dx; dx += px * w; dz += pz * w; }
     }
   } else if (fighting) {
     const ex = T.x - b.x, ez = T.z - b.z, d = Math.hypot(ex, ez) || 1;
-    if (b.mv === 'strafe') {
+    if (b.mv === 'melee') {
+      // (hand to hand: in or out to the distance it wants (b.mWant), circling them as it does, b.strafe its way round)
+      const rad = clamp((d - (b.mWant ?? 1.5)) * 2.2, -1, 1), tang = (b.strafe || 1) * (b.mCirc ?? 0.5);
+      dx = ex / d * rad + ez / d * tang; dz = ez / d * rad - ex / d * tang;
+      if (!botWalk(ci(b.x + dx * 0.7), ci(b.z + dz * 0.7))) { b.strafe = -(b.strafe || 1); dx = ex / d * rad; dz = ez / d * rad; }
+    } else if (b.mv === 'strafe') {
       // (a veteran cuts back the other way often and unevenly, BOT_SKILL dodge: hard to lead)
       const S = botSk(b); if (S.dodge && t > (b.dodgeT || 0)) { b.dodgeT = t + rr(...S.dodge); if (rand() < 0.8) b.strafe = -(b.strafe || 1); }
       dx = ez / d * b.strafe; dz = -ex / d * b.strafe;
@@ -1180,7 +1284,7 @@ function botMove(b, dt, t) {
   // (its sprint coming up as yours does, player/sprint.js: some of it at once, the rest over a moment)
   b.runUp = b.sprint ? Math.min(1, (b.runUp || 0) + dt / SPRINT.build) : Math.max(0, (b.runUp || 0) - dt * SPRINT.fade);
   const runK = SPRINT.kick + (1 - SPRINT.kick) * (1 - (1 - b.runUp) * (1 - b.runUp));
-  const gid = botGunOf(b), sp = BOT_MOVE.base * (b.pace || 1) * botCarry(b, gid) * (b.sprint ? 1 + (BOT_MOVE.sprint - 1) * runK : aimed ? botAds(b, gid) : 1) * (b.reloading ? 0.85 : 1) * (1 - 0.72 * b.tag) * (1 - (1 - CROUCH.pace) * botCrK(b));   // (crouched, slower, as you are)
+  const gid = botGunOf(b), sp = BOT_MOVE.base * (b.pace || 1) * botCarry(b, gid) * (b.mswing ? BOT_MELEE.swingPace : 1) * (b.sprint ? 1 + (BOT_MOVE.sprint - 1) * runK : aimed && !(WEAP[gid] || {}).melee ? botAds(b, gid) : 1) * (b.reloading ? 0.85 : 1) * (1 - 0.72 * b.tag) * (1 - (1 - CROUCH.pace) * botCrK(b));   // (crouched, slower, as you are)
   const L = Math.hypot(dx, dz), k = 1 - Math.exp(-dt * 9), tvx = L > 1e-3 ? dx / Math.max(1, L) * sp : 0, tvz = L > 1e-3 ? dz / Math.max(1, L) * sp : 0;
   b.vx += (tvx - b.vx) * k; b.vz += (tvz - b.vz) * k;
   const x0 = b.x, z0 = b.z;
@@ -1189,7 +1293,7 @@ function botMove(b, dt, t) {
   if (L > 0.2 && Math.hypot(b.x - x0, b.z - z0) < sp * dt * 0.2) { if ((b.stuck += dt) > 0.7) { b.stuck = 0; b.path = []; b.mvT = 0; if (b.state === 'roam' || b.state === 'hunt' || b.state === 'flank') b.state = 'roam'; } } else b.stuck = 0;
 }
 function botRunMelee(b, t) {
-  if (!b.slots || !b.slots.melee || b.swapT > 0 || b.reloading) return;
+  if (!b.slots || !b.slots.melee || b.swapT > 0 || b.reloading || !botCls(b).guns.length || b.knife) return;   // (nothing but a blade, or it's out to fight with: BOT_MELEE)
   const L = botKnown(b, t), near = L && t - L.t < 8 && Math.hypot(L.x - b.x, L.z - b.z) < BOT_MELEE_RUN.near;
   const far = b.path.length > BOT_MELEE_RUN.path && b.sprint && !b.vis && !near;
   if (far && b.cur !== 'melee' && t > (b.meleeT || 0)) { b.gunBack = b.cur; b.cur = 'melee'; b.swapT = BOT_MELEE_RUN.swap; b.burst = 0; b.meleeT = t + 1; }
@@ -1285,9 +1389,9 @@ const BOT_LOOK = { alarm: 1.2, glance: [2, 4], ease: 6, idle: 0.8, gain: 4.5, fo
 // on them, in the gun's reach): short bursts at range, longer ones close in, single aimed shots from the rest
 function botGun(b, dt, t, foes) {
   if (b.swapT > 0) { b.swapT -= dt; return; }
-  const id = botGunOf(b), D = WEAP[id]; if (!D || D.melee) return;   // (its melee out to run with: botRunMelee puts its gun back)
+  const id = botGunOf(b), D = WEAP[id]; if (D && D.melee) { botMeleeStep(b, t, foes); return; } if (!D) return;   // (a blade swung, landing or not: botMeleeStep; its melee out to run with: botRunMelee puts its gun back)
   // (reloaded in cover: straight back out at them, BOT_COVER)
-  if (b.reloading) { if ((b.relT -= dt) <= 0) { const n = Math.min((D.mag || 1) - b.mag[id], b.res[id]); b.mag[id] += n; b.res[id] -= n; b.reloading = false; if (b.state === 'cover') b.peekAt = Math.min(b.peekAt || 0, t + botPk(b, BOT_COVER.repeek)); } return; }
+  if (b.reloading) { if ((b.relT -= dt) <= 0) { const n = Math.min(botCap(b, id) - b.mag[id], b.res[id]); b.mag[id] += n; b.res[id] -= n; b.reloading = false; if (b.state === 'cover') b.peekAt = Math.min(b.peekAt || 0, t + botPk(b, BOT_COVER.repeek)); } return; }
   b.cd -= dt;
   const T = b.vis, S = botSk(b); if (!T) { botPrefire(b, t, id, D, foes); return; }
   if (t < b.react || b.noFire || b.sprint) return;
@@ -1334,7 +1438,8 @@ function botShoot(b, id, D, foes, d) {
   b.mag[id]--; b.st.shots++;
   const moving = Math.hypot(b.vx, b.vz), T = b.vis, tv = T ? Math.hypot(T.vx, T.vz) : 0;
   const sig = (S.sig + (pel > 1 ? 0 : ((D.spread || 0.03) * 0.5 + (botNow() < (b.hipT || 0) ? BOT_HIP.spread : 0)) * (S.gunK ?? 1)) + moving * BOT_ACC.move * (S.mvK ?? 1) + (b.sprint ? BOT_ACC.sprint : 0) + b.spray + Math.min(BOT_LEAD.max, tv * BOT_LEAD.k) * S.leadK
-    + Math.max(0, d - BOT_ACC.near) * BOT_ACC.far * (S.farK ?? 1) + (D.kick || 1) * BOT_ACC.kick * (S.gunK ?? 1)) * botSight(gt.sight || 0, d) * (1 - (1 - CROUCH.spread) * botCrK(b));   // (crouched, steadier, as you are)
+    + Math.max(0, d - BOT_ACC.near) * BOT_ACC.far * (S.farK ?? 1) + (D.kick || 1) * BOT_ACC.kick * (S.gunK ?? 1)
+    + (BOT_FAIR.warm[botSkIdx(b)] || 0) * Math.exp(-(botNow() - (b.acqT ?? -9)) / BOT_FAIR.warmT)) * (1 + BOT_FAIR.sig * (T ? botFair(b, T.id) : 0)) * botSight(gt.sight || 0, d) * (1 - (1 - CROUCH.spread) * botCrK(b));   // (crouched, steadier, as you are)
   // (its first shots after a breath steadier: BOT_ACC first)
   const t = botNow(); if (t - (b.lastShotT ?? -9) > BOT_ACC.rested) b.firstN = 0; b.lastShotT = t;
   const common = botGauss() * sig * (b.firstN++ < BOT_ACC.first ? BOT_ACC.firstK : 1); b.spray = Math.min(BOT_ACC.sprayMax, b.spray + (BOT_ACC.spray0 + (D.kick || 1) * BOT_ACC.sprayKick) * S.ctrl);   // (a kicking gun's held trigger walking off further, the less so the better it is)
@@ -1351,7 +1456,7 @@ function botShoot(b, id, D, foes, d) {
       // into the cover in front of them (all of it, from someone crouched down behind it: BOT_CROUCH)
       if (pvpCovered(hit.x, hit.z, ox, oz, dx, dz, ht) && ((hit.cr || 0) > BOT_CROUCH.down || (part !== 'head' && !part.startsWith('arm')))) { ht = Math.max(0.3, ht - 0.9); endK = 1; }
       else {
-        const s = on.get(hit) || { d: 0, n: 0, head: false, part, top: 0 }, dm = (PVP_DMG[id] || 20) * PVP_TTK * pvpFalloff(id, ht) * pvpPartK(id, part, ht);
+        const s = on.get(hit) || { d: 0, n: 0, head: false, part, top: 0 }, dm = b.gold && b.gold[id] ? GG_ONE : (PVP_DMG[id] || 20) * PVP_TTK * pvpFalloff(id, ht) * pvpPartK(id, part, ht);   // (the golden revolver: any hit kills)
         s.d += dm; s.n++; if (part === 'head') s.head = true; if (dm > s.top) { s.top = dm; s.part = part; } on.set(hit, s);
         endK = 0; ey = part === 'head' ? 1.62 : part.startsWith('leg') ? 0.5 : 1.15;
       }
@@ -1368,12 +1473,15 @@ function botShoot(b, id, D, foes, d) {
 // the gun it hit someone with, as the kill feed draws it (pvp/pvp.js): its attachments, mods and their levels; 0 for a blade
 function botKit(b, w) { const D = WEAP[w], gl = b.lo && b.lo.guns[w]; return !D || D.melee || !gl ? 0 : [gl.gt, gl.mods, gl.lv]; }
 // what a shot did to someone: you take it here, another player's game is told, another bot takes it at once
-function botDeal(b, f, d, part, w, bleed) {
+// (ex: a melee blow's stagger, st, and shove back, kb, the way it went, kx, kz; gd, a golden weapon's)
+function botDeal(b, f, d, part, w, bleed, ex) {
   if (d <= 0) return;
   b.st.dmg += d; if (part === 'head') b.st.hs++;
   // (what it's put into them lately, which it knows as you do from your hits: someone hurt to finish, BOT_FINISH)
   const t = botNow(), e = b.dealt.get(f.id); b.dealt.set(f.id, { d: (e && t - e.t < BOT_FINISH.mem ? e.d : 0) + d, t });
   const m = { d, p: part, w, x: bR2(b.x), z: bR2(b.z), b: bleed ? 1 : 0, g: botKit(b, w) };
+  if (ex) { if (ex.st) m.st = ex.st; if (ex.kb) { m.kb = ex.kb; m.kx = bR2(ex.kx); m.kz = bR2(ex.kz); } if (ex.gd) m.gd = 1; }
+  else if (b.gold && b.gold[w]) m.gd = 1;
   if (f.id === NET.id) NET_ON.ph(Object.assign({ t: 'ph', f: b.id, to: NET.id }, m));
   else if (BOTS.has(f.id)) botHit(f.id, Object.assign({ f: b.id }, m));
   else netAs(b.id, 'ph', Object.assign({ to: f.id }, m), f.id);
@@ -1385,7 +1493,9 @@ export function botHit(id, m) {
   b.hp -= m.d; b.tag = Math.max(b.tag || 0, Math.min(BOT_TAG.most, BOT_TAG.base + m.d * BOT_TAG.per)); b.sprint = false; b.tbag = null; botInspCut(b);
   if (botSk(b).sharp && b.vis) b.mvT = 0;   // (a veteran tagged thinks again at once: out of the open, botThink)
   if (b.lpeek || b.qpk || b.state === 'peek') b.rechal = true;   // (hit peeking: next time from somewhere else)
-  b.last = { id: m.f, w: m.w, head: m.p === 'head', d: m.d, at: t, x: m.x, z: m.z, pt: m.p, g: m.g ?? 0 };
+  b.last = { id: m.f, w: m.w, head: m.p === 'head', d: m.d, at: t, x: m.x, z: m.z, pt: m.p, g: m.g ?? 0, gd: m.gd ? 1 : 0 };
+  if (m.st) { b.stun = Math.max(b.stun || 0, m.st); b.mswing = null; }   // (staggered by a heavy blow: its own swing broken off, pvp/pvp.js PVP_MELEE)
+  if (m.kb) { b.vx = (m.kx || 0) * m.kb; b.vz = (m.kz || 0) * m.kb; }
   b.taken.set(m.f, (b.taken.get(m.f) || 0) + m.d);   // (who's put what into it this life: its assists, botDie)
   b.hurtT = t; b.calm = 0; b.regen0 = null; botNote(b, m.f, m.x, m.z, 1.5, t, true);
   botHeatAdd(b.side, m.x, m.z, BOT_ANGLE.shot);   // (shot from there: BOT_HEAT)
@@ -1395,7 +1505,7 @@ export function botHit(id, m) {
   // (a lot of it, fast, BOT_HURT: it breaks off, backs out of it and goes somewhere else to fight from)
   b.hurtSum = (t - (b.hurtSumT || -9) < BOT_HURT.window ? b.hurtSum || 0 : 0) + m.d; b.hurtSumT = t;
   if (b.hurtSum >= BOT_HURT.much && b.hp > 0) { b.hurtSum = 0; b.relocate = t; }
-  const dx = b.x - m.x, dz = b.z - m.z, L = Math.hypot(dx, dz) || 1, pb = { x: bR2(b.x), z: bR2(b.z), dx: bR2(dx / L), dz: bR2(dz / L), h: m.p === 'head' ? 1 : 0, sh: m.f, d: m.d };
+  const dx = b.x - m.x, dz = b.z - m.z, L = Math.hypot(dx, dz) || 1, pb = { x: bR2(b.x), z: bR2(b.z), dx: bR2(dx / L), dz: bR2(dz / L), h: m.p === 'head' ? 1 : 0, sh: m.f, d: m.d, gd: m.gd ? 1 : 0 };
   NET_ON.pb(Object.assign({ t: 'pb', f: b.id }, pb)); netAs(b.id, 'pb', pb);
   if (b.hp <= 0) botDie(b, t);
 }
@@ -1412,7 +1522,7 @@ function botDie(b, t) {
   const L = b.last && t - b.last.at < 8 ? b.last : null;
   // (with the killer's gun as it was, and up to two who helped: anyone else who'd put BOT_ASSIST into it this life, most first)
   const as = [...b.taken].filter(([id, d]) => d >= BOT_ASSIST && (!L || id !== L.id)).sort((a, c) => c[1] - a[1]).slice(0, 2).map(e => e[0]);
-  const m = { k: L ? L.id : '', v: b.id, w: L ? L.w : '', hs: L && L.head ? 1 : 0, hb: L && L.head && L.d >= 60 ? 1 : 0, x: bR2(b.x), z: bR2(b.z), dm: L ? Math.round(Math.hypot(b.x - L.x, b.z - L.z)) : 0, pt: L ? L.pt : '', g: L ? L.g ?? 0 : 0, as };
+  const m = { k: L ? L.id : '', v: b.id, w: L ? L.w : '', hs: L && L.head ? 1 : 0, hb: L && L.head && L.d >= 60 ? 1 : 0, x: bR2(b.x), z: bR2(b.z), dm: L ? Math.round(Math.hypot(b.x - L.x, b.z - L.z)) : 0, pt: L ? L.pt : '', g: L ? L.g ?? 0 : 0, as, gd: L && L.gd ? 1 : 0 };
   b.p.dead = true; botPose(b, 0, t, true);
   netSend('pk', m); pvpKilled(m);
   b.respawn = PVP_T.respawn;
@@ -1430,6 +1540,10 @@ function botDie(b, t) {
   if (PVP.mode === 'rounds') { b.learn.lane[b.lane ?? 1]++; if (PVP_T.round - PVP.t < BOT_LEARN.early && /hunt|rush|flank|fight/.test(b.state)) b.learn.bold = Math.max(-BOT_LEARN.most, b.learn.bold - BOT_LEARN.lose); }
   // dying a lot with its class (BOT_SWAP.deaths more deaths than kills with it): another, one that answers how it died
   // (shot from far off, the long-range ones; up close, the close-range ones)
+  // (Brawl: another melee weapon after a few deaths with one, likelier the one that answers how it died: out-reached,
+  // something longer; cut down fast, something quicker)
+  if (PVP.rule === 'brawl') { const r = b.rec['m:' + b.mel] || (b.rec['m:' + b.mel] = { k: 0, d: 0 }); r.d++; if (r.d - r.k >= BOT_SWAP.deaths) { const kw = L && PVP_MELEE[L.w], opts = BRAWL_IDS.filter(id => id !== b.mel && (!kw || rand() < 0.4 || PVP_MELEE[id].range >= kw.range || PVP_MELEE[id].rate <= kw.rate)); b.mel = opts[Math.floor(rand() * opts.length)] || b.mel; } return; }
+  if (PVP.rule) return;   // (Snipers only and Gun game: no classes to change)
   const rec = b.rec[b.cls] || (b.rec[b.cls] = { k: 0, d: 0 }); rec.d++;
   if (rec.d - rec.k >= BOT_SWAP.deaths) {
     const dm = m.dm || 12, pool = dm > BOT_SWAP.far ? ['mark', 'rifle', 'gunner'] : dm < BOT_SWAP.near ? ['breach', 'rush'] : PVP_CLASSES.map(c => c.id);
@@ -1490,6 +1604,14 @@ function botPose(b, dt, t, now_) {
     const spam = botSk(b).leanSpam, lw = !b.dead && !b.sprint && (Math.hypot(b.vx, b.vz) < 1.6 || spam) && (b.state === 'peek' || (b.state === 'fight' && b.mv === 'hold') || t < (b.leanT || 0)) ? b.leanSide || 0 : 0;
     b.lean = (b.lean || 0) + (lw - (b.lean || 0)) * (1 - Math.exp(-dt * (spam ? BOT_LEANSPAM.ease : 5)));
     const la = b.lean * BOT_LEAN.tilt; j[11] = bR2(j[11] + la); j[9] = bR2(j[9] - (b.pitch || 0) * BOT_PITCH_BODY);
+    // a melee swing (botMeleeSwing): the body wound back through the wind-up, whipped through the blow and easing back,
+    // across the body for a slash or down from overhead for a chop, its weapon carried round with it
+    const sw = !b.dead && b.mswing;
+    if (sw) {
+      const wu = (t - sw.t0) / Math.max(0.05, sw.at - sw.t0), af = (t - sw.at) / Math.max(0.05, sw.end - sw.at);
+      const a = wu < 1 ? -smooth(clamp(wu, 0, 1)) : af < 0.35 ? -1 + 2.2 * smooth(af / 0.35) : 1.2 * (1 - smooth(clamp((af - 0.35) / 0.65, 0, 1)));
+      if (sw.chop) j[9] = bR2(j[9] - a * 0.4); else { j[10] = bR2(j[10] + a * 0.6 * sw.side); j[9] = bR2(j[9] + Math.max(0, a) * 0.12); }
+    }
     // crouched (as you are, player/crouch.js crouchLegs): the hips dropped, the thighs forward and the knees bent
     const ck = b.dead ? 0 : botCrK(b);
     if (ck > 0.001) { j[1] = bR2(j[1] - CROUCH.drop * ck); j[45] = bR2(j[45] - CROUCH.thigh * ck); j[51] = bR2(j[51] - CROUCH.thigh * ck * 0.96); j[57] = bR2(j[57] + CROUCH.knee * ck); j[63] = bR2(j[63] + CROUCH.knee * ck * 0.95); }
@@ -1526,7 +1648,7 @@ function botMsg(b, j, id, w, upK, full) {
   SLOTS.forEach((s, i) => { if (!b.slots || !b.slots[s]) return; if (s !== b.cur || s === 'side') sv |= 1 << (4 + i); if (s !== b.cur) sv |= 1 << i; });
   const m = { x: bR3(b.x), z: bR3(b.z), vx: bR2(b.vx), vz: bR2(b.vz), hp: Math.round(Math.max(0, b.hp)), mh: 100, dead: b.dead ? 1 : 0, v: 0, pk: 0, cw: 0, j: j.slice(), fl: 0, vw: [bR2(b.aim), 1.2, 2.4, 0, 0], st: [0, 0, 0], hl: 0,
     ap: b.dead ? 0 : [bR2(b.x + Math.sin(b.aim) * 4), bR2(b.z + Math.cos(b.aim) * 4)], fc: !b.dead && upK === 'aim' ? [b.vis ? 0.5 : 0.1, 0, botHurtK(b), bR2(Math.max(0.25, b.adsK || 0))] : 0, cr: b.dead || !(b.cr > 0.02) ? 0 : bR2(b.cr),
-    wp: b.dead ? [] : [[k, ...w, 0]], sv, ex: [0, 0], lk: b.lk, am: [b.mag ? b.mag[id] : 0, b.res ? b.res[id] : 0, WEAP[id].mag || 1, b.reloading ? 1 : 0, 0] };
+    wp: b.dead ? [] : [[k, ...w, 0]], sv, ex: [0, 0], lk: b.lk, am: [b.mag ? b.mag[id] : 0, b.res ? b.res[id] : 0, botCap(b, id), b.reloading ? 1 : 0, 0] };
   if (full) { m.wn = WEAP[id].name; m.wid = id; }
   if (!C) delete m.fc;
   if (!b.dead && botFvWanted()) m.fv = botFv(b, j);
