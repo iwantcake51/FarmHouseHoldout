@@ -26,6 +26,7 @@ import { AC } from '../audio/audio.js';
 import { mouseDown } from '../input/keyboard-mouse.js';
 import { netSend } from '../net/net.js';
 import { fpMeleeHit } from '../game/view-cam.js';
+import { moveCircle } from '../world/collision.js';
 
 export const BLK = { raise: 0.14, parry: 0.22, arc: 0.7, through: 0.18, heavy: 0.45, hold: 1, drain: 0, hit: 0.2, broke: 1.2, brokeStun: 0.5, pace: 0.7, lock: 0.12, parryStun: 0.75, parryLock: 0.9, parryStam: 0.12 };
 // yours: up (on) and how far up (k, eased), when it came up (at, s), how long it's been held (t), how hard it was last
@@ -46,6 +47,7 @@ export const DUCK = { cr: 0.55, top: 1.74, drop: 0.28, under: 0.22 };
 export const goesOver = (cr, chop, y) => !chop && y > DUCK.top - DUCK.drop * clamp(cr || 0, 0, 1);
 const GUARD_AFTER = { crowbar: 0.06, machete: 0.08, bat: 0.16, katana: 0.12, wrench: 0.22, axe: 0.38, sledge: 0.6 };
 export const guardAfter = id => GUARD_AFTER[id] ?? 0.15;
+const GUARD_BACK = 0.5;
 // your swing just started (weapons/firing.js): the guard held off till it's done and the weapon's back (guardAfter);
 // a riposte if it's straight after a parry of yours (RIPOSTE: quicker, harder, and through any guard), returned as
 // how much quicker it goes
@@ -56,7 +58,9 @@ export function swingStarted(id, dur) {
     const fx = Math.sin(P.aim), fz = Math.cos(P.aim); P.kbx = fx * RUNATK.lunge; P.kbz = fz * RUNATK.lunge; P.sprint = false;
     P.stam = Math.max(0, P.stam - RUNATK.stam * stamMax()); P.stamT = 0; camKick.x += fx * 0.18; camKick.z += fz * 0.18; setShake(Math.max(shake, 0.2));
   }
-  BLOCK.okAt = now() + dur * (W8.ripo ? RIPOSTE.speed : 1) + guardAfter(id);
+  // (the guard up again soon after the blow's landed, not only once the whole follow-through's done: its recovery can
+  // be cut short by raising it, GUARD_BACK of the swing in plus half the weapon's own wait, guardAfter)
+  BLOCK.okAt = now() + dur * (W8.ripo ? RIPOSTE.speed : 1) * GUARD_BACK + guardAfter(id) * 0.5;
   return W8.ripo ? RIPOSTE.speed : 1;
 }
 // ---- a heavy blow (MCHARGE): hold the swing button past the wind-up and the blow's held there, gathering, the arm
@@ -75,7 +79,7 @@ export const swingMul = () => (1 + MCHARGE.dmg * (W8.chgK || 0)) * (W8.ripo ? RI
 export const swingFull = () => (W8.chgK || 0) >= 0.999;
 // each step of your swing (weapons/combat-update.js): whether it's held gathering this step. p: how far through it is,
 // hit: where its blow lands
-export function chargeStep(dt, p, hit, id) {
+export function chargeStep(dt, p, hit, id, wound = 1) {
   if (W8.chgOn) {
     if (aimHeld) { feint(id); return true; }
     if (!mouseDown || P.dead || P.stun > 0 || (W8.chgT += dt) > MCHARGE.most) { chargeRelease(id, p, hit); return false; }
@@ -84,7 +88,9 @@ export function chargeStep(dt, p, hit, id) {
     if (W8.chgK >= 1 && !W8.chgRing) { W8.chgRing = true; SFX.chargeFull(); }
     return true;
   }
-  if (!W8.chgDone && !W8.ripo && mouseDown && p >= hit - MCHARGE.before) {
+  // (held at the top of the wind-up, wound: just before the swing's fast stretch comes across, so the weapon's drawn
+  // back out of your view while it gathers rather than frozen across the middle of it)
+  if (!W8.chgDone && !W8.ripo && mouseDown && p >= Math.min(hit - MCHARGE.before, wound)) {
     W8.chgOn = true; W8.chgT = 0; W8.chgRing = false; W8.chgK = 0;
     netSend('mw', { w: id, x: Math.round(P.x * 100) / 100, z: Math.round(P.z * 100) / 100, hd: 1, p0: Math.round(p * 1000) / 1000 });   // (held there, as they see you: net/avatars.js avSwing)
     return true;
@@ -111,12 +117,13 @@ const now = () => performance.now() / 1000;
 // whether you could have the guard up: a melee weapon in your hands and the button held, nothing else going on
 function blockWant() {
   const D = W(curId());
-  return !!D && !!D.melee && aimHeld && state === 'play' && !P.dead && !(P.bandT > 0) && !P.vault && !P.shove && !(BLOCK.broke > 0) && !(W8.swing > 0) && !(now() < (BLOCK.thrown || 0)) && P.stam > 0.02 * stamMax() && now() >= BLOCK.okAt;   // (up with what little stamina's left: any is enough)   // (not straight after a swing: guardAfter)
+  return !!D && !!D.melee && aimHeld && state === 'play' && !P.dead && !(P.bandT > 0) && !P.vault && !P.shove && !(BLOCK.broke > 0) && !(W8.swing > 0 && !W8.hitDone) && !(now() < (BLOCK.thrown || 0)) && P.stam > 0.02 * stamMax() && now() >= BLOCK.okAt;   // (up with what little stamina's left: any is enough)   // (not straight after a swing: guardAfter)
 }
 // each frame (weapons/combat-update.js): up or down, its stamina, the shake easing off
 export function updateBlock(dt) {
   const want = blockWant();
-  if (want && !BLOCK.on) { BLOCK.on = true; BLOCK.at = now(); BLOCK.t = 0; SFX.guardUp(); }
+  meleeDashStep(dt);
+  if (want && !BLOCK.on) { BLOCK.on = true; BLOCK.at = now(); BLOCK.t = 0; SFX.guardUp(); if (W8.swing > 0) W8.swing = 0; }   // (cutting the follow-through short)
   else if (!want && BLOCK.on) BLOCK.on = false;
   BLOCK.k = clamp(BLOCK.k + (BLOCK.on ? 1 : -1) * dt / BLK.raise, 0, 1);
   if (BLOCK.on) {
@@ -194,31 +201,42 @@ function parriedFx() {
   BLOCK.dazed = PARRIED_FX.len;
 }
 // ---- a dash (Space with a melee weapon out, moving: input/keyboard-mouse.js): a quick step the way you're moving,
-// back out of a heavy blow being wound up at you or off to the side of it. DASH: how hard it throws you (m/s, easing
-// off as a shove does: about 2.3 m all told), and how hard with under DASH.cost of the tank left (a weaker step, about
-// 1.3 m); its cost (half the tank); how soon you can again; how long the edges of the view blur with it. Short of the
+// back out of a heavy blow being wound up at you or off to the side of it. DASH: how fast it carries you (m/s, easing
+// off at DASH.decay a second: about 2.3 m all told, over a good half second, a step not a teleport), and how fast with
+// under DASH.cost of the tank left (a weaker step, about 1.4 m); how far the view leans into it (rad); its cost (half the tank); how soon you can again; how long the edges of the view blur with it. Short of the
 // stamina, it costs what's left, and your stamina then comes back slowly at first (DASH.slow of the usual), picking up
 // to the usual over DASH.ramp s
-const DASH = { v: 16, weak: 9, cost: 0.5, cd: 0.45, fx: 0.38, slow: 0.3, ramp: 2.5 };
+const DASH = { v: 9.5, weak: 6, decay: 4.2, cost: 0.5, cd: 0.45, fx: 0.38, slow: 0.3, ramp: 2.5, roll: 0.075 };
 let dashEl = null, dashT = 0;
 export function meleeDash() {
   const D = W(curId());
   if (!D || !D.melee || P.dead || P.vault || P.shove || state !== 'play' || now() < (BLOCK.dashAt || 0) || P.bandT > 0) return false;
   const sp = Math.hypot(P.vx || 0, P.vz || 0); if (sp < 0.6) return false;
   const ux = P.vx / sp, uz = P.vz / sp, sm = stamMax(), full = P.stam >= DASH.cost * sm, v = full ? DASH.v : DASH.weak;
-  P.kbx = ux * v; P.kbz = uz * v; P.sprint = false;
+  P.dvx = ux * v; P.dvz = uz * v; P.sprint = false;
   P.stam = Math.max(0, P.stam - DASH.cost * sm); P.stamT = 0; if (!full) P.dashTired = now(); if (P.stam <= 0.001) P.exh = true;
   BLOCK.dashAt = now() + DASH.cd;
   // (which way it went, against where you face: the arms and weapon swing back against it and lean with it, the view
   // tips the way you go, melee/melee-anim.js ANIM.dash)
   const fx = Math.sin(P.aim), fz = Math.cos(P.aim);
   ANIM.dash = full ? 1 : 0.7; ANIM.dashSide = ux * fz - uz * fx; ANIM.dashFwd = ux * fx + uz * fz;
-  setCamRoll(clamp(camRoll - ANIM.dashSide * 0.05, -0.12, 0.12)); camKick.x += ux * 0.06; camKick.z += uz * 0.06;
+  camKick.x += ux * 0.04; camKick.z += uz * 0.04;
   SFX.dash(full);
   if (!dashEl) { dashEl = document.createElement('div'); dashEl.id = 'dashFx'; dashEl.setAttribute('aria-hidden', 'true'); dashEl.innerHTML = '<i></i>'; document.body.appendChild(dashEl); }
   dashEl.classList.toggle('weak', !full); dashEl.classList.remove('on'); void dashEl.offsetWidth; dashEl.classList.add('on');
   clearTimeout(dashT); dashT = setTimeout(() => dashEl.classList.remove('on'), DASH.fx * 1000);
   return true;
+}
+// the dash carrying you (each step, updateBlock), easing off
+function meleeDashStep(dt) {
+  if (!(P.dvx || P.dvz)) return;
+  moveCircle(P, P.dvx * dt, P.dvz * dt, 0.3, true); const f = Math.exp(-dt * DASH.decay); P.dvx *= f; P.dvz *= f;
+  if (Math.abs(P.dvx) + Math.abs(P.dvz) < 0.05 || P.dead) P.dvx = P.dvz = 0;
+}
+// the view leaning the way you dashed (game/camera.js): eased over into it and back out over about half a second
+export function dashRoll() {
+  const k = ANIM.dash || 0; if (k <= 0.002) return 0;
+  return -(ANIM.dashSide || 0) * DASH.roll * Math.sin(Math.PI * clamp(1 - k, 0, 1));
 }
 // how quickly stamina comes back after a dash taken short of it (combat-update.js): slow at first, up to the usual
 export const dashRegen = () => P.dashTired ? clamp(DASH.slow + (1 - DASH.slow) * (now() - P.dashTired) / DASH.ramp, DASH.slow, 1) : 1;
@@ -241,18 +259,12 @@ function stopLastWhoosh() {
   const h = W8.whooshSnd; W8.whooshSnd = null; if (!h || !AC) return;
   try { const t = AC.currentTime; h.g.gain.cancelScheduledValues(t); h.g.gain.setValueAtTime(h.g.gain.value, t); h.g.gain.linearRampToValueAtTime(0, t + 0.05); h.s.stop(t + 0.06); } catch (e) { /* (already done) */ }
 }
-// a blow broken off by being hit mid-swing: gone before it lands, and the next held off a moment
-// (not again for POISE.t after one, so a run of quick blows can't keep you from ever swinging; and a heavy weapon's
-// swing, once it's well under way (POISE.commit of it), isn't stopped by a light one's blow: POISE.heft)
-export const POISE = { t: 1.1, commit: 0.3, heft: { crowbar: 1, machete: 1, katana: 1.5, bat: 2, wrench: 2.5, axe: 3, sledge: 4 } };
-export const heft = id => POISE.heft[id] ?? 2;
-export function swingBroken(w) {
-  if (!(W8.swing > 0) || W8.hitDone || now() < (BLOCK.poise || 0)) return;
-  const D = W(curId()) || {}, p = 1 - W8.swing / (W8.swingDur || 1);
-  if (p > POISE.commit && heft(curId()) >= heft(w) + 1.5) return;   // (too heavy and too far into it for that to stop it)
-  // (knocked out of it, not out of the fight: only a beat before you can swing again, and the guard free to come up at once)
-  W8.swing = 0; W8.chgOn = false; stopLastWhoosh(); BLOCK.lock = Math.max(BLOCK.lock, BLK.lock); BLOCK.poise = now() + POISE.t; W8.cd = Math.min(W8.cd || 0, BLK.lock); BLOCK.okAt = Math.min(BLOCK.okAt || 0, now());
-  if (D.melee) netSend('mw', { w: curId(), x: Math.round(P.x * 100) / 100, z: Math.round(P.z * 100) / 100, cx: 1 });   // (the swing dropped, as they see you)
+// a swing knocked out of you by a shove (pvp/pvp.js NET_ON.pv): only a shove breaks off a swing or a blow being gathered
+// (a hit doesn't: you trade blows), gone before it lands, the next held off a beat and the guard free to come up
+export function swingShoved() {
+  const D = W(curId()) || {}; if (!D.melee || !(W8.swing > 0) || W8.hitDone) return;
+  W8.swing = 0; W8.chgOn = false; stopLastWhoosh(); BLOCK.lock = Math.max(BLOCK.lock, BLK.lock); W8.cd = Math.min(W8.cd || 0, BLK.lock); BLOCK.okAt = Math.min(BLOCK.okAt || 0, now());
+  netSend('mw', { w: curId(), x: Math.round(P.x * 100) / 100, z: Math.round(P.z * 100) / 100, cx: 1 });   // (the swing dropped, as they see you)
 }
 // the sparks off a guard where a blow meets it, and its ring (heard where it is); a parry's brighter and louder
 export function guardFx(x, y, z, nx, nz, parry) {

@@ -30,6 +30,7 @@ import { ANIM, LOOK_DOWN } from '../player/animation.js';
 import { PVP, pvpEnding, pvpFrozen } from '../pvp/pvp.js';
 import { blockStops, chargeStep, dashRegen, updateBlock } from '../melee/block.js';
 import { sndLastPlayed } from '../audio/samples.js';
+import { curSwing } from '../melee/melee-anim.js';
 
 const VAULT_BREATH = 1;   // seconds after a vault before stamina starts coming back
 const PITCH_MAX = 0.75;   // how far down (radians) the arms will point a gun
@@ -43,7 +44,7 @@ const SHOCK_FADE = 3.2;
 export function updateCombat(dt) {
   if (!W8.chgOn) W8.cd -= dt;   // (not while a heavy blow's held: the button's still down, and a new swing would start over it, the pose jumping)
   if (W8.swing > 0) {
-    const p0 = 1 - W8.swing / W8.swingDur, D0 = W(curId()) || {}, held = chargeStep(dt, p0, heavySwing(D0) ? HEAVY.hit : 0.4, curId());   // (held gathering a heavy blow: melee/block.js CHARGE)
+    const p0 = 1 - W8.swing / W8.swingDur, D0 = W(curId()) || {}, held = chargeStep(dt, p0, heavySwing(D0) ? HEAVY.hit : 0.4, curId(), D0.melee ? curSwing(D0).fast[0] - 0.02 : 1);   // (held gathering a heavy blow: melee/block.js CHARGE)
     if (held) { /* (the swing waits where it is) */ } else if (ANIM.mStop > 0) ANIM.mStop -= dt; else W8.swing = Math.max(0, W8.swing - dt);   // (stopped dead a moment on a blow that lands: meleeImpact)
     const p = 1 - W8.swing / W8.swingDur, D = W(curId()) || {}, heavy = heavySwing(D);
     if (heavy && !W8.whoosh && p >= HEAVY.whoosh) { W8.whoosh = true; SFX.swingHeavy(!D.blunt); W8.whooshSnd = sndLastPlayed(); }   // the heavy ones are heard coming down, before they land

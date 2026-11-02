@@ -63,7 +63,7 @@ import { BAT_KIT } from '../melee/melee-models.js';
 import { fx, hitMist } from '../effects/puffs.js';
 import { soundAt } from '../audio/spatial.js';
 import { heavySwing } from '../melee/melee.js';
-import { DUCK, goesOver, guardFx, guardHitYou, guardMeets, guardShovedOpen, guardThrough, parriedYou, shoveOpened, swingBroken, swingFull, swingMul } from '../melee/block.js';
+import { DUCK, goesOver, guardFx, guardHitYou, guardMeets, guardShovedOpen, guardThrough, parriedYou, shoveOpened, swingFull, swingMul, swingShoved } from '../melee/block.js';
 import { setTimeScale } from '../game/hit-feedback.js';
 import { lookThumb } from '../ui/look-card.js';
 import { lam } from '../core/shaders.js';
@@ -268,15 +268,18 @@ export const PVP_DMG = { pistol: 26, revolver: 46, deagle: 58, smg: 15, sub: 18,
 // what each swing costs of your stamina against the usual (melee/melee.js stamCost); bleed: how likely a blow opens a
 // bleed; stun: how long a blow staggers them (s: can't move or swing), kb: how hard it shoves them back; up and down,
 // its strength and its weakness, as the Brawl picker says them. Hits to put someone down at full health, to the body
-// and to the head: crowbar 5 and 4, machete 4 and 3, katana 4 and 2, bat 3 and 2, wrench 3 and 3, axe 2 and 1, sledge 1
+// and to the head: crowbar 5 and 4, machete 4 and 3, katana 4 and 2, bat 4 and 3, wrench 3 and 3, axe 2 and 1, sledge 2
+// and 1 (and a fully charged blow, twice as hard, melee/block.js MCHARGE: the sledge's one, the axe's one, anything's
+// half the hits). The sledge no longer puts anyone down with any blow: since a blow no longer breaks off a swing, only
+// a shove does, one that couldn't be stopped and killed outright was the only weapon worth carrying
 export const PVP_MELEE = {
-  crowbar: { dmg: 21, hm: 1.25, rate: 0.3, range: 1.6, arc: 0.95, carry: 1.1, stamK: 0.7, bleed: 0, head: 0.18, up: 'The quickest swing, and the quickest on your feet', down: 'Five hits to the body, and a short reach' },
-  machete: { dmg: 26, hm: 1.4, rate: 0.4, range: 1.7, arc: 1.0, carry: 1.08, stamK: 0.9, bleed: 0.65, head: 0.2, up: 'Quick, and most cuts leave them bleeding', down: 'Four to the body, and a short reach' },
-  bat: { dmg: 34, hm: 1.5, rate: 0.5, range: 1.9, arc: 1.3, carry: 1.04, stamK: 1, bleed: 0, stun: 0.3, kb: 3, head: 0.18, up: 'The widest swing, and every hit staggers them and shoves them back', down: 'It never draws blood' },
-  katana: { dmg: 28, hm: 1.8, rate: 0.48, range: 2.05, arc: 0.9, carry: 1.02, stamK: 1.65, bleed: 0.4, head: 0.22, up: 'Out-reaches everything, and two to the head', down: 'Four to the body, and each slash costs the most stamina' },
-  wrench: { dmg: 40, hm: 1, rate: 0.62, range: 1.6, arc: 1.0, carry: 1.0, stamK: 1.1, bleed: 0, stun: 0.55, kb: 2, head: 0.2, up: 'Three hits wherever they land, and each one staggers them for longest', down: 'A slow swing and a short reach' },
-  axe: { dmg: 55, hm: 1.85, rate: 0.9, range: 1.85, arc: 0.95, carry: 0.96, stamK: 1.4, bleed: 0.75, head: 0.3, up: 'Two to the body, one to the head, and deep bleeds', down: 'Slow, tiring and narrow' },
-  sledge: { dmg: 100, hm: 1, rate: 1.3, range: 2.0, arc: 1.15, carry: 0.9, stamK: 1.8, bleed: 0, stun: 0.6, kb: 6, head: 0.15, up: 'One hit puts anyone down, and takes their head', down: 'A long wind-up, the slowest walk, and a miss leaves you open' }
+  crowbar: { dmg: 22, hm: 1.3, rate: 0.3, range: 1.6, arc: 0.95, carry: 1.1, stamK: 0.7, bleed: 0, head: 0.18, up: 'The quickest swing, and the quickest on your feet', down: 'Five hits to the body, and a short reach' },
+  machete: { dmg: 25, hm: 1.4, rate: 0.4, range: 1.7, arc: 1.0, carry: 1.08, stamK: 0.85, bleed: 0.6, head: 0.2, up: 'Quick, and most cuts leave them bleeding', down: 'Four to the body, and a short reach' },
+  bat: { dmg: 32, hm: 1.5, rate: 0.52, range: 1.85, arc: 1.2, carry: 1.04, stamK: 1, bleed: 0, stun: 0.25, kb: 3, head: 0.18, up: 'The widest swing, and every hit staggers them and shoves them back', down: 'Four to the body, and it never draws blood' },
+  katana: { dmg: 28, hm: 1.8, rate: 0.48, range: 2.05, arc: 0.9, carry: 1.02, stamK: 1.5, bleed: 0.4, head: 0.22, up: 'Out-reaches everything, and two to the head', down: 'Four to the body, and each slash costs the most stamina of the quick ones' },
+  wrench: { dmg: 36, hm: 1.15, rate: 0.62, range: 1.6, arc: 1.0, carry: 1.0, stamK: 1.1, bleed: 0, stun: 0.45, kb: 2, head: 0.2, up: 'Three hits wherever they land, and each one staggers them for longest', down: 'A slow swing and a short reach' },
+  axe: { dmg: 50, hm: 2, rate: 0.95, range: 1.8, arc: 0.9, carry: 0.96, stamK: 1.45, bleed: 0.7, head: 0.28, up: 'Two to the body, one to the head, and deep bleeds', down: 'Slow, tiring and narrow' },
+  sledge: { dmg: 70, hm: 1.45, rate: 1.35, range: 1.95, arc: 1.0, carry: 0.88, stamK: 1.9, bleed: 0, stun: 0.5, kb: 5, head: 0.14, up: 'Two to the body, one to the head, and one fully charged blow puts anyone down', down: 'A long wind-up, the slowest walk, and a miss leaves you wide open' }
 };
 // a blow's damage: to the body, or the head (its hm)
 export const pvpMeleeDmg = (M, head) => Math.round(M.dmg * PVP_TTK * (head ? M.hm : 1));
@@ -630,7 +633,7 @@ NET_ON.pv = m => {
   PVP.blurT = S0.blur; ANIM.flinch = 1; ANIM.flinchSide = rand() < 0.5 ? -1 : 1;
   setShake(Math.max(shake, 0.42)); camKick.x += m.dx * 0.3; camKick.z += m.dz * 0.3; setCamRoll(clamp(camRoll + ANIM.flinchSide * 0.07, -0.12, 0.12));
   SFX.hitBlunt(true);
-  if (m.gb) guardShovedOpen(); else if (W8.chgOn) W8.chgOn = false;   // (your guard shoved open, melee/block.js; a heavy blow you were gathering knocked out of you)
+  if (m.gb) guardShovedOpen(); swingShoved();   // (your guard shoved open, melee/block.js; and a swing, or a heavy blow you were gathering, knocked out of you: only a shove does that)
 };
 // how blurred your view is from a shove, 0 to 1 (ui/hud.js)
 export const pvpBlur = () => PVP.on ? clamp((PVP.blurT || 0) / PVP_SHOVE.blur, 0, 1) : 0;
@@ -661,7 +664,6 @@ NET_ON.ph = m => {
     if (m.d > 0) { PVP.calm = 0; PVP.regen0 = null; PVP.last = { id: m.f, w: m.w, head: false, d: m.d, at: performance.now(), x: m.x, z: m.z, pt: 'torso', g: 0, gd: 0, fi: 0 }; }
     return;
   }
-  if ((WEAP[m.w] || {}).melee) swingBroken(m.w);   // (a blow landing on you mid-swing breaks yours off: melee/block.js)
   if (m.st) { P.stun = Math.max(P.stun || 0, m.st); P.sprint = false; }   // (staggered by a heavy blow: PVP_MELEE stun)
   if (m.kb) { P.kbx = (m.kx || 0) * m.kb; P.kbz = (m.kz || 0) * m.kb; } P.slow = Math.max(P.slow || 0, Math.min(PVP_TAG.most, PVP_TAG.base + m.d * PVP_TAG.per)); P.sprint = false; PVP.calm = 0;   // (tagged: the hit slows you for a moment, as in Counter-Strike: player/movement.js wears P.slow off)
   PVP.regen0 = null; PVP.last = { id: m.f, w: m.w, head, d: m.d, at: performance.now(), x: m.x, z: m.z, pt: m.p, g: m.g || 0, gd: m.gd ? 1 : 0, fi: m.fi ? 1 : 0 };

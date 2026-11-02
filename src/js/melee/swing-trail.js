@@ -42,7 +42,7 @@ export function stepTrail(rdt) {
   const id = curId(), D = id && W(id);
   for (const q of trailS) q.age += rdt;
   while (trailS.length && trailS[0].age > SW_LIFE) trailS.shift();
-  if (D && D.melee && W8.swing > 0 && !P.dead && rdt > 0) {
+  if (D && D.melee && W8.swing > 0 && !W8.chgOn && !P.dead && rdt > 0) {   // (not while a heavy blow's held still, gathering)
     const p = 1 - W8.swing / W8.swingDur;
     const fw = curSwing(D).fast;
     if (p > fw[0] && p < fw[1]) {   // only the fast part of the swing smears (MSWINGS' fast)

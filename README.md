@@ -1613,17 +1613,20 @@ Deathmatch: everyone for themselves, back in a few seconds after going down.
 place of its usual description, on the Loadouts screen and on the class picker (`AL_CUSTOM`, `ui/arena-loadouts.js`).
 
 **Melee weapons, balanced against each other** (in the arena; the farm's are as they were, where rarer is meant to be
-better). Each is its own trade, so none is simply the best (`PVP_MELEE` in `pvp/pvp.js`):
+better). Each is its own trade, so none is simply the best (`PVP_MELEE` in `pvp/pvp.js`). Rebalanced now that only a
+shove breaks off a swing: the sledgehammer no longer puts anyone down with any blow (two to the body, one to the head or
+one fully charged blow), the bat takes four to the body, the wrench staggers a little less, the axe's slower and
+narrower, and a full charge on anything does double:
 
 | Weapon | Hits to down (body / head) | Swing | Reach | Pace | Its edge | Its cost |
 |---|---|---|---|---|---|---|
 | Crowbar | 5 / 4 | 0.30 s | 1.6 m | 110% | The quickest swing and the quickest on your feet, cheap on stamina | Five hits to the body, short reach |
-| Machete | 4 / 3 | 0.40 s | 1.7 m | 108% | Quick, and 65% of cuts leave them bleeding | Short reach |
-| Ash bat | 3 / 2 | 0.50 s | 1.9 m | 104% | The widest swing; every hit staggers them 0.3 s and shoves them back | Never draws blood |
-| Katana | 4 / 2 | 0.50 s | 2.2 m | 102% | Out-reaches everything, and two to the head (the head's worth 1.75 times) | Four to the body, each slash costs the most stamina of the quick ones |
-| Pipe wrench | 3 / 3 | 0.62 s | 1.6 m | 100% | Three wherever they land, each staggering 0.55 s, the longest | A slow swing, short reach |
-| Fire axe | 2 / 1 | 0.90 s | 1.85 m | 96% | One to the head, deep bleeds, the likeliest to find the head | Slow, tiring and narrow |
-| Sledgehammer | 1 / 1 | 1.30 s | 2.0 m | 90% | One hit puts anyone down and takes their head, staggers 0.6 s | A long wind-up, the slowest walk, a miss leaves you open |
+| Machete | 4 / 3 | 0.40 s | 1.7 m | 108% | Quick, and 60% of cuts leave them bleeding | Short reach |
+| Ash bat | 4 / 3 | 0.52 s | 1.85 m | 104% | The widest swing; every hit staggers them 0.25 s and shoves them back | Four to the body, never draws blood |
+| Katana | 4 / 2 | 0.48 s | 2.05 m | 102% | Out-reaches everything, and two to the head (the head's worth 1.75 times) | Four to the body, each slash costs the most stamina of the quick ones |
+| Pipe wrench | 3 / 3 | 0.62 s | 1.6 m | 100% | Three wherever they land, each staggering 0.45 s, the longest | A slow swing, short reach |
+| Fire axe | 2 / 1 | 0.95 s | 1.8 m | 96% | One to the head, deep bleeds, the likeliest to find the head | Slow, tiring and narrow |
+| Sledgehammer | 2 / 1 | 1.35 s | 1.95 m | 88% | One to the head, one fully charged blow anywhere; a kill takes their head, staggers 0.5 s | A long wind-up, the slowest walk, a narrower sweep, the most stamina a swing, a miss leaves you wide open |
 
 No two weapons put someone down in the same number of hits both ways. The picker's cards show both: **Hits to down**
 and **To the head**. Each weapon's head blow is its own share over the body's (`hm` in `PVP_MELEE`). A swing comes every 1.3 times its swing time, as yours always has. A stagger stops
@@ -1665,8 +1668,9 @@ the chest turned to put the shoulder behind it).
   for a fire axe and half for a sledgehammer (a zombie's by how hard it hits). Run out and the guard's **broken**: the
   weapon's knocked down out of your guard, you stagger (the view reels and swims, a cold red vignette and a grey jolt
   of a flash come in from the edges), and it can't come up again for 1.2 s.
-- **After a swing** the guard can't come up until the weapon's back across, longer the heavier it is: a crowbar's
-  almost at once, 0.38 s after a fire axe's swing, 0.6 s after a sledgehammer's. Bots keep to the same.
+- **After a swing** the guard can come up soon after the blow lands, cutting the follow-through short: about half way
+  through the swing plus half the weapon's own wait (a crowbar's 0.03 s, a fire axe's 0.19 s, a sledgehammer's 0.3 s).
+  Bots keep to the same.
 - **A parry**: raise the guard within 0.22 s of the blow landing and none of it gets through, it costs nothing (it
   gives you back an eighth of your stamina), and whoever swung is thrown off: staggered and unable to swing for most
   of a second. Parried, your own screen's hit: a cold white flash in from the edges and the view swimming for a moment
@@ -1685,11 +1689,10 @@ the chest turned to put the shoulder behind it).
   whoever swung and out along the edge; a parry's twice as bright with embers that hang), rings out (a clang through
   your arms; a parry's a bright ring of steel that hangs), and slams the weapon and your fist back at you on the arm's
   springs, knocked aside and down, shaking as it comes back up, with a jolt of the view.
-- **Hit mid-swing** (not on a guard), your swing breaks off before it lands, its rush of air cut off short, and your
-  next one is held off only an eighth of a second; the guard can come up at once. Being hit (a bat's or a wrench's
-  stagger included) never stops you raising your guard or swinging back, only from moving for the stagger, so a
-  quick weapon can't keep hitting you before you can answer. Only being parried throws you off for a moment. The
-  same goes for the bots.
+- **Only a shove breaks off a swing.** Hit mid-swing, you trade blows: your swing carries on and lands. A shove knocks
+  it (or a heavy blow you're gathering) out of you, the next held off an eighth of a second, the guard free at once.
+  Being hit (a bat's or a wrench's stagger included) never stops you raising your guard or swinging back, only from
+  moving for the stagger. Only being parried throws you off for a moment. The same goes for the bots.
 - **The bots block too.** Against a swing coming at them they put their guard up (more often the sharper the bot, and
   the more guard it has left), once per swing; a sharper bot times it to parry more often, and only ever
   parries by really raising its guard just before your blow lands (up 0.16 s before it, as you'd have to): you see
@@ -1709,20 +1712,20 @@ the chest turned to put the shoulder behind it).
 - **Feints.** While it's winding up, raise your guard (right click) to pull the blow: a quick feint that costs a little
   stamina and baits a guard or a parry out of whoever's watching.
 - **Dashing.** With a melee weapon out, press **Space** while moving (forward, back or to either side) and you dash a
-  quick step that way, about 2.3 m in a blink (when there's nothing to vault there): to step back out of a heavy blow
+  quick step that way, about 2.3 m over a good half second, easing off (when there's nothing to vault there): to step back out of a heavy blow
   being wound up at you, or off to the side of it, when there's no time to run. It costs half your stamina. Short of
-  half, it takes what's left and it's a weaker step (about 1.3 m), and your stamina then comes back slowly at first
+  half, it takes what's left and it's a weaker step (about 1.4 m), and your stamina then comes back slowly at first
   (under a third of the usual pace), picking up to the usual over 2.5 s. The edges of your view blur for a moment as
-  you go (the middle stays clear), the view tips the way you went, and the weapon and your arms swing back against the
-  move and ease back. Not again for 0.45 s.
+  you go (the middle stays clear), the view leans the way you went, easing into it and back out over about half a
+  second, and the weapon and your arms swing back against the move and ease back. Not again for 0.45 s.
+- **Dashing out of a blow.** A bot's swing is committed the way it was aimed as it started and follows you only so fast
+  (1.6 rad/s), and only the middle 55% of its sweep catches someone mid-dash, so a dash really takes you out of it.
+  The sharper bots dash too: back and to one side, out of a heavy blow you're gathering at them, or out of a blow
+  coming when their guard's nearly gone.
 - **Running attacks.** Swing out of a sprint and you lunge on along the blow (thrown about 5 m/s forward, easing off),
   hitting half as hard again, for an eighth of your stamina more. Bots do it too, coming in at a run.
 - **Ripostes.** Parry a blow and for 0.9 s your next swing comes 28% quicker, hits 40% harder and goes through any guard
   (the crosshair glows gold while it's up).
-- **Poise.** A blow landing on you mid-swing breaks your swing off, unless you're past the first 30% of it and swinging
-  something clearly heavier than what hit you (a bat, wrench, axe or sledgehammer against a crowbar or a machete; an
-  axe or a sledgehammer against a katana). Broken off once, you can't be broken off again for 1.1 s, so a light
-  weapon's spam (the katana's included) can't keep you from ever swinging back.
 - **Ducking** is an attempt, not a free dodge. A swing across (a sideways sweep) goes over you only if it really passes
   over your head: from your own eyes it comes round at the height you're looking at them (a little under it), from
   above at a standing head's height, and a bot swings at a standing head's height as its swing starts. Fully crouched
@@ -1734,12 +1737,13 @@ the chest turned to put the shoulder behind it).
 - **The katana's balanced.** It hits for less (28) but swings quicker (0.48 s in the arena, 0.32 s on the farm), reaches a touch shorter, costs more stamina
   a swing and bleeds less often, so it's no longer the one weapon to spam.
 - **Brawl kill perk.** In Brawl each kill gives you back half your health and half your stamina at once (bots too).
-- **Brawl bots duel.** A bot picks whoever's free near it: someone already being fought counts as 9 m further off for
-  each bot on them, and someone already fighting someone else close by 7 m further, so a fight between two others is
-  left to them, you're not all piled on at once, and a bot takes on another bot near it. Anyone right on top of it
-  (within 3.5 m) or coming for it, it fights. Hurt in Brawl, it no longer turns and runs from someone within 4.5 m;
+- **Brawl bots duel.** A bot picks whoever's free near it: someone already being fought by a bot nearer them counts
+  as 16 m further off for each one (the nearest keeps its duel, the rest find their own), and someone already fighting
+  someone else close by 9 m further, so a fight between two others is left to them, you're not all piled on at once,
+  and bots take each other on. Whoever's actually coming at it, it fights. Hurt in Brawl, it no longer turns and runs from someone within 4.5 m;
   it fights it out.
-- **Bots shove when they need to**: into a raised guard as before, and now also when you're winding up a heavy blow at
+- **Bots shove when they need to**: into a guard they've seen held up a while (half a second to a second, never the
+  instant it comes up), deciding every 0.6 s or so, and now also when you're winding up a heavy blow at
   them or their own guard's nearly gone with you on top of them.
 - **Bots guess.** Besides putting their guard up as a blow comes (a plain block more often than a timed parry now),
   they now and then raise it in reach and hold it 0.6 to 1.4 s, waiting on the blow they expect: wait them out, or

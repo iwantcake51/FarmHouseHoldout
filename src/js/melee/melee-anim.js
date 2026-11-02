@@ -551,7 +551,7 @@ export function meleePose(id, D, rdt, now, sh) {
   }
   // gathering a heavy blow (melee/block.js MCHARGE): held at the top of the wind-up, drawn further back as it gathers
   // and trembling with the strain, more the nearer it is to full
-  if (W8.chgOn && !sh) { const k = smooth(clamp(W8.chgK || 0, 0, 1)); _maF.z -= 0.06 * k; _maF.y += 0.03 * k; _maF.x += (Math.sin(now * 47) + 0.6 * Math.sin(now * 71 + 1.3)) * 0.006 * (0.4 + k); _maF.y += Math.sin(now * 59 + 0.7) * 0.004 * (0.4 + k); _maW.y += Math.sin(now * 53) * 0.035 * k; _maW.x += Math.sin(now * 61 + 2.1) * 0.02 * k; _maW.normalize(); }
+  if (W8.chgOn && !sh) { const k = smooth(clamp(W8.chgK || 0, 0, 1)); _maF.z -= 0.02 * k; _maF.y += 0.015 * k; _maF.x += (Math.sin(now * 47) + 0.6 * Math.sin(now * 71 + 1.3)) * 0.006 * (0.4 + k); _maF.y += Math.sin(now * 59 + 0.7) * 0.004 * (0.4 + k); _maW.y += Math.sin(now * 53) * 0.035 * k; _maW.x += Math.sin(now * 61 + 2.1) * 0.02 * k; _maW.normalize(); }
   // the guard up (melee/block.js), eased in and out as it comes up and down: the weapon brought up across in front of
   // your face, its edge out, the chest turned a touch to put the shoulder behind it and the knees bent (MBLOCK, by kind);
   // a blow on it slams it back toward you and jolts it about (BLOCK.shake), the springs carrying the rest

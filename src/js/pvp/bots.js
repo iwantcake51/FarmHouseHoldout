@@ -31,7 +31,7 @@ import { heardFrom } from '../net/avatars.js';
 import { angDiff, clamp, rand, rr, smooth } from '../core/math.js';
 import { NET, NET_BOT, NET_ON, netAs, netSend } from '../net/net.js';
 import { P } from '../player/player.js';
-import { BLK, BLOCK, MCHARGE, RUNATK, DUCK, goesOver, guardAfter, guardCost, guardFx, guardHold, guardMeets, guardThrough, heft, POISE, RIPOSTE, SHOVE_OPEN } from '../melee/block.js';
+import { BLK, BLOCK, MCHARGE, RUNATK, DUCK, goesOver, guardAfter, guardCost, guardFx, guardHold, guardMeets, guardThrough, RIPOSTE, SHOVE_OPEN } from '../melee/block.js';
 import { heavySwing } from '../melee/melee.js';
 import { SPRINT } from '../player/sprint.js';
 import { ADS_MOVE, ADS_SCOPE } from '../player/movement.js';
@@ -301,14 +301,16 @@ function botFoes(b) {
 // them, and someone already fighting someone else, close by them, BRAWL_DUEL.busy further: so a bot takes on whoever's
 // free near it, a fight between two others is left to them rather than jumped into, and you're not all piled on at
 // once. Whoever's on it, it still fights back)
-const BRAWL_DUEL = { crowd: 9, busy: 7, near: 6, close: 3.5 };
+const BRAWL_DUEL = { crowd: 16, busy: 9, near: 7 };
 function botCrowd(b, f) {
   if (PVP.rule !== 'brawl') return 0;
-  let n = 0;
-  for (const o of BOTS.values()) if (o !== b && !o.dead && o.tgt === f.id && Math.hypot(o.x - f.x, o.z - f.z) < BRAWL_DUEL.near) n++;
+  // (only those on them nearer than it count: the nearest one keeps its duel, the rest go and find their own)
+  const myD = Math.hypot(b.x - f.x, b.z - f.z); let n = 0;
+  for (const o of BOTS.values()) if (o !== b && !o.dead && o.tgt === f.id) { const od = Math.hypot(o.x - f.x, o.z - f.z); if (od < BRAWL_DUEL.near && od < myD) n++; }
   const fb = BOTS.get(f.id), on = fb && !fb.dead && fb.tgt && fb.tgt !== b.id ? (fb.tgt === NET.id ? P : BOTS.get(fb.tgt) || NET.peers.get(fb.tgt)) : null;
   const busy = on && Math.hypot(on.x - f.x, on.z - f.z) < BRAWL_DUEL.near ? 1 : 0;
-  const m = b.mem.get(f.id), onMe = (m && m.threat && botNow() - m.t < 3) || Math.hypot(f.x - b.x, f.z - b.z) < BRAWL_DUEL.close;   // (it's coming for this one, or right on top of it: no leaving it be)
+  // (a foe actually coming at it, just struck at it, it answers whatever: fb's own target it, or a hit from it this second)
+  const m = b.mem.get(f.id), onMe = (fb ? fb.tgt === b.id && myD < BRAWL_DUEL.near : m && m.threat && botNow() - m.t < 1.2);
   return onMe ? 0 : n * BRAWL_DUEL.crowd + busy * BRAWL_DUEL.busy;
 }
 // what it sees: each foe in front of it (or right by it), in range and in plain sight. Someone new takes it a moment
@@ -344,7 +346,7 @@ function botSense(b, foes, t) {
       const face = f.aim !== undefined && Math.abs(angDiff(f.aim, Math.atan2(-dx, -dz))) < BOT_PICK.face;
       // (a veteran, BOT_SKILL sharp: keener still on someone it's just slowed with a hit, less on someone behind cover)
       const sharp = S.sharp ? (botTagged(b, f.id, t) ? BOT_PICK.tagged : 0) - (pvpCovered(f.x, f.z, b.x, b.z, dx / (d || 1), dz / (d || 1), d) ? BOT_PICK.covered : 0) : 0;
-      const score = d - (f.id === b.tgt ? (b.tunnel ? 60 : 10) : 0) - (m && m.threat && t - m.t < 5 && !b.tunnel ? 4 : 0) - S.iq * ((botWeak(b, f.id, t) ? BOT_PICK.weak : 0) + (face ? BOT_PICK.face_ : 0)) - sharp + botCrowd(b, f); if (score < best) { best = score; b.vis = f; }
+      const score = d - (f.id === b.tgt ? (PVP.rule === 'brawl' ? 3 : b.tunnel ? 60 : 10) : 0) - (m && m.threat && t - m.t < 5 && !b.tunnel ? 4 : 0) - S.iq * ((botWeak(b, f.id, t) ? BOT_PICK.weak : 0) + (face ? BOT_PICK.face_ : 0)) - sharp + botCrowd(b, f); if (score < best) { best = score; b.vis = f; }
     } else {
       if (m) m.seen = false;
       // (footsteps, BOT_STEP: a run's heard furthest, a walk less, a crouched walk hardly at all; right by it, anyone)
@@ -1144,9 +1146,16 @@ function botFoeSwing(T, t) {
 // its guard (melee/block.js): how likely it puts it up against a swing coming at it, how long it holds it (s), how
 // fast what a blow knocked off it comes back (a second, of the whole), and how it wears down with it held
 const BRAWL_STAY = 4.5;
+// a bot's dash (as yours, melee/block.js meleeDash): how fast, how quickly it eases off, how long it's carried, how
+// soon again, how likely when it would (by its sharpness)
+const BOT_DASH = { v: 9.5, decay: 4.2, len: 0.45, cd: 2.4, k: 0.75 };
+// a bot's swing once it's under way: how fast it can still follow whoever it's at (rad/s), and how much of its sweep
+// catches someone dashing
+const BOT_SWINGAIM = { track: 1.6, dashArc: 0.55 };
+const botDashing = (f, t) => f.id === NET.id ? Math.hypot(P.dvx || 0, P.dvz || 0) > 2 : ((BOTS.get(f.id) || {}).dashT1 || 0) > t;
 const BOT_GUARD = { guess: 0.3, guessEvery: [0.7, 1.4], guessHold: [0.6, 1.4], chance: 0.45, parry: 0.4, duck: 0.35, heavy: 0.55, hold: [0.35, 0.8], back: 0.3, drain: 0 };
 // shoving (botMeleeThink): how near it has to be (m), how likely against a guard that's up, how often at most (s)
-const BOT_SHOVE = { reach: 1.6, k: 0.4, need: 0.55, cd: 2.2, dmg: 6 };
+const BOT_SHOVE = { wait: [0.55, 1.2], every: 0.6, reach: 1.6, k: 0.4, need: 0.55, cd: 2.2, dmg: 6 };
 function botShove(b, T, d) {
   const dx = (T.x - b.x) / (d || 1), dz = (T.z - b.z) / (d || 1), G = T.id === NET.id ? { on: BLOCK.on, at: BLOCK.at, aim: P.aim } : (() => { const q = NET.peers.get(T.id); return { on: !!q && q.bk > -50, at: q ? q.bkAt : 0, aim: q && q.vw ? q.vw[0] : 0 }; })();
   const m = { dx: bR2(dx), dz: bR2(dz), p: 1 }; if (guardMeets(G.on, G.at, G.aim, T.x, T.z, b.x, b.z)) { m.gb = 1; b.ripo = botNow() + SHOVE_OPEN.win; guardFx(T.x - dx * 0.42, 1.25, T.z - dz * 0.42, -dx, -dz, false); }
@@ -1176,6 +1185,14 @@ function botMeleeThink(b, T, t, d, S) {
   // its guard left, melee/block.js), or out of reach, unless its own's about to land first)
   // (once a swing: whether to put it up, and whether it's in time to parry it, a sharper one likelier: its raise put
   // just before the blow lands, or else well before it, a plain block)
+  // (a dash out of it, the sharper ones: from a heavy blow being gathered at it, or a blow coming with its guard nearly
+  // gone; back and off to one side, BOT_DASH, not again for a while)
+  { const gathering = T.id === NET.id ? !!W8.chgOn : !!((BOTS.get(T.id) || {}).mswing || {}).hv;
+    if ((gathering || (theirs && (b.gst ?? 1) < 0.3)) && !mine && d < reach + 1 && t >= (b.dashCd || 0) && S.sharp && rand() < BOT_DASH.k * S.iq) {
+      b.dashCd = t + BOT_DASH.cd; if (rand() < 0.4) return;   // (it doesn't always: and not asked again for a moment)
+      const a = Math.atan2(b.x - T.x, b.z - T.z) + (rand() < 0.5 ? -1 : 1) * rr(0.3, 1.0);
+      b.vx = Math.sin(a) * BOT_DASH.v; b.vz = Math.cos(a) * BOT_DASH.v; b.dashT1 = t + BOT_DASH.len; b.block = false; b.blockPlan = null; b.sprint = false; return;
+    } }
   const sk = theirs && botSwingKey(T);
   if (sk && b.guardFor !== sk) {
     b.guardFor = sk;
@@ -1208,7 +1225,14 @@ function botMeleeThink(b, T, t, d, S) {
     const Gup = T.id === NET.id ? BLOCK.on : (() => { const q = NET.peers.get(T.id); return !!q && q.bk > -50; })();
     // (and when it needs room: you winding up a heavy blow at it, or its own guard nearly gone with you on top of it)
     const winding = T.id === NET.id ? !!W8.chgOn : false, need = winding || ((b.gst ?? 1) < 0.35 && d < 1.3);
-    if ((Gup || need) && d < BOT_SHOVE.reach && t >= (b.shoveT || 0) && rand() < (need ? BOT_SHOVE.need : BOT_SHOVE.k) * S.iq) { b.shoveT = t + BOT_SHOVE.cd; botShove(b, T, d); return; }
+    // (not the instant your guard comes up: it has to see it held a while first, BOT_SHOVE.wait, and it decides once
+    // every so often, not every moment it's up)
+    if (Gup) { if (!b.gupAt) { b.gupAt = t; b.gupWait = rr(...BOT_SHOVE.wait); } } else b.gupAt = 0;
+    const heldUp = Gup && t - b.gupAt > b.gupWait;
+    if ((heldUp || need) && d < BOT_SHOVE.reach && t >= (b.shoveT || 0) && t >= (b.shoveRoll || 0)) {
+      b.shoveRoll = t + BOT_SHOVE.every;
+      if (rand() < (need ? BOT_SHOVE.need : BOT_SHOVE.k) * S.iq) { b.shoveT = t + BOT_SHOVE.cd; b.gupAt = 0; botShove(b, T, d); return; }
+    }
     // (a guess: its guard put up and held now and then, in reach with nothing coming yet, waiting on the blow it
     // expects rather than timing a parry to it; let down after a while, or once the blow's come. Sharper ones more,
     // never with its guard nearly gone: BOT_GUARD.guess)
@@ -1234,21 +1258,30 @@ function botMeleeThink(b, T, t, d, S) {
 // crouched under its swing, so it comes down from overhead)
 function botMeleeSwing(b, id, M, t, kind, low) {
   const wind0 = BOT_MELEE.wind[id] ?? 0.2, wind = kind === 'hv' ? wind0 + MCHARGE.full * 1.2 : kind === 'rp' ? wind0 * RIPOSTE.speed : wind0, dur = Math.min(M.rate * 1.2, M.rate > 0.85 ? 0.98 : 0.64) * (kind === 'rp' ? RIPOSTE.speed : 1);
-  b.mswing = { id, t0: t, at: t + wind, end: t + Math.max(wind + 0.18, dur + (wind - wind0)), side: rand() < 0.5 ? 1 : -1, hit: false, chop: M.rate > 0.85 || id === 'wrench' || !!low, hv: kind === 'hv', rp: kind === 'rp', rn: kind === 'rn' };
+  b.mswing = { id, t0: t, at: t + wind, end: t + Math.max(wind + 0.18, dur + (wind - wind0)), side: rand() < 0.5 ? 1 : -1, hit: false, chop: M.rate > 0.85 || id === 'wrench' || !!low, hv: kind === 'hv', rp: kind === 'rp', rn: kind === 'rn', aim: b.aim, lt: t };
   if (kind === 'rn') { b.vx = Math.sin(b.aim) * RUNATK.lunge; b.vz = Math.cos(b.aim) * RUNATK.lunge; b.sprint = false; }   // (a running attack: thrown on along it, as you are)
   netAs(b.id, 'mw', { w: id, x: bR2(b.x), z: bR2(b.z), sd: b.mswing.side, wu: bR2(wind), du: bR2(b.mswing.end - t) });   // (to everyone else: its swing played on it there, net/avatars.js avSwing)
-  b.mcd = t + M.rate * 1.3; b.guardOkAt = b.mswing.end + guardAfter(id);   // (its guard not up again till the weapon's back across: melee/block.js)
+  b.mcd = t + M.rate * 1.3; b.guardOkAt = b.mswing.at + 0.1 + guardAfter(id) * 0.5;   // (its guard up again soon after the blow, as yours: melee/block.js)   // (its guard not up again till the weapon's back across: melee/block.js)
 }
 // each frame: a swing's blow landing as it comes round, on anyone in its reach and sweep (not through a wall), as yours
 // do (pvp/pvp.js pvpMelee): the golden katana's a kill, anything else its weapon's damage, a head likelier the sharper
 // the bot is
 function botMeleeStep(b, t, foes) {
   const s = b.mswing; if (!s) return;
+  // (the swing committed the way it was aimed as it started, BOT_SWINGAIM.track: it follows whoever it's at only so fast,
+  // so a dash or a quick step aside takes you out of it instead of the blow swinging round after you)
+  if (!s.hit) {
+    const T = foes.find(f => f.id === b.tgt), dt = Math.max(0, t - (s.lt ?? t)); s.lt = t;
+    if (T) { const want = Math.atan2(T.x - b.x, T.z - b.z), da = angDiff(want, s.aim ?? b.aim); s.aim = (s.aim ?? b.aim) + clamp(da, -BOT_SWINGAIM.track * dt, BOT_SWINGAIM.track * dt); }
+    b.aim = s.aim ?? b.aim;
+  }
   if (!s.hit && t >= s.at) {
     s.hit = true; const M = pvpMeleeOf(s.id), gold = !!(b.gold && b.gold[s.id]), S = botSk(b); let n = 0;
     for (const f of foes) {
       const dx = f.x - b.x, dz = f.z - b.z, d = Math.hypot(dx, dz);
-      if (d > M.range + 0.35 || (Math.abs(angDiff(Math.atan2(dx, dz), b.aim)) > M.arc && d > 0.6) || !los(b.x, b.z, f.x, f.z)) continue;
+      // (someone dashing: a narrower sweep catches them, the dash being the dodge it is)
+      const arc = M.arc * (botDashing(f, t) ? BOT_SWINGAIM.dashArc : 1);
+      if (d > M.range + 0.35 || (Math.abs(angDiff(Math.atan2(dx, dz), s.aim ?? b.aim)) > arc && d > 0.6) || !los(b.x, b.z, f.x, f.z)) continue;
       // (ducked under a swing across: over their head only if it passes above it, swung at a standing head's height
       // as it started, melee/block.js DUCK)
       if (goesOver(f.id === NET.id ? P.cr : (BOTS.get(f.id) || NET.peers.get(f.id) || {}).cr, s.chop, DUCK.top - DUCK.under)) continue;
@@ -1308,6 +1341,7 @@ export function botsUpdate(dt) {
     b.prot = Math.max(0, (b.prot || 0) - dt);
     if (botBurn(b, dt, t)) { botPose(b, dt, t); continue; }   // (alight: pvp/pvp-fire.js)
     // reeling from a shove: carried back on it, no moving or firing of its own
+    if (b.dashT1 > t) { const f = Math.exp(-dt * BOT_DASH.decay); b.vx *= f; b.vz *= f; moveCircle(b, b.vx * dt, b.vz * dt, 0.3, false); botAimStep(b, dt, t, b.vis); botPose(b, dt, t); continue; }   // (dashing: carried by it, BOT_DASH)
     if (b.stun > 0) { b.stun -= dt; const f = Math.exp(-dt * 6); b.vx *= f; b.vz *= f; moveCircle(b, b.vx * dt, b.vz * dt, 0.3, false); botAimStep(b, dt, t, null); botPose(b, dt, t); continue; }
     const foes = botFoes(b);
     const qk = botSk(b).think || 1;   // (a Terminator senses and thinks again sooner)
@@ -1644,8 +1678,7 @@ export function botHit(id, m) {
     if (m.d > 0) { b.last = { id: m.f, w: m.w, head: false, d: m.d, at: t, x: m.x, z: m.z, pt: 'torso', g: 0, gd: 0, fi: 0 }; b.taken.set(m.f, (b.taken.get(m.f) || 0) + m.d); b.hurtT = t; b.calm = 0; b.regen0 = null; if (b.hp <= 0) botDie(b, t); }
     return;
   }
-  // (a blow landing on it mid-swing breaks its swing off before it lands, and holds the next off a moment)
-  if ((WEAP[m.w] || {}).melee && b.mswing && !b.mswing.hit && t >= (b.poise || 0) && !((t - b.mswing.t0) / Math.max(0.05, b.mswing.end - b.mswing.t0) > POISE.commit && heft(b.mswing.id) >= heft(m.w) + 1.5)) { b.mswing = null; b.mcd = Math.max(b.mcd || 0, t + BLK.lock); b.poise = t + POISE.t; netAs(b.id, 'mw', { w: botGunOf(b), cx: 1 }); }   // (not again straight after one, nor a heavy one well under way by a light blow: melee/block.js POISE)
+  // (a blow landing on it doesn't break its swing off: only a shove does, botShoved)
   b.block = false;
   b.tag = Math.max(b.tag || 0, Math.min(BOT_TAG.most, BOT_TAG.base + m.d * BOT_TAG.per)); b.sprint = false; b.tbag = null; botInspCut(b);
   if (botSk(b).sharp && b.vis) b.mvT = 0;   // (a veteran tagged thinks again at once: out of the open, botThink)
@@ -1695,7 +1728,7 @@ export function botShoved(id, m) {
   const b = BOTS.get(id); if (!b || b.dead || PVP.ph !== 'live' || b.prot > 0) return;
   const k = m.p || 1; b.stun = 0.7 * k + (m.gb ? SHOVE_OPEN.reel : 0); b.vx = m.dx * 5 * k; b.vz = m.dz * 5 * k;
   if (m.gb) { b.block = false; b.guardCd = botNow() + SHOVE_OPEN.down; }   // (its guard shoved open: melee/block.js SHOVE_OPEN)
-  if (b.mswing && b.mswing.hv) b.mswing = null;   // (a heavy blow it was gathering knocked out of it) b.av += rr(-4, 4); b.err += rr(0.2, 0.35) * (rand() < 0.5 ? -1 : 1); b.burst = 0; b.sprint = false;
+  if (b.mswing && !b.mswing.hit) { b.mswing = null; b.mcd = Math.max(b.mcd || 0, botNow() + BLK.lock); netAs(b.id, 'mw', { w: botGunOf(b), x: bR2(b.x), z: bR2(b.z), cx: 1 }); }   // (its swing, or a heavy blow it was gathering, knocked out of it: only a shove does that) b.av += rr(-4, 4); b.err += rr(0.2, 0.35) * (rand() < 0.5 ? -1 : 1); b.burst = 0; b.sprint = false;
 }
 NET_BOT.pv = m => botShoved(m.to, m);
 const BOT_ASSIST = 30;   // (damage, hp, someone else has to have done to a bot in a life to count for its kill)

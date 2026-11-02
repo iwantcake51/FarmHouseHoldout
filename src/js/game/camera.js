@@ -20,6 +20,7 @@ import { ANIM } from '../player/animation.js';
 import { swapSt } from '../player/swap.js';
 import { camFocus } from '../net/spectate.js';
 import { SET } from '../ui/settings.js';
+import { dashRoll } from '../melee/block.js';
 
 export const camTarget = new V3(P.x, 0, P.z);
 // the vault camera: roll, a vertical bob and a push along the jump, each a damped spring chasing a target that follows
@@ -156,7 +157,7 @@ export function updateCamera(rdt) {
   vaultCam(rdt); runCam();
   const cv = camVault, cr = camRec, ck = camRack, cu = camRun, ch = camHit;
   FP_JOLT_IN.px = (cr.px + ck.px + ch.px) * shk; FP_JOLT_IN.pz = (cr.pz + ck.pz + ch.pz) * shk; FP_JOLT_IN.zoom = (cr.zoom * 0.35 + ck.zoom + ch.zoom) * shk;
-  viewFrame(rdt, (camRoll + cr.roll + ck.roll + ch.roll) * shk + wob + cv.roll, sh, FP_JOLT_IN);   // (placed in first person or flown, with the pushes and zooms it feels as well: game/view-cam.js)
+  viewFrame(rdt, (camRoll + cr.roll + ck.roll + ch.roll) * shk + wob + cv.roll + dashRoll(), sh, FP_JOLT_IN);   // (+ the lean into a dash: melee/block.js)   // (placed in first person or flown, with the pushes and zooms it feels as well: game/view-cam.js)
   if (!iso) return;
   const vx = (camKick.x + cr.px + ck.px + ch.px) * shk + cv.px + cu.px, vz = (camKick.z + cr.pz + ck.pz + ch.pz) * shk + cv.pz + cu.pz;
   setCamPunch(camPunch * Math.exp(-rdt * 9)); ISO_CAM.zoom *= (1 + (cr.zoom * 0.35 + ck.zoom + ch.zoom + camPunch) * shk) * deathZoomK();   // (going down: ui/screens.js)
