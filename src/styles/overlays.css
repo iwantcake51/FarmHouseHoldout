@@ -49,6 +49,8 @@
 /* wave card: eyebrow, a headline with a warm metallic fill, a rule that draws out from a diamond, and a subtitle ribbon */
 #announce{--ac:var(--orange);left:0;right:0;top:calc(19% + env(safe-area-inset-top,0px));display:grid;justify-items:center;gap:6px;text-align:center;transition:opacity .7s ease,transform .7s ease;transform:translateY(-10px)}
 #announce.show{transform:none}
+/* (not over a menu or a station's panel: it waits behind them, out of sight) */
+body.menu #announce,body:has(#station:not([hidden])) #announce{opacity:0!important}
 #announce.gold{--ac:var(--gold)}#announce.red{--ac:#e2412c}
 #annEye{display:flex;align-items:center;gap:12px;font-size:12px;font-weight:600;letter-spacing:.5em;padding:3px 0 2px .5em;text-transform:uppercase;color:var(--ac);text-shadow:0 1px 2px #000,0 0 10px rgba(0,0,0,.95),0 0 18px rgba(0,0,0,.8)}
 #annEye::before,#annEye::after{content:"";width:26px;height:1px;background:var(--ac);opacity:.7}
@@ -86,9 +88,11 @@
 /* first person, the free camera: the mouse is let go (a menu closed, or Esc), and a click takes it back (game/view-cam.js) */
 /* flying the free camera, the stations' first-run tips stay out of the view */
 body.freeView .benchTip{display:none}
-#adsVig{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse 78% 72% at center,transparent 62%,rgba(6,7,8,.1) 80%,rgba(6,7,8,.26) 100%);opacity:0}
+#adsVig{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse 82% 76% at center,transparent 54%,rgba(5,6,7,.12) 74%,rgba(4,5,6,.34) 100%);opacity:0}
 #conc{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at center,rgba(255,250,235,.55),rgba(255,240,215,.2) 50%,rgba(40,30,25,.55) 100%);opacity:0}
 #conc.on{animation:concFx 2.8s ease-out}
+/* blood on your view, close to a limb or a head blown off (ui/screen-blood.js): drawn at half size and softened, out of focus that near the eye */
+#screenBlood{position:fixed;inset:0;width:100vw;height:100vh;z-index:1;pointer-events:none;filter:blur(1.1px);opacity:0;transition:opacity .3s}
 @keyframes concFx{0%{opacity:1}12%{opacity:.75}100%{opacity:0}}
 #hurt{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at center,transparent 62%,rgba(170,22,12,.42) 100%);opacity:0}
 /* getting hit (ui/hud.js hitFromAt): red from the side the blow came from, kept off the middle of the screen */
@@ -204,3 +208,122 @@ body.intro #xh{animation:introFade .6s 1.6s ease-out both}
 @keyframes stCard{from{opacity:0;transform:translate(-50%,5px) scale(.9)}}
 /* going down (ui/screens.js: the death camera): the edges sink into the dark as the view closes in */
 #deathVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 80% 75% at center,transparent 34%,rgba(4,2,2,.45) 64%,rgba(0,0,0,.92) 100%)}
+
+/* a chain of kills called out (ui/hud-text.js streakShow): its name in the banner's type, hotter and bigger the longer it
+   runs (--lv, 1 to 5), popping in with each kill and gone a moment after the last; the scrap it's paid under it */
+/* the kill streak: a small card under the middle, its name, a pip a kill, the scrap it paid, and the chain's time left
+   draining under it; popped in again with each kill, its glow hotter the longer the chain (--lv 1..5) */
+#streak{left:0;right:0;top:calc(30% + env(safe-area-inset-top,0px));display:grid;justify-items:center;gap:4px;text-align:center;opacity:0;transform:translateY(-4px);transition:opacity .4s ease,transform .4s ease;pointer-events:none}
+#streak.on{opacity:1;transform:none;transition-duration:.08s}
+#streak b{font-family:var(--f-num);font-weight:800;font-size:calc(17px + var(--lv,1) * 2px);letter-spacing:.09em;text-transform:uppercase;line-height:1;
+  color:color-mix(in srgb,var(--orange) calc(var(--lv,1) * 18%),var(--ink));
+  text-shadow:0 0 calc(var(--lv,1) * 3px) color-mix(in srgb,var(--orange) calc(var(--lv,1) * 14%),transparent),0 2px 0 rgba(0,0,0,.65)}
+#streak .pips{display:flex;gap:3px;align-items:center;height:6px}
+#streak .pips i{width:5px;height:5px;border-radius:50%;background:var(--orange);box-shadow:0 0 4px color-mix(in srgb,var(--orange) 60%,transparent),0 1px 0 rgba(0,0,0,.6)}
+#streak .pips i:last-of-type{animation:stkPip .3s cubic-bezier(.2,1.6,.4,1)}
+#streak .pips em{font:700 10px/1 var(--f-num);color:var(--orange);font-style:normal;margin-left:2px}
+#streak small{font:600 11px/1 "Archivo","Helvetica Neue",Arial,sans-serif;color:var(--gold);letter-spacing:.02em}
+#streak u{display:block;width:64px;height:2px;border-radius:1px;background:linear-gradient(90deg,var(--gold),var(--orange));transform-origin:left;opacity:.85}
+#streak.pop u{animation:stkDrain var(--t,1.6s) linear forwards}
+#streak.pop b{animation:streakPop .34s cubic-bezier(.2,1.5,.4,1)}
+@keyframes streakPop{0%{transform:scale(1.35) rotate(-2deg);filter:brightness(1.6)}60%{filter:brightness(1.1)}100%{transform:none;filter:none}}
+@keyframes stkPip{0%{transform:scale(2.4)}100%{transform:none}}
+@keyframes stkDrain{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+body.menu #streak,body:has(#station:not([hidden])) #streak{opacity:0!important}
+@media (prefers-reduced-motion:reduce){#streak.pop b,#streak .pips i:last-of-type{animation:none}#streak.pop u{animation-timing-function:steps(4)}}
+/* an elite's call (ui/hud-text.js: eliteCall): in the game's own card style, as a notification is (#toast): a dark panel
+   with a hairline border and the elite's colour down its left edge, its icon in a tile tinted with it, the eyebrow in
+   that colour over the headline, what it does under it (or a row for each kind a wave's bringing), and a thin bar
+   running out along its foot. It slides in and settles, a soft sweep of light across it as it lands */
+#eliteCall{--ec:#e2412c;left:50%;top:calc(19% + env(safe-area-inset-top,0px));transform:translateX(-50%);pointer-events:none;opacity:0;visibility:hidden;text-shadow:none}
+#eliteCall.show{visibility:visible;animation:ecIn .42s cubic-bezier(.2,.9,.3,1.12) both}
+#eliteCall.out{visibility:visible;animation:ecOut .32s ease-in both}
+#eliteCall .ecSlab{position:relative;display:flex;align-items:flex-start;gap:12px;padding:9px 18px 11px 9px;min-width:300px;max-width:min(560px,92vw);overflow:hidden;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--ec) 12%,rgba(14,15,16,.95)),rgba(14,15,16,.9) 45%);border:1px solid rgba(236,230,216,.12);border-left:3px solid var(--ec);box-shadow:0 10px 28px -12px rgba(0,0,0,.9)}
+#eliteCall .ecSlab::before{content:'';position:absolute;inset:0 auto 0 -30%;width:30%;transform:translateX(-100%) skewX(-16deg);background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--ec) 30%,#fff) 50%,transparent);opacity:.18}
+#eliteCall.show .ecSlab::before{animation:ecSweep .8s .12s ease-out both}
+#eliteCall .ecSlab::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--ec);opacity:.8;transform-origin:left;transform:scaleX(0)}
+#eliteCall.show .ecSlab::after{animation:ecBar var(--ecT,3.4s) linear both}
+#eliteCall .ecIc{display:grid;place-items:center;width:40px;height:40px;flex:none;background:color-mix(in srgb,var(--ec) 18%,transparent);border:1px solid var(--ec)}
+#eliteCall .ecIc svg{width:24px;height:24px;fill:var(--ec)}
+#eliteCall.show .ecIc{animation:ecIcon .4s .06s cubic-bezier(.2,1.4,.4,1) both}
+#eliteCall .ecTx{display:grid;gap:2px;min-width:0}
+#eliteCall small{font-family:var(--f-num);font-weight:700;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--ec)}
+#eliteCall b{font-family:var(--f-num);font-weight:700;font-size:22px;line-height:1;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
+#eliteCall em{font-style:normal;font-size:12.5px;letter-spacing:.01em;color:var(--dim);white-space:normal}
+#eliteCall #ecTip{font-style:normal;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+#eliteCall #ecList{display:grid;gap:5px;margin-top:5px}
+#eliteCall #ecList:empty{display:none}
+#eliteCall .ecRow{display:flex;align-items:center;gap:7px;font-size:12px;line-height:1.25;color:var(--dim);white-space:normal}
+#eliteCall .ecRow svg{width:16px;height:16px;flex:none;fill:var(--rc)}
+#eliteCall .ecRow b{font-size:14px;color:var(--rc);min-width:22px}
+#eliteCall .ecRow u{text-decoration:none;font-weight:700;color:var(--ink)}
+#eliteCall.down b{font-size:20px}
+@keyframes ecIn{0%{opacity:0;transform:translate(-50%,-10px)}100%{opacity:1;transform:translate(-50%,0)}}
+@keyframes ecOut{0%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-8px)}}
+@keyframes ecSweep{0%{transform:translateX(-100%) skewX(-16deg)}100%{transform:translateX(560%) skewX(-16deg)}}
+@keyframes ecBar{0%{transform:scaleX(1)}100%{transform:scaleX(0)}}
+@keyframes ecIcon{0%{transform:scale(.6);opacity:0}100%{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){#eliteCall.show,#eliteCall.out,#eliteCall.show *,#eliteCall.show .ecSlab::before,#eliteCall.show .ecSlab::after{animation-duration:.01s!important;animation-delay:0s!important}}
+/* kept out of the way: small, in the top right corner under the edge of the screen, sliding in from the right, its
+   panel see-through enough that what's behind it still shows */
+#eliteCall{left:auto;right:calc(16px + env(safe-area-inset-right,0px));top:calc(14px + env(safe-area-inset-top,0px));transform:none}
+#eliteCall.show{animation:ecInR .36s cubic-bezier(.2,.9,.3,1.1) both}
+#eliteCall.out{animation:ecOutR .3s ease-in both}
+#eliteCall .ecSlab{gap:9px;padding:6px 12px 8px 6px;min-width:0;max-width:min(300px,70vw);background:linear-gradient(90deg,color-mix(in srgb,var(--ec) 12%,rgba(14,15,16,.78)),rgba(14,15,16,.66) 55%);box-shadow:0 6px 18px -10px rgba(0,0,0,.8)}
+#eliteCall .ecIc{width:28px;height:28px}
+#eliteCall .ecIc svg{width:17px;height:17px}
+#eliteCall small{font-size:9.5px;letter-spacing:.2em}
+#eliteCall b,#eliteCall.down b{font-size:15px}
+#eliteCall em{font-size:11px;line-height:1.3}
+#eliteCall #ecTip{font-size:9.5px}
+#eliteCall #ecList{display:flex;flex-wrap:wrap;gap:3px 10px;margin-top:3px}
+#eliteCall .ecRow{font-size:10.5px;gap:5px}
+#eliteCall .ecRow svg{width:13px;height:13px}
+#eliteCall .ecRow b{font-size:12px;min-width:18px}
+@keyframes ecInR{0%{opacity:0;transform:translateX(24px)}100%{opacity:1;transform:none}}
+@keyframes ecOutR{0%{opacity:1;transform:none}100%{opacity:0;transform:translateX(16px)}}
+/* the stray crate's card (stations/supply-drop.js: dropCall): the game's card style in the drop's orange. A ring round
+   the crate's icon runs down with the seconds left (--dc, 1 to 0), the seconds big at its right, the side of the farm
+   it's coming down on and the sprinters it brings under the headline. It folds to a slim strip (.mini) after a few
+   seconds, ticks over the last three, and lands (.landed) as "Crate down" */
+#dropCall{--dc:1;--dk:#e07a33;left:50%;top:calc(19% + env(safe-area-inset-top,0px));transform:translateX(-50%);pointer-events:none;opacity:0;visibility:hidden;text-shadow:none;transition:top .45s cubic-bezier(.3,.9,.3,1)}
+#dropCall.show{visibility:visible;animation:ecIn .42s cubic-bezier(.2,.9,.3,1.12) both}
+#dropCall.out{visibility:visible;animation:ecOut .35s ease-in both}
+#dropCall .dcSlab{position:relative;display:flex;align-items:center;gap:13px;padding:9px 12px 9px 9px;min-width:330px;max-width:min(560px,92vw);overflow:hidden;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--dk) 14%,rgba(14,15,16,.95)),rgba(14,15,16,.9) 50%);border:1px solid rgba(236,230,216,.12);border-left:3px solid var(--dk);box-shadow:0 10px 28px -12px rgba(0,0,0,.9);
+  transition:min-width .45s cubic-bezier(.3,.9,.3,1),padding .45s cubic-bezier(.3,.9,.3,1),gap .45s}
+#dropCall .dcSlab::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-45deg,transparent 0 9px,color-mix(in srgb,var(--dk) 9%,transparent) 9px 18px);opacity:.7;pointer-events:none}
+#dropCall .dcRing{position:relative;display:grid;place-items:center;width:52px;height:52px;flex:none;transition:width .45s,height .45s}
+#dropCall .dcArc{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+#dropCall .dcArc circle{fill:none;stroke-width:3}
+#dropCall .dcArc circle:first-child{stroke:rgba(236,230,216,.12)}
+#dropCall .dcArc circle:last-child{stroke:var(--dk);stroke-dasharray:100;stroke-dashoffset:calc(100 - var(--dc) * 100);stroke-linecap:butt;filter:drop-shadow(0 0 3px color-mix(in srgb,var(--dk) 70%,transparent))}
+#dropCall .dcIc{position:relative;width:24px;height:24px;fill:var(--dk);transition:width .45s,height .45s}
+#dropCall.show .dcRing{animation:ecIcon .4s .06s cubic-bezier(.2,1.4,.4,1) both}
+#dropCall .dcTx{position:relative;display:grid;gap:2px;min-width:0;flex:1}
+#dropCall .dcTx small{font-family:var(--f-num);font-weight:700;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--dk)}
+#dropCall .dcTx>b{font-family:var(--f-num);font-weight:700;font-size:22px;line-height:1;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
+#dropCall em{font-style:normal;font-size:12.5px;color:var(--dim);white-space:normal}
+#dropCall .dcSide{display:none}
+#dropCall .dcSec{position:relative;display:grid;justify-items:center;padding-left:12px;border-left:1px solid rgba(236,230,216,.1);min-width:46px}
+#dropCall .dcSec b{font-family:var(--f-num);font-weight:700;font-size:30px;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
+#dropCall .dcSec small{font-family:var(--f-num);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+#dropCall .dcSec.tick b{animation:dcTick .5s cubic-bezier(.2,1.4,.4,1) both;color:var(--dk)}
+#dropCall.mini{top:calc(9% + env(safe-area-inset-top,0px))}
+#dropCall.mini .dcSlab{min-width:0;padding:5px 10px 5px 6px;gap:9px}
+#dropCall.mini .dcRing{width:32px;height:32px}
+#dropCall.mini .dcIc{width:15px;height:15px}
+#dropCall.mini em,#dropCall.mini .dcTx small{display:none}
+#dropCall.mini .dcTx{flex:none;display:flex;align-items:baseline;gap:7px}
+#dropCall.mini .dcTx>b{font-size:15px}
+#dropCall.mini .dcSide{display:inline;font-style:normal;font-family:var(--f-num);font-weight:700;font-size:12px;letter-spacing:.14em;color:var(--dk)}
+#dropCall.mini .dcSec{flex-direction:row;display:flex;align-items:baseline;gap:3px;min-width:0;padding-left:9px}
+#dropCall.mini .dcSec b{font-size:18px}
+#dropCall.landed{--dk:#8fd49a}
+#dropCall.landed .dcSec{display:none}
+#dropCall.land .dcSlab{animation:dcLand .6s cubic-bezier(.2,1.2,.4,1) both}
+@keyframes dcTick{0%{transform:scale(1.5)}100%{transform:none}}
+@keyframes dcLand{0%{transform:scale(1.08);box-shadow:0 0 0 2px var(--dk),0 10px 28px -12px rgba(0,0,0,.9)}100%{transform:none}}
+body.menu #dropCall,body:has(#station:not([hidden])) #dropCall{opacity:0!important}
+@media (prefers-reduced-motion:reduce){#dropCall,#dropCall *{animation-duration:.01s!important;transition:none!important}}

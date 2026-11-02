@@ -50,7 +50,7 @@ export function renderGift() {
       <button type="button" class="gfGive" style="--k:7">${ic}<span></span></button>
     </div>`;
   }
-  if (!ps.length) { setT('stNote', 'E to step away'); return; }
+  if (!ps.length) { setT('stNote', `${keyOn('use')} to step away`); return; }
   // who: each teammate's card, their own scrap on it, the one picked lit in their colour
   rows.querySelectorAll('.gfP').forEach(b => {
     const p = NET.peers.get(b.dataset.to); if (!p) return;

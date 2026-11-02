@@ -24,9 +24,13 @@ import { AK_ON, akTriggers } from './akimbo.js';
 import { aimRay, bodyOf, cursorTarget, fire, SETTLE, settleK } from './firing.js';
 import { HEAVY, heavySwing, LUNGS, meleeHit } from '../melee/melee.js';
 import { tickBandage } from '../player/bandages.js';
-import { RUN_REST, SHOT_HOLD, SPRINT, sprintHolds } from '../player/sprint.js';
+import { ARENA_STAM, RUN_REST, SHOT_HOLD, SPRINT, sprintHolds } from '../player/sprint.js';
 import { fpGunPitch, fpOn, VCAM } from '../game/view-cam.js';
 import { ANIM, LOOK_DOWN } from '../player/animation.js';
+import { PVP, pvpEnding, pvpFrozen } from '../pvp/pvp.js';
+import { blockStops, chargeStep, dashRegen, updateBlock } from '../melee/block.js';
+import { sndLastPlayed } from '../audio/samples.js';
+import { curSwing } from '../melee/melee-anim.js';
 
 const VAULT_BREATH = 1;   // seconds after a vault before stamina starts coming back
 const PITCH_MAX = 0.75;   // how far down (radians) the arms will point a gun
@@ -35,16 +39,23 @@ const AIM_CHEST = 1.4, AIM_NEAR = 1.3, AIM_UP = 0.22, AIM_UP_FP = 0.9;   // wher
 // trigger, swings, reloads, bursts, stamina, bleeding and bandages
 const groundPlane = new THREE.Plane(new V3(0, 1, 0), 0), _gp = new V3();
 const BLEED_FLOOR = 15;   // the health bleeding leaves you on at worst: there it stops, the wound clotted
+// how long a volatile's shell-shock takes to clear (P.shock, from 1 to none: its blur and grey, ui/hud.js)
+const SHOCK_FADE = 3.2;
 export function updateCombat(dt) {
-  W8.cd -= dt;
+  // (a charge with no swing left under it, cut off by dying, a respawn or a weapon put away mid-hold: let go, or it
+  // would freeze the cooldown below for good, no swing ever starting again and the crosshair stuck on its brackets)
+  if (W8.chgOn && (!(W8.swing > 0) || P.dead)) { W8.chgOn = false; W8.chgK = 0; W8.chgDone = false; }
+  if (!W8.chgOn) W8.cd -= dt;   // (not while a heavy blow's held: the button's still down, and a new swing would start over it, the pose jumping)
   if (W8.swing > 0) {
-    if (ANIM.mStop > 0) ANIM.mStop -= dt; else W8.swing = Math.max(0, W8.swing - dt);   // (stopped dead a moment on a blow that lands: meleeImpact)
+    const p0 = 1 - W8.swing / W8.swingDur, D0 = W(curId()) || {}, held = chargeStep(dt, p0, heavySwing(D0) ? HEAVY.hit : 0.4, curId(), D0.melee ? curSwing(D0).fast[0] - 0.02 : 1);   // (held gathering a heavy blow: melee/block.js CHARGE)
+    if (held) { /* (the swing waits where it is) */ } else if (ANIM.mStop > 0) ANIM.mStop -= dt; else W8.swing = Math.max(0, W8.swing - dt);   // (stopped dead a moment on a blow that lands: meleeImpact)
     const p = 1 - W8.swing / W8.swingDur, D = W(curId()) || {}, heavy = heavySwing(D);
-    if (heavy && !W8.whoosh && p >= HEAVY.whoosh) { W8.whoosh = true; SFX.swingHeavy(!D.blunt); }   // the heavy ones are heard coming down, before they land
+    if (heavy && !W8.whoosh && p >= HEAVY.whoosh) { W8.whoosh = true; SFX.swingHeavy(!D.blunt); W8.whooshSnd = sndLastPlayed(); }   // the heavy ones are heard coming down, before they land
     if (!W8.hitDone && p >= (heavy ? HEAVY.hit : 0.4)) { W8.hitDone = true; meleeHit(); }
   }
   resumeReload(); tickReload(dt); tickShut(dt); tickCycle(dt);
-  const canFire = !openSt && !P.dead && !(P.bandT > 0) && !(ANIM.bandP > 0.25) && !sprintHolds();   // not till it's back in your hands after a bandage, nor sprinting (player/sprint.js)
+  updateBlock(dt);   // (the guard up or down: melee/block.js)
+  const canFire = !blockStops() && !openSt && !P.dead && !(P.shockStun > 0) && (!pvpFrozen() || pvpEnding()) && !(P.bandT > 0) && !(ANIM.bandP > 0.25) && !sprintHolds();   // not till it's back in your hands after a bandage, nor sprinting (player/sprint.js)
   // (a click made while the gun was down at a sprint goes off now it's up: P.fireQ, player/sprint.js; one made while the
   // double barrel was open goes off as it latches: W8.shutFire, weapons/reload.js)
   const stickFire = !!(tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.4), wantFire = (mouseDown || stickFire || !!P.fireQ || W8.shutFire > 0) && canFire;
@@ -65,9 +76,9 @@ export function updateCombat(dt) {
   P.runT = (P.runT || 0) + dt; P.runDebt = clamp(P.runDebt || 0, 0, sm - P.stam);
   if (P.vault) P.stamWait = VAULT_BREATH; else if (P.stamWait > 0) P.stamWait -= dt;
   if (!(P.stamWait > 0)) {
-    const lw = S.lungs ? LUNGS.wait / 0.55 : 1, lr = (P.moving ? 0.75 : 1) * (S.lungs ? LUNGS.refill : 1);
+    const lw = S.lungs ? LUNGS.wait / 0.55 : 1, lr = (P.moving ? 0.75 : 1) * (S.lungs ? LUNGS.refill : 1) * dashRegen();   // (slow at first after a dash taken short of stamina: melee/block.js DASH)
     if (P.stam + P.runDebt < sm) { if (P.stamT > 0.55 * lw) P.stam = Math.min(sm - P.runDebt, P.stam + dt * (P.exh ? 0.26 : 0.38) * lr); }
-    else if (P.runDebt > 0 && P.runT > RUN_REST.wait * lw) { const g = Math.min(P.runDebt, dt * (P.exh ? RUN_REST.exh : RUN_REST.rate) * lr); P.stam += g; P.runDebt -= g; }
+    else if (P.runDebt > 0 && P.runT > RUN_REST.wait * lw * (PVP.on ? ARENA_STAM.wait : 1)) { const g = Math.min(P.runDebt, dt * (P.exh ? RUN_REST.exh : RUN_REST.rate) * lr * (PVP.on ? ARENA_STAM.rate : 1)); P.stam += g; P.runDebt -= g; }
   }
   if (P.exh && P.stam >= 0.34 * sm) P.exh = false;
   // emptying the tank leaves you sluggish till you could sprint again (SPRINT.unlock); speed creeps back as the stamina does
@@ -111,6 +122,7 @@ export function updateCombat(dt) {
   if (onFarm && !P.dead && hasMouse && !tStick.R && !scoped && !fpOn() && ray.ray.intersectPlane(groundPlane, _gp) && !cursorTarget()) ANIM.lookDnT = 1 - smooth(clamp((Math.hypot(_gp.x - P.x, _gp.z - P.z) - LOOK_DOWN.near) / (LOOK_DOWN.far - LOOK_DOWN.near), 0, 1));
   if (P.kbx || P.kbz) { moveCircle(P, P.kbx * dt, P.kbz * dt, 0.3, true); const f = Math.exp(-dt * 7); P.kbx *= f; P.kbz *= f; if (Math.abs(P.kbx) + Math.abs(P.kbz) < 0.05) P.kbx = P.kbz = 0; }
   P.conc = Math.max(0, (P.conc || 0) - dt / 3.2);
+  P.shock = Math.max(0, (P.shock || 0) - dt / SHOCK_FADE); P.shockStun = Math.max(0, (P.shockStun || 0) - dt);   // (a volatile's: zombies/elites.js)
   W8.heat = Math.max(0, (W8.heat || 0) - dt * 0.55); W8.wispT = (W8.wispT || 0) - dt;
   W8.sprayT = (W8.sprayT || 0) + dt;
   if (W8.spray > 0) { W8.spray *= Math.exp(-dt * SETTLE.rate * settleK(W(curId())) * smooth(clamp((W8.sprayT - SETTLE.hold) / SETTLE.ramp, 0, 1))); if (W8.spray < 0.002) W8.spray = 0; }   // (settling: SETTLE)

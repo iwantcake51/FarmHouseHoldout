@@ -5,7 +5,8 @@ import { CAM_OFF, EL, FWD, GUN_Y, ISO_CAM, RIGHT, setZoom, V3, VIEW, zoom, zoomT
 import { cache, clamp, rand, rr, smooth } from '../core/math.js';
 import { cxw } from '../world/grid.js';
 import { P } from '../player/player.js';
-import { SCOPES, T } from './run-state.js';
+import { curId, SCOPES, T, W8 } from './run-state.js';
+import { EJECT } from '../weapons/casings.js';
 import { camKick, camPunch, camRoll, setCamPunch, setCamRoll, setShake, shake, state, worldT } from './state.js';
 import { aimPt, hasMouse, mouseX, mouseY } from '../input/keyboard-mouse.js';
 import { aiming, scopeAim, scoped, scopePt } from '../player/aiming.js';
@@ -19,6 +20,7 @@ import { ANIM } from '../player/animation.js';
 import { swapSt } from '../player/swap.js';
 import { camFocus } from '../net/spectate.js';
 import { SET } from '../ui/settings.js';
+import { dashRoll } from '../melee/block.js';
 
 export const camTarget = new V3(P.x, 0, P.z);
 // the vault camera: roll, a vertical bob and a push along the jump, each a damped spring chasing a target that follows
@@ -29,7 +31,7 @@ export const camVault = { roll: 0, vr: 0, bob: 0, vb: 0, px: 0, vpx: 0, pz: 0, v
 // in a quarter second), so it comes up, a hair past and settles rather than gliding to a stop
 const ADS_ISO = { k: 120, d: 16 };
 // how far (radians) a wall has the gun tipped down before the sights go down, and how near level before they come back
-const WALL_ADS = { on: 0.12, off: 0.03 };
+const WALL_ADS = { on: 0.3, off: 0.12 };
 // firing: each shot kicks the view on its own, apart from the gun's kick in the arms (player/hold.js): it tips only a
 // little (mostly one way, like a gun climbing: CAM_ROLL, and less again on a full automatic, CAM_ROLL_AUTO, whose kicks
 // come too fast to settle) and punches in a touch (CAM_PUNCH: how hard, by the gun's power, so a 9mm barely nudges and
@@ -132,8 +134,13 @@ export function updateCamera(rdt) {
   // (nor while a wall has the gun tipped down out of the way, player/hold.js gunPush: the sights would come up to your
   // eye with the gun pointing at the floor; they go down as it tips, WALL_ADS.on radians, and come back once it's all
   // but level again, WALL_ADS.off, so it doesn't flicker at the edge)
-  { const tip = ANIM.gtipA || 0; ANIM.wallAds = tip > WALL_ADS.on || (!!ANIM.wallAds && tip > WALL_ADS.off); }
-  { const want = aiming && !(P.skid > SPRINT.skid * 0.4) && !(!iso && (swapSt || P.vault || (ANIM.postVault || 0) > 0.2 || ANIM.wallAds));   // skidding out of a sprint, into the sights as you slow
+  // (the gun only pushed back toward you off a wall, not yet tipped, still comes up to your eye: a wall closer still and
+  // it's down; coming back up off one, the sights come up quick, ANIM.wallUpT, game/view-cam.js fpAds)
+  { const tip = ANIM.gtipA || 0, was = !!ANIM.wallAds; ANIM.wallAds = tip > WALL_ADS.on || (was && tip > WALL_ADS.off); if (was && !ANIM.wallAds) ANIM.wallUpT = 0.6; ANIM.wallUpT = Math.max(0, (ANIM.wallUpT || 0) - rdt); }
+  // (nor, from your own eyes, while a break-open gun's being loaded: the double's barrels dropped open, the revolver's
+  // cylinder swung out, right at your eye, the muzzles coming up into your face; it's brought down off the eye for it,
+  // and back up to it once it's shut, if you're still holding aim)
+  { const want = aiming && !(P.skid > SPRINT.skid * 0.4) && !(!iso && (swapSt || P.vault || (ANIM.postVault || 0) > 0.2 || ANIM.wallAds || ((W8.reloading || W8.shutT > 0) && EJECT[curId()] === 'breach')));   // skidding out of a sprint, into the sights as you slow
     // (in first person, steadily over the time it takes, eased at both ends: game/view-cam.js)
     // (from above, on a spring a little under critical, ADS_ISO: the gun comes up, a hair past and settles, and drops
     // back the same; adsP has the overshoot, for the pose, ads stays 0..1 for everything else)
@@ -150,7 +157,7 @@ export function updateCamera(rdt) {
   vaultCam(rdt); runCam();
   const cv = camVault, cr = camRec, ck = camRack, cu = camRun, ch = camHit;
   FP_JOLT_IN.px = (cr.px + ck.px + ch.px) * shk; FP_JOLT_IN.pz = (cr.pz + ck.pz + ch.pz) * shk; FP_JOLT_IN.zoom = (cr.zoom * 0.35 + ck.zoom + ch.zoom) * shk;
-  viewFrame(rdt, (camRoll + cr.roll + ck.roll + ch.roll) * shk + wob + cv.roll, sh, FP_JOLT_IN);   // (placed in first person or flown, with the pushes and zooms it feels as well: game/view-cam.js)
+  viewFrame(rdt, (camRoll + cr.roll + ck.roll + ch.roll) * shk + wob + cv.roll + dashRoll(), sh, FP_JOLT_IN);   // (+ the lean into a dash: melee/block.js)   // (placed in first person or flown, with the pushes and zooms it feels as well: game/view-cam.js)
   if (!iso) return;
   const vx = (camKick.x + cr.px + ck.px + ch.px) * shk + cv.px + cu.px, vz = (camKick.z + cr.pz + ck.pz + ch.pz) * shk + cv.pz + cu.pz;
   setCamPunch(camPunch * Math.exp(-rdt * 9)); ISO_CAM.zoom *= (1 + (cr.zoom * 0.35 + ck.zoom + ch.zoom + camPunch) * shk) * deathZoomK();   // (going down: ui/screens.js)

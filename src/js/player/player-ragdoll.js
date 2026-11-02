@@ -3,7 +3,7 @@
 // that dropped them and on along the way they were going, and left lying where it lands till they're back on their feet
 
 import { P, pBlob, PM } from './player.js';
-import { makeRagdoll } from '../zombies/deaths.js';
+import { makeRagdoll, ragGrab } from '../zombies/deaths.js';
 import { ANIM } from './animation.js';
 
 // how hard the last hit throws you (force, as a zombie's weapon force); how the survivor's rig differs from a zombie's
@@ -15,11 +15,13 @@ const PRAG_PARTS = ['g', 'upper', 'lower', 'torso', 'head', 'armL', 'armR', 'leg
 export function survivorRagdoll(rig, x, z, face, vx, vz, dx, dz, blob) {
   // what's posed, to put back as it was once they're up again
   const keep = PRAG_PARTS.map(k => rig[k] && [rig[k], rig[k].position.clone(), rig[k].quaternion.clone(), rig[k].scale.clone()]).filter(Boolean);
-  // (the bob, lean and reach of the upper and lower body taken out, and the arms back at the shoulders, as the rig's built)
-  rig.upper.position.set(0, 0, 0); rig.lower.position.set(0, 0, 0); rig.armL.position.set(-0.33, 1.08, 0); rig.armR.position.set(0.33, 1.08, 0);
   const m = { g: rig.g, lower: rig.lower, upper: rig.upper, head: rig.head, armL: rig.armL, armR: rig.armR, legL: rig.legL, legR: rig.legR, shinL: rig.shinL, shinR: rig.shinR, mats: rig.mats || {}, eyes: null };
+  // (how they stood, to go down from with no jump; then the bob, lean and reach of the upper and lower body taken out,
+  // and the arms back at the shoulders, as the rig's built)
+  const pre = ragGrab(m);
+  rig.upper.position.set(0, 0, 0); rig.lower.position.set(0, 0, 0); rig.armL.position.set(-0.33, 1.08, 0); rig.armR.position.set(0.33, 1.08, 0);
   const body = { m, T: { scale: 1 }, limbs: { head: 1, armL: 1, armR: 1, legL: 1, legR: 1 }, cut: {}, vx: vx || 0, vz: vz || 0, face, spurts: [], x, z, vis: 1, burn: 0, flash: 0, blob: blob || null };
-  const r = makeRagdoll(body, dx, dz, 'torso', PRAG.force, null, { upY: PRAG.upY, noFore: true, list: PRAG.list });
+  const r = makeRagdoll(body, dx, dz, 'torso', PRAG.force, null, { upY: PRAG.upY, noFore: true, list: PRAG.list, pre });
   r.keepPose = keep;
   return r;
 }

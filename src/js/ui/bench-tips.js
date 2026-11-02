@@ -12,6 +12,7 @@ import { P } from '../player/player.js';
 import { METAL } from '../barricades/planks.js';
 import { phase, state } from '../game/state.js';
 import { INTRO } from '../game/intro.js';
+import { ARENA } from '../world/arena.js';
 
 const BTIP_T = 7.5, BTIP_FADE = 0.6;
 const BTIP_TEXT = { bench: 'Upgrade and fit out your guns', get saw() { return METAL.on ? 'Cut metal and plate the grates' : 'Cut planks to board up windows'; }, med: 'Bandages and healing',
@@ -30,7 +31,7 @@ export function updateBenchTips(rdt) {
       document.body.appendChild(el); BTIP.els[s.id] = el;
     });
   }
-  const live = BTIP.on && state === 'play' && !P.dead && INTRO.t < 0;
+  const live = BTIP.on && state === 'play' && !P.dead && INTRO.t < 0 && !ARENA.on;   // (none in the arena: no stations there)
   if (live) { BTIP.t += rdt; if (phase !== 'break') BTIP.t = Math.max(BTIP.t, BTIP_T + 0.001); if (BTIP.t > BTIP_T + BTIP_FADE) BTIP.on = false; }   // (the prep skipped: they fade now)
   for (const s of STATIONS) {
     const el = BTIP.els[s.id], show = live && BTIP.on && !(s.coop && !netLink());

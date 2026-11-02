@@ -1,5 +1,6 @@
 // Pooled particles (blood, dust, sparks, embers, smoke) and flying gibs.
 
+import { stepWallBlood } from './wall-blood.js';
 import { scene, V3 } from '../core/renderer.js';
 import { rand, rr } from '../core/math.js';
 import { basic, lam } from '../core/shaders.js';
@@ -11,10 +12,11 @@ import { splat, stepBloodMap } from './blood-map.js';
 import { dustBurst, fx, sparkBurst } from './puffs.js';
 import { zFree } from '../zombies/zombie-kit.js';
 import { visAt } from '../lighting/vision.js';
+import { GOLD } from './gold.js';
 
 export const parts = [];
 const PG = new THREE.BoxGeometry(0.07, 0.07, 0.07);
-const PMAT = { spark: basic(0xffd88a), blood: lam(0x7a1a12), blood2: lam(0x4d0f0b), wood: lam(0xa8804f), dust: lam(0x7d7564), ember: basic(0xff8a32), smoke: lam(0x3a3836) };
+const PMAT = { spark: basic(0xffd88a), blood: lam(0x7a1a12), blood2: lam(0x4d0f0b), wood: lam(0xa8804f), dust: lam(0x7d7564), ember: basic(0xff8a32), smoke: lam(0x3a3836), stone: lam(0x8e8a82), metal: lam(0x4e5256) };   // (stone: concrete and brick chips; metal: flakes of paint and rust off a sheet)
 for (let k = 0; k < 280; k++) { const m = new THREE.Mesh(PG, PMAT.blood); m.visible = false; scene.add(m); parts.push({ m, life: 0, vx: 0, vy: 0, vz: 0, kind: 'blood', landed: false }); }
 let pIdx = 0;
 Object.values(PMAT).forEach(m => { m.userData.mobile = true; });
@@ -35,6 +37,10 @@ const DROP_G = new THREE.LatheGeometry(DROP_PROFILE.map(([r, y]) => new THREE.Ve
 const DROP_COL = 0x9a1a10, _dz = new V3(0, 0, 1), _dv = new V3(), _dmx = new THREE.Matrix4(), _dq = new THREE.Quaternion();
 const DROP_N = 640, DROP_MAT = lam(DROP_COL); DROP_MAT.userData.mobile = true;
 const dropIM = new THREE.InstancedMesh(DROP_G, DROP_MAT, DROP_N); dropIM.frustumCulled = false; dropIM.count = 0; dropIM.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(dropIM);
+// and gold ones, out of whoever's hit with the golden revolver or katana (effects/gold.js: GOLD.on as they're made),
+// drawn as their own instances in gold, and leaving no stain where they land: they glint and are gone
+const GOLD_DROP = lam(0xf0c040, { emissive: 0x5a3e08 }); GOLD_DROP.userData.mobile = true;
+const goldIM = new THREE.InstancedMesh(DROP_G, GOLD_DROP, DROP_N); goldIM.frustumCulled = false; goldIM.count = 0; goldIM.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(goldIM);
 const drops = [], liveDrops = [];
 for (let k = 0; k < DROP_N; k++) drops.push({ p: new V3(), q: new THREE.Quaternion(), s: new V3(), shown: false, live: false, life: 0, vx: 0, vy: 0, vz: 0, r: 0.01, wait: 0, sq: 1, roll: 0 });
 let dropIdx = 0;
@@ -42,11 +48,11 @@ let dropIdx = 0;
 function takeDrop(r) {
   const d = drops[dropIdx = (dropIdx + 1) % DROP_N];
   if (!d.live) { d.live = true; liveDrops.push(d); }
-  d.r = r; d.sq = rr(0.72, 1.12); d.roll = rand() * Math.PI; d.q.identity(); d.s.setScalar(r);
+  d.r = r; d.sq = rr(0.72, 1.12); d.roll = rand() * Math.PI; d.q.identity(); d.s.setScalar(r); d.gold = GOLD.on;
   return d;
 }
 // every drop out of the air (a fresh run, ui/screens.js)
-export function clearDrops() { for (const d of liveDrops) { d.live = d.shown = false; d.life = 0; } liveDrops.length = 0; dropIM.count = 0; }
+export function clearDrops() { for (const d of liveDrops) { d.live = d.shown = false; d.life = 0; } liveDrops.length = 0; dropIM.count = 0; goldIM.count = 0; }
 const DROP_THROW = 1.7, DROP_SCATTER = 1.5, DROP_DRAG = 0.6;
 function bloodDrops(x, y, z, n, dirx, dirz, force) {
   for (let k = 0, c = Math.max(1, Math.round(n * 2.6)); k < c; k++) {   // (a good many: each one marks the ground where it lands)
@@ -73,6 +79,14 @@ export function bloodSpurt(x, y, z, dirx, dirz, n, power) {
 // you bleeding: a drop or two falls from the wound (the left arm or your side) carried along at your speed, and spots the
 // ground where it lands, so you leave a trail as you go and a spreading patch where you stand
 const _bw = new V3();
+// someone else bleeding (pvp/pvp.js: what a nailed bat leaves): a drop falling from about their chest at x, z, carried
+// along at their speed (vx, vz), and now and then a spot on the ground under them
+export function bleedDripAt(x, z, vx, vz) {
+  const d = takeDrop(rr(0.012, 0.022));
+  d.vx = vx * 0.85 + rr(-0.15, 0.15); d.vz = vz * 0.85 + rr(-0.15, 0.15); d.vy = rr(-0.4, 0.2);
+  d.life = 2; d.wait = 0; d.p.set(x + rr(-0.16, 0.16), rr(0.85, 1.2), z + rr(-0.16, 0.16)); d.shown = true;
+  if (Math.hypot(vx, vz) < 0.3 && rand() < 0.2) splat(x + rr(-0.15, 0.15), z + rr(-0.15, 0.15), 'drop', rr(0.18, 0.3));
+}
 export function bleedDrip() {
   PM.upper.updateMatrixWorld(); const arm = rand() < 0.6;
   _bw.set(arm ? -0.3 : 0.24, arm ? 0.8 : 0.95, rr(-0.05, 0.08)); PM.upper.localToWorld(_bw);
@@ -102,10 +116,11 @@ export function dropHits(x, y, z) {
 function stepDrops(dt) {
   if (dt > 0) moveDrops(dt);
   // the ones in the air into the instances (when the world's frozen they hold where they are)
-  let n = 0;
-  for (const d of liveDrops) { if (!d.shown) continue; _dmx.compose(d.p, d.q, d.s); dropIM.setMatrixAt(n, _dmx); n++; }
-  dropIM.count = n; dropIM.visible = n > 0;
+  let n = 0, g = 0;
+  for (const d of liveDrops) { if (!d.shown) continue; _dmx.compose(d.p, d.q, d.s); if (d.gold) goldIM.setMatrixAt(g++, _dmx); else dropIM.setMatrixAt(n++, _dmx); }
+  dropIM.count = n; dropIM.visible = n > 0; goldIM.count = g; goldIM.visible = g > 0;
   if (n) dropIM.instanceMatrix.needsUpdate = true;
+  if (g) goldIM.instanceMatrix.needsUpdate = true;
 }
 function moveDrops(dt) {
   for (let k = liveDrops.length - 1; k >= 0; k--) {
@@ -121,6 +136,8 @@ function moveDrop(d, dt) {
   d.vx *= drag; d.vz *= drag; d.vy = d.vy * drag - 13 * dt;
   p.x += d.vx * dt; p.y += d.vy * dt; p.z += d.vz * dt;
   const sp = Math.hypot(d.vx, d.vy, d.vz);
+  // (a gold one leaves nothing where it lands: a glint, and gone)
+  if (d.gold && (p.y <= 0.015 || (p.y < 2.4 && dropHits(p.x, p.y, p.z)))) { if (d.r > 0.015) fx('goldGlint', p.x, Math.max(0.03, p.y), p.z, 0, 0.3, 0, 0.05, 0.14, 0.35, 0.9); d.life = 0; return; }
   // into something standing in its way: it splashes there, as high as it was
   if (p.y < 2.4 && dropHits(p.x, p.y, p.z)) { splat(p.x - d.vx * dt * 0.5, p.z - d.vz * dt * 0.5, 'drop', 0.06 + d.r * 4, undefined, 0, p.y + 0.15, 0.7); d.life = 0; }   // (a smaller mark: most of it's on what it hit)
   else if (p.y <= 0.015) {
@@ -176,12 +193,13 @@ export function stepParticles(dt) {
   stepDrops(dt);
   const gdt = P.dead ? P.deathDt || 0 : dt;   // the world is frozen once you're down, but the blood in the air still lands
   stepBloodMap(gdt);   // new splashes into the farm's blood map (effects/blood-map.js)
+  stepWallBlood(gdt);  // and the blood up the walls drying, running and soaking away (effects/wall-blood.js)
   for (let k = gibs.length - 1; k >= 0; k--) {
     const g = gibs[k]; g.life -= dt;
     if (!g.landed) {
       g.vy -= 14 * dt; g.m.position.x += g.vx * dt; g.m.position.y += g.vy * dt; g.m.position.z += g.vz * dt; g.m.rotation.x += g.spin * dt; g.m.rotation.z += g.spin * 0.6 * dt;
       if (bulletBlocked(g.m.position.x, g.m.position.z)) { g.vx *= -0.3; g.vz *= -0.3; }
-      if (rand() < 0.5) burst(g.m.position.x, g.m.position.y, g.m.position.z, 1, 'blood', 0, 0, 0.3);
+      if (rand() < 0.5) { const was = GOLD.on; GOLD.on = !!g.gold; burst(g.m.position.x, g.m.position.y, g.m.position.z, 1, 'blood', 0, 0, 0.3); GOLD.on = was; }   // (a gold piece drips gold: effects/gold.js)
       if (g.m.position.y < 0.12) { g.m.position.y = 0.12; if (Math.abs(g.vy) > 2) { g.vy *= -0.35; g.vx *= 0.5; g.vz *= 0.5; splat(g.m.position.x, g.m.position.z, 'drop', rr(.4, .6)); } else { g.landed = true; splat(g.m.position.x, g.m.position.z, 'drop', rr(0.3, 0.45)); } }
     }
     g.m.visible = visAt(g.m.position.x, g.m.position.z) > 0.2;

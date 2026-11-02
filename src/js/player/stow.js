@@ -136,7 +136,8 @@ function restPose(o, hm, turn = true) {
 // everything at rest; the automatic's strap reaches down to the pack either side of it
 const AUTO_Z = -0.36, MELEE_Z = -0.33;
 let restKey = '';   // what was last laid on the back (updateStow)
-function restBack() {
+// (canvas: the studio's way, bareBack: the melee weapon laid on the pack's own canvas, there being no planks there)
+function restBack(canvas = false) {
   const o = STOW.auto, t = o && o.userData.twin, me = STOW.melee, rot = STOW.long && STOW.long.rotation.clone();
   const bq = packBack.quaternion.clone(), bp = packBack.position.clone();
   packBack.quaternion.identity(); packBack.position.set(0, 0, 0); if (STOW.long) STOW.long.rotation.set(0, 0, 0);
@@ -146,7 +147,7 @@ function restBack() {
   // the melee weapon only ever comes out from the pack, over the planks; without them it's left where it is
   if (me) {
     me.position.z = MELEE_Z; packBody.updateMatrixWorld(true);
-    const p = restPose(me, restMap(new Set(), plankStack[0].parent), false); if (p && p.sh < 0) me.position.z += p.sh;
+    const p = restPose(me, canvas ? restMap(new Set([o, t, me].filter(Boolean))) : restMap(new Set(), plankStack[0].parent), false); if (p && (canvas || p.sh < 0)) me.position.z += p.sh;
   }
   const lay = (g, skip) => {
     g.position.z = AUTO_Z; g.userData.inner.quaternion.copy(g.userData.q0); packBody.updateMatrixWorld(true);
@@ -320,6 +321,33 @@ const plankStack = [], STOW_STEEL = lam(0x8d949b), STOW_STEEL_DK = lam(0x5d636a)
   };
   plankStack.strap = cinch(0.16, 0.73, 1.15, -0.072); plankStack.strap.visible = false;
   plankStack.strap2 = cinch(-0.12, 0.76, 1.12, -0.074); plankStack.strap2.visible = false;
+}
+// the pack as the character menu's studio shows it (ui/gun-view.js: showFigure), fn run with it so and everything put
+// back after: no planks strapped on (they're the run's, not your look), the melee weapon in off the pack's edge and
+// slanting in across its back (STUDIO_MELEE: where its handle is, and its turn) rather than hanging out past your arm
+// stood easy, lying snug on the canvas, and the automatic laid over what's under it then; the pack still, not swinging
+const STUDIO_MELEE = { x: -0.15, rz: Math.PI + 0.16 };
+// (where that left everything, kept for the same things on the pack: a colour dragged along rebuilds the studio's copy
+// of you many times a second, and laying them again each time would be a stall)
+let studioRest = { key: '' };
+export function bareBack(fn) {
+  const ps = [...plankStack, plankStack.strap, plankStack.strap2], vis = ps.map(p => p.visible), me = STOW.melee, o = STOW.auto, st = o && o.userData.strap;
+  const was = [me, o, o && o.userData.twin].filter(Boolean).map(q => [q, q.position.clone(), q.userData.inner.quaternion.clone(), q.userData.pts]);
+  const sw = [packBack.position.clone(), packBack.quaternion.clone(), packPivot.position.clone(), packPivot.quaternion.clone()], stz = st && [st.scale.z, st.position.z];
+  ps.forEach(p => { p.visible = false; }); packBack.position.set(0, 0, 0); packBack.quaternion.identity(); packPivot.position.set(...PACK_PIV); packPivot.quaternion.identity();
+  try {
+    const key = [me, o, o && o.userData.twin, STOW.long].map(q => q ? q.uuid : '').join('|');
+    if (studioRest.key !== key) {
+      if (me) { me.position.x = STUDIO_MELEE.x; me.userData.inner.rotation.set(0, 0, STUDIO_MELEE.rz); me.userData.pts = null; }   // (its points measured again, turned as it is now)
+      restBack(true);
+      studioRest = { key, at: was.map(([q]) => [q, q.position.clone(), q.userData.inner.quaternion.clone()]), st: st && [st.scale.z, st.position.z] };
+    } else { studioRest.at.forEach(([q, pos, iq]) => { q.position.copy(pos); q.userData.inner.quaternion.copy(iq); }); if (st) [st.scale.z, st.position.z] = studioRest.st; }
+    return fn();
+  } finally {
+    ps.forEach((p, k) => { p.visible = vis[k]; });
+    was.forEach(([q, pos, iq, pts]) => { q.position.copy(pos); q.userData.inner.quaternion.copy(iq); q.userData.pts = pts; });
+    packBack.position.copy(sw[0]); packBack.quaternion.copy(sw[1]); packPivot.position.copy(sw[2]); packPivot.quaternion.copy(sw[3]); if (stz) [st.scale.z, st.position.z] = stz;
+  }
 }
 // the backpack hangs from the tops of its shoulder straps and swings on its own, like a real one: it bounces a beat
 // behind each step, lags back as you set off and swings on as you pull up, rocks with your stride and out to the side

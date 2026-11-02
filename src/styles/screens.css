@@ -1,5 +1,5 @@
 /* Title, pause and death screens. */
-.screen{position:fixed;inset:0;z-index:5;display:grid;place-items:center;padding-inline:20px;background:linear-gradient(90deg,rgba(12,14,15,.92) 0%,rgba(12,14,15,.7) 50%,rgba(12,14,15,.25) 100%)}
+.screen{position:fixed;inset:0;z-index:5;display:grid;place-items:safe center;overflow-y:auto;padding-block:16px;padding-inline:20px;background:linear-gradient(90deg,rgba(12,14,15,.92) 0%,rgba(12,14,15,.7) 50%,rgba(12,14,15,.25) 100%)}
 .screen .inner{width:min(560px,100%);justify-self:start;margin-left:min(8vw,90px);display:grid;gap:18px}
 .eyebrow{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--orange)}
 .screen h1,.screen h2{margin:0;font-family:var(--f-num);font-weight:800;text-transform:uppercase;line-height:.85;text-wrap:balance}
@@ -27,6 +27,8 @@
 #title .ctrlGrp h4,#title .ctrlMore summary{margin:0 0 2px;font:600 10px/1 var(--f-ui);letter-spacing:.2em;text-transform:uppercase;color:rgba(236,230,216,.45)}
 #title .ctrls p{margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;font-size:11.5px;line-height:1.35;color:#c7c0b0}
 #title .ctrls p span{flex:1 1 100%;color:var(--dim)}
+/* (walking's keys as they sit on the keyboard, W over A S D, rather than a row that wraps D onto a line of its own) */
+#title .ctrls p.wasd{display:grid;grid-template-columns:repeat(3,max-content);justify-content:start;gap:3px}#title .ctrls p.wasd kbd[data-key="w"]{grid-area:1/2}#title .ctrls p.wasd kbd[data-key="a"]{grid-area:2/1}#title .ctrls p.wasd kbd[data-key="s"]{grid-area:2/2}#title .ctrls p.wasd kbd[data-key="d"]{grid-area:2/3}#title .ctrls p.wasd span{grid-column:1/-1}
 #title .ctrlMore{grid-column:1/-1;border-top:1px solid rgba(236,230,216,.08);padding-top:10px;overflow:hidden}
 #title .ctrlMore summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;margin:0;transition:color .2s}
 #title .ctrlMore summary::-webkit-details-marker{display:none}
@@ -206,3 +208,12 @@ body.cineGo #cineVig{opacity:1;transition:opacity 1.1s cubic-bezier(.4,0,.5,1)}
 #dead .runMore[open] .rsG:nth-child(2){animation-delay:.05s}#dead .runMore[open] .rsG:nth-child(3){animation-delay:.1s}#dead .runMore[open] .rsG:nth-child(4){animation-delay:.15s}#dead .runMore[open] .rsG:nth-child(n+5){animation-delay:.2s}
 @media (max-width:620px){.rsBody{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){#dead .runMore::details-content,#dead .runMore[open] .rsG{transition:none;animation:none}}
+
+/* a short window: the title, pause and death screens tightened so their buttons stay on screen (and when even that's not
+   enough they scroll, from the top: .screen) */
+@media (max-height:620px){
+  .screen .inner{gap:12px}
+  #title h1{font-size:clamp(44px,min(9vw,13vh),96px)}
+  .screen h2{font-size:clamp(40px,min(8vw,12vh),80px)}
+  #title .ctrls{padding:12px 14px 10px}
+}

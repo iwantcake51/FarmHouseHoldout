@@ -6,7 +6,7 @@ import { magSize, W, W8 } from '../game/run-state.js';
 
 export const AMMO_NAME = { p9: '9mm', p10: '10mm', magnum: 'magnum', shells: 'shells', rifle: 'rifle rounds' };
 // [full damage out to, reaches the floor at, floor multiplier]
-export const FALLOFF = { pistol: [6, 18, 0.52], smg: [6, 15, 0.5], sub: [10, 22, 0.65], revolver: [12, 26, 0.6], deagle: [6, 15, 0.3], pump: [5, 13, 0.6], dbl: [5, 13, 0.6], auto12: [5, 13, 0.6], ar: [12, 26, 0.65], scar: [18, 36, 0.75], lmg: [9, 20, 0.58] };
+export const FALLOFF = { pistol: [6, 18, 0.52], smg: [6, 15, 0.5], sub: [10, 22, 0.65], revolver: [12, 26, 0.6], deagle: [6, 15, 0.3], pump: [5, 13, 0.6], dbl: [4, 11, 0.5], auto12: [5, 13, 0.6], ar: [12, 26, 0.65], scar: [18, 36, 0.75], lmg: [9, 20, 0.58] };
 const AMMO_REF = { p9: 13, p10: 13, magnum: 7, shells: 6, rifle: 12 };
 // one ammo box or crafted batch; a calibre that feeds more than one of your guns comes in a bit bigger (+20% per extra gun)
 export function ammoAmt(a) {

@@ -32,6 +32,8 @@ PICK = {
     'ring': ('m', 'ring_b_noise.png', 128, 0),
     # a flashlight's beam where it falls: a hot spot in rings off the reflector, laid over the cone (core/shaders.js)
     'flBeam': ('m', 'circle_rings_b.png', 128, 0),
+    # the lighthouse's beam on the quay: a cone of light from its root at the bottom, fading out at its far end
+    'lhBeam': ('m', 'cone_composed_b.png', 128, 0),
 }
 
 
@@ -50,7 +52,7 @@ def pack():
         total += len(data); out.append(f"  {key}: 'data:image/png;base64,{data}'")
     js = ('// Particle sprites from the Kenney Particle Pack and Light Masks (CC0, kenney.nl), packed by\n'
           '// tools/pack-particles.py: grey + alpha PNGs, loaded as textures by partTex (effects/textures.js). Generated: do not edit.\n'
-          'const PART_ART = {\n' + ',\n'.join(out) + '\n};\n')
+          'export const PART_ART = {\n' + ',\n'.join(out) + '\n};\n')
     with open(os.path.join(ROOT, 'src', 'js', 'effects', 'particle-art.js'), 'w') as fh: fh.write(js)
     print(f'{len(out)} sprites, {total // 1024} KB')
 

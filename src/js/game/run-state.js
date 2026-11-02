@@ -37,6 +37,9 @@ export function freshRun() {
   run = { wave: 0, kills: 0, shots: 0, hits: 0, boards: 0, time: 0, limbs: 0, heads: 0, taken: [], bought: [], st: {}, dropAt: 0 };   // (st: the end screen's tallies, ui/run-stats.js)
   recomputeEff();
 }
+let effHook = null;
+// what a choke does to a shotgun's spread, by its tier (Modified, Full): a load of pellets, a slug
+const CHOKE_SPREAD = { pellets: [0.7, 0.49], slug: [0.55, 0.3] };
 export function recomputeEff() {
   for (const id in WEAP) {
     const D = Object.assign({}, WEAP[id]);
@@ -45,12 +48,21 @@ export function recomputeEff() {
     // this gun's own upgrade tiers
     const g = (W8.gt && W8.gt[id]) || {};
     const ammo = g.ammo || 0, trig = g.trigger || 0, mag = g.mag || 0, sight = g.sight || 0, laser = g.laser || 0;
-    D.dmg *= AMMO_DMG[ammo]; D.powK = POWDER_KICK[ammo]; D.shake *= POWDER_KICK[ammo];   // a hotter charge kicks harder too
+    // a hotter charge kicks harder too, though less again on a gun that already kicks hard (POW_HEAVY: its share of the
+    // powder's extra kick, by the gun's own kick, down to POW_HEAVY.min)
+    D.dmg *= AMMO_DMG[ammo]; D.powDmg = AMMO_DMG[ammo]; D.powK = 1 + (POWDER_KICK[ammo] - 1) * clamp(POW_HEAVY.kick / (WEAP[id].kick || 1), POW_HEAVY.min, 1); D.shake *= D.powK;
+    // which way the kick grows with the gun's tiers (KICK_TIER): a hotter powder mostly up (its POWDER_KICK all into the
+    // climb, side of it aside), a lighter trigger mostly aside, the shots coming quicker than the wrists settle (side
+    // a step, up a little). On top of the gun's own climbK and sideK (weapons/gun-stats.js: the LMG's)
+    // (and the trigger's only while it fires a stream or a burst: on single shots the wrists settle between them)
+    const fm = W8.fm[id], streams = !!D.burst || fm === 'auto' || !!D.akKit || (fm !== 'semi' && (WEAP[id].slot === 'auto' || id === 'auto12')), trigK = streams ? trig : 0;
+    D.kickUp = (1 + (D.powK - 1) * KICK_TIER.powder.up) * (1 + trigK * KICK_TIER.trigger.up);
+    D.kickSide = (1 + (D.powK - 1) * KICK_TIER.powder.side) * (1 + trigK * KICK_TIER.trigger.side);
     const loader = g.loader || 0;
     if (loader && id === 'revolver') { D.perShell = 0; D.reload = REV_LOAD; D.speedload = true; }   // six at once
     else if (loader && id === 'scar') D.reload *= MAGWELL;   // a flared magwell: the new mag funnelled in, a quicker change
     else if (loader && D.breakOpen) { D.loadN = 2; D.perShell *= SOH.shell; D.shutMul = SOH.shut; }  // Sleight of Hand: both at once, quicker
-    else if (id === 'pump' && (S.tier.quick | 0) >= 2) { const q = S.tier.quick >= 3 ? TRIPLE : PAIR_LOAD; D.loadN = q.n; D.perShell *= q.t; }   // Quick hands II: two shells a go; III, Triple Load: three
+    else if (id === 'pump' && pumpLoad(id) >= 2) { const q = pumpLoad(id) >= 3 ? TRIPLE : PAIR_LOAD; D.loadN = q.n; D.perShell *= q.t; }   // Quick hands II: two shells a go; III, Triple Load: three (or an arena loadout's own loading, pumpLoad)
     if (W8.tune && W8.tune[id]) tuneUp(D);   // a workbench tune-up, per weapon
     reachCleave(D);   // long enough and it sweeps through more than one (melee/melee-stats.js)
     // a bigger headshot multiplier (zombies/zombie-types.js): match-grade rounds on any gun, a sight only on a sniper
@@ -71,10 +83,18 @@ export function recomputeEff() {
     if (W8.fm && W8.fm[id] === 'semi') { D.spread *= SEMI.spread; D.shake *= SEMI.shake; }   // the AR on semi: a steadier single shot a pull
     // the one kind of round loaded, last, over everything else (weapons/rounds.js)
     const rk = roundOn(id); if (rk !== 'std' && roundFits(id, rk)) ROUNDS[rk].fx(D, id);
+    // a choke squeezes the shot into a tighter cone (CHOKE_SPREAD: pellets, then a slug, by its tier), on the gun's own spread,
+    // so the pattern itself is tighter and every readout of the gun shows it (weapons/firing.js, the bench, the loadouts)
+    if (D.ammo === 'shells' && (g.choke || 0) > 0) D.spread *= ((D.pellets || 1) > 1 ? CHOKE_SPREAD.pellets : CHOKE_SPREAD.slug)[g.choke - 1] ?? 1;
+    if (W8.gold && W8.gold[id]) D.gold = true;   // (Gun game's golden revolver and katana: effects/gold.js)
+    if (effHook) effHook(id, D);   // (the arena's own say, last: its melee weapons, pvp/pvp.js)
     EFF[id] = D;
   }
 }
 export const W = id => EFF[id];
+// something else's last word on every weapon's stats as they're worked out (the arena's melee weapons, as they are
+// against each other: pvp/pvp.js PVP_MELEE), set once (effHook, declared ahead of recomputeEff)
+export function setEffHook(f) { return (effHook = f); }
 // a bigger magazine (Extended mags, a drum, a casket, the auto shotgun's drum) has its cost, worse the more it holds over
 // the gun's own: for each doubling a mag change takes MAG_SLOW longer (about +40% for an extended mag, +85% for a drum,
 // +120% for a casket or the auto shotgun's drum), and you walk MAG_WALK slower with it in your hands (about 5%, 10%, 14%:
@@ -107,6 +127,9 @@ export const AMMO_DMG = [1, 1.25, 1.5, 1.875];
 // and how much harder each step kicks: the gun back into your hands, the view, the crosshair and its spread with every
 // shot (D.powK, weapons/firing.js; D.shake)
 export const POWDER_KICK = [1, 1.18, 1.38, 1.6];
+// (a powder's kick split: up of it into the climb, side of it aside; a trigger step's: up and side a step)
+const KICK_TIER = { powder: { up: 1, side: 0.3 }, trigger: { up: 0.05, side: 0.15 } };
+const POW_HEAVY = { kick: 2.2, min: 0.4 };
 export const SIGHT_AIM = [1, 0.75, 0.6, 0.48, 0.4, 0.34], SIGHT_MOVE = [1, 0.8, 0.64, 0.51, 0.41, 0.33];
 // how much faster the recoil settles back to nothing once you stop firing, with each laser (SETTLE, weapons/firing.js)
 export const LASER_SETTLE = [1, 1.3, 1.6];
@@ -128,23 +151,28 @@ function tuneUp(D) {
 export const GUN_TIERS = new Set(['ammo', 'trigger', 'mag', 'supp', 'sight', 'laser', 'light', 'choke', 'loader']);
 // the guns a real scope (the third sight step and up) goes on, and the last step each takes: the revolver its handgun
 // scope (on the rail it gets with any optic: weapons/gun-models.js), the hand cannon as far as an ACOG (on the rail
-// along its barrel: weapons/models-pistols.js optRail), the assault rifle the ACOG, the hunting rifle and
-// the SCAR the high-power scope (the SCAR every sight there is, on its long top rail)
-export const SCOPE_TOP = { revolver: 3, deagle: 4, ar: 4, hunting: 5, scar: 5 }, SCOPE_GUNS = new Set(Object.keys(SCOPE_TOP));
+// along its barrel: weapons/models-pistols.js optRail), the assault rifle and the LMG the ACOG (the LMG's on the rail
+// along its feed cover: weapons/models-rifles.js), the hunting rifle and the SCAR the high-power scope (the SCAR every
+// sight there is, on its long top rail)
+export const SCOPE_TOP = { revolver: 3, deagle: 4, ar: 4, lmg: 4, hunting: 5, scar: 5 }, SCOPE_GUNS = new Set(Object.keys(SCOPE_TOP));
 // each scope, by its sight step: how much it pulls the view in and out toward the aim while you aim (game/camera.js;
-// zoom is the old hold-to-scope view's, player/aiming.js), and how hard a sniper's headshots crit through it
-export const SCOPES = { 3: { view: 1, zoom: 2.4, crit: 2 }, 4: { view: 1.17, zoom: 2.75, crit: 2.25 }, 5: { view: 1.35, zoom: 3.1, crit: 2.5 } };
+// zoom is the old hold-to-scope view's, player/aiming.js), its power from your own eyes (mag: times; the ACOG's own,
+// SCOPE_ACOG), and how hard a sniper's headshots crit through it. Kept low enough to keep your bearings through them
+export const SCOPES = { 3: { view: 0.85, zoom: 2.4, mag: 2.5, crit: 2 }, 4: { view: 1, zoom: 2.75, mag: 3, crit: 2.25 }, 5: { view: 1.15, zoom: 3.1, mag: 3.5, crit: 2.5 } }, SCOPE_ACOG = 3;
 // the pump's shells a go with Quick hands II (PAIR_LOAD) and III (TRIPLE, Triple Load), each go that much of the time
 // one shell takes; and the revolver's reload with its speed loader (seconds; a round at a time it's D.perShell each, after REV_OPEN_T to
 // swing the cylinder out, and Quick hands takes no more than REV_QUICK off either: relMul, weapons/reload.js); and Triple Load, the pump's loader step: three shells a go,
 // each go TRIPLE.t of the time one shell takes (longer, but each shell is in quicker: nearly twice as fast overall,
 // 6 shells in about 1.4 s against 2.6 s). Each shell of a go is still thumbed in on its own, at least ROW_GAP seconds
 // after the last, so you hear each go in (weapons/reload.js: rowLoad, shellGo)
-export const REV_LOAD = 1.95, REV_OPEN_T = 0.38, REV_QUICK = 0.75, TRIPLE = { n: 3, t: 1.5 }, PAIR_LOAD = { n: 2, t: 1.3 }, ROW_GAP = 0.075;
+export const REV_LOAD = 1.75, REV_OPEN_T = 0.38, REV_QUICK = 0.75, TRIPLE = { n: 3, t: 1.5 }, PAIR_LOAD = { n: 2, t: 1.3 }, ROW_GAP = 0.075;
 // Sleight of Hand, the double barrel's loader step: both shells go in together in SOH.shell of the time one takes on its
 // own, and the barrels are closed after in SOH.shut of the time (weapons/reload.js: tickShut). From empty that's about
 // 0.7 s against 1.3 s without it
 const SOH = { shell: 0.8, shut: 0.75 };
+// how the pump's loaded, as a Quick hands step would have it: Quick hands' own, or an arena loadout's pair (1) or triple
+// (2) loading (W8.load, set by pvp/pvp.js from the title's Loadouts screen), whichever's further along
+const pumpLoad = id => Math.max(S.tier.quick | 0, W8.load && W8.load[id] ? W8.load[id] + 1 : 0);
 // the battle rifle's flared magwell (its loader step, upgrades/tier-table.js): what's left of a mag change with it
 export const MAGWELL = 0.75;
 export let tierCtx = null;
@@ -201,10 +229,13 @@ export const magSize = id => Math.max(1, Math.round(W(id).mag * S.magMul));
 // how the weapon in your hands sets your pace: a blade or a bat is lighter than nothing much (the two-handers less so);
 // primaries weigh you down by their calibre, how many rounds they hold and every attachment bolted on. Sidearms don't
 // count, but a bigger magazine than its own slows you with any gun (MAG_WALK)
+// Gun game's golden katana (its last rung, pvp/pvp.js GG) carried a little quicker than the plain one: the run in on
+// whoever's left, for you and for a bot alike (pvp/bots.js botCarry)
+export const GOLD_PACE = 1.06;
 export function carryMul(id) {
   const D = id && W(id); if (!D) return 1;
-  if (D.melee) return D.two ? 1.03 : 1.07;
-  const big = D.magX > 1.01 ? 1 - MAG_WALK * Math.log2(D.magX) : 1;
+  if (D.melee) return (D.carry ?? (D.two ? 1.03 : 1.07)) * (W8.gold && W8.gold[id] ? GOLD_PACE : 1);   // (carry: the arena's own pace for each, pvp/pvp.js PVP_MELEE)
+  const big = (D.magX > 1.01 ? 1 - MAG_WALK * Math.log2(D.magX) : 1) * (1 - (D.heft || 0));   // (heft: a heavy part's weight, weapons/gun-mods.js)
   if (D.slot !== 'long' && D.slot !== 'auto') return big;
   const gt = W8.gt[id] || {}, att = ['supp', 'choke', 'sight', 'laser', 'light'].reduce((n, k) => n + (gt[k] || 0), 0) + (gunAtt(id, 'bayonet') ? 1 : 0);
   const cal = D.ammo === 'rifle' ? 0.05 : D.ammo === 'shells' ? 0.04 : 0.025, mag = Math.min(0.07, magSize(id) / 30 * 0.03);

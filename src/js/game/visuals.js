@@ -1,5 +1,6 @@
 // Per-frame drawing: runs each system's visual update in order.
 
+import { timeScale } from './hit-feedback.js';
 import { updateRackSide } from '../stations/armory.js';
 import { curId, W } from './run-state.js';
 import { stepCasings } from '../weapons/casings.js';
@@ -19,6 +20,7 @@ import { updateDarkEyes, updateDayNight } from '../lighting/day-night.js';
 import { updateLaser } from '../weapons/laser.js';
 import { updateDropMarker } from '../stations/supply-drop.js';
 import { updateCamera } from './camera.js';
+import { stepBelt } from '../player/hold-sway.js';
 import { poseSnap } from '../net/avatars.js';
 import { updateCutaway } from '../world/cutaway.js';
 import { updateCrosshair } from '../ui/crosshair.js';
@@ -30,20 +32,22 @@ import { updateWeaponStats } from '../ui/weapon-stats.js';
 import { updateLoadout } from '../ui/loadout.js';
 import { updateBenchTips } from '../ui/bench-tips.js';
 import { titleCrowd } from '../world/title-crowd.js';
+import { pvpEnding } from '../pvp/pvp.js';
 
 // Everything drawn each frame, after the simulation. Each part lives with the system it draws.
 export function visuals(dt, rdt) {
   titleCrowd(dt);   // (the title's yard: a few of them wandering about, the windows boarded: world/title-crowd.js)
-  updatePlayerVisuals(dt, rdt);
+  updatePlayerVisuals(dt, pvpEnding() ? rdt * timeScale : rdt);   // (your own body, arms and weapon slowed with the match's end, as everything is: pvp/pvp.js)
   poseSnap();   // (your pose for your teammates, before the first-person view holds your arms on it: net/avatars.js)
   const D = W(curId()) || W('pistol');   // after the player's pose, which can take out a different weapon (a weapon key during a bandage)
   updateCamera(rdt);
+  stepBelt(rdt);   // (the belt of a belt-fed gun in your hands, once the view's put the gun where it's drawn: player/hold-sway.js)
   updateDayNight(rdt); updateDarkEyes(dt);
   updateLightmap(rdt);
   updateZombieVisuals(dt, rdt); updateEyes(dt);
   updateCutaway(rdt); updateHoles();
   updateLaser(D);
-  stepTracers(rdt); stepSuppHeat(rdt); stepSmoke(dt); stepTrails(dt); stepTrail(rdt); stepCasings(dt); stepBoards(dt, rdt);
+  stepTracers(pvpEnding() ? dt : rdt); stepSuppHeat(rdt); stepSmoke(dt); stepTrails(dt); stepTrail(pvpEnding() ? dt : rdt); stepCasings(dt); stepBoards(dt, rdt);
   stepParticles(dt); stepFx(dt); stepArmorBits(dt);
   stepFloats(rdt);
   updateHUD(rdt, D); zoomEars(); updateDropMarker(); updateBenchTips(rdt); updateWeaponStats(); updateLoadout(); updateRackSide();

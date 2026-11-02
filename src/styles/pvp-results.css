@@ -1,0 +1,67 @@
+/* The arena's results (pvp/pvp.js pvpResults), over styles/pvp.css's: one sheet in the menus' own dark, a stripe of
+   the outcome's colour along its top (--c: green won, red lost, grey a draw). The outcome first and biggest, the score
+   beside it with each side's name over its number; then the match's best player on a card of their own, gold-edged,
+   their numbers large with plain words under them; then everyone, a row each, names in Archivo and numbers in the
+   game's condensed Saira, you picked out and the MVP tagged; and the buttons at the foot, the rematch first. */
+#pvpRes{--prLine:rgba(236,230,216,.09);--prDim:#b0aa9b;--prFaint:#8a8477;--prGold:#f0c24a;--f-body:"Archivo","Helvetica Neue",Arial,sans-serif;
+  background:radial-gradient(ellipse at center,rgba(6,7,8,.6),rgba(6,7,8,.9))}
+#pvpRes .prBox{position:relative;gap:0;width:min(940px,94vw);max-height:92vh;padding:0;border-radius:8px;overflow:auto;
+  background:var(--tex-specks),linear-gradient(170deg,rgba(29,25,21,.98),rgba(17,15,13,.98) 60%,rgba(21,17,14,.98));background-size:240px,auto;
+  border:1px solid rgba(236,230,216,.11);box-shadow:0 30px 80px rgba(0,0,0,.65),inset 0 3px 0 var(--c)}
+#pvpRes .prBox.win{--c:#7fd08b}#pvpRes .prBox.lose{--c:#e2563f}#pvpRes .prBox.draw{--c:#b8c0c8}
+
+/* the outcome, and the score */
+#pvpRes .prHead{align-items:center;gap:24px;padding:24px 28px 20px;border-bottom:1px solid var(--prLine)}
+#pvpRes .prHead small{font:500 13px/1 var(--f-body);letter-spacing:0;text-transform:none;color:var(--prDim)}
+#pvpRes .prHead b{margin-top:8px;font:800 68px/.9 var(--f-num);letter-spacing:.02em;color:var(--c)}
+#pvpRes .prHead em{margin-top:8px;font:600 16px/1.2 var(--f-body);color:var(--ink)}
+#pvpRes .prScore{gap:14px;font:800 60px/1 var(--f-num)}
+#pvpRes .prScore span{display:grid;justify-items:center;gap:6px;min-width:76px;padding:0 6px 6px;border-bottom:4px solid var(--c);color:var(--ink)}
+#pvpRes .prScore span::before{content:attr(data-n);font:600 13px/1 var(--f-body);color:var(--c)}
+#pvpRes .prScore i{width:14px;height:3px;border-radius:2px;background:var(--prFaint);align-self:center;margin-top:14px}
+
+/* the match's best player */
+#pvpRes .prMvp{grid-template-columns:auto minmax(150px,auto) 1fr;gap:18px;margin:18px 28px 6px;padding:14px 18px;border:1px solid rgba(240,194,74,.28);border-left:4px solid var(--prGold);border-radius:6px;
+  background:linear-gradient(90deg,rgba(240,194,74,.1),rgba(240,194,74,.02) 60%)}
+#pvpRes .prMvp img,#pvpRes .prMvp .prPic{width:64px;height:64px;border-radius:6px;border:1px solid rgba(240,194,74,.4)}
+#pvpRes .prWho{gap:5px}
+#pvpRes .prWho small{padding:3px 7px;border-radius:3px;font:800 12px/1 var(--f-num);letter-spacing:.12em;background:var(--prGold);color:#16120c}
+#pvpRes .prWho b{font:800 28px/1 var(--f-num);max-width:240px}
+#pvpRes .prWho span{font:600 13px/1 var(--f-body);letter-spacing:0;text-transform:none;color:var(--c)}
+#pvpRes .prMvp dl{gap:26px;flex-wrap:wrap}
+#pvpRes .prMvp dl div{gap:4px}
+#pvpRes .prMvp dd{font:800 28px/1 var(--f-num)}
+#pvpRes .prMvp dt{font:500 12px/1 var(--f-body);letter-spacing:0;text-transform:none;color:var(--prDim)}
+
+/* everyone */
+#pvpRes table{margin:8px 0 0}
+#pvpRes th{padding:12px 12px 8px;font:600 12px/1 var(--f-body);letter-spacing:.02em;color:var(--prFaint)}
+#pvpRes th:first-child{padding-left:28px}
+#pvpRes td{padding:9px 12px;font:700 18px/1 var(--f-num);color:#d9d3c5;border-top:1px solid var(--prLine)}
+#pvpRes td:first-child{padding-left:28px;font:600 15px/1 var(--f-body);color:var(--ink);min-width:180px}
+#pvpRes td:first-child i{width:9px;height:9px;margin-right:10px;box-shadow:none}
+#pvpRes td:last-child{padding-right:28px}
+#pvpRes td.k{font-size:20px;color:#fff}
+#pvpRes td.ping{font:600 12px/1 var(--f-body);color:var(--prFaint);letter-spacing:.02em}
+#pvpRes tr:not(.side):hover td{background:rgba(236,230,216,.03)}
+#pvpRes tr.me td{background:rgba(var(--acc),.1)}
+#pvpRes tr.me td:first-child{box-shadow:inset 4px 0 0 var(--orange)}
+#pvpRes tr.side td{padding:16px 12px 8px 28px;border-top:none;font:800 16px/1 var(--f-num);letter-spacing:.08em;color:var(--c)}
+#pvpRes tr.side td b{display:inline-flex;align-items:center;gap:9px}
+#pvpRes tr.side td b::before{content:"";width:4px;height:16px;border-radius:2px;background:var(--c)}
+#pvpRes tr.side td em{padding-right:16px;font-size:20px;color:var(--ink)}
+#pvpRes .prTag{margin-left:10px;padding:2px 6px;border-radius:3px;font:800 11px/1 var(--f-num);letter-spacing:.1em;background:var(--prGold);color:#16120c;vertical-align:2px}
+
+/* the buttons */
+/* (kept in view at the foot while a long table scrolls under it in a short window) */
+#pvpRes .prActs{position:sticky;bottom:0;z-index:2;gap:12px;justify-content:flex-end;padding:16px 28px 18px;margin-top:10px;border-top:1px solid var(--prLine);background:rgba(20,17,14,.97)}
+#pvpRes .prHost{margin-right:auto;font:500 13.5px/1.3 var(--f-body);letter-spacing:0;text-transform:none;color:var(--prDim)}
+#pvpRes .prWait{order:-1;margin-left:0;margin-right:auto;font:500 13px/1 var(--f-body);letter-spacing:0;text-transform:none;color:var(--prDim)}
+#pvpRes .prWait:empty{display:none}
+
+@media (max-width:760px){#pvpRes .prHead{flex-wrap:wrap;padding:20px}#pvpRes .prHead b{font-size:52px}#pvpRes .prScore{font-size:46px}
+  #pvpRes .prMvp{grid-template-columns:auto 1fr;margin:14px 16px 4px}#pvpRes .prMvp dl{grid-column:1/-1;justify-content:space-between;gap:12px}
+  #pvpRes th:first-child,#pvpRes td:first-child,#pvpRes tr.side td{padding-left:16px}#pvpRes td:last-child{padding-right:16px}#pvpRes td{padding:8px 7px;font-size:16px}#pvpRes .prActs{padding:16px}}
+@media (max-height:800px){#pvpRes .prBox{max-height:96vh}#pvpRes .prHead{padding:16px 24px 13px}#pvpRes .prHead b{font-size:52px;margin-top:6px}#pvpRes .prHead em{margin-top:5px}#pvpRes .prScore{font-size:46px}
+  #pvpRes .prMvp{margin:12px 28px 2px;padding:9px 14px}#pvpRes .prMvp img,#pvpRes .prMvp .prPic{width:52px;height:52px}#pvpRes .prMvp dd,#pvpRes .prWho b{font-size:24px}
+  #pvpRes th{padding:9px 12px 5px}#pvpRes td{padding:6px 12px;font-size:17px}#pvpRes td:first-child{font-size:14px}#pvpRes tr.side td{padding:9px 12px 5px 28px}#pvpRes .prActs{padding:12px 28px 14px;margin-top:6px}}

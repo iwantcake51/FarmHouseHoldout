@@ -10,21 +10,21 @@ export const MOD_MAX = 3;
 // mods that make one line of upgrades between them, shown with that line's stars at the bench: the pistol's burst
 // conversion is its first two (its level II the second) and the auto sear its third (MOD_LINE: where each comes in and
 // how many steps the line has; MOD_CAP: how far a mod's own levels go in it)
-export const MOD_LINE = { burst: [0, 3], auto: [2, 3] }, MOD_CAP = { burst: 2 };
+export const MOD_LINE = { burst: [0, 3], auto: [2, 3] }, MOD_CAP = { burst: 2, sawn: 1, both: 1 };   // (the sawn-off and the twin trigger: one step each, no more)
 export const MOD_UP = {
-  match: { t: 'Spread −10%, +6% damage, less drop-off at range', up: D => { D.spread *= 0.9; D.dmg *= 1.06; D.reach += 0.3; } },
+  match: { t: 'Spread −10%, +6% damage, less drop-off at range, a little slower to bring up', up: D => { D.spread *= 0.9; D.dmg *= 1.06; D.reach += 0.3; D.adsK *= 0.97; } },
   burst: { t: '+1 round a burst, +6% damage', up: D => { D.burst += 1; D.dmg *= 1.06; } },
-  longbarrel: { t: 'A longer barrel: +12% damage, less drop-off at range', up: D => { D.dmg *= 1.12; D.reach += 0.3; } },
+  longbarrel: { t: 'A longer barrel: +12% damage, less drop-off at range, heavier and slower to bring up', up: D => { D.dmg *= 1.12; D.reach += 0.3; D.heft += 0.015; D.adsK *= 0.95; } },
   comp: { t: 'Spread and kick −20%', up: D => { D.spread *= 0.8; D.shake *= 0.8; } },
   slam: { t: 'Fires 10% faster', up: D => { D.rate *= 0.9; } },
   sawn: { t: '+2 pellets', up: D => { D.pellets += 2; } },
   both: { t: '+10% damage', up: D => { D.dmg *= 1.1; } },
   well: { t: 'Mag changes 3% faster', up: D => { D.reload *= 0.97; } },
-  ported: { t: 'Spread −20%', up: D => { D.spread *= 0.8; } },
+  ported: { t: 'Spread −20%, damage drops off a little sooner', up: D => { D.spread *= 0.8; D.reach -= 0.05; } },
   navy: { t: '+1 round a burst, +6% damage', up: D => { D.burst += 1; D.dmg *= 1.06; } },
   gl: { t: 'Recharges 25% faster', up: D => { D.glRecharge *= 0.75; } },
-  heavy: { t: '+10% damage, spread −10%', up: D => { D.dmg *= 1.1; D.spread *= 0.9; } },
-  bipod: { t: 'Spread −15%', up: D => { D.spread *= 0.85; } },
+  heavy: { t: '+10% damage, spread −10%, less drop-off at range, heavier still', up: D => { D.dmg *= 1.1; D.spread *= 0.9; D.reach += 0.2; D.heft += 0.01; D.adsK *= 0.96; } },
+  bipod: { t: 'Spread −15%, heavier still', up: D => { D.spread *= 0.85; D.heft += 0.01; } },
   nails: { t: '+15% damage', up: D => { D.dmg *= 1.15; } },
   wire: { t: 'Reach +0.15', up: D => { D.range += 0.15; } },
   serrated: { t: '+10% damage', up: D => { D.dmg *= 1.1; } },
@@ -97,7 +97,7 @@ export function improveMod(m) { W8.modLv[m] = modLv(m) + 1; recomputeEff(); }
 // B steps through single shots and each fire mode the weapon has (single → burst → full auto → single)
 // what a gun fires as, for the HUD: the mode selected on it, or what the gun does by itself (an automatic's stream, a pump,
 // bolt or break action's one round, a handgun's single shots); n is how many rounds a burst sends
-const ACTION_MODE = { pump: 'Pump', hunting: 'Bolt', dbl: 'Break' };
+const ACTION_MODE = { pump: 'Pump', hunting: 'Bolt', dbl: 'Single' };   // (the double's one barrel at a time: its twin trigger's both at once is 'Twin')
 export function fireModeOf(id) {
   const D = W(id); if (!D || D.melee) return null;
   const fm = W8.fm[id];
@@ -106,7 +106,7 @@ export function fireModeOf(id) {
   if (fm === 'semi') return { k: 'semi', t: 'Semi' };
   if (D.akKit) return { k: 'auto', t: 'Auto' };   // (the battle rifle's AK conversion: weapons/gun-mods.js)
   if (D.fan) return fanning(D) ? { k: 'fan', t: 'Fan' } : { k: 'semi', t: 'Aimed' };   // fanned from the hip, single shots down the sights
-  if (fm === 'both') return { k: 'both', t: 'Both' };   // the double barrel's twin trigger, both barrels at once
+  if (fm === 'both') return { k: 'both', t: 'Twin' };   // the double barrel's twin trigger, both barrels at once
   if (ACTION_MODE[id]) return { k: 'action', t: ACTION_MODE[id] };
   if (WEAP[id].slot === 'auto' || id === 'auto12') return { k: 'auto', t: 'Auto' };
   return { k: 'semi', t: 'Semi' };

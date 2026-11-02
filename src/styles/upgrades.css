@@ -106,7 +106,9 @@
 #upgrade.armed #upNote{opacity:1}
 /* the pause screen's two lists side by side on a wide screen: the cards you took, and the gear you bought */
 #paused .inner{width:min(940px,100%)}
-.pLists{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:12px 22px;align-items:start}
+.pLists{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:12px 22px;align-items:start}
+/* (the two lists side by side need more room than the title's column: the pause's is wider, never past the screen) */
+#paused .inner{width:min(820px,calc(100vw - 2 * min(8vw,90px)))}
 .pLists .hist{max-height:42vh}
 .hrow.gear .ht{color:var(--rc)}
 
@@ -115,6 +117,7 @@
 #upgrade .upClock{position:relative;z-index:5;display:flex;align-items:center;gap:10px;width:min(320px,70vw);margin:-6px auto 0;opacity:0;transition:opacity .4s ease .25s}
 #upgrade.show .upClock{opacity:1}
 #upgrade.picking .upClock{opacity:0;transition-delay:0s}
+#upgrade .upClock.held{filter:saturate(.3) brightness(.8)}   /* (stood still while you're away: ui/upgrade-screen.js) */
 .upClock span{min-width:2ch;font-family:var(--f-num);font-weight:800;font-size:22px;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums;text-align:right}
 .upClock i{flex:1;height:4px;background:rgba(236,230,216,.14);overflow:hidden}
 .upClock b{display:block;height:100%;background:var(--orange);transform-origin:left;transition:transform .1s linear,background-color .3s ease}
@@ -222,3 +225,18 @@
 /* a card a pick has made moot (the next tier of a line just taken whole), or a second from a sacrifice's new row:
    greyed out, and it can't be taken */
 #upgrade .card.dead{filter:grayscale(1) brightness(.6);opacity:.55!important;pointer-events:none;transition:filter .35s ease,opacity .35s ease!important;transition-delay:0s!important}
+/* in a small window: three cards always side by side, sized to fit across it (a bonus hand of more wraps three to a
+   row), and on a short one everything tightened up so the clock, the skip and the cards all fit without scrolling;
+   when even that's too tall it scrolls, from the top (never the heading cut off above the screen) */
+#upgrade{overflow-y:auto;place-items:safe center;padding-block:12px}
+#cards{flex-wrap:nowrap}
+#cards:has(> .card:nth-child(4)){flex-wrap:wrap;max-width:calc(3 * var(--cw) + 2 * 22px)}
+#upgrade{--cw:clamp(190px,calc((100vw - 88px) / 3),260px)}
+.card{width:var(--cw)}
+@media (max-width:700px){#cards{gap:12px}#upgrade{--cw:clamp(150px,calc((100vw - 64px) / 3),260px)}.card{padding:12px 12px 42px}.card .t{font-size:18px}}
+@media (max-height:720px){#upgrade .wrap{gap:14px}#upgrade h3{font-size:36px}.card{min-height:170px}}
+@media (max-height:600px){
+  #upgrade .wrap{gap:10px}#upgrade h3{font-size:30px}#upgrade .kinds{margin-top:-8px}
+  .card{min-height:150px;padding-top:10px;padding-bottom:40px;background-image:repeating-linear-gradient(180deg,transparent 0 19px,rgba(70,110,150,.22) 19px 20px);background-position:0 38px}
+  .card .t{font-size:18px;margin:6px 0 4px}.card .d,.card .v,.card .s{line-height:20px}.card .d{font-size:13px}.card .fx{margin:6px 0 2px}
+}

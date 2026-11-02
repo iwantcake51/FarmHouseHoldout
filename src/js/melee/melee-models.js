@@ -2,7 +2,7 @@
 
 import { clamp, mix, smooth } from '../core/math.js';
 import { lam } from '../core/shaders.js';
-import { box } from '../core/geometry.js';
+import { box, simplifyLine } from '../core/geometry.js';
 import { GM } from '../weapons/gun-materials.js';
 import { GUN_MODELS } from '../weapons/gun-models.js';
 import { AXE_PIVOT, AXE_TRACE, SOG_TRACE, SOG_Y0 } from './melee-traced.js';
@@ -55,20 +55,27 @@ function CROW_GEO() {
 const BAT_PROFILE = [[0, -0.122], [0.036, -0.121], [0.046, -0.112], [0.047, -0.1], [0.04, -0.091], [0.027, -0.084], [0.0235, -0.07], [0.0232, 0.05], [0.024, 0.18],
   [0.028, 0.27], [0.036, 0.36], [0.047, 0.45], [0.058, 0.54], [0.065, 0.62], [0.068, 0.72], [0.068, 0.83], [0.066, 0.858], [0.06, 0.88], [0.048, 0.896], [0.03, 0.905], [0, 0.908]];
 let batGeo = null;
-const BAT_GEO = () => batGeo || (batGeo = new THREE.LatheGeometry(new THREE.SplineCurve(BAT_PROFILE.map(([r, y]) => new THREE.Vector2(r, y))).getPoints(90), 32));
+// (the curve's points taken finely, then only those its bends need kept, BAT_TOL metres: the barrel and the handle are
+// near enough straight that a few do, the knob and the end take the most)
+const BAT_TOL = 0.00012;
+const BAT_GEO = () => batGeo || (batGeo = new THREE.LatheGeometry(simplifyLine(new THREE.SplineCurve(BAT_PROFILE.map(([r, y]) => new THREE.Vector2(r, y))).getPoints(240), BAT_TOL), 32));
 function batR(y) { for (let k = 1; k < BAT_PROFILE.length; k++) { const [r1, y1] = BAT_PROFILE[k], [r0, y0] = BAT_PROFILE[k - 1]; if (y <= y1) return r0 + (r1 - r0) * (y - y0) / Math.max(1e-6, y1 - y0); } return 0; }
 // a nail: a thin round shank (stretched to length along y), its flat round head and a sharp point
 const NAIL_SHANK = new THREE.CylinderGeometry(0.0034, 0.0034, 1, 8), NAIL_HEAD = new THREE.CylinderGeometry(0.0095, 0.0095, 0.0022, 14), NAIL_TIP = new THREE.ConeGeometry(0.0034, 0.012, 8);
 // a knurled nut's outline: a ring of fine ribs (radius 0.025), to be extruded along the nut's axis
 const NUT_KNURL = (() => { const s = new THREE.Shape(), n = 30; for (let i = 0; i <= n * 2; i++) { const a = i / (n * 2) * Math.PI * 2, r = i % 2 ? 0.0236 : 0.0256; i ? s.lineTo(Math.cos(a) * r, Math.sin(a) * r) : s.moveTo(Math.cos(a) * r, Math.sin(a) * r); } return s; })();
+// the bat as Brawl hands it out: a scavenger's, studded with nails as the Nails mod's third tier has it (set by pvp/pvp.js as a match starts
+// and ends; looks only, the Nails mod's damage stays the mod's)
+export const BAT_KIT = { nails: false };
 const MELEE_MODELS = {
   // ash baseball bat: one smooth turned piece (BAT_PROFILE: the knob, the handle, the long taper, the barrel and its
-  // domed end), a taped handle; nails driven right through the barrel, round heads on the wood and their points out the
+  // domed end), a taped handle; nails driven right through the barrel (in Brawl the Nails mod's third tier of them
+// whatever it carries, BAT_KIT), round heads on the wood and their points out the
   // far side; barbed wire wound up it, two strands twisted, barbs every few centimetres
   bat(g, m) {
     const body = new THREE.Mesh(BAT_GEO(), MM.ash); body.castShadow = true; g.add(body);
     gripWrap(g, 0.027, -0.085, 0.12, 6);
-    for (let k = 0, n = lvAt(m, 'nails', [0, 14, 20, 26]); k < n; k++) {
+    for (let k = 0, n = (BAT_KIT.nails ? 26 : lvAt(m, 'nails', [0, 14, 20, 26])); k < n; k++) {
       const a = k * 2.39, y = 0.6 + (k % 5) * 0.055 + (k % 2) * 0.012, r = batR(y), nl = new THREE.Group(); nl.position.y = y; nl.rotation.y = -a; g.add(nl);
       const L = 2 * r + 0.05, sh = new THREE.Mesh(NAIL_SHANK, GM.nail); sh.scale.set(1, L, 1); sh.rotation.z = -Math.PI / 2; sh.position.x = -r + L / 2; nl.add(sh);
       const hd = new THREE.Mesh(NAIL_HEAD, GM.nail); hd.rotation.z = Math.PI / 2; hd.position.x = -r - 0.0008; nl.add(hd);

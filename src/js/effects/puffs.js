@@ -15,6 +15,7 @@ import { flashes } from '../weapons/explosives.js';
 import { setLmT, worldT } from '../game/state.js';
 import { pelletOff } from '../weapons/firing.js';
 import { visAt } from '../lighting/vision.js';
+import { GOLD } from './gold.js';
 
 // per kind: its sprites (one picked for each particle), additive or not, colour (col2: what it cools to over its life),
 // whether the light round it colours it (lit; gain lifts a grey sprite back up), gravity, drag and rise; streak: drawn
@@ -31,6 +32,11 @@ export const FXK = {
   redMist: { tex: TEX_SMOKES, col: 0xb8221a, col2: 0x5e100a, lit: true, gain: SMOKE_GAIN, grav: 0.35, drag: 3.2, rise: 0, fin: 0.06, fade: 1.4, wind: 0.6 },
   // a spray of fine drops thrown off a hit, flung out and gone in a moment (the drops that land are effects/particles.js)
   spray: { tex: TEX_DIRT, col: 0x6e0f0a, lit: true, gain: 1.25, grav: 2, drag: 7, rise: 0, fin: 0.04, fade: 1.8, wind: 0.1 },
+  // the same out of someone hit with the golden revolver or katana (effects/gold.js): gold dust for a mist, a glitter of
+  // it thrown off, and a glint where a gold drop lands
+  goldMist: { tex: TEX_SMOKES, col: 0xf2c24a, col2: 0x9a6a12, lit: true, gain: SMOKE_GAIN, grav: 0.35, drag: 3.2, rise: 0, fin: 0.06, fade: 1.4, wind: 0.6, self: 0.6 },
+  goldSpray: { tex: TEX_DIRT, col: 0xe8b43a, lit: true, gain: 1.4, grav: 2, drag: 7, rise: 0, fin: 0.04, fade: 1.8, wind: 0.1, self: 0.5 },
+  goldGlint: { tex: TEX_TRACE, add: true, col: 0xffe39a, boost: 1.4, grav: 0, drag: 2, rise: 0, fin: 0.05, fade: 1.2 },
   // grit and splinters thrown off a wall or the ground by a round or a blast
   debris: { tex: TEX_DIRT, col: 0x8a7860, lit: true, gain: 1.2, grav: 3, drag: 5, rise: 0, fin: 0.04, fade: 1.6, wind: 0.08 },
   spark: { tex: TEX_TRACE, add: true, col: 0xffc878, boost: 1.3, grav: 9, drag: 1.6, rise: 0, streak: true, fin: 0.05, fade: 1.6 },
@@ -96,7 +102,48 @@ export function sparkBurst(x, y, z, n, dx, dz, force) {
 }
 // a bullet hitting a wall or a board: a bright burst and a bloom of light, a spray of sparks, grit and a puff of dust
 // thrown off the surface, and a few chips
-export function impactFx(x, y, z, nx, nz) {
+// by what it hit (surf): the ground kicks up a fountain of dirt clods and a puff that rises, no sparks; wood throws
+// splinters off the face and only a spark or two; anything else (a metal grate, stone) the sparks and chips as ever
+// what every impact leaves after its burst, whatever it hit: a puff of the stuff knocked off the surface that swells,
+// hangs and drifts up and off on the wind for a second or two (IMPACT_HAZE: its tint by surface, how big it starts and
+// swells to, how long it hangs, how thick)
+const IMPACT_HAZE = { tint: { stone: 0xb8b2a6, wood: 0x9c8a70, metal: 0x5a5856, dirt: 0x8a7a5e }, s0: 0.1, s1: [0.55, 0.85], life: [1.4, 2.2], a: 0.32 };
+function impactHaze(x, y, z, nx, nz, surf) {
+  const H = IMPACT_HAZE; smoke(x + nx * 0.08, y, z + nz * 0.08, nx * rr(0.25, 0.5), rr(0.12, 0.3), nz * rr(0.25, 0.5), H.s0, rr(H.s1[0], H.s1[1]), rr(H.life[0], H.life[1]), H.a * (surf === 'metal' ? 0.6 : 1), H.tint[surf] || H.tint.stone);
+}
+export function impactFx(x, y, z, nx, nz, surf) {
+  impactHaze(x, y, z, nx, nz, surf);
+  // concrete, brick and stone: a hard white crack of a flash, a cloud of grey dust blown off the face, chips of it
+  // flung out and falling, a spark or two off the grit
+  if (surf === 'stone') {
+    fx('flash', x + nx * 0.03, y, z + nz * 0.03, 0, 0, 0, rr(0.24, 0.32), 0.12, 0.06, 0.85);
+    if (rand() < 0.6) sparkBurst(x, y, z, 1 + (rand() * 2 | 0), nx, nz, 3);
+    for (let k = 0; k < 3; k++) fx('dust', x + nx * 0.05, y + rr(-0.04, 0.04), z + nz * 0.05, nx * rr(0.8, 1.8) + rr(-0.4, 0.4), rr(0.05, 0.5), nz * rr(0.8, 1.8) + rr(-0.4, 0.4), 0.08, rr(0.45, 0.75), rr(0.7, 1.1), 0.32);
+    cubeBurst(x + nx * 0.03, y, z + nz * 0.03, 4 + (rand() * 3 | 0), 'stone', nx, nz, 2.8, 0.38);
+    return;
+  }
+  // metal (a container, a car, a coach): sparks, lots of them, a bright flash and its glow, a few flakes of paint and
+  // rust, a thin dark wisp; no dust
+  if (surf === 'metal') {
+    fx('flash', x + nx * 0.03, y, z + nz * 0.03, 0, 0, 0, rr(0.34, 0.44), 0.16, 0.06, 1);
+    fx('glow', x + nx * 0.05, y, z + nz * 0.05, 0, 0, 0, 0.55, 0.32, 0.09, 0.55);
+    sparkBurst(x, y, z, 8 + (rand() * 5 | 0), nx, nz, 4.2);
+    cubeBurst(x + nx * 0.03, y, z + nz * 0.03, 2 + (rand() * 2 | 0), 'metal', nx, nz, 2.4, 0.3);
+    return;
+  }
+  if (surf === 'dirt') {
+    fx('flash', x, y + 0.02, z, 0, 0, 0, rr(0.18, 0.26), 0.1, 0.05, 0.6);
+    cubeBurst(x, y + 0.03, z, 4 + (rand() * 3 | 0), 'dust', nx * 0.6, nz * 0.6, 1.4, 0.8);
+    for (let k = 0; k < 3; k++) fx('dust', x + rr(-0.04, 0.04), y + 0.04, z + rr(-0.04, 0.04), nx * rr(0.3, 0.8) + rr(-0.25, 0.25), rr(0.6, 1.3), nz * rr(0.3, 0.8) + rr(-0.25, 0.25), 0.1, rr(0.55, 0.85), rr(0.8, 1.2), 0.35);
+    return;
+  }
+  if (surf === 'wood') {
+    fx('flash', x + nx * 0.03, y, z + nz * 0.03, 0, 0, 0, rr(0.24, 0.32), 0.12, 0.06, 0.8);
+    if (rand() < 0.5) sparkBurst(x, y, z, 1 + (rand() * 2 | 0), nx, nz, 3);
+    cubeBurst(x + nx * 0.03, y, z + nz * 0.03, 3 + (rand() * 3 | 0), 'wood', nx, nz, 3.2, 0.45);
+    for (let k = 0; k < 2; k++) fx('dust', x + nx * 0.05, y, z + nz * 0.05, nx * rr(0.6, 1.4) + rr(-0.3, 0.3), rr(0.1, 0.5), nz * rr(0.6, 1.4) + rr(-0.3, 0.3), 0.08, rr(0.4, 0.6), rr(0.6, 0.9), 0.28);
+    return;
+  }
   fx('flash', x + nx * 0.03, y, z + nz * 0.03, 0, 0, 0, rr(0.32, 0.42), 0.16, 0.07, 1);
   fx('glow', x + nx * 0.05, y, z + nz * 0.05, 0, 0, 0, 0.5, 0.3, 0.09, 0.5);
   sparkBurst(x, y, z, 5 + (rand() * 3 | 0), nx, nz, 3.5);
@@ -104,16 +151,27 @@ export function impactFx(x, y, z, nx, nz) {
   for (let k = 0; k < 2; k++) fx('dust', x + nx * 0.05, y, z + nz * 0.05, nx * rr(0.6, 1.4) + rr(-0.3, 0.3), rr(0.1, 0.5), nz * rr(0.6, 1.4) + rr(-0.3, 0.3), 0.08, rr(0.45, 0.7), rr(0.7, 1.0), 0.3);
   cubeBurst(x, y, z, 2 + (rand() * 2 | 0), 'dust', nx, nz, 2.2, 0.35);
 }
+// a blow meeting a guard (melee/block.js): a white-hot flash where steel meets steel and its glow, a spray of sparks
+// thrown back off the edge toward whoever swung and out every way along it; a parry's twice as bright, twice the sparks,
+// and a few embers that hang and drift off
+export function parryFx(x, y, z, nx, nz, parry) {
+  const m = parry ? 1.8 : 1;
+  fx('flash', x, y, z, 0, 0, 0, rr(0.3, 0.4) * m, 0.14 * m, parry ? 0.09 : 0.06, 1);
+  fx('glow', x, y, z, 0, 0, 0, 0.5 * m, 0.32 * m, parry ? 0.2 : 0.1, 0.6);
+  sparkBurst(x, y, z, Math.round((10 + rand() * 6) * m), nx, nz, 4.5 * m);
+  for (let k = 0, n = parry ? 16 : 6; k < n; k++) { const a = rand() * 6.28, v = rr(1.5, 4.5) * m; fx('spark', x, y + rr(-0.05, 0.05), z, Math.sin(a) * v, rr(0.4, 2.8), Math.cos(a) * v, 0.03, 0.012, rr(0.18, 0.42), 1); }
+  if (parry) for (let k = 0; k < 7; k++) fx('ember', x + rr(-0.08, 0.08), y + rr(-0.06, 0.06), z + rr(-0.08, 0.08), nx * rr(0.3, 1.2) + rr(-0.5, 0.5), rr(0.2, 1.1), nz * rr(0.3, 1.2) + rr(-0.5, 0.5), 0.04, 0.015, rr(0.5, 1.1), 0.9);
+}
 // a hit on flesh, along the shot: a spray of fine drops flung out the far side, a puff of red mist blown out with it
 // that swells, hangs and drifts off on the wind as it thins, and a smaller one coughed back out of the wound toward
 // the shot. The harder the hit (dealt) the more of it; a head hit more again (HIT_MIST: puffs out the far side, how
 // big they start and swell to, how long they hang and how thick, and how much harder hits add, up to a cap)
 const HIT_MIST = { n: 2, s0: [0.1, 0.16], s1: [0.45, 0.75], life: [0.6, 1.05], a: [0.4, 0.55], per: 45, most: 2.2 };
 export function hitMist(x, y, z, dx, dz, big, dealt) {
-  const H = HIT_MIST, m = Math.min(H.most, 1 + (dealt || 20) / H.per) * (big ? 1.35 : 1);
-  for (let k = 0, n = Math.round(2 * m); k < n; k++) fx('spray', x + dx * 0.05, y + rr(-0.05, 0.05), z + dz * 0.05, dx * rr(1.6, 3) + rr(-0.5, 0.5), rr(-0.2, 0.7), dz * rr(1.6, 3) + rr(-0.5, 0.5), rr(0.06, 0.1), rr(0.3, 0.5) * m, rr(0.16, 0.26), 0.85);
-  for (let k = 0, n = Math.round(H.n * m); k < n; k++) fx('redMist', x + dx * rr(0.05, 0.15) + rr(-0.05, 0.05), y + rr(-0.06, 0.06), z + dz * rr(0.05, 0.15) + rr(-0.05, 0.05), dx * rr(0.6, 1.8) + rr(-0.35, 0.35), rr(-0.05, 0.4), dz * rr(0.6, 1.8) + rr(-0.35, 0.35), rr(H.s0[0], H.s0[1]), rr(H.s1[0], H.s1[1]) * (0.8 + 0.2 * m), rr(H.life[0], H.life[1]), rr(H.a[0], H.a[1]));
-  fx('redMist', x - dx * 0.08, y + rr(-0.04, 0.04), z - dz * 0.08, -dx * rr(0.3, 0.7), rr(0, 0.25), -dz * rr(0.3, 0.7), 0.08, rr(0.25, 0.4) * m, rr(0.4, 0.6), 0.35);
+  const H = HIT_MIST, MI = GOLD.on ? 'goldMist' : 'redMist', SP = GOLD.on ? 'goldSpray' : 'spray', m = Math.min(H.most, 1 + (dealt || 20) / H.per) * (big ? 1.35 : 1);
+  for (let k = 0, n = Math.round(2 * m); k < n; k++) fx(SP, x + dx * 0.05, y + rr(-0.05, 0.05), z + dz * 0.05, dx * rr(1.6, 3) + rr(-0.5, 0.5), rr(-0.2, 0.7), dz * rr(1.6, 3) + rr(-0.5, 0.5), rr(0.06, 0.1), rr(0.3, 0.5) * m, rr(0.16, 0.26), 0.85);
+  for (let k = 0, n = Math.round(H.n * m); k < n; k++) fx(MI, x + dx * rr(0.05, 0.15) + rr(-0.05, 0.05), y + rr(-0.06, 0.06), z + dz * rr(0.05, 0.15) + rr(-0.05, 0.05), dx * rr(0.6, 1.8) + rr(-0.35, 0.35), rr(-0.05, 0.4), dz * rr(0.6, 1.8) + rr(-0.35, 0.35), rr(H.s0[0], H.s0[1]), rr(H.s1[0], H.s1[1]) * (0.8 + 0.2 * m), rr(H.life[0], H.life[1]), rr(H.a[0], H.a[1]));
+  fx(MI, x - dx * 0.08, y + rr(-0.04, 0.04), z - dz * 0.08, -dx * rr(0.3, 0.7), rr(0, 0.25), -dz * rr(0.3, 0.7), 0.08, rr(0.25, 0.4) * m, rr(0.4, 0.6), 0.35);
 }
 // a round going off pushes hot gas out of the ejection port with the case (pos: the port, r: the gun's right, the
 // way the case goes): a brief glow, a few flecks of burning powder flung out with it and a jet of smoke that rolls

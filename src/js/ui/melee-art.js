@@ -1,50 +1,223 @@
-// The melee weapon in your hands as a flat white silhouette, shown in the HUD where a gun's ammo count sits.
+// Weapons as pictures in the HUD's ink, drawn from their own models: the melee weapon in your hands where a gun's ammo
+// count sits, and every weapon you carry in the slot row under it (ui/hud-text.js: renderSlots), what's been fitted to
+// a gun picked out in gold.
 
 import { $ } from '../core/dom.js';
 import { R, V3 } from '../core/renderer.js';
 import { cache } from '../core/math.js';
 import { modLv } from '../weapons/mod-levels.js';
-import { W8 } from '../game/run-state.js';
-import { GUNS } from '../melee/melee-models.js';
+import { magTierIn, setTierCtx, W, W8 } from '../game/run-state.js';
+import { BAT_KIT, GUNS } from '../melee/melee-models.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { buildWeapon, weaponRec } from '../weapons/build-weapons.js';
+import { threadJob, threadRun, threadsOn } from '../core/threads.js';
 
-const meleeArtCache = {}, MELEE_ART_MAT = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const meleeArtCache = {};
 const MELEE_ART_PPU = 190;   // CSS pixels per metre, the same for every weapon, so a katana draws longer than a wrench
 // render the model once per weapon and set of mods into an offscreen target, and keep the picture
-function meleeArt(id, mods) {
-  const key = id + ':' + mods.map(k => k + modLv(k)).join(',');   // a mod improved at the bench grows the model, so it's a new picture
+// (lv: each mod's level, yours unless given: a teammate's are sent with their loadout, net/arsenal.js)
+// (gold: Gun game's golden katana, drawn all in gold, pvp/pvp.js)
+export function meleeArt(id, mods, lv = modLv, gold = false) {
+  const key = id + ':' + mods.map(k => k + lv(k)).join(',') + (gold ? ':gold' : '') + (id === 'bat' && BAT_KIT.nails ? ':nailed' : '');   // (Brawl's bat comes nailed: melee/melee-models.js BAT_KIT)   // a mod improved at the bench grows the model, so it's a new picture
   if (meleeArtCache[key]) return meleeArtCache[key];
-  const sc = new THREE.Scene(), g = new THREE.Group(), flags = {}; mods.forEach(k => { flags[k] = modLv(k); });
+  const g = new THREE.Group(), flags = {}; mods.forEach(k => { flags[k] = lv(k); });
   GUNS[id](g, flags);
+  if (mods.length) markMods(g, id);   // (what its mods put on it, or changed, drawn in the upgrade gold as a gun's attachments are)
   // lay it on its side: tip to the left, edge down, the flat of the blade facing you
   // (the wrench is turned the other way up, so its jaw opens on top)
   g.setRotationFromMatrix(id === 'wrench' ? new THREE.Matrix4().makeBasis(new V3(0, 0, -1), new V3(-1, 0, 0), new V3(0, 1, 0))
     : new THREE.Matrix4().makeBasis(new V3(0, 0, 1), new V3(-1, 0, 0), new V3(0, -1, 0)));
-  sc.add(g); sc.overrideMaterial = MELEE_ART_MAT; g.updateMatrixWorld(true);
-  const bb = new THREE.Box3().setFromObject(g), pad = 0.02, ss = 2;
-  const w = bb.max.x - bb.min.x + pad * 2, h = bb.max.y - bb.min.y + pad * 2;
-  const pw = Math.ceil(w * MELEE_ART_PPU * ss), ph = Math.ceil(h * MELEE_ART_PPU * ss);
-  const oc = new THREE.OrthographicCamera(bb.min.x - pad, bb.max.x + pad, bb.max.y + pad, bb.min.y - pad, 0.1, 20); oc.position.z = 5;
-  // drawn at twice the size it's shown at, so the edges come out smooth
-  const rt = new THREE.WebGLRenderTarget(pw, ph), prevRT = R.getRenderTarget(), prevC = R.getClearColor(new THREE.Color()), prevA = R.getClearAlpha();
+  const a = snapArt(g, MELEE_ART_PPU, { cut: !gold, gold });
+  return (meleeArtCache[key] = a);
+}
+// a melee weapon's mods are built into it (melee/melee-models.js), not hung on it as parts: so it's built again without
+// any, and each piece of it that isn't in that plain one (by its material, its size and where it sits) is something a
+// mod put on or changed (nails, wire, spikes, tape, a serrated edge), marked to be drawn in gold (snapArt: opt.cut)
+const _mmB = new THREE.Box3(), _mmS = new V3();
+function mmSig(o) {
+  const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); _mmB.copy(g.boundingBox).getSize(_mmS);
+  return (o.material && o.material.uuid) + '|' + _mmS.toArray().map(v => v.toFixed(4)) + '|' + o.matrixWorld.elements.map(v => v.toFixed(3)).join();
+}
+function markMods(g, id) {
+  const plain = new THREE.Group(); GUNS[id](plain, {}); plain.updateMatrixWorld(true); g.updateMatrixWorld(true);
+  const have = new Map(); plain.traverse(o => { if (o.isMesh) { const k = mmSig(o); have.set(k, (have.get(k) || 0) + 1); } });
+  g.traverse(o => { if (!o.isMesh) return; const k = mmSig(o), n = have.get(k) || 0; if (n > 0) have.set(k, n - 1); else o.userData.att = true; });
+}
+// a model, already turned as it should lie, drawn into a picture of its own (ppu: CSS pixels to the metre) in the HUD's
+// ink, lit from the upper left so its rounds and bevels show (artMat), over clear: framed to what of it shows (its visible
+// meshes, so a hidden flash or spare part can't widen it), drawn at twice the size it's shown at and multisampled so the
+// edges come out smooth, and the model's geometry let go after.
+// opt.cut: what's fitted to a gun (its attachments and a bigger mag: weapons/build-weapons.js marks them) drawn in the
+// upgrade gold instead, standing apart from the gun by a hairline of clear around it, so a light, a laser or a sight
+// reads as its own part, and as something added. (Drawn again on its own over the gun's depth, so a part on the far
+// side stays hidden behind it.)
+// opt.pair: an akimbo pair, the second gun behind the first, up and to the right, half see-through, with the same
+// hairline round the front one
+// Where one part stands out in front of another by more than ART.step (a receiver over its barrel, a grip over its
+// frame), the edge of the one behind gets a line inked in, ART.line of its colour, so the parts read inside the outline
+const ART = { ss: 2, cut: 2, pairX: 0.3, pairY: 0.26, pairA: 0.45, ink: 0xece6d8, gold: 0xf0bf4c, lo: 0.4, step: 0.005, line: 0.55 };   // (cut: in drawn pixels, twice CSS ones; lo: the shade facing away from the light; step: metres)
+// and shaded like a drawing: a glint where a face turns the light to you (spec: how bright, how tight), the parts further
+// back a shade darker than the nearest (deep), the crevices and the parts under an overhang darker still (ao: how much
+// for each neighbour nearer by aoStep, as far as most, looked for r drawn pixels round), and a little lighter at the top than the
+// bottom (fall), as if lit from above
+const ART_SHADE = { spec: [0.3, 26], deep: 0.3, ao: 0.035, aoMost: 0.22, r: [4, 8], aoStep: 0.004, fall: 0.16 };   // (aoStep: how much nearer a neighbour must be to count, metres)
+const ART_INK = artMat(ART.ink), ART_GOLD = artMat(ART.gold), ART_DEPTH = new THREE.MeshBasicMaterial({ colorWrite: false });
+// how near each pixel is, as its red (0 at the camera's near plane, 255 at its far one: set to the model's own depth)
+const ART_Z = new THREE.ShaderMaterial({ side: THREE.DoubleSide, vertexShader: 'void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }', fragmentShader: 'void main() { gl_FragColor = vec4(gl_FragCoord.z, 0.0, 0.0, 1.0); }' });
+// a flat colour shaded by how a face turns to a light from the upper left and in front (in the camera's space, which for
+// these pictures is the picture's): full colour facing it, ART.lo of it facing away, either side of a face
+function artMat(hex) {
+  return new THREE.ShaderMaterial({
+    uniforms: { col: { value: new THREE.Color(hex) }, lo: { value: ART.lo } }, side: THREE.DoubleSide,
+    vertexShader: 'varying vec3 vN; void main() { vN = normalMatrix * normal; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform vec3 col; uniform float lo; varying vec3 vN; void main() { vec3 n = normalize(vN) * (gl_FrontFacing ? 1.0 : -1.0), L = normalize(vec3(-0.5, 0.75, 0.45)); float d = dot(n, L);
+      float sp = pow(max(dot(n, normalize(L + vec3(0.0, 0.0, 1.0))), 0.0), ${ART_SHADE.spec[1].toFixed(1)}) * ${ART_SHADE.spec[0].toFixed(2)};
+      gl_FragColor = vec4(min(vec3(1.0), col * mix(lo, 1.0, smoothstep(-0.6, 0.9, d)) + sp), 1.0); }`,
+  });
+}
+function snapArt(g, ppu, opt = {}) {
+  const sc = new THREE.Scene(); sc.add(g); g.updateMatrixWorld(true);
+  const bb = new THREE.Box3(), mb = new THREE.Box3();
+  g.traverse(o => { if (!o.isMesh) return; for (let p = o; p; p = p.parent) if (!p.visible) return; if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); bb.union(mb.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld)); });
+  const pad = 0.02, ss = ART.ss, w = bb.max.x - bb.min.x + pad * 2, h = bb.max.y - bb.min.y + pad * 2;
+  const pw = Math.ceil(w * ppu * ss), ph = Math.ceil(h * ppu * ss);
+  const near = 5 - bb.max.z - 0.01, far = 5 - bb.min.z + 0.01;
+  const oc = new THREE.OrthographicCamera(bb.min.x - pad, bb.max.x + pad, bb.max.y + pad, bb.min.y - pad, near, far); oc.position.z = 5;
+  const isAtt = o => { for (let p = o; p; p = p.parent) if (p.userData.att) return true; return false; };
+  const meshes = []; g.traverse(o => { if (o.isMesh) meshes.push(o); });
+  // the passes drawn (on the GPU, now): how near each pixel is, the whole of it, and its fitted parts on their own
+  const rts = [];
+  meshes.forEach(o => { o.material = ART_Z; }); rts.push(drawArt(sc, oc, pw, ph, 0));
+  meshes.forEach(o => { o.material = opt.gold ? ART_GOLD : ART_INK; }); rts.push(drawArt(sc, oc, pw, ph));   // (gold: all of it in the gold, Gun game's last two)
+  if (opt.cut && meshes.some(isAtt)) { meshes.forEach(o => { const a = isAtt(o); o.material = a ? ART_GOLD : ART_DEPTH; o.renderOrder = a ? 0 : -1; }); rts.push(drawArt(sc, oc, pw, ph)); }
+  meshes.forEach(o => o.geometry.dispose());
+  const d = { pw, ph, pair: !!opt.pair, A: ART, S: ART_SHADE, ao: ART_SHADE.aoStep / (far - near) * 255, ink: ART.step / (far - near) * 255 };
+  const size = opt.pair ? [(pw + Math.round(pw * ART.pairX)) / ss, (ph + Math.round(ph * ART.pairY)) / ss] : [w * ppu, h * ppu];
+  const art = { url: '', w: size[0], h: size[1] };
+  // (on the game's threads where they're up: read back without the GPU stalling the frame for it, then shaded, inked
+  // and made a PNG in a worker; meanwhile it's a clear picture the right size, swapped for the real one everywhere it's
+  // shown once that's in: artReady)
+  if (threadsOn() && R.readRenderTargetPixelsAsync) {
+    art.url = artHold(art);
+    Promise.all(rts.map(rt => R.readRenderTargetPixelsAsync(rt, 0, 0, pw, ph, new Uint8Array(pw * ph * 4))))
+      .then(px => { rts.forEach(rt => rt.dispose()); const [depth, whole, parts] = px; return threadRun('art', Object.assign(d, { depth, whole, parts: parts || null }), px.map(p => p.buffer)); })
+      .then(blob => artReady(art, URL.createObjectURL(blob)))
+      .catch(() => { rts.forEach(rt => rt.dispose()); artReady(art, artHere(rts, d)); });
+    return art;
+  }
+  art.url = artHere(rts, d); return art;
+}
+// (here, at once: each pass read back as it is, finished on this thread, and the PNG made here too)
+function artHere(rts, d) {
+  const [depth, whole, parts] = rts.map(rt => { const px = new Uint8Array(d.pw * d.ph * 4); try { R.readRenderTargetPixels(rt, 0, 0, d.pw, d.ph, px); } catch (e) { /* gone: left clear */ } rt.dispose(); return px; });
+  return artFinish(Object.assign({}, d, { depth, whole, parts: parts || null, keep: true })).out.toDataURL();
+}
+// a picture on its way: a clear one its size, marked (zart<n>z) so wherever it's put (an img's src, a style's url) can
+// be found and given the real one when it's in
+let artN = 0;
+function artHold(art) { art.tok = 'zart' + (++artN) + 'z'; return 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${Math.ceil(art.w)}" height="${Math.ceil(art.h)}"><!--${art.tok}--></svg>`); }
+function artReady(art, url) {
+  const was = art.url; art.url = url; if (!art.tok) return;
+  for (const el of document.querySelectorAll(`img[src*="${art.tok}"]`)) el.src = url;
+  for (const el of document.querySelectorAll(`[style*="${art.tok}"]`)) el.setAttribute('style', el.getAttribute('style').split(was).join(url));
+}
+// one pass into a target of its own, left for reading back (multisampled for smooth edges; none for the depth, so no
+// pixel's depth is a blend of two)
+function drawArt(sc, oc, pw, ph, samples = 4) {
+  const rt = new THREE.WebGLRenderTarget(pw, ph, { samples }), prevRT = R.getRenderTarget(), prevC = R.getClearColor(new THREE.Color()), prevA = R.getClearAlpha();
   R.setRenderTarget(rt); R.setClearColor(0x000000, 0); R.clear(); R.render(sc, oc);
-  const px = new Uint8Array(pw * ph * 4); R.readRenderTargetPixels(rt, 0, 0, pw, ph, px);
-  R.setRenderTarget(prevRT); R.setClearColor(prevC, prevA); rt.dispose();
-  g.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
-  // GL reads bottom row first: flip it into a canvas
-  const c = document.createElement('canvas'); c.width = pw; c.height = ph;
-  const x = c.getContext('2d'), im = x.createImageData(pw, ph);
-  for (let r = 0; r < ph; r++) im.data.set(px.subarray((ph - 1 - r) * pw * 4, (ph - r) * pw * 4), r * pw * 4);
-  x.putImageData(im, 0, 0);
-  return (meleeArtCache[key] = { url: c.toDataURL(), w: w * MELEE_ART_PPU });
+  R.setRenderTarget(prevRT); R.setClearColor(prevC, prevA);
+  return rt;
+}
+// the picture finished from its passes (d: pw, ph, depth / whole / parts as read back, bottom row first; pair; A, ART;
+// S, ART_SHADE; ao and ink, ART_SHADE.aoStep and ART.step in depth's units): the gold parts stood apart from the gun by
+// a hairline of clear and drawn over it, the shading, the inked lines where one part stands out in front of another,
+// and an akimbo pair drawn as two; then a PNG of it (or, keep, the canvas itself). Uses nothing outside itself: it's a
+// job for the game's threads (core/threads.js), and the same function's run here where they aren't up
+function artFinish(d) {
+  const { pw, ph, A, S } = d, mk = (w, h) => !d.keep && globalThis.OffscreenCanvas ? new globalThis.OffscreenCanvas(w, h) : Object.assign(document.createElement('canvas'), { width: w, height: h });
+  // (GL reads bottom row first: flipped as it's put on a canvas)
+  const flip = px => { const o = new Uint8ClampedArray(pw * ph * 4); for (let r = 0; r < ph; r++) o.set(px.subarray((ph - 1 - r) * pw * 4, (ph - r) * pw * 4), r * pw * 4); return o; };
+  const put = px => { const c = mk(pw, ph); c.getContext('2d').putImageData(new ImageData(flip(px), pw, ph), 0, 0); return c; };
+  const depth = flip(d.depth), whole = put(d.whole), parts = d.parts ? put(d.parts) : null;
+  // (clear a hairline round the shape of src, drawn at x0, y0, out of what's already drawn: the shape spread by A.cut
+  // pixels every way and taken out, before the shape itself goes on top)
+  const hairline = (x, src, x0, y0) => { x.globalCompositeOperation = 'destination-out'; for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; x.drawImage(src, x0 + Math.round(Math.cos(a) * A.cut), y0 + Math.round(Math.sin(a) * A.cut)); } x.globalCompositeOperation = 'source-over'; };
+  const one = parts ? mk(pw, ph) : whole;
+  if (parts) { const x = one.getContext('2d'); x.drawImage(whole, 0, 0); hairline(x, parts, 0, 0); x.drawImage(parts, 0, 0); }
+  const x1 = one.getContext('2d'), im = x1.getImageData(0, 0, pw, ph), px = im.data;
+  // the shading (ART_SHADE) from how near each pixel is
+  let zn = 255, zf = 0; for (let k = 0; k < depth.length; k += 4) if (depth[k + 3]) { zn = Math.min(zn, depth[k]); zf = Math.max(zf, depth[k]); }
+  const span = Math.max(1, zf - zn), dirs = [[1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7], [-0.7, -0.7]];
+  const shade = new Float32Array(pw * ph);
+  for (let j = 0; j < ph; j++) for (let i = 0; i < pw; i++) {
+    const k = (j * pw + i) * 4; if (!px[k + 3] || !depth[k + 3]) continue;
+    const z = depth[k]; let n = 0;
+    for (const r of S.r) for (const [u, v] of dirs) { const a = i + Math.round(u * r * A.ss), b = j + Math.round(v * r * A.ss); if (a >= 0 && b >= 0 && a < pw && b < ph) { const q = (b * pw + a) * 4; if (depth[q + 3] && depth[q] < z - d.ao) n++; } }
+    shade[j * pw + i] = (1 - S.deep * (z - zn) / span) * (1 - Math.min(S.aoMost, n * S.ao)) * (1 + S.fall / 2 - S.fall * j / ph);
+  }
+  for (let q = 0; q < pw * ph; q++) { const f = shade[q]; if (!f) continue; const k = q * 4; px[k] = Math.min(255, px[k] * f); px[k + 1] = Math.min(255, px[k + 1] * f); px[k + 2] = Math.min(255, px[k + 2] * f); }
+  // the lines inked in (a pixel with something nearer than it by more than ink within a drawn pixel or two any way)
+  const near = (i, j) => i >= 0 && j >= 0 && i < pw && j < ph && depth[(j * pw + i) * 4 + 3] > 0 ? depth[(j * pw + i) * 4] : 999;
+  for (let j = 0; j < ph; j++) for (let i = 0; i < pw; i++) {
+    const k = (j * pw + i) * 4; if (!px[k + 3] || !depth[k + 3]) continue;
+    const z = depth[k] - d.ink;
+    for (let r = 1; r <= A.ss; r++) if (near(i + r, j) < z || near(i - r, j) < z || near(i, j + r) < z || near(i, j - r) < z) { px[k] *= A.line; px[k + 1] *= A.line; px[k + 2] *= A.line; break; }
+  }
+  x1.putImageData(im, 0, 0);
+  let c = one;
+  if (d.pair) {
+    const ox = Math.round(pw * A.pairX), oy = Math.round(ph * A.pairY); c = mk(pw + ox, ph + oy); const x = c.getContext('2d');
+    x.globalAlpha = A.pairA; x.drawImage(one, ox, 0); x.globalAlpha = 1;
+    hairline(x, one, 0, oy); x.drawImage(one, 0, oy);
+  }
+  if (d.keep) return { out: c };
+  return (c.convertToBlob ? c.convertToBlob({ type: 'image/png' }) : new Promise(ok => c.toBlob(ok, 'image/png'))).then(out => ({ out }));
+}
+threadJob('art', artFinish);
+// a gun the same way, built as it's built for your hands (buildWeapon) with everything fitted to it that shows (its mods
+// and their levels, its tiers, attachments, the tune-up, the rounds and mag in it), its attachments in gold
+// and a pair drawn as two (snapArt), laid on its side with the muzzle to the left, as the melee weapons lie; kept
+// until any of that changes (gunArtKey)
+const gunArtCache = {}, GUN_ART_PPU = 120, GUN_TURN = new THREE.Matrix4().makeBasis(new V3(0, 0, 1), new V3(0, 1, 0), new V3(-1, 0, 0));
+export const gunArtKey = id => id + ':' + (W8.mods[id] || []).map(m => m + modLv(m)).join(',') + JSON.stringify([W8.gt[id], W8.att && W8.att[id], W8.tune && W8.tune[id], W8.rds && W8.rds[id], W8.rounds && W8.rounds[id], magTierIn(id), !!(W(id) || {}).akimbo, !!(W(id) || {}).gold]);
+// everything on the gun that a stock one doesn't have, drawn in gold too: not only what's fitted on a rail (fitted,
+// weapons/gun-materials.js) but what the model itself grows with an upgrade or mod (the M4's flared magwell, the hand
+// cannon's ported compensator, a longer mag, a conversion's parts). The stock gun's built alongside (no tiers, mods,
+// attachments or rounds) and each piece of this one that isn't among its pieces (same shape, same colour, same place
+// to a few millimetres) is marked
+const _gnB = new THREE.Box3(), _gnC = new V3();
+const gnSig = o => { _gnB.setFromObject(o).getCenter(_gnC); return [o.geometry.attributes.position ? o.geometry.attributes.position.count : 0, o.material && o.material.color ? o.material.color.getHex() : 0, Math.round(_gnC.x * 300), Math.round(_gnC.y * 300), Math.round(_gnC.z * 300)].join(); };
+function goldNew(g, id) {
+  const keys = ['gt', 'mods', 'att', 'rounds', 'rds', 'pin'], had = keys.map(k => W8[k] ? [Object.prototype.hasOwnProperty.call(W8[k], id), W8[k][id]] : null);
+  const b = new THREE.Group();
+  try { keys.forEach(k => { if (W8[k]) delete W8[k][id]; }); setTierCtx(id); buildWeapon(b, id, WEAP[id], {}, weaponRec()); }
+  catch (e) { return; }
+  finally { setTierCtx(null); keys.forEach((k, i) => { const h = had[i]; if (!h) return; if (h[0]) W8[k][id] = h[1]; else delete W8[k][id]; }); }
+  b.updateMatrixWorld(true); g.updateMatrixWorld(true);
+  const base = new Map(); b.traverse(o => { if (o.isMesh) { const k = gnSig(o); base.set(k, (base.get(k) || 0) + 1); } });
+  g.traverse(o => { if (!o.isMesh) return; const k = gnSig(o), n = base.get(k) || 0; if (n > 0) base.set(k, n - 1); else o.userData.att = true; });
+  b.traverse(o => { if (o.isMesh && o.geometry) o.geometry.dispose(); });
+}
+export function gunArt(id) {
+  const D = WEAP[id]; if (!D) return null;
+  if (D.melee) return meleeArt(id, W8.mods[id] || [], modLv, !!(W(id) || {}).gold);
+  const key = gunArtKey(id); if (gunArtCache[key]) return gunArtCache[key];
+  const g = new THREE.Group(), mods = {}; (W8.mods[id] || []).forEach(m => { mods[m] = modLv(m); });
+  setTierCtx(id); try { buildWeapon(g, id, W(id) || D, mods, weaponRec()); } finally { setTierCtx(null); }
+  goldNew(g, id);
+  g.setRotationFromMatrix(GUN_TURN);
+  const gold = !!(W(id) || {}).gold;
+  return (gunArtCache[key] = snapArt(g, GUN_ART_PPU, { cut: !gold, gold, pair: !!(W(id) || {}).akimbo }));
 }
 // the HUD's weapon block: the silhouette in place of the ammo count while you hold a melee weapon
 export function renderMeleeArt(id, D) {
   const el = $('meleeArt'), on = !!D.melee;
   if (el.hidden === on) { el.hidden = !on; $('ammo').hidden = on; }
   if (!on) return;
-  const k = id + ':' + (W8.mods[id] || []).map(m => m + modLv(m)).join(',');
+  const gold = !!(W(id) || {}).gold, k = id + ':' + (W8.mods[id] || []).map(m => m + modLv(m)).join(',') + (gold ? ':gold' : '');
   if (cache.meleeArt === k) return; cache.meleeArt = k;
-  const a = meleeArt(id, W8.mods[id] || []);
+  const a = meleeArt(id, W8.mods[id] || [], modLv, gold);
   el.src = a.url; el.style.width = a.w.toFixed(0) + 'px';
   el.classList.remove('in'); void el.offsetWidth; el.classList.add('in');
 }

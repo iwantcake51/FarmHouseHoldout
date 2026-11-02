@@ -30,7 +30,8 @@ const TR_STYLE = {
   std: { core: 0xfff8e4, glow: 0xffb850, wake: 0xffa848 },
   hot: { core: 0xffecc8, glow: 0xff8030, wake: 0xff7028 },      // +P loads
   dragon: { core: 0xffd890, glow: 0xff4c12, wake: 0xff400c },   // dragon's breath
-  supp: { core: 0xcfcac0, glow: 0x6e6a64, wake: 0x5c5852 }       // through a suppressor: a dim grey streak, no fire (smoke does the rest, smokeTrail)
+  supp: { core: 0xcfcac0, glow: 0x6e6a64, wake: 0x5c5852 },      // through a suppressor: a dim grey streak, no fire (smoke does the rest, smokeTrail)
+  gold: { core: 0xfff4c4, glow: 0xffc42e, wake: 0xe8a818 }       // the golden revolver's (Gun game): a streak of molten gold
 };
 const TR_EMBER = new THREE.Color(0x7a1806), TR_HOT = new THREE.Color(0xfff0c0);
 const trMat = map => new THREE.MeshBasicMaterial({ map, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });

@@ -15,7 +15,7 @@ import { run } from '../game/run-state.js';
 import { splatLater, spray } from '../effects/blood-map.js';
 import { burst, gibs } from '../effects/particles.js';
 import { fx } from '../effects/puffs.js';
-import { flingPart, goCrawl, LIMB_STAGGER } from './damage.js';
+import { BLEED_OUT, bleedOut, flingPart, goCrawl, LIMB_STAGGER } from './damage.js';
 import { SFX } from '../audio/sfx.js';
 import { soundAt } from '../audio/spatial.js';
 import { netRec, NREP } from '../net/sync.js';
@@ -96,7 +96,7 @@ const BONE_G = new THREE.BoxGeometry(0.036, 0.036, 0.06), BONE_M = lam(0xe2d9c4)
 export function severLower(z, part, dx, dz) {
   const arm = part[0] === 'a', key = (arm ? 'fore' : 'shin') + part.slice(3), low = z.m[key];
   if (!low || !low.parent || !z.limbs[part] || (z.cut && z.cut[part]) || (!arm && z.type === 'brute')) return false;   // (a brute's legs stay on: zombies/damage.js sever)
-  (z.cut || (z.cut = {}))[part] = true; netRec('l', part);
+  (z.cut || (z.cut = {}))[part] = true; netRec('l', part); bleedOut(z, BLEED_OUT.lower);   // (it bleeds out from the stump: zombies/damage.js)
   flingPart(z, low, dx, dz, 0.8);
   z.m[key] = new THREE.Object3D();   // a stand-in for the poses to bend (zombies/zombie-anim.js, zombies/deaths.js)
   const end = arm ? _wP.set(0, 0, 0.27) : _wP.set(0, -0.29, 0);

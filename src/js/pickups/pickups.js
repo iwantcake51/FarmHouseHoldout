@@ -62,11 +62,15 @@ function dropBeam(col) {
   m.renderOrder = 3; m.userData.isOutline = true; return m;   // (kept out of the crate's outline)
 }
 let dropUid = 0;   // (each drop its own number, so a teammate watching you can follow it: net/spectate.js)
+// a drop lying in the yard isn't painted with the blood on the ground under it (core/shaders.js reads the blood map
+// only onto what's fixed in the farm): it's dropped on it, not soaked into it
+export function noGroundBlood(g) { g.traverse(o => { const m = o.isMesh && o.material; if (m && !Array.isArray(m) && !m.userData.mobile) { m.userData.mobile = true; m.needsUpdate = true; } }); }
 export function dropPickup(x, z, kind, amount, ammoType, cargo) {
   if (kind === 'planks' && METAL.on && !cargo) cargo = { metal: true };   // (metal, not wood, once there's a metalwork bench)
   const root = new THREE.Group(); root.position.set(x, 0, z); scene.add(root);
   const g = new THREE.Group(); root.add(g);
   dropModel(g, kind, ammoType, cargo);   // (pickups/drop-models.js)
+  noGroundBlood(g);
   const col = pickCol(kind, ammoType, cargo);
   // planks and bandages can be left lying when you're full: they get their own copies of their materials so they can
   // go half grey on their own (greyDrop, below)
@@ -160,7 +164,7 @@ export function updatePickups(dt) {
       let ft = '';
       if (p.kind === 'planks') { const n = addPlanks(1), mw = p.cargo && p.cargo.metal ? 'metal' : 'planks'; feed(mw, n, mw); popEl('planks'); ft = '+' + n + (mw === 'metal' ? ' metal' : ''); SFX.pick(); }   // always the one plank (or bar of metal)
       else if (p.kind === 'med') { const n = Math.min(p.amount, bandMax() - (P.band || 0)); P.band = (P.band || 0) + n; feed('med', n, n > 1 ? 'bandages' : 'bandage'); ft = '+' + n + (n > 1 ? ' bandages' : ' bandage'); popEl('bands'); SFX.pick(); }
-      else if (p.kind === 'supply') { flareDone(); supplyOpen(); ft = 'Supplies'; SFX.crate(); }   // (what's in it: stations/supply-drop.js)
+      else if (p.kind === 'supply') { flareDone(); supplyOpen(p.cargo); ft = 'Supplies'; SFX.crate(); }   // (what's in it: stations/supply-drop.js)
       else {
         // an ammo box holds the one kind it looks like (if you've let go of every gun that takes it since, whichever you
         // carry now; with none at all, a little scrap)

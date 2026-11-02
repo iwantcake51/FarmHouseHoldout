@@ -1,6 +1,7 @@
 // Footsteps: recorded (src/sounds/footsteps.mp3, packed by tools/pack-footsteps.py; where each clip sits is
 // FOOT_SPRITE), played from your feet (audio/spatial.js). The ground under you picks the set: the house's floorboards
-// and the porch are wood, the trodden yard round the house and the drive are dirt, anywhere else is grass. A walk, a
+// and the porch are wood, the trodden yard round the house and the drive are dirt, anywhere else is grass; the arena's
+// yard is concrete. A walk, a
 // run (sprinting), a landing and a push off (vaulting) each have their own; one is never played twice running, and each
 // goes off a touch higher or lower and louder or softer than the last. Till the file's loaded (or with no audio), the
 // synthesized step stands in (SFX.step)
@@ -16,15 +17,17 @@ import { SFX } from './sfx.js';
 import { FOOT_SPRITE } from './footstep-sprite.js';
 import { loadSound, playAt, soundAt } from './spatial.js';
 import { setShake, shake } from '../game/state.js';
+import { ARENA } from '../world/arena.js';
 
 const FOOT_SND = loadSound('sounds/footsteps.mp3');
 // how loud footsteps are overall (FOOT_LEVEL: turn this one down or up first), and each kind against the others,
 // before how hard the step is (v)
 const FOOT_LEVEL = 0.32, FOOT_VOL = { walk: 0.5, run: 0.7, land: 0.8, jump: 0.45 };
-const FOOT_SURF = { wood: 1, dirt: 1, grass: 0.9 };
+const FOOT_SURF = { wood: 1, dirt: 1, grass: 0.9, concrete: 0.95 };
 const FOOT_YARD = 2.5;   // how far out round the house the ground's trodden to dirt (world/ground.js paints it the same)
 const footLast = {};
 function footSurface(x, z) {
+  if (ARENA.on) return 'concrete';   // (the arena's yard: world/arena.js)
   if (surfaceY(x, z) > 0) return 'wood';   // indoors, the porch and its step (world/house.js)
   if (onRoad(x, z, 0) || (x > cxw(HX0) - FOOT_YARD && x < cxw(HX1) + FOOT_YARD && z > cxw(HZ0) - FOOT_YARD && z < cxw(HZ1) + FOOT_YARD)) return 'dirt';
   return 'grass';

@@ -26,10 +26,10 @@ export function wallBetween(i0, j0, i1, j1) {
   return wxAt(im, j0) || wxAt(im, j1) || wzAt(i0, jm) || wzAt(i1, jm);
 }
 // a shut door between two cells next to each other; diagonally, one on any of the edges round the corner between them
+const dx = (i, j) => i >= 0 && i <= N && j >= 0 && j < N && wX[j * (N + 1) + i] >= 2, dz = (i, j) => i >= 0 && i < N && j >= 0 && j <= N && wZ[j * N + i] >= 2;
 export function doorBetween(i0, j0, i1, j1) {
   if (!THIN.n) return false;
   const di = i1 - i0, dj = j1 - j0, im = Math.max(i0, i1), jm = Math.max(j0, j1);
-  const dx = (i, j) => i >= 0 && i <= N && j >= 0 && j < N && wX[j * (N + 1) + i] >= 2, dz = (i, j) => i >= 0 && i < N && j >= 0 && j <= N && wZ[j * N + i] >= 2;
   if (!dj) return di ? dx(im, j0) : false;
   if (!di) return dz(i0, jm);
   return dx(im, j0) || dx(im, j1) || dz(i0, jm) || dz(i1, jm);

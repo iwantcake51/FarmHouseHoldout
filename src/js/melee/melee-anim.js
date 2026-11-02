@@ -15,11 +15,11 @@
 // (MSPRING), loose for the weapon in the fist, firmer for the body, so it carries on past where it's sent and settles.
 // A blow that lands (meleeImpact) stops the swing dead for a moment (MSTOP) and throws the springs back off the hit.
 
+import { BLOCK } from './block.js';
 import { V3 } from '../core/renderer.js';
 import { angDiff, clamp, mix, rand, smooth } from '../core/math.js';
 import { P } from '../player/player.js';
 import { curId, S, W8 } from '../game/run-state.js';
-import { meleeLen } from './swing-trail.js';
 import { SFX } from '../audio/sfx.js';
 import { HEAVY, heavySwing } from './melee.js';
 import { springTo } from '../game/camera.js';
@@ -36,6 +36,19 @@ const MGUARD = {
   machete: { F: [0.32, 0.86, 0.3], W: [0.22, 0.5, 0.84], b: { uy: 0.1, ux: 0.02 } },               // low at the hip, the blade out ahead
   katana:  { F: [0.05, 0.92, 0.36], W: [-0.02, 0.58, 0.81], b: { uy: 0.06, ux: 0.03, dip: 0.06 } }, // two hands at the middle, the point at the throat
   heavy:   { F: [0.13, 0.86, 0.3], W: [-0.44, 0.76, 0.48], b: { uy: 0.16, ux: 0.04, dip: 0.06 } }   // across the body, the head up by the left shoulder
+};
+// the guard (melee/block.js), by kind: the fist (F) up in front of the face and the weapon (W) laid across it to the
+// left and tipped up, so its length is between you and the blow; the body (b) turned to put the right shoulder behind
+// it, a little down into the knees. The two-handers' second hand finds the handle as it always does (player/hold.js)
+// knocked by a hit on you: how far the fist goes back (m), down and aside, and the weapon's tip aside and up (of its
+// direction), and how hard it shakes (m) as it comes back
+const MHIT = { back: 0.11, down: 0.06, side: 0.05, tip: 0.35, up: 0.22, shake: 0.012 };
+const MBLOCK = {
+  club:    { F: [0.2, 1.22, 0.42], W: [-0.8, 0.3, 0.52], b: { uy: -0.1, ux: 0.03, dip: 0.04 } },
+  bat:     { F: [0.16, 1.2, 0.42], W: [-0.78, 0.4, 0.48], b: { uy: -0.08, ux: 0.04, dip: 0.05 } },
+  machete: { F: [0.2, 1.24, 0.42], W: [-0.82, 0.28, 0.5], b: { uy: -0.1, ux: 0.03, dip: 0.04 } },
+  katana:  { F: [0.14, 1.22, 0.44], W: [-0.8, 0.38, 0.46], b: { uy: -0.08, ux: 0.04, dip: 0.06 } },
+  heavy:   { F: [0.2, 1.12, 0.4], W: [-0.74, 0.5, 0.45], b: { uy: -0.12, ux: 0.05, dip: 0.07 } }
 };
 // looking a melee weapon over (the inspect key: player/inspect.js keeps its time), by kind, as poses through it: when
 // (t, seconds), the fist (F: across, up, ahead of the chest, metres) and which way the weapon points from it (W), how
@@ -524,6 +537,34 @@ export function meleePose(id, D, rdt, now, sh) {
   { const wI = !(W8.swing > 0) && !sh && ANIM.mDrawT === undefined ? smooth(clamp(inspectBlend(), 0, 1)) : 0;
     if (wI > 0.001) { const o = minspectAt(minspectSet(kind), g, Math.max(0, inspectT()), _maA, _maB); _maF.lerp(_maA, wI); _maW.lerp(_maB, wI).normalize(); _mTB.uy = (_mTB.uy || 0) + o.uy * wI; MS.ir = (o.r % (2 * Math.PI)) * wI; MS.ihp = o.hp * wI; MS.ihy = o.hy * wI; }
     else MS.ir = MS.ihp = MS.ihy = 0; }
+  // hit (ANIM.flinch, from whichever side: ANIM.flinchSide): the weapon and the arm holding it knocked back at you and
+  // down and off to that side, shaking as it comes back up on the springs (MHIT)
+  { const f = !(W8.swing > 0) && !sh ? ANIM.flinch || 0 : 0;
+    if (f > 0.001) { const sd = ANIM.flinchSide || 1, f2 = f * f, sj = Math.sin(now * 52) * MHIT.shake * f2; _maF.x += sd * MHIT.side * f2 + sj; _maF.y -= MHIT.down * f2 - sj * 0.6; _maF.z -= MHIT.back * f2; _maW.x += sd * MHIT.tip * f2; _maW.y += MHIT.up * f2 + sj * 2; _maW.normalize(); } }
+  // a dash (melee/block.js meleeDash): the weapon and the arms swung back against the way you went and dipped, leaning
+  // with it, easing back over about a third of a second (a smooth rise and fall rather than a jolt)
+  if (ANIM.dash > 0.001) {
+    const k = ANIM.dash, e = Math.sin(Math.PI * Math.min(1, (1 - k) * 1.6 + 0.12)) * Math.min(1, k * 3);
+    _maF.x -= (ANIM.dashSide || 0) * 0.07 * e; _maF.z += (ANIM.dashFwd || 0) * -0.05 * e; _maF.y -= 0.035 * e;
+    _maW.x += (ANIM.dashSide || 0) * 0.08 * e; _maW.normalize();
+    ANIM.dash = rdt > 0 ? k * Math.exp(-rdt * 4.5) : k; if (ANIM.dash < 0.002) ANIM.dash = 0;
+  }
+  // gathering a heavy blow (melee/block.js MCHARGE): held at the top of the wind-up, drawn further back as it gathers
+  // and trembling with the strain, more the nearer it is to full
+  if (W8.chgOn && !sh) { const k = smooth(clamp(W8.chgK || 0, 0, 1)); _maF.z -= 0.02 * k; _maF.y += 0.015 * k; _maF.x += (Math.sin(now * 47) + 0.6 * Math.sin(now * 71 + 1.3)) * 0.006 * (0.4 + k); _maF.y += Math.sin(now * 59 + 0.7) * 0.004 * (0.4 + k); _maW.y += Math.sin(now * 53) * 0.035 * k; _maW.x += Math.sin(now * 61 + 2.1) * 0.02 * k; _maW.normalize(); }
+  // the guard up (melee/block.js), eased in and out as it comes up and down: the weapon brought up across in front of
+  // your face, its edge out, the chest turned a touch to put the shoulder behind it and the knees bent (MBLOCK, by kind);
+  // a blow on it slams it back toward you and jolts it about (BLOCK.shake), the springs carrying the rest
+  { const bk = !(W8.swing > 0) && !sh ? smooth(BLOCK.k) : 0;
+    if (bk > 0.001) {
+      const G = MBLOCK[kind], sk = BLOCK.shake * BLOCK.shake;
+      _maA.set(G.F[0] + BLOCK.sx * 0.07 * sk, G.F[1] + (BLOCK.sy * 0.05 - 0.04) * sk, G.F[2] - 0.09 * sk); _maB.set(G.W[0], G.W[1] + BLOCK.sy * 0.2 * sk, G.W[2] + BLOCK.sx * 0.15 * sk).normalize();
+      _maF.lerp(_maA, bk); _maW.lerp(_maB, bk).normalize();
+      for (const k in G.b) _mTB[k] = (_mTB[k] || 0) + (G.b[k] - (_mTB[k] || 0)) * bk;
+      _mTB.ux = (_mTB.ux || 0) - 0.05 * sk;   // (rocked back by the blow)
+    } }
+  // (a blow on the guard just landed: slammed back at you on the springs, melee/block.js BLOCK.kick)
+  if (BLOCK.kick) { const K = BLOCK.kick; BLOCK.kick = null; MS.vF.x += K.x; MS.vF.y += K.y; MS.vF.z += K.z; MS.vW.x += K.tip; MS.vW.y += K.up; }
   // the springs, a few small steps a frame so the stiff ones stay steady
   // (the fist's and the weapon's by its weight: a light one stiff and well damped, a heavy one looser, lagging into a
   // swing and carrying on past where it's sent)
@@ -547,34 +588,33 @@ export function meleePose(id, D, rdt, now, sh) {
 }
 // the weapon turned in the fist about its own handle (tw) so its edge (the axe's bit, the blade's edge: +z, melee/
 // melee-models.js) faces where it should. The arm alone only points the weapon, and the edge then faces however the
-// forearm happens to be turned, which rolls the axe's head round sideways as the arm comes through. In a swing the edge
-// faces the way the head's going along the swing's keys at each moment (look: how far ahead and behind that's taken),
-// turned round to the blow's way while it's being drawn back or brought back (n: the way the head travels through the
-// fast part, the blow; still: under how far it's moving that the blow's way is kept), so it leads the blow all round
-// its arc and trails as it's drawn back; between swings it faces the way it does in the guard (guardEdge), however the
-// forearm's turned by then. Always square to the handle, eased from the one to the other over the start and the end of
-// a swing (in, out), and always the short way round from where it's turned now, at most MTWIST.rate a second
-const MTWIST = { rate: 16, in: 0.14, out: [0.86, 1], look: 0.03, still: 0.08 }, _mtN = new V3(), _mtA = new V3(), _mtB = new V3(), _mtE = new V3(), _mtQ = new THREE.Quaternion(), _mtR = new THREE.Euler(), _mtX = {};
+// forearm happens to be turned, which rolls the axe's head round sideways as the arm comes through. A swing turns the
+// weapon about one axis through its blow (the way it's turning between the start and the end of the fast part, fw),
+// and its edge faces round that way all through it, square to the handle: leading the blow, trailing as it's drawn
+// back, still leading as it carries on past and comes back round, never flipped over about the handle partway (as it
+// would be facing one fixed way, which the head turns past). Between swings it faces the way it does in the guard
+// (guardEdge), however the forearm's turned by then; eased from the one to the other over the start and the end of a
+// swing (in, out), and always the short way round from where it's turned now, at most MTWIST.rate a second
+const MTWIST = { rate: 16, in: 0.14, out: [0.86, 1] }, _mtN = new V3(), _mtA = new V3(), _mtB = new V3(), _mtE = new V3(), _mtQ = new THREE.Quaternion(), _mtR = new THREE.Euler(), _mtX = {};
 function meleeTwist(out, D, id, sh, dur, g, rdt) {
   if (MS.twKind !== MS.kind) { MS.twKind = MS.kind; MS.tw = 0; MS.twP = undefined; MS.twG = guardEdge(g, new V3()); }
   const tw = MS.tw || 0;
   _mtE.copy(MS.twG);   // (the way the edge faces in the guard)
-  if (W8.swing > 0 && !sh && !fpOn()) {   // (from your own eyes it stays turned in the fist as it is in the guard, swung round by the arm alone: FP_MSWING)
-    const p = 1 - W8.swing / dur, sw = curSwing(D), fw = sw.fast, wt = meleeWeight(id), hit = heavySwing(D) ? HEAVY.hit : 0.4, wp = t => meleeWarp(t, sw.keys, hit, wt[0]), L = meleeLen(id);
-    if (MS.twP === undefined || p < MS.twP || MS.twSw !== sw) {   // (a new swing: the way its blow goes)
-      sampleFast(sw.keys, g, wp(fw[0]), wp(fw[0]), wp(fw[0]), _mtA, _mtB, _mtX); _mtN.copy(_mtA).addScaledVector(_mtB, -L);
-      sampleFast(sw.keys, g, wp(fw[1]), wp(fw[1]), wp(fw[1]), _mtA, _mtB, _mtX); _mtN.add(_mtA.addScaledVector(_mtB, L));
+  // (from your own eyes a light one stays turned in the fist as it is in the guard, swung round by the arm alone:
+  // FP_MSWING; a heavy two-hander's edge leads its blow there too, or the axe's head lies over flat as the arms come
+  // down in line with its handle)
+  if (W8.swing > 0 && !sh && (!fpOn() || heavySwing(D))) {
+    const p = 1 - W8.swing / dur, sw = curSwing(D), fw = sw.fast, wt = meleeWeight(id), hit = heavySwing(D) ? HEAVY.hit : 0.4, wp = t => meleeWarp(t, sw.keys, hit, wt[0]);
+    if (MS.twP === undefined || p < MS.twP || MS.twSw !== sw) {   // (a new swing: the axis its blow turns about)
+      sampleFast(sw.keys, g, wp(fw[0]), wp(fw[0]), wp(fw[0]), _mtA, _mtN, _mtX);
+      sampleFast(sw.keys, g, wp(fw[1]), wp(fw[1]), wp(fw[1]), _mtA, _mtB, _mtX); _mtN.cross(_mtB);
       MS.twOk = _mtN.lengthSq() > 0.01; if (MS.twOk) MS.twN = (MS.twN || new V3()).copy(_mtN.normalize());
       MS.twSw = sw;
     }
     MS.twP = p;
     if (MS.twOk) {
-      const d = MTWIST.look;
-      sampleFast(sw.keys, g, wp(p + d), wp(p + d), wp(p + d), _mtA, _mtB, _mtX); _mtN.copy(_mtA).addScaledVector(_mtB, L);
-      sampleFast(sw.keys, g, wp(p - d), wp(p - d), wp(p - d), _mtA, _mtB, _mtX); _mtN.sub(_mtA.addScaledVector(_mtB, L));
-      const sp = _mtN.length(); if (_mtN.dot(MS.twN) < 0) _mtN.negate();
-      _mtN.normalize().lerp(MS.twN, 1 - smooth(clamp(sp / MTWIST.still, 0, 1)));
-      _mtE.lerp(_mtN, smooth(clamp(p / MTWIST.in, 0, 1)) * (1 - smooth(clamp((p - MTWIST.out[0]) / (MTWIST.out[1] - MTWIST.out[0]), 0, 1))));
+      _mtN.copy(MS.W).normalize().cross(MS.twN);   // (round the axis from the handle: the way the head's turning)
+      if (_mtN.lengthSq() > 0.02) _mtE.lerp(_mtN.normalize(), smooth(clamp(p / MTWIST.in, 0, 1)) * (1 - smooth(clamp((p - MTWIST.out[0]) / (MTWIST.out[1] - MTWIST.out[0]), 0, 1))));
     }
   } else MS.twP = undefined;
   // the edge wanted, square to the handle, into the weapon's frame (the arm's turn, its roll, the tilt in the fist),

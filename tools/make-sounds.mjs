@@ -104,6 +104,13 @@ const SOUNDS = {
   kill_2: ['Melee weapons/Hit/sticky_hit_body_ufx_2.ogg', { to: 520 }],
   sever: ['Melee weapons/Hit/slash_bloody_heavy_ufx_2.ogg', { to: 490 }],
   head_pop: ['Melee weapons/Hit/blunt_hit_bloody_heavy_ufx_1.ogg', { to: 510 }],
+  head_pop_2: ['Melee weapons/Hit/blunt_hit_bloody_light_ufx_2.ogg', { to: 500 }],
+  // a kill that isn't through the head: the body giving way (kill_1, kill_2 above), two more of them, and a second
+  // and third bullet into flesh
+  kill_3: ['Melee weapons/Hit/blunt_hit_body_ufx_1.ogg', { to: 450 }],
+  kill_4: ['Melee weapons/Hit/blunt_hit_body_ufx_2.ogg', { to: 450 }],
+  flesh_3: ['Melee weapons/Hit/sharp_hit_light_bloody_ufx_1.ogg', { to: 380 }],
+  flesh_4: ['Melee weapons/Hit/blunt_hit_body_ufx_3.ogg', { to: 320 }],
   // barricades, crates and kit
   wood_hit_1: ['Impact & Break/Wood/impact_wood_ufx_1.ogg', {}],
   wood_hit_2: ['Impact & Break/Wood/impact_wood_ufx_2.ogg', {}],

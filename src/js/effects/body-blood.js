@@ -17,7 +17,7 @@ import { W8 } from '../game/run-state.js';
 import { gunMeshes } from '../weapons/gun-materials.js';
 import { worldT } from '../game/state.js';
 
-const BLOOD_HOLD = 15, BLOOD_FADE = 1.5;
+const BLOOD_HOLD = 30, BLOOD_FADE = 3;
 // a splash of blood (amt, 0..1 of soaked) on a list of them; what lands within half a second of the last counts as
 // one splash with it, so a list holds no more than a couple of dozen
 export function splashOn(list, amt) { const l = list[list.length - 1]; if (l && l[1] < 0.5) l[0] += amt; else list.push([amt, 0]); }
@@ -31,12 +31,18 @@ function splashLevel(list, dt) {
   }
   return Math.min(1, b);
 }
+// how bloody you are at least, whatever's faded (the arena's: as much as you're hurt, pvp/pvp.js)
+export const BODY_BLOOD = { floor: 0 };
 export const youSplash = [];   // the splashes on you; a new run starts clean (clearBodyBlood)
 export function addBlood(char, wId, wAmt) {
   splashOn(youSplash, char * 1.3);
   if (wId && wAmt) splashOn(W8.bloodW[wId] || (W8.bloodW[wId] = []), wAmt);   // W8 starts afresh each run
 }
-export function clearBodyBlood() { youSplash.length = 0; P.blood = 0; }
+function clearBodyBlood() { youSplash.length = 0; P.blood = 0; }
+// a wave cleared and done with: you're cleaned up for the next, the blood off you and your weapons (fading off as the
+// stains ease down, effects/body-blood.js: updateWeaponBlood) and the bandages off your arm, cards or no cards
+// (waves/waves.js: clearedDone)
+export function cleanUpAfterWave() { clearBodyBlood(); for (const id in W8.bloodW) W8.bloodW[id].length = 0; P.wraps = 0; }
 
 const BLOOD_NOISE = `
 vec3 bmod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -187,12 +193,21 @@ export function updateCharBlood(rdt, dt) {
   charBloodChk += rdt;
   if (charBloodChk > 0.5) { charBloodChk = 0; let n = 0; PM.g.traverse(o => { if (o.isMesh) n++; }); if (n !== charBloodN) charBloodDirty = true; }
   if (charBloodDirty) buildCharBlood();
-  const b = P.blood = splashLevel(youSplash, dt);
+  const b = P.blood = Math.max(splashLevel(youSplash, dt), BODY_BLOOD.floor);
   if (b > bloodWas + 0.001) BLOOD_U.uFresh.value = 1; else BLOOD_U.uFresh.value = Math.max(0, BLOOD_U.uFresh.value - rdt / 40);
   bloodWas = b;
   bloodShown += (b - bloodShown) * Math.min(1, rdt * (b > bloodShown ? 2.2 : BLOOD_BACK));
   BLOOD_U.uBlood.value = bloodShown;
 }
+// all of it off you and your weapons at once, nothing left to fade (a new game, and in the arena each life and each
+// Showdown round: pvp/pvp.js; a new run: ui/screens.js)
+export function bloodWipe() {
+  clearBodyBlood(); bloodShown = bloodWas = 0; BODY_BLOOD.floor = 0; BLOOD_U.uBlood.value = 0; BLOOD_U.uFresh.value = 0;
+  for (const id in W8.bloodW) W8.bloodW[id].length = 0;
+  for (const id in WSTAIN) { const S = WSTAIN[id]; S.shown = S.was = 0; S.u.uBlood.value = 0; S.u.uFresh.value = 0; }
+}
+// how burnt you are, 0 to 1, and whether you're still alight (the arena's fire: pvp/pvp-fire.js), the embers flickering
+export function charYou(c, ember) { BLOOD_U.uChar.value = c; BLOOD_U.uEmber.value = ember * (0.8 + 0.2 * Math.sin(worldT * 9.3) * Math.sin(worldT * 5.1 + 1)); }
 const BLOOD_BACK = 6;   // how quickly a stain follows its blood fading (the fade itself is BLOOD_FADE)
 function syncStains(list) { for (const [o, m] of list) { if (!m.color.equals(o.color)) m.color.copy(o.color); if (o.emissive && !m.emissive.equals(o.emissive)) m.emissive.copy(o.emissive); } }
 

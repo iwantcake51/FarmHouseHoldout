@@ -19,7 +19,7 @@ import { curSwing } from './melee-anim.js';
 const TRAIL_N = 16, SW_SUB = 4, SW_COLS = (TRAIL_N - 1) * SW_SUB + 1, SW_LIFE = 0.13, SW_FAST = 9;
 const MLEN = { bat: 0.95, crowbar: 0.82, wrench: 0.72, katana: 0.995, sledge: 0.98, machete: 0.78, axe: 0.92 };
 // a blade grown by its mod's level (melee/melee-models.js) leaves a trail as long as it is
-export const meleeLen = id => (MLEN[id] || 0.85) + (id === 'machete' && hasMod('longblade') ? 0.66 * (MACHETE_S[modLv('longblade')] - 1) : id === 'katana' && hasMod('folded') ? KATANA_L[modLv('folded')] - KATANA_L[0] : 0);
+const meleeLen = id => (MLEN[id] || 0.85) + (id === 'machete' && hasMod('longblade') ? 0.66 * (MACHETE_S[modLv('longblade')] - 1) : id === 'katana' && hasMod('folded') ? KATANA_L[modLv('folded')] - KATANA_L[0] : 0);
 const swGeo = new THREE.BufferGeometry(), swPos = new Float32Array(SW_COLS * 6), swAl = new Float32Array(SW_COLS * 2), swV = new Float32Array(SW_COLS * 2);
 swGeo.setAttribute('position', new THREE.BufferAttribute(swPos, 3));
 swGeo.setAttribute('alpha', new THREE.BufferAttribute(swAl, 1));
@@ -42,7 +42,7 @@ export function stepTrail(rdt) {
   const id = curId(), D = id && W(id);
   for (const q of trailS) q.age += rdt;
   while (trailS.length && trailS[0].age > SW_LIFE) trailS.shift();
-  if (D && D.melee && W8.swing > 0 && !P.dead && rdt > 0) {
+  if (D && D.melee && W8.swing > 0 && !W8.chgOn && !P.dead && rdt > 0) {   // (not while a heavy blow's held still, gathering)
     const p = 1 - W8.swing / W8.swingDur;
     const fw = curSwing(D).fast;
     if (p > fw[0] && p < fw[1]) {   // only the fast part of the swing smears (MSWINGS' fast)

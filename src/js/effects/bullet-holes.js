@@ -3,7 +3,7 @@
 // can see in (world/cutaway.js).
 
 import { scene, V3 } from '../core/renderer.js';
-import { clamp, HALF, rand, rr } from '../core/math.js';
+import { clamp, rand, rr } from '../core/math.js';
 import { cell, ci, idx, WALL } from '../world/grid.js';
 import { WALL_AT } from '../world/house.js';
 import { glowTex } from './textures.js';
@@ -23,21 +23,24 @@ const holes = [], wallAt = WALL_AT;   // (this run's outer walls, by cell: world
 let holeIdx = 0;
 const _hm = new THREE.Matrix4(), _hq = new THREE.Quaternion(), _hv = new V3(), _hs = new V3(), _hZ = new V3(0, 0, 1), _hn = new V3();
 // a round from (ox, oz) along (dx, dz) that stopped at t (the first point found inside a blocked cell; the point before
-// it, 0.1 back, was clear) at height y: if what it hit is a wall of the house, a hole of size s on the face it came through
+// it, 0.1 back, was clear) at height y: if what it hit is a wall of the house, a hole of size s on the face it really
+// struck, found by the round's own line against the wall's pieces (its plaster inside and its boards outside stand a
+// centimetre or two proud of the cell's edge: a hole put on the edge was inside them, hidden looking straight at it
+// and only showing at a slant). Through a window's opening it hits nothing there, and leaves no hole
+const _hlR = new THREE.Raycaster(), _hlO = new V3(), _hlD = new V3();
 export function bulletHole(ox, oz, dx, dz, t, y, s) {
-  const x1 = ox + dx * t, z1 = oz + dz * t, x0 = x1 - dx * 0.1, z0 = z1 - dz * 0.1;
+  const x1 = ox + dx * t, z1 = oz + dz * t;
   const i = ci(x1), j = ci(z1), w = wallAt.get(idx(i, j)); if (!w || cell[idx(i, j)] !== WALL) return;
-  // which face: the boundary it crossed last on the way in
-  const pi = ci(x0), pj = ci(z0);
-  let tx = -1, tz = -1;
-  if (pi !== i && dx) tx = ((dx > 0 ? i : i + 1) - HALF - ox) / dx;
-  if (pj !== j && dz) tz = ((dz > 0 ? j : j + 1) - HALF - oz) / dz;
-  if (tx < 0 && tz < 0) return;
-  let hx, hz;
-  if (tx >= tz) { hx = (dx > 0 ? i : i + 1) - HALF - Math.sign(dx) * 0.013; hz = oz + dz * tx; _hn.set(-Math.sign(dx), 0, 0); }
-  else { hz = (dz > 0 ? j : j + 1) - HALF - Math.sign(dz) * 0.013; hx = ox + dx * tz; _hn.set(0, 0, -Math.sign(dz)); }
+  const hy = clamp(y + rr(-0.05, 0.05), 0.3, 2.2), L = Math.hypot(dx, dz) || 1;
+  _hlD.set(dx / L, 0, dz / L); _hlO.set(x1, hy, z1).addScaledVector(_hlD, -0.8);
+  _hlR.set(_hlO, _hlD); _hlR.far = 1.6;
+  const hit = _hlR.intersectObject(w.g, true).find(q => q.object.isMesh && q.face && q.object.visible && !q.object.material.transparent);
+  if (!hit) return;
+  _hn.copy(hit.face.normal).transformDirection(hit.object.matrixWorld); _hn.y = 0;
+  if (Math.abs(_hn.x) > Math.abs(_hn.z)) _hn.set(Math.sign(_hn.x), 0, 0); else _hn.set(0, 0, Math.sign(_hn.z) || 1);   // (the walls stand square)
+  if (_hn.x * dx + _hn.z * dz > 0) return;   // (the far side of something: not a face it came in through)
   const h = holes.length < HOLE_MAX ? (holes.push({}), holes[holes.length - 1]) : holes[holeIdx = (holeIdx + 1) % HOLE_MAX];
-  h.w = w; h.on = null; h.x = hx; h.y = clamp(y + rr(-0.05, 0.05), 0.3, 2.2); h.z = hz; h.s = s * rr(0.85, 1.2); h.n = _hn.clone(); h.spin = rand() * 6.28;
+  h.w = w; h.on = null; h.x = hit.point.x + _hn.x * 0.003; h.y = hy; h.z = hit.point.z + _hn.z * 0.003; h.s = s * rr(0.85, 1.2); h.n = _hn.clone(); h.spin = rand() * 6.28;
   holeMesh.count = holes.length;
 }
 // every frame: a hole shows while its wall is up and hides while the wall is cut away

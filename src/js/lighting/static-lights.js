@@ -13,6 +13,8 @@ houseLayout((Math.random() * 2147483647) | 0, false);
 
 const hangLight = ([x, z]) => ({ hang: true, x, z, r: 6.5, col: [1, 0.68, 0.36], int: 1.3, inside: true });
 const spillLight = o => ({ spill: o, x: o.x - o.nx * 0.3, z: o.z - o.nz * 0.3, r: o.kind === 'door' ? 7 : 6, cone: { dir: Math.atan2(o.nx, o.nz), half: o.kind === 'door' ? 0.62 : 0.78 }, col: [1, 0.64, 0.34], int: o.kind === 'door' ? 1.25 : 1.1 });
+// the arena's floodlights, how far on (0 by day, 1 at night: lighting/lightmap.js), for their glow and flares too
+export const LAMP_ON = { k: 0 };
 export const STATIC_LIGHTS = [
   { x: cxw(21) + 0.7, z: cxw(HZ1) + 0.7, r: 8.5, col: [1, 0.6, 0.28], int: 1.55, glint: [cxw(21) + 0.7, 2.25, cxw(HZ1) + 0.42] },   // (glint: the porch lamp itself, for a scope's glass to catch: effects/scope-view.js)
   { barrel: true, x: BURN_BARREL.x, z: BURN_BARREL.z, r: 7.5, col: [1, 0.48, 0.18], int: 1.9, flicker: true },

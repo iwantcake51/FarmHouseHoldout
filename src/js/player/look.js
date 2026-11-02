@@ -3,7 +3,7 @@
 // cleared and rebuilt; colours something else changes later (the shirt under a jacket, skin) stay shared materials,
 // the rest is baked into a few merged meshes per body part.
 
-import { pick, rand, rr } from '../core/math.js';
+import { clamp, pick, rand, rr } from '../core/math.js';
 import { outline } from '../effects/screen-outlines.js';
 import { basic, lam } from '../core/shaders.js';
 import { box, finePieces, mergeInto, roundRectAt, roundRectLen, roundRing, trimShadows, unfight } from '../core/geometry.js';
@@ -181,6 +181,21 @@ export const spawnLook = () => LOOK_SAVE.on && LOOK_SAVE.look ? JSON.parse(JSON.
 export function keepLook(on) { LOOK_SAVE.on = !!on; if (on && LOOK.cur) LOOK_SAVE.look = JSON.parse(JSON.stringify(LOOK.cur)); storeLook(); }
 // your look's just been changed by hand: kept, if you're keeping it
 export function lookChanged() { if (LOOK_SAVE.on && LOOK.cur) { LOOK_SAVE.look = JSON.parse(JSON.stringify(LOOK.cur)); storeLook(); } }
+// ---- your survivors, saved: up to LOOK_SLOTS.max looks of your own to swap between in the Character menu (ui/look-editor.js),
+// each with a name of its own that's only there to tell them apart (it isn't your name in co-op), and which of them
+// you last put on or saved (cur; -1, none: someone dealt fresh). Kept in this browser (localStorage, SLOTS_KEY); the one
+// look kept from before there were slots comes in as the first of them
+const SLOTS_KEY = 'fhh-looks';
+export const LOOK_SLOTS = { max: 8, name: 20, cur: -1, list: [] };
+try {
+  const k = JSON.parse(localStorage.getItem(SLOTS_KEY) || 'null');
+  if (k && Array.isArray(k.list)) {
+    LOOK_SLOTS.list = k.list.filter(o => o && o.look && typeof o.look === 'object' && !Array.isArray(o.look)).slice(0, LOOK_SLOTS.max).map((o, n) => ({ name: String(o.name || 'Survivor ' + (n + 1)).slice(0, LOOK_SLOTS.name), look: o.look }));
+    // (the one you were wearing, if you're still in it: kept, and it's the look you're in now)
+    const c = LOOK_SLOTS.list[k.cur | 0]; if (c && LOOK_SAVE.on && JSON.stringify(c.look) === JSON.stringify(LOOK_SAVE.look)) LOOK_SLOTS.cur = k.cur | 0;
+  } else if (LOOK_SAVE.look) { LOOK_SLOTS.list = [{ name: 'Survivor 1', look: JSON.parse(JSON.stringify(LOOK_SAVE.look)) }]; LOOK_SLOTS.cur = LOOK_SAVE.on ? 0 : -1; storeSlots(); }
+} catch (e) {}
+export function storeSlots() { try { localStorage.setItem(SLOTS_KEY, JSON.stringify({ cur: LOOK_SLOTS.cur, list: LOOK_SLOTS.list })); } catch (e) {} }
 // clear the old look and build a new one; attach is false only for the first build, before the x-ray rim exists
 export function rollLook(opt) {
   const L = LOOK.cur = dealLook(opt);
@@ -243,21 +258,83 @@ export function blinkStep(b, dt) {
   const e = x => x * x * (3 - 2 * x);
   return u < BLINK.shut ? e(u / BLINK.shut) : 1 - e((u - BLINK.shut) / (1 - BLINK.shut));
 }
+// the eyes looking about when you're not busy (the way anyone's do): they rest on a spot a moment (GAZE.hold), then
+// jump to the next in a quick flick (a saccade: GAZE.sac, a little longer the further it goes, quickest at its start)
+// that lands a touch past it (over) and settles back on (settle); every other look or so off to one side or the other
+// and a little up or down (far, up), then back near the middle, now and then a small hop nearby (near). A big look
+// often brings a blink with it (blink). w (0 to 1) is how free they are to wander: they ease back to straight ahead
+// as it drops (aiming, firing, a hit). z holds one face's own; what comes back is [across, up], each -1 to 1
+const GAZE = { hold: [0.7, 2.8], glance: [0.35, 1.3], far: [0.45, 1], up: 0.55, near: 0.25, sac: [0.03, 0.035], over: 0.08, settle: 30, free: 5, blink: 0.35 };
+export function gazeStep(z, dt, w = 1, b) {
+  if (z.hold === undefined) Object.assign(z, { x: 0, y: 0, fx: 0, fy: 0, tx: 0, ty: 0, ex: 0, ey: 0, u: 1, dur: 0.04, hold: rr(0.3, GAZE.hold[1]), w, out: [0, 0] });
+  if (z.u < 1) {   // mid-flick: out fast, slowing onto (just past) the spot
+    z.u = Math.min(1, z.u + dt / z.dur); const e = 1 - Math.pow(1 - z.u, 3);
+    z.x = z.fx + (z.ex - z.fx) * e; z.y = z.fy + (z.ey - z.fy) * e;
+  } else {
+    const k = 1 - Math.exp(-dt * GAZE.settle); z.x += (z.tx - z.x) * k; z.y += (z.ty - z.y) * k;
+    if ((z.hold -= dt) <= 0) {
+      const out = Math.abs(z.tx) > 0.35, r = rand();
+      if (!out && r < 0.55) { z.tx = (rand() < 0.5 ? -1 : 1) * rr(GAZE.far[0], GAZE.far[1]); z.ty = rr(-1, 1) * GAZE.up; z.hold = rr(GAZE.glance[0], GAZE.glance[1]); }
+      else if (!out && r < 0.75) { z.tx = clamp(z.tx + rr(-1, 1) * GAZE.near, -1, 1); z.ty = clamp(z.ty + rr(-1, 1) * GAZE.near * 0.6, -1, 1); z.hold = rr(GAZE.hold[0], GAZE.hold[1]); }
+      else { z.tx = rr(-1, 1) * GAZE.near; z.ty = rr(-1, 1) * GAZE.near * 0.5; z.hold = rr(GAZE.hold[0], GAZE.hold[1]); }
+      const dx = z.tx - z.x, dy = z.ty - z.y, d = Math.hypot(dx, dy);
+      z.fx = z.x; z.fy = z.y; z.ex = z.tx + dx * GAZE.over; z.ey = z.ty + dy * GAZE.over; z.u = 0; z.dur = GAZE.sac[0] + GAZE.sac[1] * d;
+      if (b && d > 0.8 && rand() < GAZE.blink && b.at !== undefined && b.t < b.at - 0.15) b.at = b.t + 0.02;   // (blinking with it, blinkStep)
+    }
+  }
+  z.w += (w - z.w) * (1 - Math.exp(-dt * GAZE.free));
+  z.out[0] = z.x * z.w; z.out[1] = z.y * z.w; return z.out;
+}
+// the eyes put where they're looking (gazeStep): each iris (with its pupil) slid across its white, never past a hair
+// inside its edge (GAZE_FIT.edge), and the pupil up or down inside the iris; get finds the piece to move (a copy of
+// you, the studio's: ui/gun-view.js). Measured on first use, once the look's faces have been pulled apart (rollLook)
+const GAZE_FIT = { edge: 0.0006, ry: 0.7 };
+const _gzS = o => { const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); const b = g.boundingBox; return [(b.max.x - b.min.x) * Math.abs(o.scale.x), (b.max.y - b.min.y) * Math.abs(o.scale.y)]; };
+export function faceGaze(H, gx, gy, get) {
+  const f = H.userData.face; if (!f) return;
+  for (const g of f.eyes) {
+    const z = g.userData.gaze; if (!z || !z.iris || !z.white) continue;
+    if (z.ix === undefined) {
+      const [ww] = _gzS(z.white), [iw, ih] = _gzS(z.iris), ph = z.pupil ? _gzS(z.pupil)[1] : ih, tilt = Math.abs(Math.tan(z.white.rotation.z)) * ih;
+      const half = Math.max(0, (ww - tilt) / 2 - iw / 2 - GAZE_FIT.edge);
+      z.ix = z.iris.position.x; z.lo = z.white.position.x - half; z.hi = z.white.position.x + half; z.rx = half;
+      if (z.pupil) { z.px = z.pupil.position.x; z.py = z.pupil.position.y; } z.ry = Math.max(0, (ih - ph) / 2 - GAZE_FIT.edge) * GAZE_FIT.ry;
+    }
+    const dx = clamp(z.ix + gx * z.rx, z.lo, z.hi) - z.ix, iris = get ? get(z.iris) : z.iris, pupil = z.pupil && (get ? get(z.pupil) : z.pupil);
+    if (iris) iris.position.x = z.ix + dx;
+    if (pupil) { pupil.position.x = z.px + dx; pupil.position.y = z.py + gy * z.ry; }
+  }
+}
 // which eye you aim with (1, or -1 with a patch over that one: faceMood, player/hold.js tips the head to it)
 export const aimEye = L => L && L.face && L.face.patch && L.face.side === 1 ? -1 : 1;
-// how far out the mouth goes: on the face, or just in front of whatever facial hair covers where it is (the stubble's
-// jaw, a goatee), the line and its corners hw either side of x and as far as h below it (the grim chin's crease)
+// how far out the mouth goes: on the face, or on the front of whatever facial hair is over the line of it (a full
+// beard, stubble's shadow): only hair that's actually across where it is (at its height, y, within hw either side of
+// x) counts, so a goatee or a soul patch under it, a moustache over it or a horseshoe's ends beside it leave it on the face
 const MOUTH_Z = { face: 0.1615, over: 0.0015 }, _mb = new THREE.Box3();
-function mouthOver(hair, x, y, hw, h) {
+// a beard that goes round the face (jaw, the chinstrap, mutton chops): how thick its front is (m) and how far out from
+// the face it starts (z), how wide it is (out past the head's corners by the sides' thickness, so it covers them), how
+// thick on the sides and how far into the head they sit (in: no hairline gap at the skin), how deep under the jaw and
+// how far back under it it reaches (to neck, short of the neck itself), and a chop's width
+const BEARD_WRAP = { front: 0.024, z: 0.154, w: 0.346, side: 0.014, in: 0.001, under: 0.014, neck: 0.05, chop: 0.09 };
+function mouthOver(hair, x, y, hw) {
   let z = MOUTH_Z.face;
   for (const c of hair) {
     if (!c.geometry.boundingBox) c.geometry.computeBoundingBox();
     c.updateMatrix(); _mb.copy(c.geometry.boundingBox).applyMatrix4(c.matrix);
-    if (_mb.max.x > x - hw && _mb.min.x < x + hw && _mb.max.y > y - h && _mb.min.y < y + 0.012) z = Math.max(z, _mb.max.z + MOUTH_Z.over);
+    if (_mb.max.x > x - hw && _mb.min.x < x + hw && _mb.max.y > y && _mb.min.y < y) z = Math.max(z, _mb.max.z + MOUTH_Z.over);
   }
   return z;
 }
-const SKIN_MARK = { t: 0.0012, in: 0.0004 };
+// (lay: each kind of mark a hair further out than the last, so where two overlap, freckles on a smear of grime or a
+// scar across freckles, one's plainly over the other rather than the two flickering through each other)
+// stubble's three layers go under all of them, a hair further in each (its feathered edge, its shadow, its bristles)
+const SKIN_MARK = { t: 0.0012, in: 0.0004, lay: { stubEdge: -0.0006, stub: -0.0004, bristle: -0.0002, freckle: 0.0002, grime: 0.0004, scar: 0.0006 } };
+// stubble: how far the shadow goes from the skin's colour to the hair's (k; its feathered edge half that) and how much
+// darker again (dk), the bristles' own (dot, dotDk: darker than the skin even when the hair's fair), and how close set
+// they are: one to every gap x gap of the jaw, keep of them there at all, each w across
+const STUB = { stubble: { k: 0.2, dk: 0.95, dot: 0.55, dotDk: 0.78, gap: 0.02, keep: 0.5, w: 0.0045 }, heavyStubble: { k: 0.36, dk: 0.9, dot: 0.72, dotDk: 0.72, gap: 0.015, keep: 0.66, w: 0.005 } };
+// (where each bristle goes: the same scatter every time the face is built, on everyone's screen, not dealt afresh)
+const stubHash = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
 // a round flat button (or eyelet) facing out the front: r across, h thick, at x, y, z
 const BTN_G = new THREE.CylinderGeometry(1, 1, 1, 10).rotateX(Math.PI / 2);
 function btn(g, r, h, m, x, y, z) { const b = new THREE.Mesh(BTN_G, m); b.scale.set(r, r, h); b.position.set(x, y, z); b.castShadow = true; g.add(b); return b; }
@@ -272,7 +349,7 @@ export function buildLook(L) {
   const scarM = lm(new THREE.Color(L.skin).lerp(new THREE.Color(0xf0c0b4), 0.38).multiplyScalar(1.06).getHex()), scarEdge = lm(shade(L.skin, 0.84));
   const mark = (w, h, m, x, y, rz, z0 = 0.16) => { const b = box(H, w, h, SKIN_MARK.t, m, x, y, z0 + SKIN_MARK.t / 2 - SKIN_MARK.in); if (rz) b.rotation.z = rz; return b; };
   const scarLine = (len, x, y, rz, z0, w = 0.0075) => { const g = new THREE.Group(); g.position.set(x, y, 0); g.rotation.z = rz || 0; H.add(g);
-    [-1, 1].forEach(q => box(g, 0.003, len * 0.92, SKIN_MARK.t, scarEdge, q * (w / 2 + 0.0012), 0, (z0 ?? 0.16) + SKIN_MARK.t / 2 - SKIN_MARK.in));
+    [-1, 1].forEach(q => box(g, 0.003, len * 0.92, SKIN_MARK.t, scarEdge, q * (w / 2 + 0.0012), 0, (z0 ?? 0.16) + SKIN_MARK.lay.scar + SKIN_MARK.t / 2 - SKIN_MARK.in));
     box(g, w, len, SKIN_MARK.t * 1.6, scarM, 0, 0, (z0 ?? 0.16) + SKIN_MARK.t * 0.8 - SKIN_MARK.in); return g; };
   const face = H.userData.face = { eyes: [], brows: [], mouth: null, aim: aimEye(L) };
   [-1, 1].forEach(s => {
@@ -285,7 +362,7 @@ export function buildLook(L) {
     }
     // every shape has its white, the iris in the eye's colour, and the pupil: small and nearly all iris, a squint, ...
     else if (F.eye === 'beady') { box(H, 0.032, 0.026, 0.012, white, x, y, 0.162); box(H, 0.022, 0.024, 0.012, eyeM, x - s * 0.002, y, 0.164); box(H, 0.01, 0.012, 0.012, dark, x - s * 0.002, y, 0.167); }
-    else if (F.eye === 'narrow' || (F.eye === 'oneSquint' && s === F.side)) { box(H, 0.05, 0.016, 0.012, white, x, y, 0.162); box(H, 0.026, 0.016, 0.012, eyeM, x - s * 0.004, y, 0.164); box(H, 0.011, 0.012, 0.012, dark, x - s * 0.004, y, 0.167); }
+    else if (F.eye === 'narrow' || (F.eye === 'oneSquint' && s === F.side)) { box(H, 0.05, 0.016, 0.012, white, x, y, 0.162); box(H, 0.026, 0.014, 0.012, eyeM, x - s * 0.004, y, 0.164); box(H, 0.011, 0.012, 0.012, dark, x - s * 0.004, y, 0.167); }
     else if (F.eye === 'droopy') {   // the outer corners lower, the lids heavy
       const e = box(H, 0.05, 0.026, 0.012, white, x, y, 0.162); e.rotation.z = s * -0.22; box(H, 0.022, 0.024, 0.012, eyeM, x - s * 0.004, y, 0.164); box(H, 0.011, 0.013, 0.012, dark, x - s * 0.004, y, 0.167);
       box(H, 0.058, 0.012, 0.014, PM.mats.skinDk, x, y + 0.012, 0.169).rotation.z = s * -0.22;
@@ -299,7 +376,10 @@ export function buildLook(L) {
       if (F.eye === 'tired') { box(H, 0.056, 0.014, 0.014, PM.mats.skinDk, x, y + h / 2 - 0.004, 0.169); box(H, 0.05, 0.012, 0.01, circ, x, y - h / 2 - 0.008, 0.162); }   // heavy lids, dark circles under
     }
     if (F.bags) mark(0.046, 0.008, circ, x, y - 0.026);
-    if (!(F.patch && s === F.side)) face.eyes.push(facePart(H, n0, x, y, 0.165, s));   // (a patch doesn't narrow)
+    if (!(F.patch && s === F.side)) {   // (a patch doesn't narrow, or look about)
+      const g = facePart(H, n0, x, y, 0.165, s), of = m => g.children.find(c => c.material === m);
+      g.userData.gaze = { white: of(white), iris: of(eyeM), pupil: of(dark) }; face.eyes.push(g);
+    }
     const n1 = H.children.length;
     // brows: flat, raised at the middle, drawn down in a frown, heavy or thin; sometimes one with a slit shaved in it
     const by = y + (F.eye === 'tired' || F.eye === 'deepset' ? 0.04 : 0.046) + (F.brow === 'skeptic' && s === F.side ? 0.014 : 0);
@@ -331,12 +411,12 @@ export function buildLook(L) {
   if (F.scar === 'cheek') scarLine(0.075, F.side * 0.1, -0.035, F.side * 0.3);
   else if (F.scar === 'nose') scarLine(0.05, 0, N[3] + 0.01, Math.PI / 2 + F.side * 0.25, 0.16 + N[2], 0.006);
   // freckles: a scatter of small, uneven flecks across the nose and cheeks; a mole, the one thing a touch raised
-  if (F.freckles) { const fr = lm(shade(L.skin, 0.78)); [[-0.1, -0.02, 6], [-0.085, -0.04, 5], [-0.115, -0.045, 7], [-0.07, -0.025, 4], [0.1, -0.025, 6], [0.088, -0.045, 5], [0.118, -0.04, 7], [0.072, -0.03, 4], [-0.02, -0.012, 5], [0.024, -0.016, 4], [0.006, -0.03, 4]].forEach(([fx, fy, w]) => mark(w / 1000, w / 1000, fr, fx, fy)); }
+  if (F.freckles) { const fr = lm(shade(L.skin, 0.78)); [[-0.1, -0.02, 6], [-0.085, -0.04, 5], [-0.115, -0.045, 7], [-0.07, -0.025, 4], [0.1, -0.025, 6], [0.088, -0.045, 5], [0.118, -0.04, 7], [0.072, -0.03, 4], [-0.02, -0.012, 5], [0.024, -0.016, 4], [0.006, -0.03, 4]].forEach(([fx, fy, w]) => mark(w / 1000, w / 1000, fr, fx, fy, 0, 0.16 + SKIN_MARK.lay.freckle)); }
   if (F.mole) box(H, 0.009, 0.009, 0.004, lm(shade(L.skin, 0.5)), F.mole[0], F.mole[1], 0.1605);
   if (F.cleft) mark(0.004, 0.024, PM.mats.skinDk, 0, -0.145);
   // grime: smears of dirt worked into the skin, soft-edged (a darker middle in a lighter smudge)
   if (F.grime) { const gr = new THREE.Color(L.skin).multiplyScalar(0.62).lerp(new THREE.Color(0x3a3020), 0.35), g1 = lm(gr.getHex()), g0 = lm(new THREE.Color(L.skin).lerp(gr, 0.5).getHex());
-    [[0.06, 0.032, F.side * 0.095, -0.06, 0.3], [0.046, 0.018, -F.side * 0.06, 0.12, 0.08]].forEach(([w, h, x, y, rz]) => { mark(w, h, g0, x, y, rz); mark(w * 0.62, h * 0.55, g1, x, y, rz, 0.16 + SKIN_MARK.t); }); }
+    [[0.06, 0.032, F.side * 0.095, -0.06, 0.3], [0.046, 0.018, -F.side * 0.06, 0.12, 0.08]].forEach(([w, h, x, y, rz]) => { mark(w, h, g0, x, y, rz, 0.16 + SKIN_MARK.lay.grime); mark(w * 0.62, h * 0.55, g1, x, y, rz, 0.16 + SKIN_MARK.lay.grime + SKIN_MARK.t); }); }
   // ---- hair: short, long, buzzed or none, as one shell round the back and sides of the head (HAIR_W across, a few mm
   // proud of it) that runs up into a top over the crown when there's no hat (or only a bandana, worn as a headband
   // round it). Under a hat the shell stops tucked just inside the hat's band (HAT_TUCK), narrower than every hat, so
@@ -364,11 +444,40 @@ export function buildLook(L) {
     }
   }
   // ---- facial hair, then the mouth over it. Stubble is shadow, the skin and the hair mixed, not a solid block of hair
-  const nb = H.children.length, stub = k => lm(new THREE.Color(L.skin).lerp(new THREE.Color(L.beardCol), k).getHex());
-  const bd = L.beard, jaw = (m, h) => { box(H, 0.3, h, 0.024, m, 0, -0.16 + h / 2, 0.166); [-1, 1].forEach(s => box(H, 0.014, 0.13, 0.12, m, s * 0.166, -0.08, 0.06)); };
+  const nb = H.children.length, stub = (k, dk = 1) => lm(new THREE.Color(L.skin).lerp(new THREE.Color(L.beardCol), k).multiplyScalar(dk).getHex());
+  // (hair that runs round the face, BW: its front out to the head's corners and over them, its sides back from where the
+  // front's back face is, so the two meet at each corner rather than leaving the corner bare and each edge in the air;
+  // and under the jaw, so from the side or below there's no gap between the beard and the chin)
+  const BW = BEARD_WRAP, side = (m, y0, y1, z0 = 0) => [-1, 1].forEach(s => box(H, BW.side, y1 - y0, BW.z - z0, m, s * (0.16 + BW.side / 2 - BW.in), (y0 + y1) / 2, (z0 + BW.z) / 2));
+  const front = (m, w, y0, y1, x = 0) => box(H, w, y1 - y0, BW.front, m, x, (y0 + y1) / 2, BW.z + BW.front / 2);
+  const bd = L.beard, jaw = (m, h) => { front(m, BW.w, -0.16, -0.16 + h); side(m, -0.16, -0.015); box(H, BW.w, BW.under, BW.z + BW.front - BW.neck, m, 0, -0.16 - BW.under / 2 + BW.in, (BW.neck + BW.z + BW.front) / 2); };
   const tache = (w, y) => box(H, w, 0.026, 0.026, beard, 0, y ?? -0.072, 0.174);
   const chin = (w, h, y) => box(H, w, h, 0.032, beard, 0, y, 0.168);
-  if (bd === 'stubble' || bd === 'heavyStubble') { const m = stub(bd === 'stubble' ? 0.38 : 0.62); jaw(m, 0.085); box(H, 0.11, 0.022, 0.022, m, 0, -0.074, 0.168); }
+  if (bd === 'stubble' || bd === 'heavyStubble') {
+    // a few days' growth: no hair stood off the face at all, but a shadow in the skin over the jaw, the chin, the upper
+    // lip and up the sides of the face to below the ears, under the chin too, a paler band feathering it into the
+    // cheeks, and the bristles in it a scatter of fine darker flecks (STUB); heavy stubble darker and thicker set
+    const T = STUB[bd], sh = stub(T.k, T.dk), edge = stub(T.k * 0.5, (1 + T.dk) / 2), dot = stub(T.dot, T.dotDk), lay = SKIN_MARK.lay, t = SKIN_MARK.t, out = q => 0.16 + q + t / 2 - SKIN_MARK.in;
+    const side = (s, d, h, m, z, y, q) => box(H, t, h, d, m, s * out(q), y, z);
+    mark(0.32, 0.09, sh, 0, -0.115, 0, 0.16 + lay.stub); mark(0.1, 0.012, sh, 0, -0.064, 0, 0.16 + lay.stub);   // the jaw and chin up to the cheeks; the upper lip under the nose
+    mark(0.32, 0.014, edge, 0, -0.064, 0, 0.16 + lay.stubEdge);
+    [-1, 1].forEach(s => {
+      mark(0.07, 0.03, sh, s * 0.125, -0.055, 0, 0.16 + lay.stub); mark(0.08, 0.012, edge, s * 0.12, -0.036, 0, 0.16 + lay.stubEdge);   // up the jawline toward the sideburns
+      side(s, 0.16, 0.12, sh, 0.08, -0.1, lay.stub); side(s, 0.16, 0.014, edge, 0.08, -0.033, lay.stubEdge);
+    });
+    box(H, 0.3, t, 0.15, sh, 0, -out(lay.stub), 0.08);   // under the chin
+    // the bristles: on a jittered grid over all of it but the mouth itself
+    const front = (x, y) => (y < -0.07 || (Math.abs(x) < 0.05 && y < -0.058) || (Math.abs(x) > 0.09 && y < -0.042)) && !(Math.abs(x) < 0.036 && y > -0.106 && y < -0.09);
+    let n = 0;
+    for (let y = -0.155; y < -0.04; y += T.gap) for (let x = -0.152; x <= 0.152; x += T.gap, n++) {
+      const px = x + (stubHash(n) - 0.5) * T.gap * 0.8, py = y + (stubHash(n + 0.5) - 0.5) * T.gap * 0.8;
+      if (stubHash(n + 0.25) < T.keep && front(px, py)) mark(T.w * (0.8 + stubHash(n + 0.75) * 0.5), T.w * (0.8 + stubHash(n + 0.6) * 0.5), dot, px, py, 0, 0.16 + lay.bristle);
+    }
+    for (let y = -0.152; y < -0.045; y += T.gap * 1.3) for (let z = 0.01; z < 0.155; z += T.gap * 1.3, n++) [-1, 1].forEach((s, k) => {
+      const pz = z + (stubHash(n + k * 0.31) - 0.5) * T.gap, py = y + (stubHash(n + k * 0.53 + 0.1) - 0.5) * T.gap;
+      if (stubHash(n + k * 0.17 + 0.2) < T.keep) side(s, T.w, T.w, dot, pz, py, lay.bristle);
+    });
+  }
   else if (bd === 'full' || bd === 'longBeard') {
     jaw(beard, 0.13); tache(0.14);
     if (bd === 'longBeard') { box(H, 0.24, 0.1, 0.05, beard, 0, -0.205, 0.15); box(H, 0.16, 0.06, 0.045, beard, 0, -0.27, 0.14); }
@@ -379,18 +488,18 @@ export function buildLook(L) {
   else if (bd === 'goatee') { chin(0.1, 0.07, -0.135); tache(0.12); }
   else if (bd === 'vandyke') { chin(0.07, 0.06, -0.14); tache(0.12, -0.07); }
   else if (bd === 'soulPatch') chin(0.03, 0.03, -0.122);
-  else if (bd === 'chinstrap') { [-1, 1].forEach(s => box(H, 0.014, 0.15, 0.11, beard, s * 0.166, -0.085, 0.06)); box(H, 0.3, 0.026, 0.026, beard, 0, -0.152, 0.168); }
-  else if (bd === 'muttonChops') { [-1, 1].forEach(s => { box(H, 0.014, 0.16, 0.13, beard, s * 0.166, -0.06, 0.055); box(H, 0.07, 0.1, 0.024, beard, s * 0.12, -0.075, 0.166); }); tache(0.1, -0.074); }   // the chin left bare
+  else if (bd === 'chinstrap') { side(beard, -0.16, -0.01); front(beard, BW.w, -0.16, -0.134); box(H, BW.w, BW.under, BW.z + BW.front - BW.neck, beard, 0, -0.16 - BW.under / 2 + BW.in, (BW.neck + BW.z + BW.front) / 2); }   // a strap of it along the jaw and round under the chin
+  else if (bd === 'muttonChops') { side(beard, -0.14, 0.02); [-1, 1].forEach(s => front(beard, BW.chop, -0.125, -0.025, s * (BW.w - BW.chop) / 2)); tache(0.1, -0.074); }   // the chin left bare, each chop round the corner of the jaw
   else if (bd === 'sideburns') [-1, 1].forEach(s => box(H, 0.014, 0.1, 0.06, beard, s * 0.166, -0.02, 0.07));
   // the mouth: no lips, just the line of it, dark and all but flush with the face (in front of a full beard): plain,
   // thin, turned down, a smirk up at one corner, or set grim with the chin creased under it
   const mY = -0.098, mouthM = lm(new THREE.Color(L.skin).multiplyScalar(0.48).lerp(new THREE.Color(0x4a1e18), 0.3).getHex());
   const mw = F.mouth === 'thin' ? 0.046 : 0.058, mh = F.mouth === 'thin' ? 0.005 : 0.008, mx = F.mouth === 'smirk' ? -F.side * 0.005 : 0, n2 = H.children.length;
-  const mZ = mouthOver(H.children.slice(nb, n2), mx, mY, mw / 2 + 0.02, 0.03);
+  const hairs = H.children.slice(nb, n2), mZ = mouthOver(hairs, mx, mY, mw / 2 + 0.012);   // (the line and its corners)
   box(H, mw, mh, 0.004, mouthM, mx, mY, mZ);
   if (F.mouth === 'frown') [-1, 1].forEach(s => box(H, 0.012, 0.006, 0.004, mouthM, s * (mw / 2 + 0.003), mY - 0.005, mZ).rotation.z = s * 0.6);
   else if (F.mouth === 'smirk') box(H, 0.016, 0.006, 0.004, mouthM, mx + F.side * (mw / 2 + 0.005), mY + 0.004, mZ).rotation.z = F.side * 0.55;
-  else if (F.mouth === 'grim') box(H, 0.034, 0.005, 0.004, PM.mats.skinDk, 0, mY - 0.026, mZ);   // the chin set under it
+  else if (F.mouth === 'grim') box(H, 0.034, 0.005, 0.004, PM.mats.skinDk, 0, mY - 0.026, mouthOver(hairs, 0, mY - 0.026, 0.017));   // the chin set under it (on whatever hair's there, a goatee's or a full beard's)
   face.mouth = facePart(H, n2, 0, mY, mZ, 0, F.mouth === 'grim' ? 1 : 3);   // (the line and its corners; the chin's crease stays put)
   if (F.scar === 'lip') scarLine(0.04, F.side * 0.02, mY + 0.004, F.side * 0.08, mZ + 0.002, 0.006);   // (over the mouth's line, down through both lips)
   // ---- hat
@@ -536,7 +645,9 @@ export function buildLook(L) {
 // undoes that (WR_TRUE) rather than squashed with it; its bands are rounded off over the wrist's corners (roundRing)
 const WRIST_Z = 0.405, WR_TRUE = 1 / 0.84, WR_R = 0.016;
 let iceMat = null;
-const wrSph = new THREE.SphereGeometry(1, 10, 8), wrCyl = new THREE.CylinderGeometry(1, 1, 1, 28), wrLink = new THREE.TorusGeometry(1, 0.3, 6, 12), wrGem = new THREE.OctahedronGeometry(1, 0), wrBezel = new THREE.TorusGeometry(1, 0.3, 6, 36);
+// (the beads, knots and links are only a few millimetres across, under a dozen pixels on screen even up close: they're
+// round with fewer sides than a bigger part, never faceted at that size)
+const wrSph = new THREE.SphereGeometry(1, 8, 6), wrCyl = new THREE.CylinderGeometry(1, 1, 1, 28), wrLink = new THREE.TorusGeometry(1, 0.3, 4, 10), wrGem = new THREE.OctahedronGeometry(1, 0), wrBezel = new THREE.TorusGeometry(1, 0.3, 6, 36);
 const _wrq = [0, 0, 0, 0], _wrq2 = [0, 0, 0, 0];
 // what it sits on: how far out from the middle of the arm the outside of whatever's at the wrist is (the bare arm, a
 // sleeve, a cuff: the widest piece across WRIST_Z), so it's snug on it rather than floating off it; it's built

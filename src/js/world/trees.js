@@ -1,10 +1,11 @@
 // Forest placement and the foliage: pines of every size with shade pools under them, bushes and rocks, each a handful
 // of low-poly shapes drawn instanced; and what parts the grass and bushes as you walk through.
 
-import { scene, V3, YAW } from '../core/renderer.js';
+import { scene, SUN_R, V3, YAW } from '../core/renderer.js';
+import { tightCyl } from '../core/geometry.js';
+import { plantForest, shadePools, sunShadows } from './tree-cull.js';
 import { _rng, clamp, HALF, N, pick, rand, rr, seeded, setRng, smooth } from '../core/math.js';
 import { PUSHERS } from '../core/shaders.js';
-import { BLOB_TEX } from '../core/geometry.js';
 import { cell, cxw, EMPTY, FENCE, idx, inb, OBST, WALL } from './grid.js';
 import { M } from './materials.js';
 import { FAR_VIEW, HX0, HX1, HZ0, HZ1, onRoad, ROAD } from './ground.js';
@@ -16,6 +17,8 @@ import { state } from '../game/state.js';
 import { HELI_PUSH } from '../stations/supply-drop.js';
 
 export const treeCells = [], TREES = [];
+// where the bushes and rocks are, [x, z, how far round it they reach] (a crate dropped clear of them: stations/supply-drop.js)
+export const GROUND_PROPS = [];
 // the yard fence stays in view: no pine stands within FENCE_CLEAR cells outside it (FENCE_CLEAR_CAM on the sides that
 // face the camera, where one would stand in front of the fence and hide it), nor in the way in to one of its gaps
 // (a lane GAP_LANE cells either side of the gap, straight out to the forest)
@@ -46,29 +49,45 @@ function fjoin(parts) {
 const BARK = 0x4a3626, PINE = [0x26361f, 0x51683a], PINE2 = [0x22332a, 0x48603f];
 const _tgb = new THREE.Color(), _tgt = new THREE.Color();
 // a pine: tiers of cones over a trunk (tr: how much of it shows below the lowest boughs), each tier a little off true
-// and turned
+// and turned. Nothing's built that can't be seen: the trunk's ends (one under the ground, the other up inside the
+// lowest boughs) are left open, and each tier's flat underside is fanned from a corner (core/geometry.js: tightCyl).
+// And a far one the same (its lo), the very same tiers on a trunk of fewer sides with fewer sides of their own
+// (PINE_LO), for when it's small on screen (world/tree-cull.js)
+const PINE_LO = { cone: 6, trunk: 5 }, PINE_LO2 = { cone: 5, trunk: 4 };   // (and its lightest, lo2, for smaller still or mostly hidden)
 function pineGeo(tiers, w, h0, greens, tr = 0.9) {
-  const tk = tr + 0.6, P = [fpiece(new THREE.CylinderGeometry(0.11, 0.18 * (tr > 1.2 ? 1.15 : 1), tk, 7), BARK, 0.08, fm4(0, tk / 2, 0))], cones = [];
-  let y = tr, top = tr;
+  const tk = tr + 0.6, rb = 0.18 * (tr > 1.2 ? 1.15 : 1), trunk = n => fpiece(tightCyl(0.11, rb, tk, n, [false, false]), BARK, 0.08, fm4(0, tk / 2, 0));
+  const P = [trunk(7)], L = [trunk(PINE_LO.trunk)], L2 = [trunk(PINE_LO2.trunk)], cones = [];
+  let y = tr, top = tr; const solid = [];
   for (let k = 0; k < tiers; k++) {
     const t = k / Math.max(1, tiers - 1), r = w * (1 - 0.7 * t) * rr(0.94, 1.06), hh = h0 * (1 - 0.4 * t);
-    cones.push(fpiece(new THREE.ConeGeometry(r, hh, 8), greens[0], 0, fm4(rr(-0.05, 0.05), y + hh / 2, rr(-0.05, 0.05), rr(-0.05, 0.05), rand() * 6, rr(-0.05, 0.05))));
+    const m4 = fm4(rr(-0.05, 0.05), y + hh / 2, rr(-0.05, 0.05), rr(-0.05, 0.05), rand() * 6, rr(-0.05, 0.05));
+    cones.push([fpiece(tightCyl(0, r, hh, 8), greens[0], 0, m4), P], [fpiece(tightCyl(0, r, hh, PINE_LO.cone), greens[0], 0, m4), L], [fpiece(tightCyl(0, r, hh, PINE_LO2.cone), greens[0], 0, m4), L2]);
+    solid.push(...coneSolid(y, r, hh));
     top = y + hh; y += hh * (tiers > 3 ? 0.42 : 0.48);
   }
   _tgb.setHex(greens[0]); _tgt.setHex(greens[1]);
-  cones.forEach(g => {
+  cones.forEach(([g, into]) => {
     const pos = g.attributes.position, col = g.attributes.color;
     for (let v = 0; v < pos.count; v++) { _tfc.copy(_tgb).lerp(_tgt, clamp((pos.getY(v) - tr) / (top - tr), 0, 1)); col.setXYZ(v, _tfc.r, _tfc.g, _tfc.b); }
-    P.push(g);
+    into.push(g);
   });
-  return fjoin(P);
+  const g = fjoin(P); g.userData.solid = solid; g.userData.lo = fjoin(L); g.userData.lo2 = fjoin(L2); return g;
+}
+// what of a cone (from base y, radius r, hh tall) is solid seen from any side, as boxes standing inside it [y0, y1, half
+// its width]: a staircase up it, each step as wide as the cone at its top, less a margin for the tier's lean and its
+// eight flat sides (CONE_SOLID: how many steps, how much of the width), for what it hides behind it (world/tree-cull.js)
+const CONE_SOLID = { steps: 4, k: 0.86 };
+function coneSolid(y, r, hh) {
+  const out = [], n = CONE_SOLID.steps;
+  for (let i = 0; i < n - 1; i++) out.push([y + hh * i / n, y + hh * (i + 1) / n, r * (1 - (i + 1) / n) * CONE_SOLID.k - 0.04]);
+  return out.filter(b => b[2] > 0.05);
 }
 // bushes: a round clump, a low spreading one, a tall tuft of grass blades, and a berry bush
 const BUSHG = [0x3d4d30, 0x4a5a35, 0x34442b, 0x52603a];
 function bushGeo(kind) {
   const P = [];
   if (kind === 'grass') {
-    for (let k = 0; k < 13; k++) { const a = rand() * 6.28, t = rr(0.12, 0.5), h = rr(0.45, 0.85); P.push(fpiece(new THREE.ConeGeometry(rr(0.03, 0.05), h, 3), pick([0x6b6c47, 0x7d7a4c, 0x5f6640]), 0.1, fm4(Math.sin(a) * 0.06 + Math.sin(a) * Math.sin(t) * h / 2, Math.cos(t) * h / 2, Math.cos(a) * 0.06 + Math.cos(a) * Math.sin(t) * h / 2, Math.cos(a) * t, 0, -Math.sin(a) * t))); }
+    for (let k = 0; k < 13; k++) { const a = rand() * 6.28, t = rr(0.12, 0.5), h = rr(0.45, 0.85); P.push(fpiece(tightCyl(0, rr(0.03, 0.05), h, 3), pick([0x6b6c47, 0x7d7a4c, 0x5f6640]), 0.1, fm4(Math.sin(a) * 0.06 + Math.sin(a) * Math.sin(t) * h / 2, Math.cos(t) * h / 2, Math.cos(a) * 0.06 + Math.cos(a) * Math.sin(t) * h / 2, Math.cos(a) * t, 0, -Math.sin(a) * t))); }
     return fjoin(P);
   }
   const low = kind === 'low', n = low ? 6 : 5;
@@ -114,10 +133,14 @@ const TREE_VAR = [
 // row of cones: a trunk and a few lumpy blobs of leaves, mostly green, one turning
 const BROADG = [[0x4a5a2c, 0x56662f, 0x3f5028], [0x52602e, 0x5f6a32, 0x46562a], [0x6e6a2c, 0x7a6230, 0x5e5a2a]];
 function broadGeo(greens, h) {
-  const P = [fpiece(new THREE.CylinderGeometry(0.09, 0.16, h, 6), BARK, 0.08, fm4(0, h / 2, 0))];
-  [[0, 0.35, 0, 1.0], [0.55, 0.05, 0.2, 0.75], [-0.5, 0.1, -0.15, 0.8], [0.1, 0.85, -0.1, 0.7], [-0.2, -0.05, 0.5, 0.65]].forEach(([x, y, z, r]) =>
-    P.push(fpiece(new THREE.IcosahedronGeometry(r * rr(0.9, 1.1), 0), pick(greens), 0.12, fm4(x, h + y, z, rand() * 3, rand() * 3, rand() * 3, 1, rr(0.8, 0.95), 1))));
-  return fjoin(P);
+  const P = [fpiece(tightCyl(0.09, 0.16, h, 6, [false, false]), BARK, 0.08, fm4(0, h / 2, 0))];   // (its ends unseen: in the ground and up in the leaves)
+  const solid = [];
+  [[0, 0.35, 0, 1.0], [0.55, 0.05, 0.2, 0.75], [-0.5, 0.1, -0.15, 0.8], [0.1, 0.85, -0.1, 0.7], [-0.2, -0.05, 0.5, 0.65]].forEach(([x, y, z, r], k) => {
+    const rs = r * rr(0.9, 1.1); P.push(fpiece(new THREE.IcosahedronGeometry(rs, 0), pick(greens), 0.12, fm4(x, h + y, z, rand() * 3, rand() * 3, rand() * 3, 1, rr(0.8, 0.95), 1)));
+    // (the big middle lump hides what's behind it: a box inside the ball an icosahedron always holds, squashed as it is)
+    if (!k) { const q = rs * 0.79 * 0.8 * 0.7; solid.push([h + y - q, h + y + q, q]); }
+  });
+  const g = fjoin(P); g.userData.solid = solid; return g;
 }
 const BROAD_VAR = [{ geo: () => broadGeo(BROADG[0], 2.2), w: 0.5, r: 1.1 }, { geo: () => broadGeo(BROADG[1], 2.6), w: 0.35, r: 1.15 }, { geo: () => broadGeo(BROADG[2], 2.0), w: 0.15, r: 1.05 }].map(v => ({ ...v, g: v.geo() }));
 const pickVar = list => { let t = rand() * list.reduce((a, v) => a + v.w, 0); for (const v of list) { t -= v.w; if (t <= 0) return v; } return list[list.length - 1]; };
@@ -127,7 +150,7 @@ const TREE_GAP = 0.6, _tgrid = new Map(), TG_CELL = 1.5;
 // the woods out toward the horizon (seen from your own eyes): how far out (r, metres from the middle), the grid they're
 // dealt on, how likely a spot gets one where they meet the ring round the farm and further out (p), how far past the
 // road's far shoulder they start, how much bigger the furthest grow
-const FAR_WOODS = { r: 74, step: 1.6, p: [0.22, 0.62], road: 1.5, grow: 0.6, broad: 0.22, tall: 0.12 };   // (broad: how many are broadleaf; tall: how many stand well over the rest)
+const FAR_WOODS = { r: 74, step: 1.6, p: [0.09, 0.27], road: 1.5, grow: 0.6, broad: 0.22, tall: 0.12 };   // (broad: how many are broadleaf; tall: how many stand well over the rest)
 const _tgk = (a, b) => a * 4096 + b;
 function roomForTree(x, z, r) {
   const a = Math.floor(x / TG_CELL), b = Math.floor(z / TG_CELL);
@@ -170,27 +193,21 @@ setRng(seeded(FOREST_SEED));
     if (placed || d === 0) obstacle(i, j, false, top);   // (where none stands, nothing for a round to hit going over)
   }
 }
-// trees placed as [x, z, scale, variant, turn], built as one instanced mesh per variant, each with its own tint
-function plantTrees(list, shadows, into = scene) {
-  const dm = new THREE.Object3D(), c = new THREE.Color();
-  [...new Set(list.map(t => t[3]))].forEach(v => {
-    const mine = list.filter(t => t[3] === v);
-    const im = new THREE.InstancedMesh(v.g, M.tree, mine.length);
-    mine.forEach(([x, z, s, , r], k) => {
-      dm.position.set(x, 0, z); dm.rotation.set(rr(-0.04, 0.04), r, rr(-0.04, 0.04)); dm.scale.setScalar(s); dm.updateMatrix(); im.setMatrixAt(k, dm.matrix);
-      im.setColorAt(k, c.setRGB(rr(0.86, 1.08), rr(0.88, 1.08), rr(0.84, 1.04)));
-    });
-    im.castShadow = shadows; im.receiveShadow = into === scene; into.add(im);   // (out past the shadows' reach, none)
-  });
+// trees placed as [x, z, scale, variant, turn], built as one instanced mesh per variant, each with its own lean and tint,
+// and only those in sight drawn (world/tree-cull.js). Those in reach of the sun's shadows (TREE_SH_R from the middle)
+// cast theirs; those past it lay a soft one on the ground away from the sun; and every one has its pool of shade
+const TREE_TINT = { tilt: () => rr(-0.04, 0.04), col: c => c.setRGB(rr(0.86, 1.08), rr(0.88, 1.08), rr(0.84, 1.04)) };
+const TREE_SH_R = SUN_R - 2;
+function plantTrees(list, into = scene) {
+  const near = list.filter(t => Math.hypot(t[0], t[1]) < TREE_SH_R), far = list.filter(t => Math.hypot(t[0], t[1]) >= TREE_SH_R);
+  plantForest(near, true, into, M.tree, TREE_TINT); plantForest(far, false, into, M.tree, TREE_TINT);
+  sunShadows(far, into); shadePools(list, into);
 }
 {
   const trees = farmTrees;
   trees.forEach(([x, z, s]) => TREES.push({ x, z, s }));
-  plantTrees(trees, true);
-  // a soft dark pool of shade under every tree, as wide as its crown
-  const ao = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: BLOB_TEX, color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }), trees.length), dm = new THREE.Object3D();
-  trees.forEach(([x, z, s, v], k) => { dm.position.set(x, 0.015, z); dm.rotation.set(0, 0, 0); dm.scale.setScalar(v.shade * s); dm.updateMatrix(); ao.setMatrixAt(k, dm.matrix); });
-  ao.renderOrder = 1; scene.add(ao);
+  plantTrees(trees);   // (a soft dark pool of shade under every tree, as wide as its crown, too)
+  const dm = new THREE.Object3D();
   // bushes and rocks: several shapes of each, along the fences and walls (bushes) and anywhere on open ground (rocks)
   const BUSH_VAR = ['round', 'round', 'low', 'grass', 'berry'].map(k => ({ k, g: bushGeo(k), at: [] })), ROCK_VAR = ['boulder', 'boulder', 'slab', 'cluster', 'mossy'].map(k => ({ k, g: rockGeo(k), at: [] }));
   let nb = 0, nr = 0;
@@ -205,7 +222,7 @@ function plantTrees(list, shadows, into = scene) {
   }
   const place = (vars, mat, tilt) => vars.forEach(v => {
     if (!v.at.length) return; const im = new THREE.InstancedMesh(v.g, mat, v.at.length), c = new THREE.Color();
-    v.at.forEach(([x, z, s], k) => { dm.position.set(x, 0, z); dm.rotation.set(rr(-tilt, tilt), rand() * 6.28, rr(-tilt, tilt)); dm.scale.set(s * rr(0.9, 1.1), s * rr(0.85, 1.1), s * rr(0.9, 1.1)); dm.updateMatrix(); im.setMatrixAt(k, dm.matrix); im.setColorAt(k, c.setRGB(rr(0.88, 1.08), rr(0.9, 1.08), rr(0.86, 1.04))); });
+    v.at.forEach(([x, z, s], k) => { GROUND_PROPS.push([x, z, 0.55 * s]); dm.position.set(x, 0, z); dm.rotation.set(rr(-tilt, tilt), rand() * 6.28, rr(-tilt, tilt)); dm.scale.set(s * rr(0.9, 1.1), s * rr(0.85, 1.1), s * rr(0.9, 1.1)); dm.updateMatrix(); im.setMatrixAt(k, dm.matrix); im.setColorAt(k, c.setRGB(rr(0.88, 1.08), rr(0.9, 1.08), rr(0.86, 1.04))); });
     im.castShadow = true; im.receiveShadow = true; scene.add(im);
   });
   place(BUSH_VAR, M.bush, 0.05); place(ROCK_VAR, M.rock, 0.12);
@@ -229,7 +246,7 @@ function plantTrees(list, shadows, into = scene) {
       claimTree(px, pz, v.r * s); out.push([px, pz, s, v, (px * 7.3 + pz * 3.1) % 6.28]); break;
     }
   }
-  plantTrees(out, false);
+  plantTrees(out);
   // and on out toward the horizon, only from your own eyes or the free camera (FAR_VIEW, world/ground.js): past the ring
   // out to FAR_WOODS.r, and past the road (right from its far shoulder, where from above they'd stand in front of the
   // farm), thickening as the ring thins so there's no wall where one meets the other, the trees a little bigger further
@@ -246,7 +263,7 @@ function plantTrees(list, shadows, into = scene) {
       if (!roomForTree(px, pz, v.r * s)) continue;
       claimTree(px, pz, v.r * s); far.push([px, pz, s, v, rand() * 6.28]);
     }
-    plantTrees(far, false, FAR_VIEW);
+    plantTrees(far, FAR_VIEW);
   }
   setRng(_rngWas);   // (the woods are in: back to Math.random)
 }

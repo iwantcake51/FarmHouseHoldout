@@ -17,6 +17,7 @@ import { worldK, worldT } from '../game/state.js';
 import { titleBlend } from '../game/intro.js';
 import { curDark } from '../lighting/day-night.js';
 import { camTarget } from '../game/camera.js';
+import { ARENA } from './arena.js';
 
 // inside the house's walls (plus a margin): the bugs and motes keep out
 const inHouse = (x, z, m) => inHouseRect(x, z, m);
@@ -53,8 +54,8 @@ const MOTE_DENSITY = 75 / (28 * 28);   // a light scatter of them, not a haze (a
 const MOTE_W = 60;
 // the haze round the farm (uEdge, core/shaders.js): where it starts and where everything's gone into it, seen from above
 // and from your own eyes; and from your own eyes the motes fade out by MOTE_FAR metres off (drawn the same size however
-// far, a field of them out to the horizon was a band of specks across it)
-const NEAR_EDGE = [HALF + 0.5, HALF + 12], FAR_EDGE = [HALF + 9, HALF + 44], MOTE_FAR = [6, 18];   // past the corners of the widest view (the furthest zoom on a wide screen), so they wrap out of sight
+// far, any much further off read as specks of dust hanging out over the distance, a band of them along the horizon)
+const NEAR_EDGE = [HALF + 0.5, HALF + 12], FAR_EDGE = [HALF + 9, HALF + 44], MOTE_FAR = [3, 7];   // past the corners of the widest view (the furthest zoom on a wide screen), so they wrap out of sight
 const motes = (() => {
   const MAX = Math.round(MOTE_DENSITY * 4 * MOTE_W * MOTE_W), pos = new Float32Array(MAX * 3), col = new Float32Array(MAX * 3), seed = [];
   for (let k = 0; k < MAX; k++) seed.push({ x: rr(-MOTE_W, MOTE_W), y: rr(0.2, 3), z: rr(-MOTE_W, MOTE_W), p: rand() * 6.28, s: rr(0.15, 0.45), a: 0 });
@@ -113,7 +114,7 @@ export function stepAtmos(realDt) {
   // from your own eyes (or the free camera) the haze round the farm lies further out (FAR_EDGE), over the woods and
   // the road rather than right at the fence, and the woods on to the horizon, the power line and the sky come into view
   // (world/ground.js, world/sky.js); thick fog greys the sky out toward the haze
-  { const far = !!cam.isPerspectiveCamera, E = far ? FAR_EDGE : NEAR_EDGE; LMU.uEdge.value.set(E[0], E[1]); FAR_VIEW.visible = far;
+  { const far = !!cam.isPerspectiveCamera, E = far ? FAR_EDGE : NEAR_EDGE; LMU.uEdge.value.set(E[0], E[1]); FAR_VIEW.visible = far && !ARENA.on;   // (never in the arena: the farm's fields aren't out there, world/arena-outer.js is)
     updateSky(day); SKY_U.uTop.value.lerp(scene.fog.color, fogW.lv * 0.55); SKY_U.uCloudK.value = SKY_CLOUD * (1 - fogW.lv * 0.7); }
   const mo = mix((Math.max(0, curDark - 0.35) * 0.12 + fogW.lv * 0.16) * (0.4 + 0.6 * Math.max(curDark, 0.35)), 0.06, tb);
   const rf = mix(0.42 + fogW.lv * 0.3, 0, tb);

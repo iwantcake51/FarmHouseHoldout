@@ -23,7 +23,7 @@ import { AMMO_CAN } from '../weapons/ammo.js';
 import { loadRound, roundName, roundOn, roundOwned, roundText, roundTypes } from '../weapons/rounds.js';
 import { MODS } from '../melee/melee-mods.js';
 import {
-  addMod, improveMod, MOD_MAX, MOD_UP, modLv, modName, modOffer, modReplaced, muzzleTaken, roman
+  addMod, improveMod, MOD_CAP, MOD_MAX, MOD_UP, modLv, modName, modOffer, modReplaced, muzzleTaken, roman
 } from '../weapons/mod-levels.js';
 import { tierName, TIERS } from '../upgrades/tier-table.js';
 import {
@@ -70,7 +70,9 @@ const CHEAT_TOGGLES = {
 // the switches along the top, always in reach, and the speeds the game can run at
 const CH_QUICK = ['god', 'scrap', 'ammo', 'mag', 'onehit', 'noWaves'];
 const SPEEDS = [0.25, 0.5, 1, 2];
-export let cheatOn = false, cheatTab = 'player', cheatFind = '', cheatLive = 0;
+// (there's a cheat menu in this build: the stub that stands in for this file says not, tools/build.mjs)
+export const cheatsBuilt = true;
+export let cheatOn = false, cheatTab = 'player', cheatFind = '', cheatLive = 0, cheatShutAt = -1e9;   // (cheatShutAt: when it was last put away, input/keyboard-mouse.js lockLost)
 try { cheatTab = localStorage.getItem(CHEAT_KEY + '-tab') || 'player'; } catch (e) {}
 
 // never in co-op: the menu won't open (and shuts if it was), and the switches do nothing there, though they're kept
@@ -123,7 +125,7 @@ export function toggleCheats(on) {
   if (cheatsOff() && on !== false) { if (!cheatOn) toast('No cheats in co-op', { kind: 'bad', sub: 'The cheat menu only works in a game on your own' }); return; }
   cheatOn = on === undefined ? !cheatOn : on;
   chEl.hidden = !cheatOn;
-  if (!cheatOn) wantLock();   // (in first person, the mouse straight back: game/view-cam.js)
+  if (!cheatOn) { cheatShutAt = performance.now(); wantLock(); }   // (in first person, the mouse straight back: game/view-cam.js)
   clearInterval(cheatLive);
   if (cheatOn) { renderCheats(); cheatLive = setInterval(cheatLiveTick, 200); }
   else { hideGun(); if (document.activeElement && chEl.contains(document.activeElement)) { document.activeElement.blur(); cv.focus({ preventScroll: true }); } }
@@ -260,7 +262,7 @@ const CHEAT_TABS = {
     if (mods.length) {
       h += chHead('Mods');
       h += mods.map(m => {
-        const have = hasMod(m), lv = modLv(m), upOk = have && MOD_UP[m] && lv < MOD_MAX;
+        const have = hasMod(m), lv = modLv(m), upOk = have && MOD_UP[m] && lv < (MOD_CAP[m] || MOD_MAX);
         const why = have ? '' : modReplaced(m) ? 'Replaced by a better mod' : MODS[m].need && !(hasMod(MODS[m].need) && modLv(MODS[m].need) >= (MODS[m].needLv || 1)) ? `Needs ${MODS[MODS[m].need].name}${MODS[m].needLv > 1 ? ' ' + roman(MODS[m].needLv) : ''}` : MODS[m].muzzle && muzzleTaken(id) ? 'The muzzle is taken' : '';
         return `<div class="chRow${have ? ' have' : ''}"><span class="chK chMod" title="${esc(MODS[m].text)}">${esc(have ? modName(m) : MODS[m].name)}<small>${have ? 'Level ' + roman(lv) + ' of ' + (MOD_UP[m] ? MOD_MAX : 1) : why || esc(MODS[m].text)}</small></span>` +
           (have ? chStep('mod', { m }, '', true, upOk) : chBtn('Add', 'mod', { m, d: 1 }, '', !modOffer(m))) + '</div>';
@@ -359,7 +361,7 @@ function weapCard(id) {
 
 // ---- the gun in your hands ----------------------------------------------------------------------------------------
 const CH_GUN_LINES = ['ammo', 'trigger', 'mag', 'supp', 'choke', 'sight', 'laser', 'light', 'loader'];
-const CH_LINE = { ammo: 'Powder', trigger: 'Trigger', mag: 'Magazine', supp: 'Suppressor', choke: 'Choke', sight: 'Sight', laser: 'Laser', light: 'Light', loader: 'Speed loader' };
+const CH_LINE = { ammo: 'Powder', trigger: 'Trigger', mag: 'Magazine', supp: 'Suppressor', choke: 'Choke tube', sight: 'Sight', laser: 'Laser', light: 'Light', loader: 'Speed loader' };
 function chLineFits(k, id) {
   const D = WEAP[id];
   if (tierMax(k, id) <= 0) return false;
@@ -487,7 +489,7 @@ const CHEAT_ACTS = {
   mod: d => { const id = curId(), m = d.m, dd = +d.d;
     if (!hasMod(m)) { if (dd > 0 && modOffer(m)) chGun(id, () => addMod(id, m)); return; }
     const lv = modLv(m);
-    if (dd > 0) { if (MOD_UP[m] && lv < MOD_MAX) chGun(id, () => improveMod(m)); }
+    if (dd > 0) { if (MOD_UP[m] && lv < (MOD_CAP[m] || MOD_MAX)) chGun(id, () => improveMod(m)); }
     else chGun(id, () => { if (lv > 1) { W8.modLv[m] = lv - 1; recomputeEff(); } else chRemoveMod(id, m); }); },
   tune: () => { const id = curId(); chGun(id, () => { if (W8.tune[id]) delete W8.tune[id]; else W8.tune[id] = 1; }); },
   stock: () => { const id = curId(); chGun(id, () => { W8.gt[id] = {}; (W8.mods[id] || []).forEach(m => delete W8.modLv[m]); W8.mods[id] = []; W8.fm[id] = null; delete W8.tune[id]; delete W8.rounds[id]; delete W8.att[id]; W8.own[id] = {}; delete W8.ownAtt[id]; }); },

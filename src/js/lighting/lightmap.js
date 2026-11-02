@@ -7,7 +7,7 @@ import { NET, netLink } from '../net/net.js';
 import { FL_MAX, flPack, LMU } from '../core/shaders.js';
 import { ci, openAt } from '../world/grid.js';
 import { THIN, thinHit, wxSee, wzSee } from '../world/thin-walls.js';
-import { blockArr, bulletBlocked } from '../world/collision.js';
+import { blockArr, boxHitT, bulletBlocked } from '../world/collision.js';
 import { P } from '../player/player.js';
 import { curId, T, W, W8 } from '../game/run-state.js';
 import { gunMeshes, HOLDS, MUZ, X } from '../weapons/gun-materials.js';
@@ -18,7 +18,9 @@ import { lightsDirty, setLightsDirty, shutN } from '../barricades/planks.js';
 import { vaultHold } from '../player/vaulting.js';
 import { lmT, setLmT, state, worldT } from '../game/state.js';
 import { muzzle } from '../weapons/firing.js';
-import { STATIC_LIGHTS } from './static-lights.js';
+import { LAMP_ON, STATIC_LIGHTS } from './static-lights.js';
+// how dark it has to get for the arena's floodlights to start coming on, and to be full on
+const LAMP_DARK = [0.2, 0.5];
 import { amb, curDark, setLitHere } from './day-night.js';
 import { computeVision } from './vision.js';
 import { spitLights } from '../zombies/spitter.js';
@@ -42,13 +44,17 @@ export const sampleX = a => -HALF + (a + 0.5) / FR;
 // its slit and its bars as they really are: zombies/zombie-visuals.js)
 export function los(x0, z0, x1, z1, thru) {
   if (THIN.n && thinHit(x0, z0, x1, z1) <= 1) return false;   // the inside walls (world/thin-walls.js)
-  const dx = x1 - x0, dz = z1 - z0, d = Math.hypot(dx, dz), steps = Math.ceil(d / 0.33);
-  const si = ci(x0), sj = ci(z0), ti = ci(x1), tj = ci(z1);
-  for (let s = 1; s < steps; s++) {
-    const i = ci(x0 + dx * s / steps), j = ci(z0 + dz * s / steps);
+  // (every cell the line passes through, in order, walked cell to cell (not sampled along it, which stepped over a
+  // wall's corner the line only clipped, or a thin wall between two samples, and saw through it)
+  const dx = x1 - x0, dz = z1 - z0, ti = ci(x1), tj = ci(z1);
+  let i = ci(x0), j = ci(z0);
+  const si = dx > 0 ? 1 : -1, sj = dz > 0 ? 1 : -1, tdx = dx ? Math.abs(1 / dx) : Infinity, tdz = dz ? Math.abs(1 / dz) : Infinity;
+  let tx = dx ? (dx > 0 ? (i + 1 - HALF - x0) : (x0 - (i - HALF))) * tdx : Infinity, tz = dz ? (dz > 0 ? (j + 1 - HALF - z0) : (z0 - (j - HALF))) * tdz : Infinity;
+  for (let n = 0; n < 4 * N; n++) {
+    if (tx < tz) { if (tx > 1) return true; i += si; tx += tdx; } else { if (tz > 1) return true; j += sj; tz += tdz; }
     if (i === ti && j === tj) return true;
-    if (i === si && j === sj) continue;
-    if (i < 0 || j < 0 || i >= N || j >= N || blockArr[j * N + i]) return false;
+    if (i < 0 || j < 0 || i >= N || j >= N) return false;
+    if (blockArr[j * N + i] && boxHitT(j * N + i, x0, z0, dx, dz, 0, 1) !== Infinity) return false;   // (a tall piece of furniture only where it stands: world/collision.js)
     const ob = openAt[j * N + i]; if (ob && shutN(ob) >= 2 && !(thru && ob.grate)) return false;   // two or more boards (or a plated grate) shut out sight and light
   }
   return true;
@@ -82,7 +88,9 @@ function computeLight() {
   for (let k = 0; k < FNN; k++) { lmTgt[k * 3] = amb[0]; lmTgt[k * 3 + 1] = amb[1]; lmTgt[k * 3 + 2] = amb[2]; }
   if (lightsDirty) { setLightsDirty(false); STATIC_LIGHTS.forEach(L => { if (!L.fill && !L.spill) L.field = lightField(L.x, L.z, L.r, L.cone, true); }); }
   const fl = 0.85 + Math.sin(worldT * 11.1) * 0.08 + 0.035 + Math.sin(worldT * 37.3) * 0.02 + Math.sin(worldT * 23.9) * 0.015;   // fire flicker on the world clock
+  LAMP_ON.k = smooth(clamp((dark - LAMP_DARK[0]) / (LAMP_DARK[1] - LAMP_DARK[0]), 0, 1));   // (the arena's floods come on only as it gets dark)
   STATIC_LIGHTS.forEach(L => {
+    if (L.arena) { const k = L.always ? 1 : LAMP_ON.k; if (k > 0.001) addField(L.field, L.int * k, L.col); return; }   // (an indoor map's are always on: world/arena-mall.js)
     if (L.spill) { const b = shutN(L.spill); if (b < 2) addField(L.field, L.int * (b ? 0.4 : 1) * (0.08 + 0.92 * dark), L.col); return; }
     addField(L.field, L.int * (L.inside ? 0.55 + 0.6 * dark : 0.15 + 0.85 * dark) * (L.flicker ? fl : 1), L.col);
   });
@@ -234,7 +242,8 @@ function flRay(x, z, a, max) {
     if (t >= max) return max;
     if (i < 0 || j < 0 || i >= N || j >= N) return t;
     const ob = openAt[j * N + i];
-    if (blockArr[j * N + i] || (ob && shutN(ob) >= 2)) return Math.min(max, t + FL_PAST);
+    const bt = blockArr[j * N + i] ? boxHitT(j * N + i, x, z, dx, dz, t, Math.min(nx, nz)) : Infinity;
+    if (bt !== Infinity || (ob && shutN(ob) >= 2)) return Math.min(max, (bt !== Infinity ? bt : t) + FL_PAST);
     if (ob && ob.kind === 'window' && flRayWin === Infinity) { const tw = ob.axis === 'x' ? (ob.z - z) / dz : (ob.x - x) / dx; flRayWin = tw > t && tw < t + 1.5 ? tw : t + 0.5; }
   }
   return max;

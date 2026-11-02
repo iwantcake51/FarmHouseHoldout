@@ -1,12 +1,13 @@
 // The crosshair.
 
-import { $ } from '../core/dom.js';
+import { BLK, BLOCK } from '../melee/block.js';
+import { $, replay } from '../core/dom.js';
 import { kbd } from '../input/keybinds.js';
 import { cam, FP_CAM, GUN_Y, V3 } from '../core/renderer.js';
 import { angDiff, cache, clamp, smooth } from '../core/math.js';
 import { ci } from '../world/grid.js';
 import { thinRay } from '../world/thin-walls.js';
-import { bulletBlocked } from '../world/collision.js';
+import { bulletBlocked, bulletBlockedAt } from '../world/collision.js';
 import { P } from '../player/player.js';
 import { roundOn } from '../weapons/rounds.js';
 import { curId, magCap, stamMax, W, W8 } from '../game/run-state.js';
@@ -21,11 +22,52 @@ import { AK_ON, akBusy, akMags, akPer, akU } from '../weapons/akimbo.js';
 import { aimRay, muzzle, scopeDist, scopeSpread, scopeUse, SG_FP, spreadOf } from '../weapons/firing.js';
 import { rollText } from './hud-text.js';
 import { los } from '../lighting/lightmap.js';
-import { aimSX, aimSY } from '../player/shaky-hands.js';
-import { fpOn, fpSighted, freeOn, onScreen } from '../game/view-cam.js';
+import { fpOn, fpSighted, freeOn, onScreen, VCAM, xhAt } from '../game/view-cam.js';
+import { muzzleWorld } from '../effects/muzzle-flash.js';
 import { ANIM } from '../player/animation.js';
 
 export const projV = new V3();
+// a hit's marker on the crosshair (zombies/damage.js): kind 'hit', 'head' (a hit through the head) or 'kill', with head
+// for a kill through the head; flashed afresh each time, so a burst's hits each show. Not while the crosshair's put away
+// (down the sights in first person, where the sights are what you aim with): a hit there never marks it, so nothing's
+// left over to show as you come off the sights, however long after
+const xhMark = $('xhHit');
+// it shows where the round went in, within the crosshair: where the last thing hit (weapons/firing.js hitAt, a world
+// point) lies on the screen, the marker drawn that way off the crosshair's middle, never further out than the
+// crosshair's own ring (HM_R: px from the hip and down the sights). A kill told a moment later (the arena's, over the
+// net) still goes by the hit just before it (HM_KEEP, ms); with nothing hit lately it's in the middle
+const HM_R = { hip: 22, ads: 16 }, HM_KEEP = 650, HM_AT = new V3(), _hmV = new V3();
+let hitAtT = -1e9;
+export function hitAt(x, y, z) { HM_AT.set(x, y, z); hitAtT = performance.now(); }
+const SVGNS = 'http://www.w3.org/2000/svg';
+const hmWrap = el => { const w = document.createElementNS(SVGNS, 'g'); el.parentNode.insertBefore(w, el); w.appendChild(el); return w; };
+const xhMarkW = hmWrap(xhMark);
+function hmPlace(w, cx, cy, R) {
+  let dx = 0, dy = 0;
+  if (performance.now() - hitAtT < HM_KEEP) {
+    _hmV.copy(HM_AT).project(fpOn() ? FP_CAM : cam);
+    if (_hmV.z < 1) { dx = (_hmV.x * 0.5 + 0.5) * innerWidth - cx; dy = (-_hmV.y * 0.5 + 0.5) * innerHeight - cy; const L = Math.hypot(dx, dy); if (L > R) { dx *= R / L; dy *= R / L; } }
+  }
+  w.setAttribute('transform', `translate(${dx.toFixed(1)} ${dy.toFixed(1)})`);
+}
+export function hitMark(kind, head) {
+  // down the sights, where the crosshair's put away: a marker of its own over the sight, and a kick through it (ADS_HIT)
+  if (fpSighted()) { hmPlace(adsHitW, innerWidth / 2, innerHeight / 2, HM_R.ads); adsHit.classList.remove('hit', 'head', 'kill'); replay(adsHit, kind === 'kill' ? 'kill' : 'hit', ...(head || kind === 'head' ? ['head'] : [])); return; }
+  if (xh.hidden) return;
+  { const b = xh.getBoundingClientRect(); hmPlace(xhMarkW, b.left + b.width / 2, b.top + b.height / 2, HM_R.hip); }
+  xhMark.classList.remove('hit', 'head', 'kill');
+  replay(xhMark, kind === 'kill' ? 'kill' : 'hit', ...(head || kind === 'head' ? ['head'] : []));
+}
+// and taken off once it's played: left on, it played again every time the crosshair was shown (coming back off the
+// sights), a kill's red marker with nothing hit
+const hitMarkOff = () => xhMark.classList.remove('hit', 'head', 'kill');
+// the down-the-sights marker: the crosshair's own (its four strokes on the diagonals, the same size, colours and pop),
+// over the middle of the screen where the sight is, since the crosshair itself is put away there
+const adsHit = (() => { const d = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); d.id = 'adsHit'; d.setAttribute('viewBox', '-80 -80 160 160'); d.setAttribute('aria-hidden', 'true');
+  d.innerHTML = '<g class="hm"><path d="M4.5 4.5 L10 10 M-4.5 4.5 L-10 10 M4.5 -4.5 L10 -10 M-4.5 -4.5 L-10 -10"></path></g>'; document.body.appendChild(d);
+  const g = d.firstChild; g.addEventListener('animationend', () => g.classList.remove('hit', 'head', 'kill')); return g; })();
+const adsHitW = hmWrap(adsHit);   // (moved toward where the round went in: hmPlace)
+xhMark.addEventListener('animationend', hitMarkOff);
 const xh = $('xh'), xhRing = $('xhReload'), xhAmmo = $('xhAmmo'), xhAmmoBg = $('xhAmmoBg'), xhGl = $('xhGl'), xhSpread = $('xhSpread');
 // an akimbo pair's left gun: its own arc and reload ring, mirrored on the left
 const xhAmmoL = $('xhAmmoL'), xhAmmoBgL = $('xhAmmoBgL'), xhRingL = $('xhReloadL');
@@ -33,8 +75,18 @@ const xhAmmoL = $('xhAmmoL'), xhAmmoBgL = $('xhAmmoBgL'), xhRingL = $('xhReloadL
 // the flash as it finishes). The right arc runs up from its bottom end (42° below the right), the left one up from
 // its bottom end too (138°)
 const RL = { R: { ring: xhRing, track: $('xhRTrack'), head: $('xhRHead'), a0: 42, dir: -1, on: false, u: 0 }, L: { ring: xhRingL, track: $('xhRTrackL'), head: $('xhRHeadL'), a0: 138, dir: 1, on: false, u: 0 } };
-function reloadDraw(side, on, u) {
+// (the fill doesn't jump to where the reload's got to: it glides there (RL_EASE: how quickly a second, up and back), and
+// when a fumble sets it back (by more than knock) it's knocked back with a jolt, the arc and its bead flaring red and
+// shaking, styles/crosshair.css: .knock)
+const RL_EASE = { up: 22, back: 12, knock: 0.015, knockMs: 550 };
+function reloadDraw(side, on, u, rdt = 1 / 60) {
   const r = RL[side], A = ARC(); u = clamp(u, 0, 1);
+  if (on && r.on && r.disp !== undefined) {
+    if (u < r.disp - RL_EASE.knock && performance.now() - (r.knockAt || 0) > 350) { r.knockAt = performance.now(); [r.ring, r.head, r.track].forEach(el => { el.classList.remove('knock'); void el.getBBox(); el.classList.add('knock'); }); }
+    r.disp += (u - r.disp) * (1 - Math.exp(-rdt * (u < r.disp ? RL_EASE.back : RL_EASE.up))); u = r.disp;
+  } else r.disp = u;
+  // (the jolt's class taken off once it's played, or it would stand in for the finishing flash and a round's pulse after it)
+  if (r.knockAt && (performance.now() - r.knockAt > RL_EASE.knockMs || !on)) { r.knockAt = 0; [r.ring, r.head, r.track].forEach(el => el.classList.remove('knock')); }
   // a round's pulse is over once the reload is: its class would otherwise outrank the finishing flash and leave the arc lit
   if (!on && r.on) { [r.ring, r.head, r.track].forEach(el => el.classList.remove('tick')); $('xhRPing').classList.remove('tick'); }
   // finished: a flash over the rounds now in it, exactly as the ammo arc shows them (only for a reload that ran its
@@ -119,27 +171,64 @@ function awText(aw, t, plain) {
 // tall prop: bulletBlocked) on the line before the cell the cursor's on. Zombies, boards and the low furniture you shoot
 // across don't count; aiming at a wall itself doesn't either (that's what you'd hit)
 function blockedShot() {
+  // (from your own eyes a round flies at its own height, from the muzzle up or down to what you're looking at, so it
+  // goes over a low prop or a crate stack it really clears: only what's there at the height it's at stops it, as the
+  // shot itself is, world/collision.js bulletBlockedAt. Tested on the flat it called anything standing in the cells
+  // between blocked, a crate's corner far off under the line or the air over a low wall)
+  const fp = fpOn(), mw = fp ? muzzleWorld() : null, my = mw && Number.isFinite(mw.y) ? mw.y : 1.3;
+  const stopAt = (x, z, y) => fp ? bulletBlockedAt(x, z, y) : bulletBlocked(x, z);
   // the gun's muzzle itself jammed into a wall or past a corner (muzzle(), weapons/firing.js, falls back to just in front
   // of you then): blocked whatever you're aiming at
-  { const len = MUZ[W8.cur] || 0.9, tx = P.x + Math.sin(P.aim) * len, tz = P.z + Math.cos(P.aim) * len; if (bulletBlocked(tx, tz) || !los(P.x, P.z, tx, tz)) return true; }
+  { const len = MUZ[W8.cur] || 0.9, tx = P.x + Math.sin(P.aim) * len, tz = P.z + Math.cos(P.aim) * len; if (stopAt(tx, tz, my) || !los(P.x, P.z, tx, tz)) return true; }
   const m = muzzle(), dx = aimPt.x - m.ox, dz = aimPt.z - m.oz, L = Math.hypot(dx, dz); if (L < 0.3) return false;
-  const ux = dx / L, uz = dz / L, ti = ci(aimPt.x), tj = ci(aimPt.z);
+  const ux = dx / L, uz = dz / L, ti = ci(aimPt.x), tj = ci(aimPt.z), ay = fp ? VCAM.aimY : my;
   if (thinRay(m.ox, m.oz, ux, uz, L) < L - 0.05) return true;   // an inside wall on the way (world/thin-walls.js)
-  for (let t = 0.1; t < L; t += 0.1) { const x = m.ox + ux * t, z = m.oz + uz * t; if (bulletBlocked(x, z)) return !(ci(x) === ti && ci(z) === tj); }
+  for (let t = 0.1; t < L; t += 0.1) { const x = m.ox + ux * t, z = m.oz + uz * t; if (stopAt(x, z, my + (ay - my) * t / L)) return !(ci(x) === ti && ci(z) === tj); }
   return false;
 }
 const xhX = $('xhX');
-const XH_SPRINT = 0.45;   // how far down the gun's come (ANIM.ready) when the crosshair's quite gone
+const XH_SPRINT = 0.45, _xhP = [0, 0];   // how far down the gun's come (ANIM.ready) when the crosshair's quite gone
+// from your own eyes a gun's crosshair is out in the world, on whatever your line of sight meets (VCAM.aimD): drawn as big as
+// it would be at ref metres off, so it grows as you come right up to a wall or a zombie and eases back down further
+// off (between min and max of its size, eased at ease a second); and when the gun's blocked nearer than that (its muzzle
+// up against a wall, a corner between it and what you're looking at), it slides to where the round would really hit,
+// the point it'd stop at, eased at slide; it's always on that point (nothing in the way, that's where you're looking),
+// so it never lets go of the barrel and drifts back to the middle while you're still jammed against the wall
+const XH_WORLD = { ref: 2.4, min: 1, max: 1.75, ease: 12, slide: 16 };
+const XHW = { s: 1, k: 0, x: 0, y: 0 }, _xwA = new V3(), _xwB = new V3();
+// where a round from the muzzle toward what you're looking at would stop, on the screen (out: [x, y] pixels), or false
+function shotStop(out) {
+  const m = muzzleWorld(); if (!Number.isFinite(m.x)) return false;
+  _xwA.copy(m); _xwB.set(aimPt.x, VCAM.aimY, aimPt.z).sub(_xwA);
+  const L = Math.hypot(_xwB.x, _xwB.z); if (L < 0.05) return false;
+  const ux = _xwB.x / L, uz = _xwB.z / L; let t = bulletBlockedAt(m.x, m.z, m.y) ? 0 : L;   // (at the round's own height along the line, as blockedShot)
+  if (t) { t = thinRay(m.x, m.z, ux, uz, L); for (let q = 0.05; q < t; q += 0.05) if (bulletBlockedAt(m.x + ux * q, m.z + uz * q, m.y + _xwB.y * q / L)) { t = q; break; } }
+  _xwA.addScaledVector(_xwB, t / L).project(FP_CAM);   // (as far along it in the air as across the ground) if (_xwA.z > 1) return false;
+  out[0] = (_xwA.x + 1) / 2 * innerWidth; out[1] = (1 - _xwA.y) / 2 * innerHeight; return true;
+}
+const _xwS = [0, 0];
+// the gun tipped down off a wall (rad): the crosshair starts going at the first, gone by the second
+const XH_TIP = [0.12, 0.35];
 export function updateCrosshair(rdt, D) {
   const showXh = state === 'play' && hasMouse && !usingTouch && !scoped && !freeOn() && !fpSighted();   // (none flying the free camera, nor down the sights in first person, where the sights are what you aim with: game/view-cam.js)
   // (hidden, a finished reload's flash is put out: shown again, the browser would play it over again, a pop each time
   // you come off the sights)
-  if (!showXh && !xh.hidden) { Object.values(RL).forEach(r => [r.ring, r.head, r.track].forEach(el => el.classList.remove('done', 'tick'))); $('xhRPing').classList.remove('tick'); }   // (the ping at the arc's end too: its pop would play again as it's shown)
+  if (!showXh && !xh.hidden) { hitMarkOff(); Object.values(RL).forEach(r => [r.ring, r.head, r.track].forEach(el => el.classList.remove('done', 'tick'))); $('xhRPing').classList.remove('tick'); }   // (the ping at the arc's end too: its pop would play again as it's shown)
+  if (showXh && xh.hidden) hitMarkOff();   // (and anything marked as it was put away cleared as it comes back)
   xh.hidden = !showXh;
   if (showXh) {
-    xh.style.transform = `translate(${aimSX().toFixed(1)}px,${aimSY().toFixed(1)}px)`;   // on the cursor, or wandering off it at low health (player/shaky-hands.js)
+    xhAt(_xhP);   // on the cursor, or wandering off it at low health (player/shaky-hands.js), and from your own eyes kicked with the gun (game/view-cam.js)
+    // (from your own eyes, out in the world: XH_WORLD)
+    { const fp = fpOn() && !D.melee, W_ = XH_WORLD, ts = fp ? clamp(W_.ref / Math.max(0.3, VCAM.aimD), W_.min, W_.max) : 1, stop = fp && shotStop(_xwS);   // (not a melee weapon's: it stays its size, in the middle)
+      XHW.s += (ts - XHW.s) * Math.min(1, rdt * W_.ease);
+      if (stop) { if (XHW.k < 0.01) { XHW.x = _xwS[0]; XHW.y = _xwS[1]; } else { const k = Math.min(1, rdt * W_.slide); XHW.x += (_xwS[0] - XHW.x) * k; XHW.y += (_xwS[1] - XHW.y) * k; } }
+      XHW.k += ((stop ? 1 : 0) - XHW.k) * Math.min(1, rdt * W_.slide);
+      const x = _xhP[0] + (XHW.x - _xhP[0]) * XHW.k, y = _xhP[1] + (XHW.y - _xhP[1]) * XHW.k;
+      xh.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px)` + (Math.abs(XHW.s - 1) > 0.005 ? ` scale(${XHW.s.toFixed(3)})` : ''); }
     // from your own eyes it fades out as the gun comes down for a sprint (it can't fire there), and back as it comes up
-    { const f = fpOn() ? (1 - smooth(clamp((ANIM.ready || 0) / XH_SPRINT, 0, 1))).toFixed(2) : '1'; if (cache.xhRun !== f) { cache.xhRun = f; xh.style.opacity = f; } }
+    // (from your own eyes, gone as a sprint brings the gun down, and as a wall tips it down out of the way: player/hold.js
+    // gunPush, the gun pointing at the floor and no shot going where the middle of the view is)
+    { const f = fpOn() ? ((1 - smooth(clamp((ANIM.ready || 0) / XH_SPRINT, 0, 1))) * (1 - smooth(clamp(((ANIM.gtipA || 0) - XH_TIP[0]) / (XH_TIP[1] - XH_TIP[0]), 0, 1)))).toFixed(2) : '1'; if (cache.xhRun !== f) { cache.xhRun = f; xh.style.opacity = f; } }
     xh.classList.toggle('healing', P.bandT > 0 || ANIM.bandDone > 0);   // both hands are on the bandage: no reticle, just the ring filling
     const id = curId();
     { const bx = !D.melee && !(P.bandT > 0) && blockedShot(); if (cache.xhX !== bx) { cache.xhX = bx; xhX.classList.toggle('on', bx); xh.classList.toggle('blocked', bx); } }   // (the whole reticle goes red with it)
@@ -171,14 +260,33 @@ export function updateCrosshair(rdt, D) {
       const rd = XHM.max > 0 ? 1 - clamp(W8.cd / XHM.max, 0, 1) : 1, ready = rd >= 1;
       if (ready && !XHM.ready) XHM.vs += 0.9;
       XHM.ready = ready;
-      const sT = 0.62 + 0.38 * smooth(rd), rT = clamp(camRoll * 57.3 * XHM_TWIST, -40, 40);
+      const hk = W8.chgOn ? W8.chgK || 0 : 0, sT = (0.62 + 0.38 * smooth(rd)) * (1 - 0.32 * smooth(hk)), rT = clamp(camRoll * 57.3 * XHM_TWIST, -40, 40);   // (closing in on the dot as a heavy blow gathers: melee/block.js MCHARGE)
+      { const b = $('xhBr'), now = performance.now() / 1000; b.classList.toggle('chg', W8.chgOn && hk >= 0.999); b.classList.toggle('ripo', BLOCK.ripo > now); }   // (full: orange; a riposte yours: gold)
       for (let t = Math.min(rdt, 0.1); t > 1e-6; t -= 1 / 120) {
         const h = Math.min(t, 1 / 120);
         XHM.vs += ((sT - XHM.s) * 260 - XHM.vs * 22) * h; XHM.s += XHM.vs * h;
         XHM.vr += ((rT - XHM.r) * 900 - XHM.vr * 38) * h; XHM.r += XHM.vr * h;   // stiff: quick to snap round, a small overshoot
       }
-      const k = XHM.s.toFixed(3) + ':' + XHM.r.toFixed(1) + ':' + Math.round(rd * 50);
-      if (cache.xhBr !== k) { cache.xhBr = k; const b = $('xhBr'); b.setAttribute('transform', `rotate(${XHM.r.toFixed(1)}) scale(${XHM.s.toFixed(3)})`); b.style.opacity = (0.45 + 0.55 * smooth(rd)).toFixed(2); }
+      // (the guard up: the brackets give way to the shield, which jumps with each blow it takes, white on a parry,
+      // red as it's broken: melee/block.js)
+      { const gk = smooth(BLOCK.k), sk = BLOCK.shake * BLOCK.shake, t = performance.now() / 1000;
+        const jx = (BLOCK.sx * 6 + Math.sin(t * 61) * 2.2) * sk, jy = (BLOCK.sy * 5 + Math.cos(t * 53) * 1.8) * sk - 1.5 * sk, sc = (0.8 + 0.2 * gk) * (1 + 0.22 * sk), rot = BLOCK.sx * 18 * sk;
+        // (raised just now, still in time to parry: it glows gold, a little bigger; a parry pops it and throws a ring out
+        // off it; a blow on the guard flashes it white)
+        const ready = BLOCK.on && t - BLOCK.at < BLK.parry, pop = BLOCK.pop, scP = sc * (1 + (ready ? 0.12 : 0) + 0.35 * pop * pop + 0.1 * BLOCK.hit);
+        const key = gk.toFixed(2) + ':' + jx.toFixed(1) + ':' + jy.toFixed(1) + ':' + (BLOCK.flash > 0.3) + ':' + (BLOCK.broke > 0) + ':' + ready + ':' + pop.toFixed(2) + ':' + (BLOCK.hit > 0.3);
+        if (cache.xhSh !== key) { cache.xhSh = key; const el = $('xhShield'); el.setAttribute('opacity', Math.max(gk, pop).toFixed(2)); el.setAttribute('transform', `translate(${jx.toFixed(1)} ${jy.toFixed(1)}) rotate(${rot.toFixed(1)}) scale(${scP.toFixed(3)})`); el.classList.toggle('parry', BLOCK.flash > 0.3); el.classList.toggle('broke', BLOCK.broke > 0 && gk > 0.05); el.classList.toggle('ready', ready && !(BLOCK.flash > 0.3)); el.classList.toggle('hit', BLOCK.hit > 0.3 && !(BLOCK.flash > 0.3));
+          const rg = $('xhShieldRing'); rg.setAttribute('r', (12 + (1 - pop) * 22).toFixed(1)); rg.setAttribute('opacity', (pop * pop).toFixed(2)); }
+        // (filled to how much guard you've left, your stamina: full, a solid shield; draining down from the top; empty,
+        // its outline alone)
+        { const sm = stamMax(), f = clamp(P.stam / (sm || 1), 0, 1), fk = f.toFixed(2); if (cache.xhShF !== fk) { cache.xhShF = fk; const r = $('xhShFill'), h = 58 * f; r.setAttribute('y', (29 - h).toFixed(1)); r.setAttribute('height', h.toFixed(1)); } }
+        // (broken: its halves split, tip over and fall away, fading: BLOCK.shatter from 1 down)
+        { const b = BLOCK.shatter || 0, bk = b.toFixed(2); if (cache.xhShB !== bk) { cache.xhShB = bk; const u = 1 - b, e = u * u, g = $('xhShBreak'); g.setAttribute('opacity', (b > 0 ? Math.min(1, b * 1.6) : 0).toFixed(2));
+          $('xhShBL').setAttribute('transform', `translate(${(-26 * u).toFixed(1)} ${(70 * e - 6 * u).toFixed(1)}) rotate(${(-38 * u).toFixed(1)})`);
+          $('xhShBR').setAttribute('transform', `translate(${(26 * u).toFixed(1)} ${(80 * e - 4 * u).toFixed(1)}) rotate(${(44 * u).toFixed(1)})`); } }
+        XHM.gk = gk; }
+      const k = XHM.s.toFixed(3) + ':' + XHM.r.toFixed(1) + ':' + Math.round(rd * 50) + ':' + (XHM.gk || 0).toFixed(2);
+      if (cache.xhBr !== k) { cache.xhBr = k; const b = $('xhBr'); b.setAttribute('transform', `rotate(${XHM.r.toFixed(1)}) scale(${XHM.s.toFixed(3)})`); b.style.opacity = ((0.45 + 0.55 * smooth(rd)) * (1 - (XHM.gk || 0))).toFixed(2); }
     }
     // bandage ring: shown only while a bandage is going on, filling as it does, and full for a moment once it's done
     // (or stopped at full health: BAND_DONE, player/bandages.js), so it always ends at 100%
@@ -254,7 +362,7 @@ export function updateCrosshair(rdt, D) {
     // a shell at a time: by time, through to the gun closed or racked after (weapons/reload.js: relRingP)
     const sp = relRingP(), on = W8.reloading === 'mag' || sp >= 0;
     if (W8.reloading === 'mag') { const kn = W8.reloadMax - relUnseen(); rp = clamp((W8.reloadMax - W8.reloadT) / Math.max(kn, 1e-3), 0, 1); } else if (sp >= 0) rp = sp;   // (a fumble's time only once it's happened: relUnseen)
-    reloadDraw('R', on, rp); reloadDraw('L', false, 0);
+    reloadDraw('R', on, rp, rdt); reloadDraw('L', false, 0, rdt);
     xhAmmo.style.opacity = on ? 0.25 : 1;
     }
     const glArc = 2 * Math.PI * (aR + 6) * (84 / 360);

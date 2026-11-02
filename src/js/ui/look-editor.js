@@ -2,8 +2,9 @@
 // title's Character menu (ui/look-menu.js) and the cheat menu's character section (ui/cheats.js), each putting the
 // pieces in its own frame round the studio's copy of you (ui/gun-view.js: showFigure). Its buttons carry data-act
 // (lk: set a part of the look, lkpart: pick a part, lkwrist, lkrand: re-roll, lkgear, lkkeep), handled by lookAct;
-// its colour pickers and sliders (data-lf) by lookLive
-import { dealWrist, GLOVE_COLS, keepLook, LOOK, LOOK_SAVE, lookChanged, LOOKS, rollLook, shade, thermalOf, WRIST_KINDS } from '../player/look.js';
+// its colour pickers and sliders (data-lf) by lookLive; and the survivors you've saved (lookSlots: lkslot puts one on,
+// lkslotnew, lkslotsave, lkslotdel), each one's name changed by lookSlotName
+import { dealWrist, GLOVE_COLS, keepLook, LOOK, LOOK_SAVE, LOOK_SLOTS, lookChanged, LOOKS, rollLook, shade, storeSlots, thermalOf, WRIST_KINDS } from '../player/look.js';
 import { buildGuns } from '../weapons/build-weapons.js';
 import { GI, GI_VB } from './game-icons.js';
 
@@ -14,8 +15,9 @@ export const lkIco = k => `<svg class="chIco" viewBox="${GI_VB}" aria-hidden="tr
 // which part of you is being changed (part: one of LOOK_TABS), whether the studio's copy of you wants making again
 // (fresh: the look's just changed), and gear: the studio shows you with what your upgrades put on you (off: in just
 // your own clothes, so what's being changed isn't hidden under the armour's jacket, boots or gloves)
-// locks: the parts a re-roll of the whole of you leaves as they are (each part's padlock on the Whole page)
-export const LE = { part: 'body', fresh: true, gear: false, locks: new Set() };
+// locks: the parts a re-roll of the whole of you leaves as they are (each part's padlock on the Whole page); slotDel:
+// the saved survivor's cross clicked once (a second click lets it go)
+export const LE = { part: 'body', fresh: true, gear: false, locks: new Set(), slotDel: false };
 export const LOOK_TABS = [['body', 'Whole'], ['face', 'Face'], ['hair', 'Hair'], ['hat', 'Hat'], ['top', 'Top'], ['legs', 'Trousers'], ['shoes', 'Shoes'], ['hands', 'Hands'], ['gear', 'Gear']];
 // what each part's re-roll deals afresh
 const LOOK_KEYS = { face: ['skin', 'eyes', 'eyes2', 'face'], hair: ['hair', 'hairStyle', 'beard', 'beardCol'], hat: ['hat', 'hatCol'], top: ['top', 'topCol', 'print', 'under', 'dress', 'tie', 'square'],
@@ -64,7 +66,7 @@ function lookSummary(L) {
   const shoeCols = L.shoes === 'sneakers' ? L.sneak : L.shoes === 'dress' ? [L.dressShoe] : [{ boots: 0x3e2e22, blackboots: 0x1e1e20, tanboots: 0x7a5a3a }[L.shoes]];
   const wr = ['L', 'R'].map(s => (L.wrist || {})[s]).filter(Boolean).map(w => nice(w.kind).toLowerCase());
   const rows = {
-    face: [[L.skin, L.eyes, L.eyes2 !== L.eyes ? L.eyes2 : null], `${nice(F.eye)} eyes, ${nice(F.brow).toLowerCase()} brows, ${nice(F.nose).toLowerCase()} nose`],
+    face: [[L.skin, L.eyes, L.eyes2 !== L.eyes ? L.eyes2 : null], `${F.eye === 'oneSquint' ? 'One eye squinting' : nice(F.eye) + ' eyes'}, ${nice(F.brow).toLowerCase()} brows, ${nice(F.nose).toLowerCase()} nose`],
     hair: [[L.hair, L.beard !== 'none' ? L.beardCol : null], `${nice(L.hairStyle)}${L.beard !== 'none' ? ', ' + nice(L.beard).toLowerCase() : ''}`],
     hat: [[L.hat !== 'none' ? L.hatCol : null], L.hat === 'none' ? 'No hat' : nice(L.hat)],
     top: [[L.topCol, thermalOf(L) || null, L.top === 'suit' ? L.dress : null], nice(L.top) + (thermalOf(L) ? ' over a thermal' : '')],
@@ -173,10 +175,31 @@ function lookReroll(p) {
   applyLook(L);
 }
 
+// the survivors you've saved (player/look.js: LOOK_SLOTS), a chip each: the one you're in (the last put on or saved)
+// with its name there to change (only to tell them apart), and a dot on it while you've changed how you look since;
+// another click puts that one on. + New saves you as you are now as one more, Save puts what you've changed into the
+// one you're in, and its cross lets it go (a second click to be sure). [the chips, and Save and the cross]
+const slotNow = () => LOOK_SLOTS.list[LOOK_SLOTS.cur];
+export function lookSlots() {
+  const S = LOOK_SLOTS, c = slotNow(), dirty = !!c && !same(LOOK.cur, c.look);
+  const chips = S.list.map((o, i) => i === S.cur ? `<span class="lmSlot on${dirty ? ' dirty' : ''}" title="${dirty ? 'Changed since it was saved' : 'The survivor you are'}"><input type="text" data-slot="name" maxlength="${S.name}" value="${lkEsc(o.name)}" spellcheck="false" autocomplete="off" aria-label="This survivor's name, only to tell them apart (your name in co-op is on the Co-op screen)"></span>`
+    : `<button type="button" class="lmSlot" data-act="lkslot" data-i="${i}" title="Put this survivor on">${lkEsc(o.name)}</button>`).join('');
+  const add = S.list.length < S.max ? `<button type="button" class="lmSlot add" data-act="lkslotnew" title="Save how you look now as ${S.list.length ? 'another survivor' : 'a survivor of your own'}">${S.list.length ? '+ New' : '+ Save this survivor'}</button>` : '';
+  const acts = c ? `<button type="button" class="lmSlotSave" data-act="lkslotsave"${dirty ? '' : ' disabled'} title="${dirty ? 'Save how you look now as ' + lkEsc(c.name) : 'Nothing changed since it was saved'}">${dirty ? 'Save' : 'Saved'}</button>` +
+    `<button type="button" class="lmIco lmSlotDel${LE.slotDel ? ' arm' : ''}" data-act="lkslotdel" title="${LE.slotDel ? 'Click again to delete ' + lkEsc(c.name) : 'Delete this survivor'}" aria-label="${LE.slotDel ? 'Click again to delete' : 'Delete'} ${lkEsc(c.name)}">${lkIco('crossMark')}</button>` : '';
+  return [chips + add, acts];
+}
+// its name typed in (last: let go of, an empty one back to Survivor and its number)
+export function lookSlotName(v, last) {
+  const o = slotNow(); if (!o) return;
+  o.name = String(v).slice(0, LOOK_SLOTS.name); if (last) { o.name = o.name.trim() || 'Survivor ' + (LOOK_SLOTS.cur + 1); }
+  storeSlots();
+}
 // the switch that keeps this look for every run and every time you're back on your feet (player/look.js: keepLook)
 export const lookKeepSwitch = (cls = 'chLkT') => `<button type="button" class="${cls}${LOOK_SAVE.on ? ' on' : ''}" data-act="lkkeep" aria-pressed="${LOOK_SAVE.on}"><i class="sw"></i>Keep this look every run</button>`;
 // the editor's buttons: true if it was one of them (the look's changed, or the part or the studio's gear)
 export function lookAct(act, d) {
+  if (act !== 'lkslotdel') LE.slotDel = false;
   switch (act) {
     case 'lkpart': LE.part = d.p; return true;
     case 'lkgear': LE.gear = !LE.gear; LE.fresh = true; return true;
@@ -187,6 +210,14 @@ export function lookAct(act, d) {
     case 'lklock': if (LE.locks.has(d.p)) LE.locks.delete(d.p); else LE.locks.add(d.p); return true;
     case 'lkundo': lookStep(HIST.undo, HIST.redo); return true;
     case 'lkredo': lookStep(HIST.redo, HIST.undo); return true;
+    case 'lkslot': { const o = LOOK_SLOTS.list[+d.i]; if (!o) return true; applyLook(JSON.parse(JSON.stringify(o.look))); LOOK_SLOTS.cur = +d.i; o.look = snap(); storeSlots(); return true; }   // (kept as it's built, so it isn't changed by being put on)
+    case 'lkslotsave': { const o = slotNow(); if (o) { o.look = snap(); storeSlots(); } return true; }
+    case 'lkslotnew': {
+      const S = LOOK_SLOTS; if (S.list.length >= S.max) return true;
+      const names = new Set(S.list.map(o => o.name)); let n = S.list.length + 1; while (names.has('Survivor ' + n)) n++;
+      S.list.push({ name: 'Survivor ' + n, look: snap() }); S.cur = S.list.length - 1; storeSlots(); return true;
+    }
+    case 'lkslotdel': if (!slotNow()) return true; if (!LE.slotDel) { LE.slotDel = true; return true; } LOOK_SLOTS.list.splice(LOOK_SLOTS.cur, 1); LOOK_SLOTS.cur = -1; LE.slotDel = false; storeSlots(); return true;
   }
   return false;
 }

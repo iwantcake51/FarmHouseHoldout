@@ -27,8 +27,8 @@ const ZG = {
 };
 export function zombieRig(m) {
   ['L', 'R'].forEach(s => {
-    const leg = m['leg' + s], sh = new THREE.Mesh(ZG.shin, leg.material); leg.geometry = ZG.thigh; sh.position.y = Z_KNEE; sh.castShadow = true; leg.add(sh); m['shin' + s] = sh;
-    const arm = m['arm' + s], fo = new THREE.Mesh(ZG.fore, arm.material); arm.geometry = ZG.upArm; fo.position.z = Z_ELBOW; fo.castShadow = true; arm.add(fo); m['fore' + s] = fo;
+    const leg = m['leg' + s], sh = new THREE.Mesh(ZG.shin, leg.material); leg.geometry = ZG.thigh; sh.position.y = Z_KNEE; sh.castShadow = sh.receiveShadow = true; leg.add(sh); m['shin' + s] = sh;
+    const arm = m['arm' + s], fo = new THREE.Mesh(ZG.fore, arm.material); arm.geometry = ZG.upArm; fo.position.z = Z_ELBOW; fo.castShadow = fo.receiveShadow = true; arm.add(fo); m['fore' + s] = fo;
   });
   m.upper.position.y = ZHIP; m.upper.children.forEach(c => { c.position.y -= ZHIP; });
 }

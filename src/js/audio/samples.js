@@ -9,6 +9,7 @@ import { P } from '../player/player.js';
 import { curId } from '../game/run-state.js';
 import { AC, master, SND_AT } from './audio.js';
 import { earFrom } from './spatial.js';
+import { ARENA } from '../world/arena.js';
 
 // how loud each plays, and (gap, s) the least time between two of it, so eight pellets into one zombie are one hit
 const SAMPLES = {
@@ -31,13 +32,14 @@ const SAMPLES = {
   hit_blunt_1: { vol: 0.6 }, hit_blunt_2: { vol: 0.6 }, hit_blunt_big_1: { vol: 0.75 }, hit_blunt_big_2: { vol: 0.75 },
   hit_blade_1: { vol: 0.55 }, hit_blade_2: { vol: 0.55 }, hit_chop_1: { vol: 0.7 }, hit_chop_2: { vol: 0.7 },
   flesh_1: { vol: 0.32 }, flesh_2: { vol: 0.32 }, head_hit: { vol: 0.28 },
-  sever: { vol: 0.48 }, head_pop: { vol: 0.58 },
+  sever: { vol: 0.48 }, head_pop: { vol: 0.58 }, head_pop_2: { vol: 0.6 },
+  kill_1: { vol: 0.5 }, kill_2: { vol: 0.5 }, kill_3: { vol: 0.55 }, kill_4: { vol: 0.55 }, flesh_3: { vol: 0.26 }, flesh_4: { vol: 0.3 },
   wood_hit_1: { vol: 0.45 }, wood_hit_2: { vol: 0.45 }, wood_break: { vol: 0.55 },
   craft: { vol: 0.5 }, pickup: { vol: 0.5 }, equip: { vol: 0.42 }, upgrade: { vol: 0.45 }, crate_open: { vol: 0.55 }, medkit: { vol: 0.45 }
 };
 const SOUND_HASH = {};   // file -> a hash of it, written in by tools/build.mjs
 const sbuf = {}, sGapT = {}, sLast = {};
-let verbIn = null, echoIn = null, echoLp = null, echoOut = null, sVoices = 0;
+let verbIn = null, hallIn = null, echoIn = null, echoLp = null, echoOut = null, sVoices = 0;
 // the house's own sound: a short, boxy room. Noise dying away over about 0.85 s, darker as it goes (the walls soak up
 // the highs first), after a few hard early reflections off the walls close by
 function houseIR() {
@@ -52,6 +54,30 @@ function houseIR() {
   }
   return ir;
 }
+// a big hard hall (the mall: world/arena-mall.js): early reflections coming back off the shopfronts and the pillars
+// over the first tenth of a second, a long bright-then-dull tail ringing round the atrium (HALL.tail seconds to die
+// away), and the shot slapping back off the far walls a beat later, twice (HALL.slaps: when, ms, and how loud). Wide:
+// each ear its own
+const HALL = { tail: 2.3, early: [[11, 0.8], [19, 0.62], [28, 0.55], [41, 0.42], [57, 0.36], [74, 0.3], [96, 0.22]], slaps: [[240, 0.42], [410, 0.3], [620, 0.18]], send: 0.85 };
+function hallIR() {
+  const sr = AC.sampleRate, len = Math.floor(sr * (HALL.tail + 0.4)), ir = AC.createBuffer(2, len, sr);
+  for (let c = 0; c < 2; c++) {
+    const d = ir.getChannelData(c); let lp = 0;
+    for (let i = Math.floor(sr * 0.008); i < len; i++) {
+      const t = i / sr, a = Math.max(0.04, 0.75 - t * 0.45);
+      lp += a * ((rand() * 2 - 1) - lp); d[i] = lp * Math.exp(-t * 6.9 / HALL.tail) * Math.min(1, t / 0.03) * 0.5;
+    }
+    for (const [ms, g] of HALL.early) d[Math.floor((ms + c * 2.3 + rr(-1.5, 1.5)) * sr / 1000)] += rand() < 0.5 ? -g : g;
+    for (const [ms, g] of HALL.slaps) {
+      const at = Math.floor((ms + c * 9 + rr(-8, 8)) * sr / 1000), w = Math.floor(sr * 0.02); let l2 = 0;
+      for (let k = 0; k < w * 3 && at + k < len; k++) { l2 += 0.35 * ((rand() * 2 - 1) - l2); d[at + k] += l2 * g * Math.exp(-k / w) * 3; }
+    }
+  }
+  return ir;
+}
+// what you're in, for how it rings (audio/sfx.js shots, everyone's shots and hits: net/avatars.js heardFrom): the
+// farmhouse's room, the big hall of an indoor map, or nothing (out in the open)
+export const roomNow = () => ARENA.on ? (ARENA.indoor ? 'hall' : null) : inHouseRect(P.x, P.z, 0) ? 'house' : null;
 // the farm's echo, for gunshots: the shot comes back off the tree line, the barn and the hills, a few distinct
 // slap-backs smeared by distance (FAR_ECHO.taps: when, in ms, and how loud) over a long low roll that swells in after a
 // beat and dies away over FAR_ECHO.tail seconds, darker as it goes (the air soaks up the highs first). Each ear hears it
@@ -87,6 +113,11 @@ export function samplesInit() {
     verbIn = AC.createGain(); verbIn.connect(cv); cv.connect(hp); hp.connect(lp); lp.connect(master);
   } catch (e) { verbIn = null; }
   try {
+    const cv = AC.createConvolver(), hp = AC.createBiquadFilter(), lp = AC.createBiquadFilter();
+    cv.buffer = hallIR(); hp.type = 'highpass'; hp.frequency.value = 120; lp.type = 'lowpass'; lp.frequency.value = 5200;
+    hallIn = AC.createGain(); hallIn.connect(cv); cv.connect(hp); hp.connect(lp); lp.connect(master);
+  } catch (e) { hallIn = null; }
+  try {
     const cv = AC.createConvolver(), hp = AC.createBiquadFilter();
     cv.buffer = farIR(); hp.type = 'highpass'; hp.frequency.value = 90; echoLp = AC.createBiquadFilter(); echoLp.type = 'lowpass'; echoLp.frequency.value = ECHO_AT.out[1];
     echoOut = AC.createGain(); echoOut.gain.value = ECHO_AT.out[0];
@@ -100,12 +131,22 @@ export function samplesInit() {
   }
 }
 // whether you're inside the farmhouse
-export const indoors = () => inHouseRect(P.x, P.z, 0);
+export const indoors = () => !ARENA.on && inHouseRect(P.x, P.z, 0);   // (none in the arena: world/arena.js)
 // plays a recorded sound (or one of a list, not the same one twice running). False if it isn't loaded, so the caller
 // plays its synthesized one. o: vol (times its own), rate, jit (the rate's varied by up to this either way, each
 // time), echo (how much goes to the farm's echo: FAR_ECHO), lp (a lowpass at this), hp (a highpass at this), dur (only its first this many seconds, faded out over the
 // back of them), tone (a bump or dip of up to this many dB somewhere in the mids), pan, verb (how much goes to the
 // house's reverb), gap (overrides its own)
+// the game's own speed for what it plays (the arena's match over, slowing to a stop: game/loop.js): every sound playing
+// and every one started slowed with it, deeper and longer, as the world is (never quite to a stop: SND.floor)
+const SND = { rate: 1, floor: 0.14, live: new Set(), last: null };
+export function sndLive(s) { s._r = s.playbackRate.value; if (SND.rate !== 1) s.playbackRate.value = s._r * SND.rate; SND.live.add(s); s.addEventListener('ended', () => SND.live.delete(s)); }
+// the source and gain of the last sound started (a heavy swing's rush, cut off when the swing's broken: melee/block.js)
+export const sndLastPlayed = () => SND.last;
+export function sndRate(r) {
+  r = Math.max(SND.floor, Math.min(1, r)); if (Math.abs(r - SND.rate) < 0.002) return;
+  SND.rate = r; for (const s of SND.live) s.playbackRate.value = s._r * r;
+}
 export function playS(name, o) {
   if (!AC) return false;
   o = o || {};
@@ -113,13 +154,13 @@ export function playS(name, o) {
   if (Array.isArray(name)) { const ok = name.filter(n => sbuf[n]); if (!ok.length) return false; name = ok.length > 1 ? pick(ok.filter(n => n !== sLast[key])) : ok[0]; sLast[key] = name; }
   const b = sbuf[name], d = SAMPLES[name]; if (!b) return false;
   // from somewhere on the farm (o.at, or soundAt's SND_AT): quieter with distance, off to its side, muffled through walls
-  const at = o.at || SND_AT, ear = at ? earFrom(at.x ?? at[0], at.z ?? at[1], at.w) : null;
+  const at = o.at || SND_AT, ear = at ? earFrom(at.x ?? at[0], at.z ?? at[1], at.w, o.far || at.far) : null;   // (o.far: a gunshot, heard a long way: audio/spatial.js)
   const t = AC.currentTime, gap = o.gap ?? d.gap;
   if (gap && t - (sGapT[key] ?? -9) < gap) return true;   // one just played: this is covered by it
   if (sVoices > 48) return true;
   sGapT[key] = t;
   const s = AC.createBufferSource(), g = AC.createGain(), jit = o.jit ?? 0.04;
-  s.buffer = b; s.playbackRate.value = (o.rate || 1) * rr(1 - jit, 1 + jit);
+  s.buffer = b; s.playbackRate.value = (o.rate || 1) * rr(1 - jit, 1 + jit); sndLive(s);
   g.gain.value = d.vol * (o.vol ?? 1) * rr(0.9, 1) * (ear ? ear.vol : 1);
   let n = s;
   const lp = Math.min(o.lp || 20000, ear ? ear.lp : 20000);
@@ -131,8 +172,12 @@ export function playS(name, o) {
   const pan = o.pan ?? (ear ? ear.pan : 0);
   if (pan && AC.createStereoPanner) { const p = AC.createStereoPanner(); p.pan.value = pan; n.connect(p); n = p; }
   n.connect(master);
-  if (o.verb && verbIn && !(ear && ear.walls)) { const v = AC.createGain(); v.gain.value = o.verb; n.connect(v); v.connect(verbIn); }
+  // (the room ringing with it: the farmhouse's, or a hall's, where everything rings, near or far, whatever's between)
+  const rm = roomNow(), vb = rm === 'hall' ? Math.max(o.verb || 0, at ? 0.3 : 0) * HALL.send : o.verb;
+  if (vb && rm === 'hall' && hallIn) { const v = AC.createGain(); v.gain.value = vb; n.connect(v); v.connect(hallIn); }
+  else if (vb && verbIn && !(ear && ear.walls)) { const v = AC.createGain(); v.gain.value = vb; n.connect(v); v.connect(verbIn); }
   if (o.echo && echoIn) { const v = AC.createGain(); v.gain.value = o.echo; n.connect(v); v.connect(echoIn); }   // (the farm's echo: FAR_ECHO)
+  SND.last = { s, g };   // (the last one started, so it can be cut short: sndLastPlayed)
   sVoices++; s.onended = () => { sVoices--; };
   if (o.dur) { const v = g.gain.value; g.gain.setValueAtTime(v, t + o.dur * 0.35); g.gain.linearRampToValueAtTime(0, t + o.dur); s.start(t); s.stop(t + o.dur + 0.02); return true; }
   s.start(t);

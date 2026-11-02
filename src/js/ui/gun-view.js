@@ -9,13 +9,14 @@ import { clamp } from '../core/math.js';
 import { binModel, BLOB_TEX } from '../core/geometry.js';
 import { PM } from '../player/player.js';
 import { bareLook } from '../player/gear.js';
+import { bareBack } from '../player/stow.js';
 import { ARM_THIN, ARM_X } from '../player/hold.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { modLv } from '../weapons/mod-levels.js';
 import { setTierCtx, W, W8 } from '../game/run-state.js';
 import { gunMeshes } from '../weapons/gun-materials.js';
 import { buildWeapon, weaponRec } from '../weapons/build-weapons.js';
-import { blinkStep, LOOK } from '../player/look.js';
+import { blinkStep, faceGaze, gazeStep, LOOK } from '../player/look.js';
 
 // how it turns (radians a second) and how far it tips, how close the camera comes and how far it'll zoom either way,
 // how long it waits after you let go before it turns on its own again (s), and how much the wheel zooms (per unit it rolls)
@@ -25,6 +26,10 @@ let yaw = 1.1, pitch = 0.16, gvZoom = 1, idleT = 9, drag = null, gvLen = 0.5, gv
 // showing you rather than a weapon: where on you the camera's headed (fig.to: the point, how far back, from which way
 // round and how far above) and where it is on the way there (fig.at, fig.dist), and each part of you the views look at
 let fig = null, gvRig = null, gvFloor = null, gvSpin = true;
+// no moving it about (the right or middle button, or Shift, dragging it up, down and across): the arena's Loadouts
+// screen keeps each weapon where it's framed, only turned and zoomed (ui/arena-loadouts.js); let go again when it shuts
+let gvNoPan = false;
+export function studioNoPan(on) { gvNoPan = !!on; }
 const figPart = new Map();
 // the studio's lights: [colour, strength, and where from (to the camera's right, up, toward it)]; sky: [above, below, strength]
 export const STUDIO_LIGHT = { sky: [0xfff0dc, 0x1c1610, 1.15], key: [0xfff0dc, 3.4, 1.6, 2.4, 2.2], fill: [0xc4d6ff, 1.05, -2.3, 0.8, 1.4], rimW: [0xffc48a, 2.6, -1.5, 1.9, -2.4], rimC: [0xa8c0ff, 1.5, 1.9, 1.4, -2.1] };
@@ -63,7 +68,7 @@ function setup() {
   gvFloor = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: BLOB_TEX, color: 0x000000, transparent: true, opacity: 0.55, depthWrite: false }));
   gvFloor.scale.set(1.1, 1, 0.8); gvFloor.position.y = 0.004; gvFloor.visible = false; gvScene.add(gvFloor);
   // the left button turns it; the right or middle button, or the left with Shift held, moves it about (pan)
-  gunView.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, yaw, pitch, pan: e.button === 2 || e.button === 1 || e.shiftKey, aim: gvAim.clone() }; try { gunView.setPointerCapture(e.pointerId); } catch (er) {} idleT = 0; });
+  gunView.addEventListener('pointerdown', e => { if (gvNoPan && (e.button === 2 || e.button === 1 || e.shiftKey)) return; drag = { x: e.clientX, y: e.clientY, yaw, pitch, pan: e.button === 2 || e.button === 1 || e.shiftKey, aim: gvAim.clone() }; try { gunView.setPointerCapture(e.pointerId); } catch (er) {} idleT = 0; });
   gunView.addEventListener('pointermove', e => {
     if (!drag) return; idleT = 0;
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
@@ -126,7 +131,7 @@ function copyPlain(o) {
 }
 // what each view of you looks at (on: the part, at: a point on it in its own space; no part: from your feet), how far
 // back (m), from which way round (0: straight in front of you) and how far above (radians)
-const gvBlink = {};
+const gvBlink = {}, gvGaze = {};
 const FOCUS = {
   body: { at: [0, 0.82, 0], dist: 3.4, yaw: 0.55, pitch: 0.1 },
   face: { on: 'head', at: [0, 0.01, 0.1], dist: 1.22, yaw: 0.14, pitch: 0.05 },   // (the whole head and a hat in the frame, not cut off)
@@ -162,7 +167,8 @@ export function showFigure(key, fresh, gear, easy, room = 1) {
     figPart.clear();
     // (in first person your head's hidden: game/view-cam.js; the copy has it as ever)
     const hv = PM.head.visible; PM.head.visible = true;
-    const copy = () => { PM.g.updateMatrixWorld(true); return copyPlain(PM.g); }, c = gear ? copy() : bareLook(copy); PM.head.visible = hv;
+    // (and the pack as it's shown in here: no planks on it, the melee weapon snug across it, player/stow.js bareBack)
+    const copy = () => { PM.g.updateMatrixWorld(true); return copyPlain(PM.g); }, c = bareBack(() => gear ? copy() : bareLook(copy)); PM.head.visible = hv;
     c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); if (easy) standEasy(); gvPivot.add(c); gvModel = c; gvSig = '';
     c.updateMatrixWorld(true);
   }
@@ -203,7 +209,8 @@ function gvTick(t) {
     const d = camDist(), look = fig ? _gvL.copy(fig.at).add(gvAim) : gvAim;
     gvCam.position.set(Math.sin(yaw) * Math.cos(pitch) * d, Math.sin(pitch) * d, Math.cos(yaw) * Math.cos(pitch) * d).add(look); gvCam.lookAt(look); gvCam.updateProjectionMatrix(); gvCam.updateMatrixWorld();
     gvRig.rotation.y = yaw; gvFloor.visible = !!fig;
-    if (fig) { const H = LOOK.g.head.userData.face, b = blinkStep(gvBlink, real); if (H) H.eyes.forEach(e => { const c = figPart.get(e); if (c) c.scale.y = Math.max(0.07, 1 - b); }); }   // (you blink in here too)
+    if (fig) { const H = LOOK.g.head.userData.face, b = blinkStep(gvBlink, real); if (H) H.eyes.forEach(e => { const c = figPart.get(e); if (c) c.scale.y = Math.max(0.07, 1 - b); });   // (you blink in here too)
+      const gz = gazeStep(gvGaze, real, 1, gvBlink); faceGaze(LOOK.g.head, gz[0], gz[1], o => figPart.get(o)); }   // (and look about)
     gvR.render(gvScene, gvCam);
   }
   gvRaf = requestAnimationFrame(gvTick);

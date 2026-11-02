@@ -29,3 +29,7 @@ gunMeshes.melee.position.set(0, 0, 0.5);
 
 // setters for the variables above that other files change (an imported variable can only be read)
 export function setStowDirty(v) { return (stowDirty = v); }
+// what fn adds to g, anywhere under it, marked as fitted to the gun: an attachment, which the slot row draws in gold
+// (ui/melee-art.js). The attachments go on through it (weapons/build-weapons.js), and the models that build their own
+// optic, laser or light build them in it
+export function fitted(g, fn) { const was = new Set(); g.traverse(o => was.add(o)); const r = fn(); g.traverse(o => { if (!was.has(o)) o.userData.att = true; }); return r; }

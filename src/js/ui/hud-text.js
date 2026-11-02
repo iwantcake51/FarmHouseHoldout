@@ -1,6 +1,6 @@
 // HUD text helpers, toasts, announcements, slots, the pickup feed and floating labels.
 
-import { $ } from '../core/dom.js';
+import { $, nextFrame, replay } from '../core/dom.js';
 import { GI, GI_VB } from './game-icons.js';
 import { cam } from '../core/renderer.js';
 import { cache, clamp, rand, rr, smooth } from '../core/math.js';
@@ -10,6 +10,8 @@ import { WEAP } from '../weapons/gun-stats.js';
 import { W8 } from '../game/run-state.js';
 import { onScreen } from '../game/view-cam.js';
 import { projV } from './crosshair.js';
+import { gunArt, gunArtKey } from './melee-art.js';
+import { RUN_CHAIN } from './run-stats.js';
 
 export const setT = (id, v) => { if (cache[id] !== v) { cache[id] = v; $(id).textContent = v; } };
 export const setH = (id, v) => { if (cache['h' + id] !== v) { cache['h' + id] = v; $(id).innerHTML = v; } };
@@ -24,9 +26,16 @@ function rollDrum() {
   c._s = c.lastChild; c._p = 20; c._end = 0; c._s.style.setProperty('--p', -20);
   return c;
 }
+// (a drum just put back to its middle copy, or just made, is held still till the page has been drawn with it there, so
+// its spin starts from there: drumHold; what it's asked meanwhile is kept, the last of it, and played then)
+function drumHold(c) { c._hold = true; nextFrame(() => { c._hold = false; const a = c._pend; c._pend = null; if (a) drumGo(c, ...a); }); }
 function drumTo(c, d, dir, spins, dur, now) {
   // back to the middle copy while it's still, so the next spin has room
-  if (now > c._end && Math.floor(c._p / 10) !== 2) { c._p = 20 + (c._p % 10); c._s.style.transition = 'none'; c._s.style.setProperty('--p', -c._p); void c._s.offsetWidth; }
+  if (!c._hold && now > c._end && Math.floor(c._p / 10) !== 2) { c._p = 20 + (c._p % 10); c._s.style.transition = 'none'; c._s.style.setProperty('--p', -c._p); drumHold(c); }
+  if (c._hold) { c._pend = [d, dir, spins, dur, now]; return; }
+  drumGo(c, d, dir, spins, dur, now);
+}
+function drumGo(c, d, dir, spins, dur, now) {
   const cur = c._p % 10;
   let t = dir > 0 ? c._p + ((d - cur + 10) % 10) + 10 * spins : dir < 0 ? c._p - ((cur - d + 10) % 10) - 10 * spins : c._p + d - cur;
   if (t > ROLL_N - 1 || t < 0) t = 20 + d;   // ran off the strip in a long run of quick changes: settle in the middle copy
@@ -38,8 +47,7 @@ function rollNum(sp, v, prev, now, str, spin) {
   const s = str || String(v), dir = Math.sign(v - prev), big = spin || Math.abs(v - prev) >= 10, cols = sp._cols;
   while (cols.length > s.length) sp.removeChild(cols.shift());                                                          // fewer digits: the leading drums go
   let added = false;
-  while (cols.length < s.length) { const c = rollDrum(); sp.insertBefore(c, sp.firstChild); cols.unshift(c); added = true; }   // more: new ones start at 0
-  if (added && prev !== v) void sp.offsetWidth;   // laid out at 0 first, so they roll up from there instead of appearing
+  while (cols.length < s.length) { const c = rollDrum(); sp.insertBefore(c, sp.firstChild); cols.unshift(c); added = true; if (prev !== v) drumHold(c); }   // more: new ones start at 0 (drawn there first, so they roll up from there instead of appearing)
   for (let k = 0; k < s.length; k++) drumTo(cols[k], +s[k], dir, big && dir ? 1 : 0, prev === v ? 0 : big ? 0.42 + 0.12 * k : 0.18, now);
 }
 // spin: every change spins its drums a whole extra turn (the wave number), not just a big jump
@@ -57,26 +65,65 @@ export function rollText(el, text, spin) {
   el._roll = { shape, nums };
 }
 export const setRoll = (id, v, spin) => rollText($(id), v, spin);
-export const popEl = id => { const el = $(id); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); };
+export const popEl = id => replay($(id), 'pop');
 let toastT = 0, annT = 0;
 // a notification card: an icon tile, a short title and an optional hint line, coloured by kind (bad, warn, info, good)
 export function toast(t, opt) {
   const o = opt || {}, el = $('toast');
   $('toastT').textContent = t; $('toastS').textContent = o.sub || ''; $('toastIc').innerHTML = FEED_ICON[o.icon] || FEED_ICON.gear;
-  el.className = 'hud ' + (o.kind || 'info'); void el.offsetWidth; el.classList.add('show'); toastT = 2.6;
+  el.className = 'hud ' + (o.kind || 'info'); replay(el, 'show'); toastT = 2.6;
+}
+// an elite's call (zombies/elites.js): its own card, not a notification, slammed in from the left in its colour (col)
+// with its icon (one of GI's) in a soft glow, an eyebrow (eye), its name big, a line and a tip; it holds for t
+// seconds as a bar runs out under it, then slides off. down: one put down, with the skull (styles/overlays.css: #eliteCall)
+let ecT1 = 0, ecT2 = 0;
+export function eliteCall(o) {
+  const el = $('eliteCall'), t = o.t || 3.4;
+  clearTimeout(ecT1); clearTimeout(ecT2);
+  el.style.setProperty('--ec', o.col); el.style.setProperty('--ecT', t + 's');
+  $('ecIc').innerHTML = GI[o.icon] || GI.zombie; $('ecEye').textContent = o.eye || ''; $('ecName').textContent = o.name || '';
+  $('ecLine').textContent = o.line || ''; $('ecTip').textContent = o.tip || '';
+  // (a wave's elites: a row for each kind, its icon in its colour and how many, side by side)
+  $('ecList').innerHTML = (o.list || []).map(r => `<span class="ecRow" style="--rc:${r.col}"><svg viewBox="${GI_VB}">${GI[r.icon] || ''}</svg><b>${r.n}×</b><span><u>${r.name}</u></span></span>`).join('');   // (kept short: only what's coming and how many)
+  el.className = 'hud'; replay(el, ...(o.down ? ['show', 'down'] : ['show']));
+  ecT1 = setTimeout(() => { el.className = 'hud out' + (o.down ? ' down' : ''); ecT2 = setTimeout(() => { el.className = 'hud'; }, 450); }, t * 1000);
 }
 // the big centre-screen card: a small eyebrow, the headline, a rule that draws out from the middle, and a subtitle ribbon.
+// a chain of kills (each within RUN_CHAIN of the last: ui/run-stats.js) called out from the second on: a small card under
+// the middle with its name (STREAK), a pip for each kill in it, what it's paid as it grows (zombies/damage.js: CHAIN_SCRAP), and a
+// thin bar draining over the time left to keep it going. Each kill pops it in again, its glow hotter the longer it runs;
+// it's there as long as the chain can still go on, and fades once it can't
+const STREAK = [[10, 'Unstoppable'], [7, 'Massacre'], [5, 'Rampage'], [4, 'Quad kill'], [3, 'Triple kill'], [2, 'Double kill']], STREAK_PIPS = 10;
+let streakT = 0;
+export function streakShow(n, paid) {
+  const s = STREAK.find(([k]) => n >= k), el = $('streak'); if (!s) return;
+  const pips = '<i></i>'.repeat(Math.min(n, STREAK_PIPS)) + (n > STREAK_PIPS ? `<em>+${n - STREAK_PIPS}</em>` : '');
+  el.innerHTML = `<b>${s[1]}</b><span class="pips">${pips}</span>` + (paid ? `<small>+${paid} scrap</small>` : '') + `<u></u>`;
+  el.style.setProperty('--lv', Math.min(5, n - 1)); el.style.setProperty('--t', RUN_CHAIN + 's');
+  el.classList.add('on'); replay(el, 'pop');
+  clearTimeout(streakT); streakT = setTimeout(() => el.classList.remove('on'), RUN_CHAIN * 1000);
+}
 // kind '' is orange, 'gold' for a cleared wave, 'red' for brute nights
 export function announce(a, b, opt) {
   const o = opt || {}, el = $('announce');
   $('annEye').textContent = o.eye || ''; $('annBig').textContent = a; $('annSmall').textContent = b;
-  el.className = 'hud' + (o.kind ? ' ' + o.kind : ''); void el.offsetWidth; el.classList.add('show');
+  el.className = 'hud' + (o.kind ? ' ' + o.kind : ''); replay(el, 'show');
   el.style.opacity = 1; annT = 2.8;
 }
+// the slot row under the ammo count: each weapon you carry as a picture of its own model (ui/melee-art.js: gunArt), with
+// whatever's fitted to it, by the number that picks it; the one in your hands lit, an empty slot just its number. Each
+// picture is shown SLOT_ART.h tall, as wide as that makes it (between min and max), so every slot is only as wide as
+// what's in it and the gaps between them come out even. The pictures are kept, so a slot's only drawn again when what's
+// in it changes
+const SLOT_ART = { h: 26, min: 28, max: 76 };
 export function renderSlots() {
-  const k = SLOTS.map(s => (W8.slot[s] || '-') + (W8.cur === s ? 'c' : '')).join();
+  const k = SLOTS.map(s => (W8.slot[s] ? gunArtKey(W8.slot[s]) : '-') + (W8.cur === s ? 'c' : '')).join();
   if (cache.slots === k) return; cache.slots = k;
-  $('slots').innerHTML = SLOTS.map((s, i) => `<span class="${W8.cur === s ? 'on' : ''} ${W8.slot[s] ? '' : 'lock'}"><em>${i + 1}</em>${W8.slot[s] ? WEAP[W8.slot[s]].short : '—'}</span>`).join('');
+  $('slots').innerHTML = SLOTS.map((s, i) => {
+    const id = W8.slot[s], a = id && gunArt(id), nm = id ? WEAP[id].name : 'Empty';
+    const aw = a ? `--aw:${clamp(SLOT_ART.h * a.w / a.h, SLOT_ART.min, SLOT_ART.max).toFixed(0)}px` : '';
+    return `<span class="${W8.cur === s ? 'on' : ''}${id ? '' : ' lock'}" style="${aw}" aria-label="${i + 1}: ${nm}"><em>${i + 1}</em>${a ? `<i style="--art:url(${a.url})"></i>` : ''}</span>`;
+  }).join('');
 }
 // pickup feed: entries slide in, matching ones stack their amounts
 export const FEED_ICON = { scrap: GI.scrap, planks: GI.planks, metal: GI.metal, ammo: GI.ammo, med: GI.med, supply: GI.supply, gear: GI.gear };   // (ui/game-icons.js)
@@ -84,7 +131,7 @@ export const feedItems = [];
 export function feed(kind, amount, label) {
   const now = performance.now();
   const ex = feedItems.find(f => f.kind === kind && f.label === label && now - f.t < 2600 && amount);
-  if (ex) { ex.amount += amount; ex.t = now; ex.el.querySelector('b').textContent = '+' + ex.amount; ex.el.classList.remove('bump'); void ex.el.offsetWidth; ex.el.classList.add('bump'); ex.el.classList.toggle('alt'); return; }   // (alt: its timer runs from full again)
+  if (ex) { ex.amount += amount; ex.t = now; ex.el.querySelector('b').textContent = '+' + ex.amount; replay(ex.el, 'bump'); ex.el.classList.toggle('alt'); return; }   // (alt: its timer runs from full again)
   const el = document.createElement('div'); el.className = 'fd ' + kind;
   el.innerHTML = `<i class="fdI"><svg viewBox="${GI_VB}">${FEED_ICON[kind] || FEED_ICON.gear}</svg></i>${amount ? '<b></b>' : ''}<span></span>`;
   if (amount) el.querySelector('b').textContent = '+' + amount;

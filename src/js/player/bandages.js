@@ -12,6 +12,7 @@ import { cutReload, equip } from '../weapons/reload.js';
 import { runStat } from '../ui/run-stats.js';
 import { feed, popEl, toast } from '../ui/hud-text.js';
 import { ANIM } from './animation.js';
+import { PVP } from '../pvp/pvp.js';
 
 const BAND_BASE = 3, BAND_TIME = 2.4, BAND_HEAL = 25, HEAL_RATE = 4.5;
 // how long a finished bandage shows on the crosshair at 100% before it goes (ui/crosshair.js): just a blink, so it's
@@ -41,7 +42,7 @@ function healRate(n = medT('tonic')) { return HEAL_RATE * Math.pow(1.4, n); }
 const bandGot = h => Math.max(0, Math.round(Math.min(h, hpCap() - P.hp - (P.heal || 0))));
 export function startBandage() {
   if (P.dead || P.vault || P.bandT > 0 || openSt) return;
-  if (!(P.band > 0)) { toast('No bandages', { kind: 'bad', icon: 'med', sub: 'Buy them at the medicine cabinet' }); return; }
+  if (!(P.band > 0)) { toast('No bandages', { kind: 'bad', icon: 'med', sub: PVP.on ? 'None left this life' : 'Buy them at the medicine cabinet' }); return; }
   if (P.hp >= hpCap() && !(P.bleed > 0)) { toast('Not hurt', { kind: 'info', icon: 'med', sub: 'Save your bandages for later' }); return; }
   exitScope(); cutReload(); W8.burstLeft = 0; W8.swing = 0;
   P.bandT = P.bandMax = bandTime() * bandNeed(); P.bandBleed = P.bleed > 0; ANIM.bandDone = 0;

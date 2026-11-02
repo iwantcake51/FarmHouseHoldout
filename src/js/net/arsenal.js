@@ -7,24 +7,28 @@
 // mags and loaders come as their own messages and fall where they did for them.
 
 import { V3 } from '../core/renderer.js';
+import { gild } from '../effects/gold.js';
 import { NET, NET_ON, netSend, netTo } from './net.js';
 import { lam } from '../core/shaders.js';
-import { binModel, box, mergeInto } from '../core/geometry.js';
+import { binModel, box, mergeInto, spanOf } from '../core/geometry.js';
 import { P, packBody, PM } from '../player/player.js';
 import { LOOK, shade } from '../player/look.js';
 import { SLOTS } from '../weapons/slots.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { modLv } from '../weapons/mod-levels.js';
 import { setTierCtx, W, W8 } from '../game/run-state.js';
+import { BOLT_TURN } from '../player/hold-kick.js';
 import { AKX, BELT, BRK, CRANE, flipOf, GM, gunMeshes, HOLDS, MAGG, SLIDES, X } from '../weapons/gun-materials.js';
 import { SHELL_MAT } from '../weapons/gun-models.js';
 import { GUNS } from '../melee/melee-models.js';
 import { gearOnAvatar, gearSpec } from '../player/gear.js';
 import { buildWeapon, weaponRec } from '../weapons/build-weapons.js';
-import { placeMag } from '../weapons/casings.js';
+import { placeMag, remoteCycle, remoteEnd } from '../weapons/casings.js';
 import { state } from '../game/state.js';
-import { SNAP_GUN } from './avatars.js';
+import { SNAP_GUN, swingNow } from './avatars.js';
+import { camFocus } from './spectate.js';
 import { HSH, placeLoader, SL_RND, SLM } from '../player/hold-loaders.js';
+import { HOLD, HOLD_DEF } from '../player/hold.js';
 import {
   BELT_M, BUCKLE_M, buildHolster, HOLSTER_M, HOOD_M, packBack, STOW, STOW_AK, STOW_AT, STOW_RIG
 } from '../player/stow.js';
@@ -49,7 +53,7 @@ function myLoadout() {
   for (const s of SLOTS) {
     const id = W8.slot[s]; if (!id) continue;
     const mods = W8.mods[id] || [], lv = {}; mods.forEach(m => { lv[m] = modLv(m); });
-    guns[id] = { mods, lv, gt: W8.gt[id] || {}, pin: (W8.pin && W8.pin[id]) || null, att: W8.att[id] || {}, rnd: (W8.rounds && W8.rounds[id]) || null, ak: !!(W(id) || {}).akimbo, rd: (W8.rds && W8.rds[id]) || null };   // (rd: which red dot it wears: weapons/attachments.js)
+    guns[id] = { mods, lv, gt: W8.gt[id] || {}, pin: (W8.pin && W8.pin[id]) || null, att: W8.att[id] || {}, rnd: (W8.rounds && W8.rounds[id]) || null, ak: !!(W(id) || {}).akimbo, rd: (W8.rds && W8.rds[id]) || null, gold: W8.gold && W8.gold[id] ? 1 : 0 };   // (rd: which red dot it wears: weapons/attachments.js; gold: Gun game's last two, pvp/pvp.js)
     const o = STOW[s]; if (o) { stow[s] = stowPose(o); if (o.userData.twin) stow[s + '2'] = stowPose(o.userData.twin); }
   }
   return { slots: Object.assign({}, W8.slot), guns, stow, hol: LOOK.cur ? LOOK.cur.holster : 0x1d1d1f, gear: gearSpec() };
@@ -63,11 +67,44 @@ function loadoutTick() {
 }
 NET_ON.loq = m => { if (loNow) netTo(m.f, 'lo', loNow); };
 // (and the gear they've earned on them, built again only when it's changed: gearOnAvatar, player/gear.js)
+// Built on them a survivor at a time, not all at once (LO_Q): a Showdown round's next loadout arrives for every bot
+// in the same frame, and building all their guns there and then stalled it for seconds. A survivor with nothing in
+// their hands yet who's in view, the one you're watching, or one whose guns are all built ahead already
+// (ARS_POOL: cheap, only taken) gets theirs at once; the rest wait their turn (arsenalQueueStep), the latest loadout
+// of each replacing whatever was waiting
+const LO_Q = new Map(), LO_BUDGET = 6;
 NET_ON.lo = m => {
   const p = NET.peers.get(m.f); if (!p) return; p.lo = m.lo; p.lk = m.lk; if (!p.av) return;
-  buildArsenal(p.av, m.lo, m.lk);
-  const gk = JSON.stringify([m.lo.gear, m.lo.slots]); if (gk !== p.av.gearKey) { p.av.gearKey = gk; gearOnAvatar(p.av, m.lo.gear, m.lo.slots, p.av.look); }
+  LO_Q.delete(p.id);
+  const a = p.av, bare = !a.held || !Object.keys(a.held).length;
+  if ((bare && a.g.visible) || camFocus() === p || loCheap(a, m.lo)) loApply(p); else LO_Q.set(p.id, p);
 };
+function loApply(p) {
+  const a = p.av; if (!a || !p.lo) return;
+  buildArsenal(a, p.lo, p.lk);
+  const gk = JSON.stringify([p.lo.gear, p.lo.slots]); if (gk !== a.gearKey) { a.gearKey = gk; gearOnAvatar(a, p.lo.gear, p.lo.slots, a.look); }
+}
+// (everything in it either on them already or built ahead and waiting to be taken)
+function loCheap(a, lo) {
+  for (const s of SLOTS) {
+    const id = lo.slots[s], gl = id && lo.guns[id]; if (!gl || !GUNS[id]) continue;
+    if (a.armKey && a.armKey[s] === loKeyOf(lo, s, id, gl) && a.held && a.held[s]) continue;
+    const l = ARS_POOL.get(arsKey(id, gl)); if (!l || !l.length) return false;
+  }
+  return true;
+}
+// every frame (net/avatars.js): the survivors waiting for theirs, the cheap ones first, as many as fit in LO_BUDGET ms
+// (always one)
+export function arsenalQueueStep() {
+  if (!LO_Q.size) return;
+  const t0 = performance.now();
+  while (LO_Q.size) {
+    let p = null; for (const q of LO_Q.values()) { if (!q.av || camFocus() === q || loCheap(q.av, q.lo)) { p = q; break; } }
+    if (!p) p = LO_Q.values().next().value;
+    LO_Q.delete(p.id); if (p.av && NET.peers.get(p.id) === p) loApply(p);
+    if (performance.now() - t0 > LO_BUDGET) break;
+  }
+}
 
 // your weapons this pose: each one out (in the body's own frame), with its moving parts whenever they've changed (and
 // every second regardless, for anyone who's just built your weapons); what's stowed and showing; what's in your hand
@@ -125,15 +162,18 @@ export function teamWeapon(lo, id) {
       else { holds.R = hold(0, 'R'); muz = buildWeapon(holds.R, id, D, mods, rec); }
     });
   } catch (e) { console.warn('teammate weapon', id, e); }
+  if (lo.gold) gild(g, true);   // (Gun game's golden revolver and katana, on whoever carries them: effects/gold.js)
   return { g, holds, rec, muz, moving: movingOf(holds, rec), D };
 }
 // what never moves folded into a mesh or two, under each part that does (and under the holder): a teammate's rifle is
 // a handful of draws, not a hundred
+// (a scope's eyepiece glass and a sight's reticle pane kept as they are, each its own: what's down a scope is drawn into
+// that glass, and a dot or a hologram onto that pane, from the eyes of whoever's holding it, effects/scope-view.js)
 export function foldStatic(root, moving) {
-  const stop = new Set(moving);
+  const stop = new Set(moving), span = spanOf(root);   // (the whole gun's reach: its far version goes over as one, core/geometry.js)
   for (const node of [root, ...moving]) {
-    const parts = []; (function walk(o) { o.children.forEach(c => { if (stop.has(c)) return; if (c.isMesh && c.visible && !c.userData.isFlash) { c.castShadow = true; parts.push(c); } walk(c); }); })(node);
-    if (parts.length > 1) mergeInto(node, parts);
+    const parts = []; (function walk(o) { o.children.forEach(c => { if (stop.has(c)) return; if (c.isMesh && c.visible && !c.userData.isFlash && !c.userData.lens && !c.userData.reticlePane) { c.castShadow = true; parts.push(c); } walk(c); }); })(node);
+    if (parts.length > 1) mergeInto(node, parts, { lod: true, span });
   }
 }
 // a part of your rig to its part of theirs (their survivor is a copy of yours: PM_BASE, player/player.js)
@@ -149,6 +189,32 @@ function copyModel(o) {
   o.children.forEach(q => c.add(copyModel(q)));
   return c;
 }
+// a stowed copy of a built weapon: the one hand's gun of a pair, its hold put back on the middle
+function stowCopy(proto, hand) {
+  const copy = copyModel(proto), holds = {}; copy.scale.x = 1; copy.children.forEach(q => { if (q.userData.side) holds[q.userData.side] = q; });
+  if (holds.L && hand === 'R') copy.remove(holds.L); else if (holds.R && hand === 'L') copy.remove(holds.R);
+  Object.values(holds).forEach(hd => hd.position.set(0, 0, 0));
+  return copy;
+}
+// weapons built ahead of time (pvp/pvp.js: Showdown's next loadout, built a piece a frame while the last round's
+// winding down, so the next round doesn't start on a frame spent building everyone's guns at once): each one taken by
+// the first survivor whose loadout has that same weapon (buildArsenal), instead of being built there and then
+const ARS_POOL = new Map(), arsKey = (id, gl) => JSON.stringify([id, gl]);
+export function arsenalWarm(gl, id) {
+  if (!gl || !GUNS[id]) return;
+  const h = teamWeapon(gl, id), proto = copyModel(h.g); foldStatic(h.g, h.moving);
+  const stow = stowCopy(proto, 'R'); foldStatic(stow, []);
+  const k = arsKey(id, gl); if (!ARS_POOL.has(k)) ARS_POOL.set(k, []); ARS_POOL.get(k).push({ h, proto, stow });
+}
+function arsenalTake(id, gl) { const l = ARS_POOL.get(arsKey(id, gl)); return l && l.length ? l.pop() : null; }
+// and their shaders readied too, all at once, so the first frame they're drawn in isn't spent compiling them
+export function arsenalWarmCompile(R, scene, cam) {
+  const g = new THREE.Group(); for (const l of ARS_POOL.values()) l.forEach(e => { g.add(e.h.g); if (e.stow) g.add(e.stow); });
+  scene.add(g); try { R.compile(scene, cam); } finally { scene.remove(g); [...g.children].forEach(c => g.remove(c)); }
+}
+// (what wasn't taken, once the round's under way: let go)
+const loKeyOf = (lo, s, id, gl) => JSON.stringify([id, gl, s === 'side' ? lo.hol || 0 : 0]);
+export function arsenalWarmClear() { for (const l of ARS_POOL.values()) l.forEach(e => { binModel(e.h.g); if (e.stow) binModel(e.stow); }); ARS_POOL.clear(); }
 // their arsenal, kept up to date with their loadout: only a weapon that's changed (a new attachment, mod or rounds, or a
 // weapon swapped in) is built again, once, and its stowed copies are copied from that one; a weapon that has only moved
 // where it rides on them is moved
@@ -159,7 +225,7 @@ export function buildArsenal(a, lo, lk) {
     const st = a.stowed[s]; if (st) { [st.outer, st.twin && st.twin.outer].forEach(q => { if (q) binModel(q); }); (st.belt || []).forEach(o => o.parent && o.parent.remove(o)); }
     delete a.held[s]; delete a.stowed[s]; delete a.armKey[s];
   };
-  const keyOf = (s, id, gl) => JSON.stringify([id, gl, s === 'side' ? lo.hol || 0 : 0]);
+  const keyOf = (s, id, gl) => loKeyOf(lo, s, id, gl);
   for (const s of SLOTS) {
     const id = lo.slots[s], gl = id && lo.guns[id], ok = !!gl && !!GUNS[id], key = ok ? keyOf(s, id, gl) : '';
     if (a.armKey[s] === key && a.held[s]) {
@@ -172,14 +238,13 @@ export function buildArsenal(a, lo, lk) {
     a.armKey[s] = key;
     const holM = lam(lo.hol || 0x1d1d1f), hoodM = lam(shade(lo.hol || 0x1d1d1f, 0.72));
     // to hold: hidden until a pose says it's out
-    const h = teamWeapon(gl, id), proto = copyModel(h.g); foldStatic(h.g, h.moving); h.g.visible = false; a.g.add(h.g); a.held[s] = h;
+    const pre = arsenalTake(id, gl), h = pre ? pre.h : teamWeapon(gl, id), proto = pre ? pre.proto : copyModel(h.g); if (!pre) foldStatic(h.g, h.moving); h.g.visible = false; a.g.add(h.g); a.held[s] = h; h.id = id;
     h.lasers = []; h.g.traverse(o => { if (o.userData.isLaser) h.lasers.push(o); }); h.laserT = ((gl.gt || {}).laser | 0);   // its laser's lens, shining when it's out (weapons/laser.js)
     // and stowed: where it rides on them (the sender's own placing of it, pushed down onto the pack and all)
     const rig = s === 'side' && gl.ak;
     const place = (at, hand, pose) => {
-      const copy = copyModel(proto), holds = {}; copy.scale.x = 1; copy.children.forEach(q => { if (q.userData.side) holds[q.userData.side] = q; });
-      if (holds.L && hand === 'R') copy.remove(holds.L); else if (holds.R && hand === 'L') copy.remove(holds.R);
-      Object.values(holds).forEach(hd => hd.position.set(0, 0, 0));
+      const ready = hand === 'R' && pre && pre.stow; if (ready) pre.stow = null;   // (its stowed copy built ahead too, arsenalWarm)
+      const copy = ready || stowCopy(proto, hand);
       const outer = new THREE.Group(), inner = new THREE.Group(), pv = at.pivot(id, new THREE.Box3().setFromObject(copy));
       if (pose) { outer.position.fromArray(pose, 0); inner.quaternion.fromArray(pose, 3); copy.position.fromArray(pose, 7); }
       else { outer.position.set(...at.pos); if (at.q) inner.quaternion.copy(at.q); else inner.rotation.set(...at.rot); copy.position.set(-pv[0], -pv[1], -pv[2]); }
@@ -191,7 +256,7 @@ export function buildArsenal(a, lo, lk) {
         hol.traverse(o => { if (o.isMesh) { if (o.material === HOLSTER_M) o.material = holM; else if (o.material === HOOD_M) o.material = hoodM; } });
         foldStatic(hol, []);
       }
-      foldStatic(copy, []);
+      if (!ready) foldStatic(copy, []);
       return { outer, copy, hol };
     };
     const at = rig ? STOW_RIG.R : STOW_AT[s]; if (!at) continue;
@@ -202,20 +267,44 @@ export function buildArsenal(a, lo, lk) {
     if (s === 'side') st.belt = [box(a.upper, 0.512, 0.05, 0.312, BELT_M, 0, 0.6, 0), box(a.upper, 0.07, 0.054, 0.008, BUCKLE_M, 0, 0.6, 0.158)];
   }
   // the speed loader and the shells in their hand
-  if (!a.slm) { a.slm = SLM.clone(true); a.slm.visible = false; a.upper.add(a.slm); a.hsh = HSH.clone(true); a.hsh.visible = false; a.upper.add(a.hsh); }
+  // (kept off their rig until they're in hand, arsHang: a speed loader's two hundred pieces would otherwise be walked
+  // over every frame for every survivor, hidden or not)
+  if (!a.slm) { a.slm = SLM.clone(true); a.slm.visible = false; a.hsh = HSH.clone(true); a.hsh.visible = false; }
 }
+// a shot's kick on their gun (m: back along it, up), and when it's died away (a pump's or bolt's working after it goes
+// on as your own does: weapons/casings.js remoteCycle)
+// (and its muzzle flipped up about where it's gripped, flip rad: by its kick, net/avatars.js avShot)
+const ARS_KICK = { back: 0.045, up: 0.012, flip: 0.09 };
+const ARS_KICK_END = 0.36;
 // every frame: their weapons out where they hold them (eased), the moving parts as they last said, what's stowed
-const _aQ = new THREE.Quaternion();
+const _aQ = new THREE.Quaternion(), _swP = new V3(), _aqS = new THREE.Quaternion();
 export function arsenalFrame(p, a, rdt) {
   if (!a.held) return;
   const k = 1 - Math.exp(-rdt * 18), out = new Set();
   for (const e of p.wp || []) {
     const s = SLOTS[e[0]], h = a.held[s]; if (!h) continue; out.add(s);
     if (e[8] && e[8].length === h.moving.length * 8) h.parts = e[8];
-    const g = h.g, first = !g.visible; g.visible = !p.dead;
+    const g = h.g, first = !g.visible || !h.bp; g.visible = !p.dead;
     _arP.set(e[1], e[2], e[3]); _aQ.set(e[4], e[5], e[6], e[7]);
-    if (first) { g.position.copy(_arP); g.quaternion.copy(_aQ); } else { g.position.lerp(_arP, k); g.quaternion.slerp(_aQ, k); }
+    // (a melee swing under way: the weapon where the swing has it, net/avatars.js swingNow, not eased after its pose)
+    const SW = h.D && h.D.melee && swingNow(p);
+    if (SW) { const k = SW.k; _arP.lerp(_swP.set(SW.w[0], SW.w[1], SW.w[2]), k); _aQ.slerp(_aqS.set(SW.w[3], SW.w[4], SW.w[5], SW.w[6]), k); if (h.bp) { h.bp.copy(_arP); h.bq.copy(_aQ); } }
+    if (first) { h.bp = _arP.clone(); h.bq = _aQ.clone(); } else { h.bp.lerp(_arP, k); h.bq.slerp(_aQ, k); }   // (eased on its own, so a shot's kick put on it below never carries over)
+    g.position.copy(h.bp); g.quaternion.copy(h.bq);
     if (h.parts) h.moving.forEach((o, i) => { const b = i * 8, v = h.parts; o.position.set(v[b], v[b + 1], v[b + 2]); o.rotation.set(v[b + 3], v[b + 4], v[b + 5]); o.scale.z = v[b + 6] || 1; o.visible = !!v[b + 7]; });
+    // their shot (net/avatars.js avShot, a.fire): the gun kicked back into them and its muzzle up, easing home, and a
+    // slide or bolt that cycles on its own slammed back and run home, as yours does (player/hold.js)
+    // (and a pump's forend or a bolt worked after the shot, racked back and run home, a bolt's handle turned up first:
+    // with your own cycle's beats and curves, weapons/casings.js remoteCycle; the case flicks out as it hits the stop,
+    // net/avatars.js avShot)
+    const F = a.fire; if (F && F.s === s && F.t < Math.max(ARS_KICK_END, F.cyc ? remoteEnd(F.cyc) : 0)) {
+      F.t += rdt; const st = F.t, kk = F.k * Math.min(1, st / 0.012) * Math.exp(-st * 16);
+      g.translateZ(-ARS_KICK.back * kk); g.position.y += ARS_KICK.up * kk;
+      { const gp = (HOLD[h.id || F.id] || HOLD_DEF).grip; g.translateY(gp[1]); g.translateZ(gp[2]); g.rotateX(-ARS_KICK.flip * kk); g.translateZ(-gp[2]); g.translateY(-gp[1]); }
+      const off = st < 0.02 ? st / 0.02 : st < 0.032 ? 1 : Math.max(0, 1 - (st - 0.032) / 0.06);
+      const cp = F.cyc && remoteCycle(F.cyc, st), rk = cp ? cp.off : 0, lift = cp ? cp.lift : 0;
+      for (const q of h.rec.slides) { if (q.m.userData.clip !== undefined) continue; if (!q.cyc) q.m.position.z = q.z0 - q.travel * off; else { q.m.position.z = q.z0 - q.travel * rk; if (h.D && h.D.ammo === 'rifle' && h.D.slot === 'long') q.m.rotation.z = -BOLT_TURN * lift; } }
+    }
   }
   for (const s in a.held) if (!out.has(s)) a.held[s].g.visible = false;
   SLOTS.forEach((s, i) => {
@@ -225,11 +314,14 @@ export function arsenalFrame(p, a, rdt) {
   });
   // the speed loader or the shells in their hand
   const ex = p.ex || [0, 0]; let i = 0;
-  if (ex[i]) { a.slm.visible = true; a.slm.position.set(ex[i + 1], ex[i + 2], ex[i + 3]); a.slm.quaternion.set(ex[i + 4], ex[i + 5], ex[i + 6], ex[i + 7]); a.slm.children[a.slm.children.length - 1].visible = !!ex[i + 8]; i += 9; } else { a.slm.visible = false; i++; }
+  if (ex[i]) { arsHang(a, a.slm, true); a.slm.position.set(ex[i + 1], ex[i + 2], ex[i + 3]); a.slm.quaternion.set(ex[i + 4], ex[i + 5], ex[i + 6], ex[i + 7]); a.slm.children[a.slm.children.length - 1].visible = !!ex[i + 8]; i += 9; } else { arsHang(a, a.slm, false); i++; }
   if (ex[i]) {
-    a.hsh.visible = true; a.hsh.position.set(ex[i + 1], ex[i + 2], ex[i + 3]); a.hsh.quaternion.set(ex[i + 4], ex[i + 5], ex[i + 6], ex[i + 7]); a.hsh.children.forEach((c, j) => { c.visible = !!(ex[i + 8] & (1 << j)); });
+    arsHang(a, a.hsh, true); a.hsh.position.set(ex[i + 1], ex[i + 2], ex[i + 3]); a.hsh.quaternion.set(ex[i + 4], ex[i + 5], ex[i + 6], ex[i + 7]); a.hsh.children.forEach((c, j) => { c.visible = !!(ex[i + 8] & (1 << j)); });
     // their shells in the colour of the kind their gun has loaded (SHELL_MAT, weapons/gun-models.js)
     const e = (p.wp || [])[0], lo = p.lo, id = e && lo && lo.slots[SLOTS[e[0]]], r = id && lo.guns[id] && lo.guns[id].rnd, sm = SHELL_MAT[r && r.on] || GM.shell;
     a.hsh.children.forEach((c, j) => { if (j < 3 && c.children[0]) c.children[0].material = sm; });
-  } else a.hsh.visible = false;
+  } else arsHang(a, a.hsh, false);
 }
+// something they only hold now and then (the speed loader, the shells in their hand) on their rig while it's out, and off
+// it (not merely hidden) while it isn't
+function arsHang(a, o, on) { o.visible = on; if (on) { if (o.parent !== a.upper) a.upper.add(o); } else if (o.parent) o.parent.remove(o); }

@@ -25,6 +25,7 @@ import { touchBoard, touchTear } from '../input/touch.js';
 import { runStat } from '../ui/run-stats.js';
 import { setH } from '../ui/hud-text.js';
 import { netBoardUp, netRepair } from '../net/sync.js';
+import { ARENA, arVaultWhat } from '../world/arena.js';
 
 // boarding under attack is slow, fumbling work: during a wave it goes at BOARD_WAVE of the speed. The hammer line
 // (upgrades/tier-table.js: S.boardSpeed) speeds it up in full in the break between waves, when there's time to do it
@@ -65,6 +66,9 @@ const TEAR_T = 0.65;
 let tearT = 0;
 const tearHold = o => o && o.grate ? GRATE.tear : TEAR_T;
 const tearable = o => !!(o && o.boards.length && !P.vault && !openSt);
+// whether there's a board or a grate in front of you to tear down this frame: tearing shares G with the underbarrel
+// grenade, and at a boarded window or door G tears rather than fires (input/keyboard-mouse.js)
+export const TEAR_NEAR = { on: false };
 // door/window boarding, station prompts and the on-screen hint
 // the colour each kind of prompt picks its thing out in (a gun's is its rarity's colour)
 const OPEN_OK = 0xf4f1ea, OPEN_NO = 0xe2412c;   // an opening's outline: white, red for a window you can't climb through
@@ -72,6 +76,7 @@ const PROMPT_COL = { thing: '#f0bf4c', station: '#e8c070', move: '#8fc4e0', wood
 export function updateInteractions(dt) {
   // doors, windows and stations
   const o = nearestOpening(), st = nearestStation();
+  TEAR_NEAR.on = tearable(o);
   // the opening you'd work on outlined on your side of it, pulsing as the stations' outlines do (world/house.js)
   openings.forEach(q => {
     // a window you can't climb through (boarded, barred, or nowhere to land) outlined red
@@ -117,7 +122,7 @@ export function updateInteractions(dt) {
       if (tk.kind === 'gun' && tk.cargo.own && netLink()) rows.push(row(KB.share, tk.cargo.shared ? '<b>Stop sharing</b> it' : '<b>Share</b> it with your team', tk.cargo.shared ? 'your team can take it' : '', NET_COL[NET.idx]));
       else if (tk.kind === 'gun' && tk.cargo.own === false) rows.push(off(`Shared by <b>${tk.cargo.who || 'a teammate'}</b>`, tk.cargo.pc)); }
     else if (st) rows.push(row(KB.use, `Use the <b>${st.name.toLowerCase()}</b>`, '', PROMPT_COL.station));
-    if (fv) rows.push(row(KB.vault, 'Hop the <b>fence</b>', '', PROMPT_COL.move));
+    if (fv) rows.push(row(KB.vault, ARENA.on ? `Vault <b>${arVaultWhat(P.x, P.z)}</b>` : 'Hop the <b>fence</b>', '', PROMPT_COL.move));   // (the arena's crate stacks and barriers vault as the fence does: world/arena.js)
     if (o) {
       const what = o.kind === 'door' ? 'door' : 'window';
       if (vaultTarget(o)) rows.push(row(KB.vault, 'Climb through the <b>window</b>', '', PROMPT_COL.move));

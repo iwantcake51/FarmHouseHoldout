@@ -12,7 +12,7 @@ import { state } from '../game/state.js';
 
 export function runStat(k, n) { if (run && run.st) run.st[k] = (run.st[k] || 0) + (n === undefined ? 1 : n); }
 // a kill of yours: what it was, what did it, from how far, and whether it came in a chain (kills RUN_CHAIN s apart)
-const RUN_CHAIN = 1.2;
+export const RUN_CHAIN = 1.6;   // (a touch longer than it was, 1.2: room to line up the next one)
 export function runKill(z, wId, part) {
   const st = run.st; if (!st) return;
   runStat('k_' + (z.crawl ? 'crawler' : z.type));
@@ -25,16 +25,22 @@ export function runKill(z, wId, part) {
   if (st.chain > (st.bestChain || 0)) st.bestChain = st.chain;
 }
 // each frame of a run: what changed since the last (and nothing counted across going down and coming back)
-const RUN_W = { x: 0, z: 0, hp: 0, scrap: 0, live: false };
+const RUN_W = { x: 0, z: 0, hp: 0, scrap: 0, live: false, dip: undefined, dipT: 0 };
+const CLOSE_CALL = 3;
 export function runWatch() {
   const st = run.st; if (!st) return;
-  if (P.dead || state !== 'play') { RUN_W.live = false; return; }
+  if (P.dead || state !== 'play') { RUN_W.live = false; if (P.dead) RUN_W.dip = undefined; return; }
   if (RUN_W.live) {
     const d = Math.hypot(P.x - RUN_W.x, P.z - RUN_W.z); if (d < 3) st.walked = (st.walked || 0) + d;   // (not a respawn or a teleport)
     const dh = P.hp - RUN_W.hp; if (dh < 0) st.hurt = (st.hurt || 0) - dh; else if (dh > 0) st.healed = (st.healed || 0) + dh;
     const ds = S.scrap - RUN_W.scrap; if (ds > 0) st.scrapIn = (st.scrapIn || 0) + ds; else if (ds < 0) st.scrapOut = (st.scrapOut || 0) - ds;
   }
-  if (P.hp > 0 && (st.lowHp === undefined || P.hp < st.lowHp)) st.lowHp = P.hp;
+  // your closest call: the lowest you got and lived through, counted once you've come through it (CLOSE_CALL seconds
+  // later and still standing), so the blow that finished you off never counts as one
+  if (P.hp > 0) {
+    if (RUN_W.dip === undefined || P.hp < RUN_W.dip) { RUN_W.dip = P.hp; RUN_W.dipT = run.time; }
+    else if (run.time - RUN_W.dipT >= CLOSE_CALL) { if (st.lowHp === undefined || RUN_W.dip < st.lowHp) st.lowHp = RUN_W.dip; RUN_W.dip = undefined; }
+  }
   Object.assign(RUN_W, { x: P.x, z: P.z, hp: P.hp, scrap: S.scrap, live: true });
 }
 
@@ -54,6 +60,7 @@ function runStatsHtml() {
       ['Favourite weapon', fav ? `${rsEsc(WEAP[fav[0]].name)} <small>${fav[1]} kills</small>` : '—'], ['Reloads', rsN(n('reloads'))],
       ['Shoves', rsN(n('shoves'))], ['Grenades', rsN(n('grenades'))]]],
     ['The dead', Object.keys(ZNAME).filter(t => n('k_' + t)).map(t => [ZNAME[t], rsN(n('k_' + t))])],
+    ['By weapon', Object.entries(st.wk || {}).filter(([id, k]) => k > 0 && WEAP[id]).sort((a, b) => b[1] - a[1]).map(([id, k]) => [rsEsc(WEAP[id].name), rsN(k) + (k === 1 ? ' kill' : ' kills')])],
     ['Holding the house', [
       ['Boards nailed up', rsN(n('planks'))], ['Grates put up', rsN(n('grates'))], ['Repairs', rsN(n('repairs'))], ['Boards torn down', rsN(n('tears'))],
       ['Windows climbed', rsN(n('vaults'))], ['Fences hopped', rsN(n('hops'))], ['Ground covered', Math.round(n('walked')) + ' m']]],

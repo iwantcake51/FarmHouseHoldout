@@ -16,7 +16,7 @@ import { closeStation, starFillSvg, starRow, tierRars } from '../stations/statio
 import { SFX } from '../audio/sfx.js';
 import { glowGun, setStateRaw, state } from '../game/state.js';
 import { setMouseDown, setMouseDownR } from '../input/keyboard-mouse.js';
-import { beginBreak } from '../waves/waves.js';
+import { beginBreak, BREAK_AFTER } from '../waves/waves.js';
 import { AID_CHANCE, AID_TWO, aidNeed, findKind, kindTag, RAR, UPG } from './upgrades.js';
 import { CHIP_MARK, chipCls, STACKS, stackTotal, UPG_FX, upgradeInfo } from './upgrade-info.js';
 import { curseRewards, rollSac, SAC, takeCurse } from './sacrifice.js';
@@ -175,7 +175,7 @@ function pressSac() {
     while (more.length < SAC.cards - dealt.length && pool.length) more.push(drawCard(pool, u => cardWt(u, true)));
     dealMore(more);
   } else {
-    takeCurse(o.curse); SFX.upgrade(); $('upgrade').classList.add('cursed');
+    takeCurse(o.curse); SFX.curse(); $('upgrade').classList.add('cursed');
     // the three on the table stay as they are; the curse's three, legendary, come out from behind them
     const pool = curseRewards();
     for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
@@ -214,13 +214,17 @@ export function openUpgrade(bonus) {
   startCardClock();
 }
 // you have CARD_TIME seconds to choose: the clock over the cards runs down, red for the last few, and when it's out one
-// of the three cards is taken for you at random (never the scrap)
+// of the three cards is taken for you at random (never the scrap). Playing alone it stands still while you're away (the
+// tab hidden, the window not in front), so stepping away doesn't choose for you; in co-op it runs on, the others waiting
 const CARD_TIME = 20, CARD_WARN = 5;
-let cardClock = 0, cardEnd = 0;
+let cardClock = 0, cardEnd = 0, cardTick = 0;
 function startCardClock() {
-  clearInterval(cardClock); cardEnd = performance.now() + CARD_TIME * 1000;
+  clearInterval(cardClock); cardEnd = performance.now() + CARD_TIME * 1000; cardTick = performance.now();
   const tick = () => {
     if (state !== 'upgrade') { clearInterval(cardClock); return; }
+    const now = performance.now(), away = !netLink() && (document.hidden || !document.hasFocus());
+    if (away) cardEnd += now - cardTick; cardTick = now;
+    $('upClock').classList.toggle('held', away);
     const left = Math.max(0, (cardEnd - performance.now()) / 1000);
     $('upClockT').textContent = Math.ceil(left); $('upClockBar').style.transform = `scaleX(${(left / CARD_TIME).toFixed(4)})`;
     $('upClock').classList.toggle('warn', left <= CARD_WARN);
@@ -329,7 +333,7 @@ function leaveUpgrade(burn) {
   setStateRaw('leaving');
   setTimeout(() => { el.classList.remove('show'); }, 1400);   // (after the taken card's star has filled)
   // on a bonus wave the second hand comes straight after the first (bonusDue); otherwise back to the farm
-  setTimeout(() => { el.classList.remove('picking'); if (!bonusHand && bonusDue()) { openUpgrade(true); return; } setState('play'); beginBreak(25); sweepDrops(); }, 1800);
+  setTimeout(() => { el.classList.remove('picking'); if (!bonusHand && bonusDue()) { openUpgrade(true); return; } setState('play'); beginBreak(BREAK_AFTER); sweepDrops(); }, 1800);
 }
 // (a press has to start once the cards are live, like a card's, so a click held over from the wave doesn't take it)
 $('upSkip').addEventListener('pointerdown', () => { if (cardsArmed) $('upSkip').dataset.down = '1'; });

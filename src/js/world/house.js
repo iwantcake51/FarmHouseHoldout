@@ -11,6 +11,7 @@ import { HX0, HX1, HZ0, HZ1 } from './ground.js';
 import { lowObst } from './props.js';
 import { blockArr } from './collision.js';
 import { clearBoards } from '../barricades/planks.js';
+import { ARENA } from './arena.js';
 
 // ---- house ----
 const OPEN_HL = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });   // (an opening's outline pane: unseen, but drawn into the outlines' mask)
@@ -37,16 +38,18 @@ function buildFloor() {
     if (HOUSE_FP[idx(i - 1, j)] === 1 && HOUSE_FP[idx(i - 1, e)] === 1) { const l = new THREE.Mesh(new THREE.PlaneGeometry(0.03, L), M.wood); l.rotation.x = -Math.PI / 2; l.position.set(cxw(i) - 0.5, 0.02, z); floorG.add(l); }
     j = e + 1;
   }
-  // (drawn as one mesh for the boards and one for the lines between them; the lines take no shadow, as they never have)
-  mergeInto(floorG, [...floorG.children], { noBake: true }).forEach(m => { if (m.material === M.wood) m.receiveShadow = false; });
+  // (drawn as one mesh for the boards and one for the lines between them; the lines take the roof's shadow too, or the
+  // sun lit them through it and they glowed orange across a dark floor)
+  mergeInto(floorG, [...floorG.children], { noBake: true });
 }
 // the ceiling, seen only from your own eyes (the view from above lifts the roof off and looks straight down into the
 // rooms: world/cutaway.js): a plaster ceiling over the whole footprint (an L-shaped house's notch cut out of it) at
 // the height the rooms' walls stand to (CEIL.y, the inside walls' own: world/interior.js, IW.h), and stained timber
 // joists across it, the short way over the house, CEIL.gap apart (each w wide and d deep), resting on the walls; it
-// takes no shadow and casts none (the roof over it does), and none of the floor's light map either (it would lay the
+// casts no shadow (the roof over it does) and the plaster takes none, but the joists do, so the roof keeps the sun off
+// their sides (unshadowed, it lit them through the roof); and none of the floor's light map either (it would lay the
 // walls' dark lines across it), just the room's own light
-const CEIL = { y: 2.42, gap: 1.2, w: 0.13, d: 0.14 };
+export const CEIL = { y: 2.42, gap: 1.2, w: 0.13, d: 0.14 };
 export const ceilG = new THREE.Group(); ceilG.visible = false; scene.add(ceilG);
 const CEIL_M = { plaster: new THREE.MeshLambertMaterial({ color: 0xf6efe0, emissive: 0x3c3428, side: THREE.DoubleSide }), joist: new THREE.MeshLambertMaterial({ color: 0x5a4130, emissive: 0x140e09 }) };   // (emissive: the light the rooms bounce up onto it)
 function buildCeiling() {
@@ -71,7 +74,7 @@ function buildCeiling() {
     const L = b1 - b0, m = new THREE.Mesh(new THREE.BoxGeometry(alongZ ? CEIL.w : L, CEIL.d, alongZ ? L : CEIL.w), CEIL_M.joist);
     m.position.set(alongZ ? a : (b0 + b1) / 2, CEIL.y - CEIL.d / 2 + 0.002, alongZ ? (b0 + b1) / 2 : a); ceilG.add(m);
   }
-  ceilG.children.forEach(m => { m.castShadow = m.receiveShadow = false; });
+  ceilG.children.forEach(m => { m.castShadow = false; m.receiveShadow = m.material === CEIL_M.joist; });
 }
 {
   // a doormat inside the front door
@@ -367,6 +370,7 @@ export const porchRoof = (() => {
 // under the boards, and you stand on them (player/animation.js)
 export const FLOOR_TILE = new Uint8Array(N * N);   // (the cells with a tiled floor this run: world/interior.js)
 export function surfaceY(x, z) {
+  if (ARENA.on) return 0;   // (the arena's pad is flat: no porch, step or threshold under it, world/arena.js)
   const px = x - cxw(21), pz = z - (cxw(HZ1) + 1.1);
   if (Math.abs(px) < 1.7 && Math.abs(pz) < 0.65) return 0.12;
   if (Math.abs(px) < 0.6 && pz >= 0.65 && pz < 1.05) return 0.06;
